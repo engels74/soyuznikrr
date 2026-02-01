@@ -53,11 +53,11 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 2.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 2.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 2.4 Write property test for enable/disable mapping
+  - [x] 2.4 Write property test for enable/disable mapping
     - **Property 4: Enable/Disable Maps to IsDisabled Correctly**
     - **Validates: Requirements 5.2, 5.3**
-    - [ ] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 2.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 2.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 3. Implement JellyfinClient library access and permissions
   - [ ] 3.1 Implement set_library_access method
