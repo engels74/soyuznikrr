@@ -23,11 +23,11 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 1.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 1.3 Write property test for library mapping
+  - [x] 1.3 Write property test for library mapping
     - **Property 2: Library Mapping Preserves Fields**
     - **Validates: Requirements 2.2, 2.4**
-    - [ ] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 2. Implement JellyfinClient user management
   - [ ] 2.1 Implement create_user method
