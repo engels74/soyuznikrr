@@ -427,7 +427,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
 
   - [x] 17.5 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-- [ ] 18. Implement ServerController sync endpoint
+- [-] 18. Implement ServerController sync endpoint
   - [ ] 18.1 Add sync endpoint to ServerController
     - POST /api/v1/servers/{id}/sync
     - Accept SyncRequest with dry_run flag
