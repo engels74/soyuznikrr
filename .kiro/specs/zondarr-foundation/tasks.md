@@ -252,13 +252,13 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 9.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 10. Application Factory
-  - [ ] 10.1 Implement database module
+  - [x] 10.1 Implement database module
     - Create `core/database.py` with engine creation and session factory
     - Implement lifespan context manager for connection pool
     - Implement session provider with commit/rollback
     - _Requirements: 7.5_
-    - [ ] 10.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 10.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 10.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 10.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 10.2 Implement application factory
     - Create `app.py` with create_app() function

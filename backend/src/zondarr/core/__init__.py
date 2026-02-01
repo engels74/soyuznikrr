@@ -1,5 +1,11 @@
 """Core module - database, exceptions, and shared types."""
 
+from zondarr.core.database import (
+    create_engine_from_url,
+    create_session_factory,
+    db_lifespan,
+    provide_db_session,
+)
 from zondarr.core.exceptions import (
     ConfigurationError,
     NotFoundError,
@@ -42,4 +48,8 @@ __all__ = [
     "Username",
     "ValidationError",
     "ZondarrError",
+    "create_engine_from_url",
+    "create_session_factory",
+    "db_lifespan",
+    "provide_db_session",
 ]
