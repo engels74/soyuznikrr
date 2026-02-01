@@ -734,3 +734,42 @@ class ConnectionTestResponse(msgspec.Struct, kw_only=True):
     message: str
     server_name: str | None = None
     version: str | None = None
+
+
+# =============================================================================
+# Sync Schemas
+# =============================================================================
+
+
+class SyncRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to sync a server (optional parameters).
+
+    Attributes:
+        dry_run: If True, only report discrepancies without making changes.
+            Defaults to True for safety.
+    """
+
+    dry_run: bool = True
+
+
+class SyncResult(msgspec.Struct, kw_only=True):
+    """Result of a server sync operation.
+
+    Reports discrepancies between local user records and the actual
+    state of users on the media server.
+
+    Attributes:
+        server_id: ID of the media server that was synced.
+        server_name: Name of the media server.
+        synced_at: Timestamp when the sync was performed.
+        orphaned_users: Usernames that exist on the server but not locally.
+        stale_users: Usernames that exist locally but not on the server.
+        matched_users: Count of users that match between local and server.
+    """
+
+    server_id: UUID
+    server_name: str
+    synced_at: datetime
+    orphaned_users: list[str]
+    stale_users: list[str]
+    matched_users: int

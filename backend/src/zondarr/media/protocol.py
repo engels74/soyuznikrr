@@ -249,3 +249,19 @@ class MediaClient(Protocol):
             MediaClientError: If the operation fails due to server error.
         """
         ...
+
+    async def list_users(self) -> Sequence[ExternalUser]:
+        """List all users from the media server.
+
+        Retrieves all user accounts from the server for synchronization
+        purposes. Used by the SyncService to compare local records with
+        the actual state of users on the media server.
+
+        Returns:
+            A sequence of ExternalUser objects with external_user_id,
+            username, and optionally email for each user on the server.
+
+        Raises:
+            MediaClientError: If the operation fails due to server error.
+        """
+        ...
