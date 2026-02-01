@@ -147,12 +147,12 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 6.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 6.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.2 Implement MediaServerRepository
+  - [x] 6.2 Implement MediaServerRepository
     - Create `repositories/media_server.py`
     - Add get_enabled method
     - _Requirements: 5.2_
-    - [ ] 6.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 6.3 Implement InvitationRepository
     - Create `repositories/invitation.py`
