@@ -188,14 +188,14 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 6.10.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 6.10.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 7. Extend InvitationRepository with pagination and filtering
-  - [ ] 7.1 Add list_paginated method
+- [x] 7. Extend InvitationRepository with pagination and filtering
+  - [x] 7.1 Add list_paginated method
     - Support filtering by enabled, expired status
     - Support sorting by created_at, expires_at, use_count
     - Return (items, total) tuple for pagination
     - _Requirements: 10.1, 10.2, 10.3_
-    - [ ] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 7.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 7.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 8. Checkpoint - Invitation CRUD complete
   - Ensure all invitation service tests pass, ask the user if questions arise.
