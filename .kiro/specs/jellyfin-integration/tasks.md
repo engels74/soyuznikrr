@@ -123,47 +123,47 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 6. Extend InvitationService with CRUD operations
-  - [ ] 6.1 Add code generation with collision handling
+- [-] 6. Extend InvitationService with CRUD operations
+  - [x] 6.1 Add code generation with collision handling
     - Generate 12-char codes using valid alphabet (no 0, O, I, L)
     - Retry up to 3 times on collision
     - _Requirements: 9.2, 9.3, 9.4_
-    - [ ] 6.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.2 Write property test for code generation
+  - [x] 6.2 Write property test for code generation
     - **Property 8: Generated Codes Are Valid**
     - **Validates: Requirements 9.2, 9.3**
-    - [ ] 6.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.3 Add server and library validation on create
+  - [x] 6.3 Add server and library validation on create
     - Validate all server_ids reference existing enabled MediaServer records
     - Validate all library_ids belong to specified servers
     - _Requirements: 9.5, 9.6_
-    - [ ] 6.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.4 Write property test for server/library validation
+  - [x] 6.4 Write property test for server/library validation
     - **Property 9: Server and Library Validation on Create**
     - **Validates: Requirements 9.5, 9.6**
-    - [ ] 6.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.5 Add computed fields calculation
+  - [x] 6.5 Add computed fields calculation
     - is_active: enabled AND not expired AND use_count < max_uses
     - remaining_uses: max_uses - use_count if max_uses set
     - _Requirements: 10.5_
-    - [ ] 6.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.6 Write property test for computed fields
+  - [x] 6.6 Write property test for computed fields
     - **Property 10: Invitation Computed Fields**
     - **Validates: Requirements 10.5**
-    - [ ] 6.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.7 Add update method with immutable field protection
+  - [-] 6.7 Add update method with immutable field protection
     - Allow updating: expires_at, max_uses, duration_days, enabled, server_ids, library_ids
     - Ignore/reject: code, use_count, created_at, created_by
     - _Requirements: 11.2, 11.3, 11.4_
