@@ -22,6 +22,8 @@ from zondarr.api.schemas import (
     MediaServerUpdate,
     MediaServerWithLibrariesResponse,
     ReadinessResponse,
+    SyncRequest,
+    SyncResult,
     UserResponse,
     ValidationErrorResponse,
 )
@@ -48,6 +50,8 @@ __all__ = [
     "MediaServerUpdate",
     "MediaServerWithLibrariesResponse",
     "ReadinessResponse",
+    "SyncRequest",
+    "SyncResult",
     "UserResponse",
     "ValidationErrorResponse",
 ]
