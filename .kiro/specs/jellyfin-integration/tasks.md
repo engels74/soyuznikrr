@@ -277,6 +277,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [ ] 10.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 10.7.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
+  - [ ] 10.8 Commit and push changes
+
 - [ ] 11. Implement JoinController
   - [ ] 11.1 Create JoinController with redemption endpoint
     - POST /api/v1/join/{code} - redeem invitation
@@ -286,6 +288,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: 14.1, 14.2, 14.10, 15.5_
     - [ ] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 11.2 Commit and push changes
 
 - [ ] 12. Checkpoint - Redemption flow complete
   - Ensure all redemption tests pass, ask the user if questions arise.
@@ -313,6 +317,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: 17.2, 19.5_
     - [ ] 13.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 13.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 13.4 Commit and push changes
 
 - [ ] 14. Implement UserService
   - [ ] 14.1 Create UserService with CRUD operations
@@ -355,6 +361,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [ ] 14.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 14.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
+  - [ ] 14.7 Commit and push changes
+
 - [ ] 15. Implement UserController
   - [ ] 15.1 Create UserController with list and detail endpoints
     - GET /api/v1/users - list with pagination, filtering, sorting
@@ -383,6 +391,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: 19.1, 19.6, 19.7_
     - [ ] 15.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 15.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 15.5 Commit and push changes
 
 - [ ] 16. Checkpoint - User management complete
   - Ensure all user management tests pass, ask the user if questions arise.
@@ -415,6 +425,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [ ] 17.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 17.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
+  - [ ] 17.5 Commit and push changes
+
 - [ ] 18. Implement ServerController sync endpoint
   - [ ] 18.1 Add sync endpoint to ServerController
     - POST /api/v1/servers/{id}/sync
@@ -425,6 +437,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [ ] 18.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 18.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
+  - [ ] 18.2 Commit and push changes
+
 - [ ] 19. Register controllers in app.py
   - [ ] 19.1 Update app.py to register new controllers
     - Add InvitationController
@@ -434,6 +448,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: All API requirements_
     - [ ] 19.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 19.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 19.2 Commit and push changes
 
 - [ ] 20. Final checkpoint - Backend complete
   - Ensure all backend tests pass, ask the user if questions arise.
@@ -468,6 +484,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: 21.6, 21.7_
     - [ ] 21.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 21.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 21.5 Commit and push changes
 
 - [ ] 22. Implement frontend user management
   - [ ] 22.1 Create /admin/users route structure
@@ -505,6 +523,8 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - _Requirements: 22.5, 22.6, 22.7_
     - [ ] 22.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [ ] 22.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+
+  - [ ] 22.6 Commit and push changes
 
 - [ ] 23. Final checkpoint - All tests pass
   - Ensure all tests pass, ask the user if questions arise.
