@@ -5,17 +5,18 @@ Provides REST endpoints for user listing, detail retrieval, and management:
 - GET /api/v1/users/{id} - Get user details with relationships
 - POST /api/v1/users/{id}/enable - Enable a user
 - POST /api/v1/users/{id}/disable - Disable a user
+- DELETE /api/v1/users/{id} - Delete a user
 
 Uses Litestar Controller pattern with dependency injection for services.
 Implements Requirements 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 17.1, 17.2, 17.3, 17.4, 17.5,
-18.1, 18.2, 18.5, 18.6.
+18.1, 18.2, 18.5, 18.6, 19.1, 19.6, 19.7.
 """
 
 from collections.abc import Mapping, Sequence
 from typing import Annotated
 from uuid import UUID
 
-from litestar import Controller, get, post
+from litestar import Controller, delete, get, post
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.types import AnyCallable
@@ -312,6 +313,41 @@ class UserController(Controller):
         # Reload with full relationships for response
         user = await user_service.get_user_detail(user_id)
         return self._to_detail_response(user)
+
+    @delete(
+        "/{user_id:uuid}",
+        status_code=204,
+        summary="Delete user",
+        description="Delete a user from both local database and media server.",
+    )
+    async def delete_user(
+        self,
+        user_id: Annotated[
+            UUID,
+            Parameter(description="User UUID"),
+        ],
+        user_service: UserService,
+    ) -> None:
+        """Delete a user account.
+
+        Deletes the user from the external media server first, then deletes
+        the local record. If this is the last user for an identity, the
+        identity is also deleted.
+
+        Implements Requirements 19.1, 19.6, 19.7.
+
+        Args:
+            user_id: The UUID of the user to delete.
+            user_service: UserService from DI.
+
+        Returns:
+            None (HTTP 204 No Content on success).
+
+        Raises:
+            NotFoundError: If the user does not exist (Requirement 19.7).
+            ValidationError: If the media server operation fails.
+        """
+        await user_service.delete(user_id)
 
     def _to_detail_response(self, user: User, /) -> UserDetailResponse:
         """Convert a User entity to UserDetailResponse.
