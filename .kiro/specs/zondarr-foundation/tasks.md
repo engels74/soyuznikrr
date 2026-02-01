@@ -46,7 +46,7 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 2.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 2.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 3. Database Models
+- [x] 3. Database Models
   - [x] 3.1 Implement base model and mixins
     - Create `models/base.py` with Base, TimestampMixin, UUIDPrimaryKeyMixin
     - Use timezone-aware UTC datetimes
@@ -75,24 +75,24 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 3.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [-] 3.5 Write property tests for model serialization
+  - [x] 3.5 Write property tests for model serialization
     - **Property 3: Model Serialization Round-Trip**
     - **Validates: Requirements 2.7**
     - [x] 3.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 4. Checkpoint - Verify models compile
+- [x] 4. Checkpoint - Verify models compile
   - Ensure all models import correctly and relationships are valid
   - Run `basedpyright` to check type errors
-  - [ ] 4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-  - [ ] 4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+  - [x] 4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+  - [x] 4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 5. Media Client Protocol and Registry
-  - [ ] 5.1 Implement media types
+  - [x] 5.1 Implement media types
     - Create `media/types.py` with Capability enum, LibraryInfo, ExternalUser structs
     - _Requirements: 3.7_
-    - [ ] 5.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 5.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 5.2 Implement media exceptions
     - Create `media/exceptions.py` with MediaClientError, UnknownServerTypeError
