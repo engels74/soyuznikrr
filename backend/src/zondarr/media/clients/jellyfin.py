@@ -16,6 +16,7 @@ from typing import Self
 
 import jellyfin
 
+from zondarr.media.exceptions import MediaClientError
 from zondarr.media.types import Capability, ExternalUser, LibraryInfo
 
 
@@ -115,18 +116,81 @@ class JellyfinClient:
             return False
 
     async def get_libraries(self) -> Sequence[LibraryInfo]:
-        """Retrieve all libraries from the Jellyfin server.
+        """Retrieve all libraries (virtual folders) from the Jellyfin server.
 
         Fetches the list of content libraries (movies, TV shows, music, etc.)
-        available on the server.
+        available on the server via jellyfin-sdk's library.virtual_folders.
+
+        Maps Jellyfin CollectionType values to library_type:
+        - movies, tvshows, music, books, photos, homevideos, musicvideos, boxsets
+        - Unknown or missing types default to "unknown"
 
         Returns:
             A sequence of LibraryInfo objects describing each library.
 
         Raises:
-            NotImplementedError: This is a stub implementation.
+            MediaClientError: If library retrieval fails due to connection
+                or API errors.
         """
-        raise NotImplementedError("Jellyfin client implementation in Phase 2")
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="get_libraries",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            # jellyfin-sdk lacks type stubs, so virtual_folders returns Any
+            folders = self._api.library.virtual_folders  # pyright: ignore[reportAny]
+
+            if folders is None:
+                return []
+
+            # Map Jellyfin virtual folders to LibraryInfo structs
+            libraries: list[LibraryInfo] = []
+            for folder in folders:  # pyright: ignore[reportAny]
+                # Extract fields from the folder object
+                # jellyfin-sdk uses attribute access for JSON fields
+                external_id: str = str(
+                    folder.ItemId  # pyright: ignore[reportAny]
+                    if hasattr(folder, "ItemId")  # pyright: ignore[reportAny]
+                    else folder.item_id  # pyright: ignore[reportAny]
+                )
+                name: str = str(
+                    folder.Name  # pyright: ignore[reportAny]
+                    if hasattr(folder, "Name")  # pyright: ignore[reportAny]
+                    else folder.name  # pyright: ignore[reportAny]
+                )
+
+                # CollectionType may be None for mixed/unknown libraries
+                collection_type: str | None = None
+                if hasattr(folder, "CollectionType"):  # pyright: ignore[reportAny]
+                    collection_type = folder.CollectionType  # pyright: ignore[reportAny]
+                elif hasattr(folder, "collection_type"):  # pyright: ignore[reportAny]
+                    collection_type = folder.collection_type  # pyright: ignore[reportAny]
+
+                library_type: str = (
+                    str(collection_type) if collection_type else "unknown"
+                )
+
+                libraries.append(
+                    LibraryInfo(
+                        external_id=external_id,
+                        name=name,
+                        library_type=library_type,
+                    )
+                )
+
+            return libraries
+
+        except Exception as exc:
+            raise MediaClientError(
+                f"Failed to retrieve libraries from Jellyfin server: {exc}",
+                operation="get_libraries",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def create_user(
         self,
