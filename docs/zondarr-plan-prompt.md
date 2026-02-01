@@ -499,7 +499,7 @@ bun --bun run dev
 3. Media client protocol and registry
 4. Basic Litestar app with health endpoint
 
-### Phase 2: Jellyfin Integration
+### Phase 2: Jellyfin Integration (COMPLETE)
 
 1. Jellyfin client implementation
 2. Invitation CRUD API
