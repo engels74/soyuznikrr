@@ -34,6 +34,7 @@ from zondarr.api.errors import (
 from zondarr.api.health import HealthController
 from zondarr.api.invitations import InvitationController
 from zondarr.api.join import JoinController
+from zondarr.api.servers import ServerController
 from zondarr.config import Settings, load_settings
 from zondarr.core.database import db_lifespan, provide_db_session
 from zondarr.core.exceptions import NotFoundError, ValidationError
@@ -134,7 +135,12 @@ def create_app(settings: Settings | None = None) -> Litestar:
     _register_media_clients()
 
     return Litestar(
-        route_handlers=[HealthController, InvitationController, JoinController],
+        route_handlers=[
+            HealthController,
+            InvitationController,
+            JoinController,
+            ServerController,
+        ],
         lifespan=[db_lifespan],
         state=State({"settings": settings}),
         dependencies={
