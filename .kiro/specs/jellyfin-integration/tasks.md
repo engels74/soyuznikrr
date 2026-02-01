@@ -279,7 +279,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
 
   - [x] 10.8 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-- [ ] 11. Implement JoinController
+- [x] 11. Implement JoinController
   - [x] 11.1 Create JoinController with redemption endpoint
     - POST /api/v1/join/{code} - redeem invitation
     - Public endpoint (no auth required)
@@ -289,79 +289,79 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [-] 11.2 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+  - [x] 11.2 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-- [~] 12. Checkpoint - Redemption flow complete
+- [x] 12. Checkpoint - Redemption flow complete
   - Ensure all redemption tests pass, ask the user if questions arise.
 
-- [ ] 13. Add User management schemas and repository
-  - [~] 13.1 Add user schemas to api/schemas.py
+- [x] 13. Add User management schemas and repository
+  - [x] 13.1 Add user schemas to api/schemas.py
     - UserDetailResponse with relationships
     - UserListResponse with pagination
     - UserListFilters for query parameters
     - _Requirements: 16.1, 16.4, 17.1_
-    - [~] 13.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 13.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 13.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 13.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 13.2 Create UserRepository
+  - [x] 13.2 Create UserRepository
     - get_by_server method for filtering by media_server_id
     - list_paginated with filtering and sorting
     - Add invitation_id foreign key to User model
     - _Requirements: 16.2, 16.3_
-    - [~] 13.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 13.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 13.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 13.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 13.3 Create IdentityRepository
+  - [x] 13.3 Create IdentityRepository
     - get_with_users method for eager loading
     - delete_if_no_users method for cascade logic
     - _Requirements: 17.2, 19.5_
-    - [~] 13.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 13.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 13.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 13.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 13.4 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+  - [x] 13.4 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
 - [ ] 14. Implement UserService
-  - [~] 14.1 Create UserService with CRUD operations
+  - [x] 14.1 Create UserService with CRUD operations
     - create_identity_with_users for redemption
     - get_user_detail with relationships
     - _Requirements: 14.7, 17.1, 17.2, 17.3, 17.4_
-    - [~] 14.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.2 Add enable/disable with atomicity
+  - [x] 14.2 Add enable/disable with atomicity
     - Update Jellyfin first via JellyfinClient
     - Only update local record if Jellyfin succeeds
     - _Requirements: 18.1, 18.2, 18.3, 18.4_
-    - [~] 14.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.3 Write property test for enable/disable atomicity
+  - [x] 14.3 Write property test for enable/disable atomicity
     - **Property 19: Enable/Disable Atomicity**
     - **Validates: Requirements 18.3, 18.4**
-    - [~] 14.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.4 Add delete with atomicity and cascade
+  - [x] 14.4 Add delete with atomicity and cascade
     - Delete from Jellyfin first
     - Only delete local record if Jellyfin succeeds
     - Delete Identity if last User deleted
     - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6_
-    - [~] 14.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.5 Write property test for deletion atomicity
+  - [x] 14.5 Write property test for deletion atomicity
     - **Property 20: User Deletion Atomicity**
     - **Validates: Requirements 19.3, 19.4**
-    - [~] 14.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.6 Write property test for Identity cascade
+  - [x] 14.6 Write property test for Identity cascade
     - **Property 21: Last User Deletion Cascades to Identity**
     - **Validates: Requirements 19.5**
-    - [~] 14.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [~] 14.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+    - [x] 14.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 14.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
-  - [~] 14.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
+  - [-] 14.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses) - see "Core rules"
 
 - [ ] 15. Implement UserController
   - [~] 15.1 Create UserController with list and detail endpoints
