@@ -671,3 +671,78 @@ class JellyfinClient:
                 server_url=self.url,
                 cause=str(exc),
             ) from exc
+
+    async def list_users(self) -> Sequence[ExternalUser]:
+        """List all users from the Jellyfin server.
+
+        Retrieves all user accounts from the server via jellyfin-sdk's
+        users.all property and maps them to ExternalUser structs.
+
+        Returns:
+            A sequence of ExternalUser objects with external_user_id (Id),
+            username (Name), and email (if available, typically None for
+            Jellyfin users).
+
+        Raises:
+            MediaClientError: If the client is not initialized (use async context manager).
+            MediaClientError: If user listing fails due to connection or API errors.
+        """
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="list_users",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            # Retrieve all users via jellyfin-sdk users.all (Requirement 8.2)
+            # jellyfin-sdk lacks type stubs, so returns Any
+            users = self._api.users.all  # pyright: ignore[reportAny]
+
+            if users is None:
+                return []
+
+            # Map Jellyfin users to ExternalUser structs (Requirement 8.3)
+            external_users: list[ExternalUser] = []
+            for user in users:  # pyright: ignore[reportAny]
+                # Extract user ID - jellyfin-sdk may use Id or id attribute
+                user_id: str
+                if hasattr(user, "Id"):  # pyright: ignore[reportAny]
+                    user_id = str(user.Id)  # pyright: ignore[reportAny]
+                elif hasattr(user, "id"):  # pyright: ignore[reportAny]
+                    user_id = str(user.id)  # pyright: ignore[reportAny]
+                else:
+                    # Skip users without valid ID
+                    continue
+
+                # Extract username - jellyfin-sdk may use Name or name attribute
+                username: str
+                if hasattr(user, "Name"):  # pyright: ignore[reportAny]
+                    username = str(user.Name)  # pyright: ignore[reportAny]
+                elif hasattr(user, "name"):  # pyright: ignore[reportAny]
+                    username = str(user.name)  # pyright: ignore[reportAny]
+                else:
+                    # Skip users without valid username
+                    continue
+
+                # Jellyfin users typically don't have email addresses
+                # The email field is included for protocol compatibility
+                external_users.append(
+                    ExternalUser(
+                        external_user_id=user_id,
+                        username=username,
+                        email=None,
+                    )
+                )
+
+            return external_users
+
+        except Exception as exc:
+            # Re-raise as MediaClientError (Requirement 8.4)
+            raise MediaClientError(
+                f"Failed to list users from Jellyfin server: {exc}",
+                operation="list_users",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
