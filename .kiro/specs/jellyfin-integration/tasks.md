@@ -197,7 +197,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 7.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 8. Checkpoint - Invitation CRUD complete
+- [x] 8. Checkpoint - Invitation CRUD complete
   - Ensure all invitation service tests pass, ask the user if questions arise.
 
 - [ ] 9. Implement InvitationController
