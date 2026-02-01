@@ -1,5 +1,6 @@
 """API layer - Litestar controllers and schemas."""
 
+from zondarr.api.health import HealthController
 from zondarr.api.schemas import (
     ConnectionTestRequest,
     ConnectionTestResponse,
@@ -31,6 +32,7 @@ __all__ = [
     "ErrorResponse",
     "FieldError",
     "HealthCheckResponse",
+    "HealthController",
     "IdentityCreate",
     "IdentityResponse",
     "IdentityUpdate",
