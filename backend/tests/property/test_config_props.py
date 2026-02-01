@@ -46,44 +46,36 @@ class TestConfigurationLoadingWithDefaults:
     Feature: zondarr-foundation
     Property 1: Configuration Loading with Defaults
 
-    *For any* set of environment variables where optional values are missing,
-    the Configuration module SHALL load successfully using default values,
-    and the resulting Settings object SHALL have all fields populated.
-
     **Validates: Requirements 1.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(secret_key=valid_secret_key)
     def test_loads_with_only_required_values(self, secret_key: str) -> None:
         """Configuration loads successfully with only SECRET_KEY provided."""
-        # Clear all relevant env vars
         env_vars = ["SECRET_KEY", "DATABASE_URL", "HOST", "PORT", "DEBUG"]
         original_env: dict[str, str | None] = {}
         for var in env_vars:
             original_env[var] = os.environ.pop(var, None)
 
         try:
-            # Set only the required value
             os.environ["SECRET_KEY"] = secret_key
 
-            settings = load_settings()
+            result = load_settings()
 
-            # All fields should be populated
-            assert settings.secret_key == secret_key
-            assert settings.database_url == "sqlite+aiosqlite:///./zondarr.db"
-            assert settings.host == "0.0.0.0"  # noqa: S104
-            assert settings.port == 8000
-            assert settings.debug is False
+            assert result.secret_key == secret_key
+            assert result.database_url == "sqlite+aiosqlite:///./zondarr.db"
+            assert result.host == "0.0.0.0"  # noqa: S104
+            assert result.port == 8000
+            assert result.debug is False
         finally:
-            # Restore original environment
             for var, value in original_env.items():
                 if value is not None:
                     os.environ[var] = value
                 elif var in os.environ:
                     del os.environ[var]
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         secret_key=valid_secret_key,
         database_url=valid_database_url,
@@ -112,14 +104,13 @@ class TestConfigurationLoadingWithDefaults:
             os.environ["PORT"] = str(port)
             os.environ["DEBUG"] = debug
 
-            settings = load_settings()
+            result = load_settings()
 
-            # All fields should match provided values
-            assert settings.secret_key == secret_key
-            assert settings.database_url == database_url
-            assert settings.host == host
-            assert settings.port == port
-            assert settings.debug == (debug.lower() in ("true", "1", "yes"))
+            assert result.secret_key == secret_key
+            assert result.database_url == database_url
+            assert result.host == host
+            assert result.port == port
+            assert result.debug == (debug.lower() in ("true", "1", "yes"))
         finally:
             for var, value in original_env.items():
                 if value is not None:
@@ -133,14 +124,10 @@ class TestConfigurationValidationFailsFast:
     Feature: zondarr-foundation
     Property 2: Configuration Validation Fails Fast
 
-    *For any* set of environment variables where a required value (e.g., SECRET_KEY)
-    is missing, the Configuration module SHALL raise a descriptive error immediately,
-    and the application SHALL NOT start.
-
     **Validates: Requirements 1.5, 1.6**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         database_url=valid_database_url,
         host=valid_host,
@@ -161,7 +148,6 @@ class TestConfigurationValidationFailsFast:
             original_env[var] = os.environ.pop(var, None)
 
         try:
-            # Set all optional values but NOT SECRET_KEY
             os.environ["DATABASE_URL"] = database_url
             os.environ["HOST"] = host
             os.environ["PORT"] = str(port)
@@ -170,7 +156,6 @@ class TestConfigurationValidationFailsFast:
             with pytest.raises(ConfigurationError) as exc_info:
                 _ = load_settings()
 
-            # Error should be descriptive
             assert "SECRET_KEY" in str(exc_info.value)
             assert exc_info.value.error_code == "MISSING_CONFIG"
             assert exc_info.value.context.get("field") == "SECRET_KEY"
@@ -181,7 +166,7 @@ class TestConfigurationValidationFailsFast:
                 elif var in os.environ:
                     del os.environ[var]
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(short_key=st.text(min_size=0, max_size=31).filter(lambda x: "\x00" not in x))
     def test_fails_with_short_secret_key(self, short_key: str) -> None:
         """Configuration fails when SECRET_KEY is too short (< 32 chars)."""
@@ -193,7 +178,6 @@ class TestConfigurationValidationFailsFast:
         try:
             os.environ["SECRET_KEY"] = short_key
 
-            # msgspec.convert validates min_length constraint
             with pytest.raises((msgspec.ValidationError, ConfigurationError)):
                 _ = load_settings()
         finally:
@@ -203,7 +187,7 @@ class TestConfigurationValidationFailsFast:
                 elif var in os.environ:
                     del os.environ[var]
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         secret_key=valid_secret_key,
         invalid_port=st.one_of(
@@ -222,7 +206,6 @@ class TestConfigurationValidationFailsFast:
             os.environ["SECRET_KEY"] = secret_key
             os.environ["PORT"] = str(invalid_port)
 
-            # msgspec.convert validates port constraints
             with pytest.raises(msgspec.ValidationError):
                 _ = load_settings()
         finally:

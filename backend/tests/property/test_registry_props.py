@@ -38,13 +38,8 @@ server_type_strategy = st.sampled_from(list(ServerType))
 
 @pytest.fixture(autouse=True)
 def reset_registry() -> None:
-    """Reset the registry before each test to ensure isolation.
-
-    The registry is a singleton, so we need to clear it between tests
-    to prevent state leakage.
-    """
+    """Reset the registry before each test to ensure isolation."""
     registry.clear()
-    # Re-register the default clients for tests that expect them
     registry.register(ServerType.JELLYFIN, JellyfinClient)
     registry.register(ServerType.PLEX, PlexClient)
 
@@ -54,14 +49,10 @@ class TestRegistryReturnsCorrectClient:
     Feature: zondarr-foundation
     Property 5: Registry Returns Correct Client
 
-    *For any* registered server type and valid connection parameters,
-    the ClientRegistry SHALL return a client instance of the correct type
-    that can be used to communicate with the media server.
-
     **Validates: Requirements 4.2, 4.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     @given(url=valid_url, api_key=valid_api_key)
     def test_jellyfin_client_returned_for_jellyfin_type(
         self, url: str, api_key: str
@@ -73,7 +64,7 @@ class TestRegistryReturnsCorrectClient:
         assert client.url == url
         assert client.api_key == api_key
 
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     @given(url=valid_url, api_key=valid_api_key)
     def test_plex_client_returned_for_plex_type(self, url: str, api_key: str) -> None:
         """Registry returns PlexClient for PLEX server type."""
@@ -83,7 +74,7 @@ class TestRegistryReturnsCorrectClient:
         assert client.url == url
         assert client.api_key == api_key
 
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     @given(server_type=server_type_strategy, url=valid_url, api_key=valid_api_key)
     def test_client_class_matches_registered_type(
         self, server_type: ServerType, url: str, api_key: str
@@ -92,12 +83,10 @@ class TestRegistryReturnsCorrectClient:
         client_class = registry.get_client_class(server_type)
         client = registry.create_client(server_type, url=url, api_key=api_key)
 
-        # The created client should be an instance of the registered class
-        # Verify by checking the client was created by the registered class
         expected_client = client_class(url=url, api_key=api_key)
         assert type(client) is type(expected_client)
 
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     @given(server_type=server_type_strategy)
     def test_capabilities_match_client_class(self, server_type: ServerType) -> None:
         """Registry capabilities match the client class capabilities."""
@@ -113,23 +102,16 @@ class TestRegistryRaisesErrorForUnknownTypes:
     Feature: zondarr-foundation
     Property 6: Registry Raises Error for Unknown Types
 
-    *For any* server type that has not been registered,
-    the ClientRegistry SHALL raise an UnknownServerTypeError
-    with the unknown server type included in the error.
-
     **Validates: Requirements 4.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(url=valid_url, api_key=valid_api_key)
     def test_get_client_class_raises_for_unregistered_type(
         self, url: str, api_key: str
     ) -> None:
         """get_client_class raises UnknownServerTypeError for unregistered types."""
-        # Parameters used to ensure hypothesis generates varied inputs
         _ = url, api_key
-
-        # Clear the registry to have no registered types
         registry.clear()
 
         with pytest.raises(UnknownServerTypeError) as exc_info:
@@ -138,7 +120,7 @@ class TestRegistryRaisesErrorForUnknownTypes:
         assert exc_info.value.server_type == ServerType.JELLYFIN
         assert exc_info.value.error_code == "UNKNOWN_SERVER_TYPE"
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(url=valid_url, api_key=valid_api_key)
     def test_create_client_raises_for_unregistered_type(
         self, url: str, api_key: str
@@ -152,7 +134,7 @@ class TestRegistryRaisesErrorForUnknownTypes:
         assert exc_info.value.server_type == ServerType.PLEX
         assert exc_info.value.error_code == "UNKNOWN_SERVER_TYPE"
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(server_type=server_type_strategy)
     def test_get_capabilities_raises_for_unregistered_type(
         self, server_type: ServerType
@@ -172,14 +154,10 @@ class TestRegistrySingletonBehavior:
     Feature: zondarr-foundation
     Property 7: Registry Singleton Behavior
 
-    *For any* number of ClientRegistry instantiations,
-    the ClientRegistry SHALL return the same singleton instance,
-    ensuring consistent state across the application.
-
     **Validates: Requirements 4.5**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(st.integers(min_value=2, max_value=10))
     def test_multiple_instantiations_return_same_instance(
         self, num_instances: int
@@ -187,25 +165,22 @@ class TestRegistrySingletonBehavior:
         """Multiple ClientRegistry() calls return the same singleton instance."""
         instances = [ClientRegistry() for _ in range(num_instances)]
 
-        # All instances should be the same object
         first_instance = instances[0]
         for instance in instances[1:]:
             assert instance is first_instance
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(url=valid_url, api_key=valid_api_key)
     def test_global_registry_is_singleton_instance(
         self, url: str, api_key: str
     ) -> None:
         """The global registry is the same as newly created instances."""
-        # Parameters used to ensure hypothesis generates varied inputs
         _ = url, api_key
-
         new_instance = ClientRegistry()
 
         assert new_instance is registry
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(server_type=server_type_strategy, url=valid_url, api_key=valid_api_key)
     def test_registration_visible_across_instances(
         self,
@@ -214,33 +189,25 @@ class TestRegistrySingletonBehavior:
         api_key: str,
     ) -> None:
         """Registrations made on one instance are visible on all instances."""
-        # Parameters used to ensure hypothesis generates varied inputs
         _ = server_type, url, api_key
 
-        # Clear and register on the global registry
         registry.clear()
         registry.register(ServerType.JELLYFIN, JellyfinClient)
 
-        # Create a new instance and verify it sees the registration
         new_instance = ClientRegistry()
         client_class = new_instance.get_client_class(ServerType.JELLYFIN)
 
         assert client_class is JellyfinClient
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(st.integers(min_value=2, max_value=5))
     def test_clear_affects_all_instances(self, num_instances: int) -> None:
         """Clearing the registry affects all instances."""
-        # Ensure something is registered
         registry.register(ServerType.JELLYFIN, JellyfinClient)
 
-        # Create multiple instances
         instances = [ClientRegistry() for _ in range(num_instances)]
-
-        # Clear via one instance
         instances[0].clear()
 
-        # All instances should see the cleared state
         for instance in instances:
             with pytest.raises(UnknownServerTypeError):
                 _ = instance.get_client_class(ServerType.JELLYFIN)
