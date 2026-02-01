@@ -500,6 +500,107 @@ class UserResponse(msgspec.Struct, omit_defaults=True):
     updated_at: datetime | None = None
 
 
+class UserDetailResponse(msgspec.Struct, omit_defaults=True):
+    """Detailed user response with relationships.
+
+    Includes identity info, media server info, and invitation source
+    as required by Requirements 16.4 and 17.1.
+
+    Attributes:
+        id: Unique identifier for the user.
+        identity_id: ID of the parent identity.
+        media_server_id: ID of the media server.
+        external_user_id: The user's ID on the media server.
+        username: The username on the media server.
+        enabled: Whether the user account is currently active.
+        created_at: When the user was created.
+        identity: The parent identity with all linked users.
+        media_server: The media server this user belongs to.
+        expires_at: Optional expiration timestamp.
+        updated_at: When the user was last modified.
+        invitation_id: ID of the invitation used to create this user.
+        invitation: The source invitation if available.
+    """
+
+    id: UUID
+    identity_id: UUID
+    media_server_id: UUID
+    external_user_id: str
+    username: str
+    enabled: bool
+    created_at: datetime
+    identity: IdentityResponse
+    media_server: MediaServerResponse
+    expires_at: datetime | None = None
+    updated_at: datetime | None = None
+    invitation_id: UUID | None = None
+    invitation: InvitationResponse | None = None
+
+
+class UserListResponse(msgspec.Struct, kw_only=True):
+    """Paginated user list response.
+
+    Supports pagination as required by Requirement 16.1.
+
+    Attributes:
+        items: List of users for the current page.
+        total: Total number of users matching the query.
+        page: Current page number (1-indexed).
+        page_size: Number of items per page.
+        has_next: Whether there are more pages available.
+    """
+
+    items: list[UserDetailResponse]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
+
+# Sort field options for user listing
+UserSortField = Annotated[
+    str, msgspec.Meta(pattern=r"^(created_at|username|expires_at)$")
+]
+
+# Sort order options
+SortOrder = Annotated[str, msgspec.Meta(pattern=r"^(asc|desc)$")]
+
+# Page number (1-indexed, positive)
+PageNumber = Annotated[int, msgspec.Meta(ge=1)]
+
+# Page size (1-100, with default 50 as per Requirement 16.6)
+PageSize = Annotated[int, msgspec.Meta(ge=1, le=100)]
+
+
+class UserListFilters(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Filters for user listing.
+
+    Supports filtering by media_server_id, invitation_id, enabled status,
+    and expiration status as required by Requirement 16.2.
+    Supports sorting by created_at, username, and expires_at as required
+    by Requirement 16.3.
+
+    Attributes:
+        media_server_id: Filter by media server ID.
+        invitation_id: Filter by invitation ID.
+        enabled: Filter by enabled status.
+        expired: Filter by expiration status (True = expired, False = not expired).
+        sort_by: Field to sort by (created_at, username, expires_at).
+        sort_order: Sort direction (asc, desc).
+        page: Page number (1-indexed).
+        page_size: Number of items per page (max 100, default 50).
+    """
+
+    media_server_id: UUID | None = None
+    invitation_id: UUID | None = None
+    enabled: bool | None = None
+    expired: bool | None = None
+    sort_by: UserSortField = "created_at"
+    sort_order: SortOrder = "desc"
+    page: PageNumber = 1
+    page_size: PageSize = 50
+
+
 class IdentityWithUsersResponse(msgspec.Struct, omit_defaults=True):
     """Identity response including linked users.
 

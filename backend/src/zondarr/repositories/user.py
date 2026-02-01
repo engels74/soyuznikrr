@@ -6,14 +6,21 @@ Repository base class with User-specific functionality.
 """
 
 from collections.abc import Sequence
-from typing import override
+from datetime import UTC, datetime
+from typing import Literal, override
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models.identity import User
 from zondarr.repositories.base import Repository
+
+# Type alias for valid sort fields (Requirement 16.3)
+UserSortField = Literal["created_at", "username", "expires_at"]
+SortOrder = Literal["asc", "desc"]
 
 
 class UserRepository(Repository[User]):
@@ -110,3 +117,149 @@ class UserRepository(Repository[User]):
                 operation="update",
                 original=e,
             ) from e
+
+    async def list_paginated(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+        media_server_id: UUID | None = None,
+        invitation_id: UUID | None = None,
+        enabled: bool | None = None,
+        expired: bool | None = None,
+        sort_by: UserSortField = "created_at",
+        sort_order: SortOrder = "desc",
+    ) -> tuple[Sequence[User], int]:
+        """Retrieve users with pagination, filtering, and sorting.
+
+        Supports filtering by media_server_id, invitation_id, enabled status,
+        and expiration status as required by Requirement 16.2.
+        Supports sorting by created_at, username, and expires_at as required
+        by Requirement 16.3.
+
+        Args:
+            page: Page number (1-indexed). Defaults to 1.
+            page_size: Number of items per page. Defaults to 50.
+            media_server_id: Filter by media server ID. None means no filter.
+            invitation_id: Filter by invitation ID. None means no filter.
+            enabled: Filter by enabled status. None means no filter.
+            expired: Filter by expiration status. None means no filter.
+                True = only expired, False = only non-expired.
+            sort_by: Field to sort by. One of: created_at, username, expires_at.
+            sort_order: Sort direction. One of: asc, desc.
+
+        Returns:
+            A tuple of (items, total_count) where items is the page of
+            User entities and total_count is the total matching records.
+
+        Raises:
+            RepositoryError: If the database operation fails.
+        """
+        try:
+            # Build base query with filters
+            base_query = self._build_filtered_query(
+                media_server_id=media_server_id,
+                invitation_id=invitation_id,
+                enabled=enabled,
+                expired=expired,
+            )
+
+            # Get total count
+            count_query = select(func.count()).select_from(base_query.subquery())
+            total = await self.session.scalar(count_query) or 0
+
+            # Apply sorting
+            sort_column = self._get_sort_column(sort_by)
+            if sort_order == "desc":
+                base_query = base_query.order_by(sort_column.desc())
+            else:
+                base_query = base_query.order_by(sort_column.asc())
+
+            # Apply pagination
+            offset = (page - 1) * page_size
+            paginated_query = base_query.offset(offset).limit(page_size)
+
+            # Add eager loading for relationships
+            paginated_query = paginated_query.options(
+                selectinload(User.identity),
+                selectinload(User.media_server),
+                selectinload(User.invitation),
+            )
+
+            # Execute query
+            result = await self.session.scalars(paginated_query)
+            items = result.all()
+
+            return items, total
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to list paginated users",
+                operation="list_paginated",
+                original=e,
+            ) from e
+
+    def _build_filtered_query(
+        self,
+        *,
+        media_server_id: UUID | None = None,
+        invitation_id: UUID | None = None,
+        enabled: bool | None = None,
+        expired: bool | None = None,
+    ) -> Select[tuple[User]]:
+        """Build a filtered query for users.
+
+        Args:
+            media_server_id: Filter by media server ID. None means no filter.
+            invitation_id: Filter by invitation ID. None means no filter.
+            enabled: Filter by enabled status. None means no filter.
+            expired: Filter by expiration status. None means no filter.
+
+        Returns:
+            A SQLAlchemy Select statement with filters applied.
+        """
+        query = select(User)
+
+        # Filter by media server ID (Requirement 16.2)
+        if media_server_id is not None:
+            query = query.where(User.media_server_id == media_server_id)
+
+        # Filter by invitation ID (Requirement 16.2)
+        if invitation_id is not None:
+            query = query.where(User.invitation_id == invitation_id)
+
+        # Filter by enabled status (Requirement 16.2)
+        if enabled is not None:
+            query = query.where(User.enabled == enabled)
+
+        # Filter by expiration status (Requirement 16.2)
+        if expired is not None:
+            now = datetime.now(UTC)
+            if expired:
+                # Only expired: expires_at is not None AND expires_at <= now
+                query = query.where(
+                    User.expires_at != None,  # noqa: E711
+                    User.expires_at <= now,
+                )
+            else:
+                # Only non-expired: expires_at is None OR expires_at > now
+                query = query.where(
+                    (User.expires_at == None) | (User.expires_at > now)  # noqa: E711
+                )
+
+        return query
+
+    def _get_sort_column(self, sort_by: UserSortField):
+        """Get the SQLAlchemy column for sorting.
+
+        Args:
+            sort_by: The field name to sort by.
+
+        Returns:
+            The corresponding SQLAlchemy column.
+        """
+        sort_columns = {
+            "created_at": User.created_at,
+            "username": User.username,
+            "expires_at": User.expires_at,
+        }
+        return sort_columns[sort_by]
