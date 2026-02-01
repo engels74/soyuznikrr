@@ -59,7 +59,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 2.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 3. Implement JellyfinClient library access and permissions
+- [x] 3. Implement JellyfinClient library access and permissions
   - [x] 3.1 Implement set_library_access method
     - Get current user and policy
     - Set EnableAllFolders=False and EnabledFolders to library IDs
@@ -102,7 +102,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 3.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [ ] 4. Checkpoint - JellyfinClient complete
+- [x] 4. Checkpoint - JellyfinClient complete
   - Ensure all JellyfinClient tests pass, ask the user if questions arise.
 
 - [ ] 5. Add API schemas for invitations
