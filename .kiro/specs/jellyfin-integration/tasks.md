@@ -200,32 +200,32 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
 - [x] 8. Checkpoint - Invitation CRUD complete
   - Ensure all invitation service tests pass, ask the user if questions arise.
 
-- [ ] 9. Implement InvitationController
-  - [ ] 9.1 Create InvitationController with CRUD endpoints
+- [x] 9. Implement InvitationController
+  - [x] 9.1 Create InvitationController with CRUD endpoints
     - POST /api/v1/invitations - create invitation
     - GET /api/v1/invitations - list with pagination
     - GET /api/v1/invitations/{id} - get details
     - PATCH /api/v1/invitations/{id} - update
     - DELETE /api/v1/invitations/{id} - delete
     - _Requirements: 9.1, 10.1, 10.4, 11.1, 12.1_
-    - [ ] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 9.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 9.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 9.2 Add validation endpoint (public)
+  - [x] 9.2 Add validation endpoint (public)
     - GET /api/v1/invitations/validate/{code}
     - Check all validation conditions
     - Return specific failure reason
     - Do not increment use_count
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
-    - [ ] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 9.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 9.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 9.3 Write property test for validation
+  - [x] 9.3 Write property test for validation
     - **Property 13: Validation Checks All Conditions**
     - **Property 14: Validation Does Not Increment Use Count**
     - **Validates: Requirements 13.2, 13.4, 13.6**
-    - [ ] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 9.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 9.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 10. Implement RedemptionService
   - [ ] 10.1 Create RedemptionService with redeem method
