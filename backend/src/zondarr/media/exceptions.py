@@ -19,35 +19,46 @@ class MediaClientError(ZondarrError):
 
     Attributes:
         operation: The media client operation that failed (e.g., "test_connection", "create_user").
-        server_url: The URL of the media server where the operation failed.
+        server_url: The URL of the media server where the operation failed (optional).
         cause: A description of what caused the failure.
+        media_error_code: Specific error code for the failure (e.g., "USERNAME_TAKEN").
     """
 
     operation: str
-    server_url: str
+    server_url: str | None
     cause: str
+    media_error_code: str | None
 
     def __init__(
-        self, message: str, /, *, operation: str, server_url: str, cause: str
+        self,
+        message: str,
+        /,
+        *,
+        operation: str,
+        server_url: str | None = None,
+        cause: str | None = None,
+        error_code: str | None = None,
     ) -> None:
         """Initialize a MediaClientError.
 
         Args:
             message: Human-readable error description.
             operation: The media client operation that failed.
-            server_url: The URL of the media server.
-            cause: A description of the failure cause.
+            server_url: The URL of the media server (optional).
+            cause: A description of the failure cause (optional).
+            error_code: Specific error code for the failure (e.g., "USERNAME_TAKEN").
         """
         super().__init__(
             message,
-            "MEDIA_CLIENT_ERROR",
+            error_code or "MEDIA_CLIENT_ERROR",
             operation=operation,
-            server_url=server_url,
-            cause=cause,
+            server_url=server_url or "",
+            cause=cause or "",
         )
         self.operation = operation
         self.server_url = server_url
-        self.cause = cause
+        self.cause = cause or ""
+        self.media_error_code = error_code
 
 
 class UnknownServerTypeError(ZondarrError):

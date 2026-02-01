@@ -6,7 +6,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
 
 ## Tasks
 
-- [ ] 1. Implement JellyfinClient core functionality
+- [x] 1. Implement JellyfinClient core functionality
   - [x] 1.1 Implement connection management and test_connection
     - Initialize jellyfin.api in __aenter__, cleanup in __aexit__
     - Implement test_connection using jellyfin-sdk system.info
@@ -30,14 +30,14 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 1.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 2. Implement JellyfinClient user management
-  - [ ] 2.1 Implement create_user method
+  - [x] 2.1 Implement create_user method
     - Create user via jellyfin-sdk users.create
     - Set password via users.update_password
     - Return ExternalUser with id, username, email
     - Handle USERNAME_TAKEN error case
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
-    - [ ] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 2.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 2.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 2.2 Implement delete_user method
     - Delete user via jellyfin-sdk users.delete

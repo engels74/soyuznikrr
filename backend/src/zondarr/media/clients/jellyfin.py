@@ -194,28 +194,99 @@ class JellyfinClient:
 
     async def create_user(
         self,
-        _username: str,
-        _password: str,
+        username: str,
+        password: str,
         /,
         *,
-        _email: str | None = None,
+        email: str | None = None,
     ) -> ExternalUser:
-        """Create a new user on the Jellyfin server.
+        """Create a new user on the Jellyfin server and set their password.
 
-        Creates a user account with the specified credentials.
+        Creates a user account via jellyfin-sdk users.create, then sets
+        the initial password via users.update_password.
 
         Args:
-            _username: The username for the new account (positional-only).
-            _password: The password for the new account (positional-only).
-            _email: Optional email address for the user (keyword-only).
+            username: The username for the new account (positional-only).
+            password: The password for the new account (positional-only).
+            email: Optional email address for the user (keyword-only).
 
         Returns:
-            An ExternalUser object with the created user's details.
+            An ExternalUser object with the created user's details including
+            external_user_id (Jellyfin user Id), username (Name), and email.
 
         Raises:
-            NotImplementedError: This is a stub implementation.
+            MediaClientError: If the client is not initialized (use async context manager).
+            MediaClientError: If the username already exists (error_code="USERNAME_TAKEN").
+            MediaClientError: If user creation fails for other reasons.
         """
-        raise NotImplementedError("Jellyfin client implementation in Phase 2")
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="create_user",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            # Step 1: Create user via jellyfin-sdk users.create
+            # jellyfin-sdk lacks type stubs, so returns Any
+            user = self._api.users.create(name=username)  # pyright: ignore[reportAny]
+
+            # Extract user ID - jellyfin-sdk may use Id or id attribute
+            user_id: str
+            if hasattr(user, "Id"):  # pyright: ignore[reportAny]
+                user_id = str(user.Id)  # pyright: ignore[reportAny]
+            elif hasattr(user, "id"):  # pyright: ignore[reportAny]
+                user_id = str(user.id)  # pyright: ignore[reportAny]
+            else:
+                raise MediaClientError(
+                    "Failed to extract user ID from Jellyfin response",
+                    operation="create_user",
+                    server_url=self.url,
+                    cause="User object has no Id or id attribute",
+                )
+
+            # Extract username - jellyfin-sdk may use Name or name attribute
+            created_username: str
+            if hasattr(user, "Name"):  # pyright: ignore[reportAny]
+                created_username = str(user.Name)  # pyright: ignore[reportAny]
+            elif hasattr(user, "name"):  # pyright: ignore[reportAny]
+                created_username = str(user.name)  # pyright: ignore[reportAny]
+            else:
+                created_username = username
+
+            # Step 2: Set password via users.update_password
+            self._api.users.update_password(  # pyright: ignore[reportAny]
+                user_id, new_password=password
+            )
+
+            return ExternalUser(
+                external_user_id=user_id,
+                username=created_username,
+                email=email,
+            )
+
+        except MediaClientError:
+            # Re-raise our own errors
+            raise
+        except Exception as exc:
+            error_msg = str(exc).lower()
+            # Check for username already exists error
+            if "already exists" in error_msg or "duplicate" in error_msg:
+                raise MediaClientError(
+                    f"Username '{username}' already exists on Jellyfin server",
+                    operation="create_user",
+                    server_url=self.url,
+                    cause=f"Username taken: {exc}",
+                    error_code="USERNAME_TAKEN",
+                ) from exc
+
+            raise MediaClientError(
+                f"Failed to create user on Jellyfin server: {exc}",
+                operation="create_user",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def delete_user(self, _external_user_id: str, /) -> bool:
         """Delete a user from the Jellyfin server.
