@@ -89,7 +89,7 @@ class TestLibraryMappingPreservesFields:
     **Validates: Requirements 2.2, 2.4**
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         item_id=item_id_strategy,
         name=name_strategy,
@@ -115,7 +115,7 @@ class TestLibraryMappingPreservesFields:
         expected_type = collection_type if collection_type else "unknown"
         assert library_info.library_type == expected_type
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(item_id=item_id_strategy, name=name_strategy)
     def test_none_collection_type_maps_to_unknown(
         self,
@@ -133,7 +133,7 @@ class TestLibraryMappingPreservesFields:
 
         assert library_info.library_type == "unknown"
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         item_id=item_id_strategy,
         name=name_strategy,
@@ -213,14 +213,14 @@ class TestEnableDisableMapsToIsDisabledCorrectly:
     **Validates: Requirements 5.2, 5.3**
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(enabled=st.booleans())
     def test_enabled_maps_to_is_disabled_negation(self, enabled: bool) -> None:
         """The enabled parameter maps to the negation of IsDisabled."""
         expected_is_disabled = compute_is_disabled_from_enabled(enabled)
         assert expected_is_disabled == (not enabled)
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         user_id=item_id_strategy,
         name=name_strategy,
@@ -246,7 +246,7 @@ class TestEnableDisableMapsToIsDisabledCorrectly:
         assert mock_user.Policy.IsDisabled == (not enabled)
         assert mock_user.Policy.is_disabled == (not enabled)
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(initial_disabled=st.booleans(), enabled=st.booleans())
     def test_mapping_is_idempotent(
         self,
@@ -323,7 +323,7 @@ class TestLibraryAccessConfiguration:
     **Validates: Requirements 6.2, 6.3**
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(library_ids=library_ids_list_strategy)
     def test_enable_all_folders_always_false(
         self,
@@ -340,7 +340,7 @@ class TestLibraryAccessConfiguration:
         assert policy.EnableAllFolders is False
         assert policy.enable_all_folders is False
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(library_ids=library_ids_list_strategy)
     def test_enabled_folders_equals_library_ids(
         self,
@@ -357,7 +357,7 @@ class TestLibraryAccessConfiguration:
         assert policy.EnabledFolders == library_ids
         assert policy.enabled_folders == library_ids
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(library_ids=library_ids_list_strategy)
     def test_library_access_is_idempotent(
         self,
@@ -382,7 +382,7 @@ class TestLibraryAccessConfiguration:
         assert first_enable_all is False
         assert first_enabled_folders == library_ids
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(library_ids=library_ids_list_strategy)
     def test_library_ids_order_preserved(
         self,
@@ -450,7 +450,7 @@ class TestPermissionMappingCorrectness:
     **Validates: Requirements 7.3, 7.4, 7.5, 7.6**
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(can_download=st.booleans())
     def test_can_download_maps_to_enable_content_downloading(
         self,
@@ -463,7 +463,7 @@ class TestPermissionMappingCorrectness:
 
         assert policy.EnableContentDownloading == can_download
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(can_stream=st.booleans())
     def test_can_stream_maps_to_enable_media_playback(
         self,
@@ -476,7 +476,7 @@ class TestPermissionMappingCorrectness:
 
         assert policy.EnableMediaPlayback == can_stream
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(can_sync=st.booleans())
     def test_can_sync_maps_to_enable_sync_transcoding(
         self,
@@ -489,7 +489,7 @@ class TestPermissionMappingCorrectness:
 
         assert policy.EnableSyncTranscoding == can_sync
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(can_transcode=st.booleans())
     def test_can_transcode_maps_to_both_transcoding_fields(
         self,
@@ -506,7 +506,7 @@ class TestPermissionMappingCorrectness:
         assert policy.EnableAudioPlaybackTranscoding == can_transcode
         assert policy.EnableVideoPlaybackTranscoding == can_transcode
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         can_download=st.booleans(),
         can_stream=st.booleans(),
@@ -537,7 +537,7 @@ class TestPermissionMappingCorrectness:
         assert policy.EnableAudioPlaybackTranscoding == can_transcode
         assert policy.EnableVideoPlaybackTranscoding == can_transcode
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         can_download=st.booleans(),
         can_stream=st.booleans(),

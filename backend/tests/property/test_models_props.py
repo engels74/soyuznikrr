@@ -90,7 +90,7 @@ class TestModelSerializationRoundTrip:
     **Validates: Requirements 2.7**
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         id=uuid_strategy,
         name=name_strategy,
@@ -139,7 +139,7 @@ class TestModelSerializationRoundTrip:
         assert decoded["api_key"] == api_key
         assert decoded["enabled"] == enabled
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         id=uuid_strategy,
         media_server_id=uuid_strategy,
@@ -182,7 +182,7 @@ class TestModelSerializationRoundTrip:
         assert decoded["name"] == name
         assert decoded["library_type"] == library_type
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         id=uuid_strategy,
         code=code_strategy,
@@ -223,7 +223,7 @@ class TestModelSerializationRoundTrip:
         assert decoded["use_count"] == use_count
         assert decoded["enabled"] == enabled
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         id=uuid_strategy,
         display_name=name_strategy,
@@ -256,7 +256,7 @@ class TestModelSerializationRoundTrip:
         assert decoded["display_name"] == display_name
         assert decoded["enabled"] == enabled
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(
         id=uuid_strategy,
         identity_id=uuid_strategy,

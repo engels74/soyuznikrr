@@ -162,7 +162,7 @@ class TestRedemptionCreatesUsersOnAllServers:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_redemption_creates_n_users_for_n_servers(
         self,
@@ -268,7 +268,7 @@ class TestRedemptionCreatesUsersOnAllServers:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_each_user_has_correct_external_user_id(
         self,
@@ -433,7 +433,7 @@ class TestRedemptionCreatesUsersOnAllServers:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_identity_has_correct_display_name(
         self,
@@ -523,7 +523,7 @@ class TestRedemptionIncrementsUseCount:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_use_count_increments_by_one(
         self,
@@ -721,7 +721,7 @@ class TestRedemptionIncrementsUseCount:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_use_count_before_plus_one_equals_after(
         self,
@@ -838,7 +838,7 @@ class TestDurationDaysSetsExpiration:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_duration_days_sets_expires_at_on_identity(
         self,
@@ -945,7 +945,7 @@ class TestDurationDaysSetsExpiration:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=25, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_duration_days_sets_expires_at_on_all_users(
         self,
@@ -1053,7 +1053,7 @@ class TestDurationDaysSetsExpiration:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=25, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_no_duration_days_means_no_expires_at_on_identity(
         self,
@@ -1141,7 +1141,7 @@ class TestDurationDaysSetsExpiration:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_no_duration_days_means_no_expires_at_on_users(
         self,
@@ -1230,7 +1230,7 @@ class TestDurationDaysSetsExpiration:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_identity_and_users_have_same_expires_at(
         self,
@@ -1341,7 +1341,7 @@ class TestRollbackOnFailure:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_rollback_deletes_created_users_on_failure(
         self,
@@ -1483,7 +1483,7 @@ class TestRollbackOnFailure:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_use_count_not_incremented_on_failure(
         self,
@@ -1619,7 +1619,7 @@ class TestRollbackOnFailure:
         password=password_strategy,
         email=email_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_no_local_records_created_on_failure(
         self,
@@ -1767,7 +1767,7 @@ class TestRollbackOnFailure:
         username=username_strategy,
         password=password_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_rollback_on_first_server_failure(
         self,

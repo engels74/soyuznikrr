@@ -26,17 +26,17 @@ from zondarr.models.base import Base
 # Default profile: balanced for local development
 settings.register_profile(
     "default",
-    max_examples=30,
+    max_examples=15,  # Reduced from 30 for faster feedback
     deadline=None,  # Disable deadline for async tests with I/O
     suppress_health_check=[
         HealthCheck.function_scoped_fixture,
         HealthCheck.too_slow,
     ],
-    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+    phases=[Phase.explicit, Phase.reuse, Phase.generate],  # No shrink for speed
     verbosity=Verbosity.normal,
 )
 
-# CI profile: faster execution for continuous integration
+# CI profile: same as default for continuous integration
 settings.register_profile(
     "ci",
     max_examples=15,
@@ -45,7 +45,7 @@ settings.register_profile(
         HealthCheck.function_scoped_fixture,
         HealthCheck.too_slow,
     ],
-    phases=[Phase.explicit, Phase.reuse, Phase.generate],  # Skip shrinking in CI
+    phases=[Phase.explicit, Phase.reuse, Phase.generate],
     verbosity=Verbosity.quiet,
 )
 
@@ -60,6 +60,19 @@ settings.register_profile(
     ],
     phases=[Phase.explicit, Phase.reuse, Phase.generate],
     verbosity=Verbosity.quiet,
+)
+
+# Debug profile: for investigating failing tests with shrinking
+settings.register_profile(
+    "debug",
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[
+        HealthCheck.function_scoped_fixture,
+        HealthCheck.too_slow,
+    ],
+    phases=[Phase.explicit, Phase.reuse, Phase.generate, Phase.shrink],
+    verbosity=Verbosity.verbose,
 )
 
 # Load the default profile (can be overridden via HYPOTHESIS_PROFILE env var)

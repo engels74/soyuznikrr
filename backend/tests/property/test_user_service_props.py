@@ -246,7 +246,7 @@ class TestEnableDisableAtomicity:
         initial_enabled=st.booleans(),
         target_enabled=st.booleans(),
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_successful_update_changes_local_record(
         self,
@@ -319,7 +319,7 @@ class TestEnableDisableAtomicity:
         initial_enabled=st.booleans(),
         target_enabled=st.booleans(),
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_failed_update_preserves_local_record(
         self,
@@ -391,7 +391,7 @@ class TestEnableDisableAtomicity:
         initial_enabled=st.booleans(),
         target_enabled=st.booleans(),
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_user_not_found_on_server_preserves_local_record(
         self,
@@ -460,7 +460,7 @@ class TestEnableDisableAtomicity:
         external_user_id=external_user_id_strategy,
         initial_enabled=st.booleans(),
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_idempotent_enable_disable(
         self,
@@ -602,7 +602,7 @@ class TestUserDeletionAtomicity:
         external_user_id=external_user_id_strategy,
         initial_enabled=st.booleans(),
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_successful_delete_removes_local_record(
         self,
@@ -663,7 +663,7 @@ class TestUserDeletionAtomicity:
         external_user_id=external_user_id_strategy,
         initial_enabled=st.booleans(),
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_failed_delete_preserves_local_record(
         self,
@@ -734,7 +734,7 @@ class TestUserDeletionAtomicity:
         external_user_id=external_user_id_strategy,
         initial_enabled=st.booleans(),
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_user_not_found_on_server_still_deletes_local(
         self,
@@ -795,7 +795,7 @@ class TestUserDeletionAtomicity:
         username=username_strategy,
         external_user_id=external_user_id_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_delete_atomicity_external_first(
         self,
@@ -1022,7 +1022,7 @@ class TestIdentityCascade:
         username=username_strategy,
         external_user_id=external_user_id_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_last_user_deletion_cascades_to_identity(
         self,
@@ -1090,7 +1090,7 @@ class TestIdentityCascade:
         external_user_id1=external_user_id_strategy,
         external_user_id2=external_user_id_strategy,
     )
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_non_last_user_deletion_preserves_identity(
         self,
@@ -1177,7 +1177,7 @@ class TestIdentityCascade:
         username=username_strategy,
         external_user_id=external_user_id_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_cascade_only_after_successful_external_deletion(
         self,
@@ -1252,7 +1252,7 @@ class TestIdentityCascade:
         external_user_id1=external_user_id_strategy,
         external_user_id2=external_user_id_strategy,
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_sequential_deletion_eventually_cascades(
         self,

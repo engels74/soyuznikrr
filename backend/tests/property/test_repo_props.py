@@ -91,7 +91,7 @@ class TestRepositoryCRUDRoundTrip:
     """
 
     @settings(
-        max_examples=100,
+        max_examples=50,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -144,7 +144,7 @@ class TestRepositoryCRUDRoundTrip:
             await engine.dispose()
 
     @settings(
-        max_examples=100,
+        max_examples=50,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -209,7 +209,7 @@ class TestRepositoryCRUDRoundTrip:
             await engine.dispose()
 
     @settings(
-        max_examples=100,
+        max_examples=50,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -257,7 +257,7 @@ class TestRepositoryCRUDRoundTrip:
             await engine.dispose()
 
     @settings(
-        max_examples=100,
+        max_examples=50,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(

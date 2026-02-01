@@ -27,6 +27,7 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.26",
     "pytest-cov>=6.0",
+    "pytest-xdist>=3.5",
     "hypothesis>=6.130",
     "ruff>=0.14",
     "basedpyright>=1.29",
@@ -67,7 +68,7 @@ extraPaths = ["src"]
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = ["-ra", "-q", "--strict-markers", "--import-mode=importlib"]
+addopts = ["-ra", "-q", "--strict-markers", "--import-mode=importlib", "-n", "auto"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 # Filter Pydantic v1 compatibility warning on Python 3.14+
