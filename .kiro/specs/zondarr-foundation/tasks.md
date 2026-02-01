@@ -54,12 +54,12 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 3.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 3.2 Implement MediaServer and Library models
+  - [x] 3.2 Implement MediaServer and Library models
     - Create `models/media_server.py` with ServerType enum, MediaServer, Library
     - Configure relationships with selectinload/joined for eager loading
     - _Requirements: 2.1, 2.2_
-    - [ ] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 3.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 3.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 3.3 Implement Invitation model with associations
     - Create `models/invitation.py` with Invitation model
