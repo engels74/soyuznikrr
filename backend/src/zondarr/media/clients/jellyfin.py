@@ -6,9 +6,6 @@ for communicating with Jellyfin media servers.
 Uses jellyfin-sdk (webysther/jellyfin-sdk-python) - a modern Python 3.13+ SDK
 with high-level abstractions, method chaining, and JSONPath support.
 
-This is a stub implementation for the foundation phase. Full implementation
-will be added in Phase 2.
-
 Uses Python 3.14 features:
 - Deferred annotations (no forward reference quotes needed)
 - Self type for proper return type in context manager
@@ -16,6 +13,8 @@ Uses Python 3.14 features:
 
 from collections.abc import Sequence
 from typing import Self
+
+import jellyfin
 
 from zondarr.media.types import Capability, ExternalUser, LibraryInfo
 
@@ -26,9 +25,6 @@ class JellyfinClient:
     Implements the MediaClient protocol for Jellyfin servers.
     Uses jellyfin-sdk for server communication.
 
-    This is a stub implementation for the foundation phase.
-    Full implementation will be added in Phase 2.
-
     Attributes:
         url: The Jellyfin server URL.
         api_key: The API key for authentication.
@@ -36,7 +32,7 @@ class JellyfinClient:
 
     url: str
     api_key: str
-    _api: object | None
+    _api: jellyfin.Api | None
 
     def __init__(self, *, url: str, api_key: str) -> None:
         """Initialize a JellyfinClient.
@@ -47,7 +43,7 @@ class JellyfinClient:
         """
         self.url = url
         self.api_key = api_key
-        self._api = None  # jellyfin.api instance (Phase 2)
+        self._api = None
 
     @classmethod
     def capabilities(cls) -> set[Capability]:
@@ -70,15 +66,13 @@ class JellyfinClient:
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 
-        Initializes the jellyfin-sdk API client and authenticates
-        with the server.
+        Initializes the jellyfin-sdk API client with the configured
+        URL and API key.
 
         Returns:
             Self for use in async with statements.
         """
-        # Phase 2: Initialize jellyfin-sdk api
-        # import jellyfin
-        # self._api = jellyfin.api(self.url, self.api_key)
+        self._api = jellyfin.api(self.url, self.api_key)
         return self
 
     async def __aexit__(
@@ -89,29 +83,36 @@ class JellyfinClient:
     ) -> None:
         """Exit async context, cleaning up resources.
 
-        Closes any open connections and releases resources.
+        Releases the jellyfin-sdk API instance.
 
         Args:
             exc_type: The exception type if an exception was raised, None otherwise.
             exc_val: The exception instance if an exception was raised, None otherwise.
             exc_tb: The traceback if an exception was raised, None otherwise.
         """
-        # Phase 2: Cleanup jellyfin-sdk resources
         self._api = None
 
     async def test_connection(self) -> bool:
         """Test connectivity to the Jellyfin server.
 
-        Verifies that the server is reachable and the API key is valid.
+        Verifies that the server is reachable and the API key is valid
+        by querying the server system info via jellyfin-sdk.
 
         Returns:
             True if the connection is successful and authenticated,
-            False otherwise.
-
-        Raises:
-            NotImplementedError: This is a stub implementation.
+            False otherwise. Never raises exceptions for connection failures.
         """
-        raise NotImplementedError("Jellyfin client implementation in Phase 2")
+        if self._api is None:
+            return False
+
+        try:
+            # Query server system info to verify connectivity and authentication
+            # jellyfin-sdk lacks type stubs, so system.info returns Any
+            info: object = self._api.system.info  # pyright: ignore[reportAny]
+            return info is not None
+        except Exception:
+            # Handle all connection errors gracefully - return False, don't raise
+            return False
 
     async def get_libraries(self) -> Sequence[LibraryInfo]:
         """Retrieve all libraries from the Jellyfin server.

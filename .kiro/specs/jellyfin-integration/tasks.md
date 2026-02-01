@@ -7,13 +7,13 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
 ## Tasks
 
 - [ ] 1. Implement JellyfinClient core functionality
-  - [ ] 1.1 Implement connection management and test_connection
+  - [x] 1.1 Implement connection management and test_connection
     - Initialize jellyfin.api in __aenter__, cleanup in __aexit__
     - Implement test_connection using jellyfin-sdk system.info
     - Handle connection errors gracefully (return False, don't raise)
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
-    - [ ] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 1.2 Implement get_libraries method
     - Retrieve virtual folders via jellyfin-sdk
