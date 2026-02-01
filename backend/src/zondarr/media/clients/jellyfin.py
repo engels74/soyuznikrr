@@ -288,23 +288,49 @@ class JellyfinClient:
                 cause=str(exc),
             ) from exc
 
-    async def delete_user(self, _external_user_id: str, /) -> bool:
+    async def delete_user(self, external_user_id: str, /) -> bool:
         """Delete a user from the Jellyfin server.
 
-        Removes the user account identified by the external user ID.
+        Removes the user account identified by the external user ID via
+        jellyfin-sdk users.delete.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
 
         Returns:
             True if the user was successfully deleted, False if the user
-            was not found.
+            was not found on the server.
 
         Raises:
-            NotImplementedError: This is a stub implementation.
+            MediaClientError: If the client is not initialized (use async context manager).
+            MediaClientError: If deletion fails for reasons other than user not found.
         """
-        raise NotImplementedError("Jellyfin client implementation in Phase 2")
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="delete_user",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            # Delete user via jellyfin-sdk users.delete
+            self._api.users.delete(external_user_id)  # pyright: ignore[reportAny]
+            return True
+        except Exception as exc:
+            error_msg = str(exc).lower()
+            # Check for user not found error - return False per Requirements 4.3
+            if "not found" in error_msg or "404" in error_msg:
+                return False
+
+            # Re-raise other errors as MediaClientError per Requirements 4.4
+            raise MediaClientError(
+                f"Failed to delete user from Jellyfin server: {exc}",
+                operation="delete_user",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def set_user_enabled(
         self,

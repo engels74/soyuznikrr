@@ -39,12 +39,12 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 2.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 2.2 Implement delete_user method
+  - [x] 2.2 Implement delete_user method
     - Delete user via jellyfin-sdk users.delete
     - Return True on success, False if not found
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-    - [ ] 2.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 2.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 2.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 2.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 2.3 Implement set_user_enabled method
     - Get current user and policy
