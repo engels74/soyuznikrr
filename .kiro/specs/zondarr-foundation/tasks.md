@@ -61,12 +61,12 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 3.3 Implement Invitation model with associations
+  - [x] 3.3 Implement Invitation model with associations
     - Create `models/invitation.py` with Invitation model
     - Add invitation_servers and invitation_libraries association tables
     - _Requirements: 2.3, 2.6_
-    - [ ] 3.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 3.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 3.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 3.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 3.4 Implement Identity and User models
     - Create `models/identity.py` with Identity and User models
