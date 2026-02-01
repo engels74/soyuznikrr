@@ -15,13 +15,13 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 1.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 1.2 Implement get_libraries method
+  - [x] 1.2 Implement get_libraries method
     - Retrieve virtual folders via jellyfin-sdk
     - Map Jellyfin response to LibraryInfo structs
     - Handle CollectionType mapping (movies, tvshows, music, etc.)
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
-    - [ ] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 1.3 Write property test for library mapping
     - **Property 2: Library Mapping Preserves Fields**
