@@ -36,7 +36,7 @@ def _generate_correlation_id() -> str:
     return str(uuid4())
 
 
-async def validation_error_handler(
+def validation_error_handler(
     request: Request[object, object, State],
     exc: ValidationError,
 ) -> Response[ValidationErrorResponse]:
@@ -78,7 +78,7 @@ async def validation_error_handler(
     )
 
 
-async def not_found_handler(
+def not_found_handler(
     request: Request[object, object, State],
     exc: NotFoundError,
 ) -> Response[ErrorResponse]:
@@ -119,7 +119,7 @@ async def not_found_handler(
     )
 
 
-async def internal_error_handler(
+def internal_error_handler(
     request: Request[object, object, State],
     exc: Exception,
 ) -> Response[ErrorResponse]:
