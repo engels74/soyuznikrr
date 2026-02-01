@@ -272,13 +272,13 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 10.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 11. Database Migrations
-  - [ ] 11.1 Initialize Alembic
+  - [x] 11.1 Initialize Alembic
     - Create `alembic.ini` and `migrations/env.py`
     - Configure for async SQLAlchemy
     - Support both SQLite and PostgreSQL
     - _Requirements: 10.1, 10.2_
-    - [ ] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 11.2 Create initial migration
     - Generate migration for all foundation tables
