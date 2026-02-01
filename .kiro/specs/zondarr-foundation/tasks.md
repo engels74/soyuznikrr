@@ -280,13 +280,13 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 11.2 Create initial migration
+  - [x] 11.2 Create initial migration
     - Generate migration for all foundation tables
     - Include media_servers, libraries, invitations, identities, users
     - Include association tables
     - _Requirements: 10.3, 10.4_
-    - [ ] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 11.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 11.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 11.3 Write tests for migrations
     - **Property 14: Migrations Preserve Data**
