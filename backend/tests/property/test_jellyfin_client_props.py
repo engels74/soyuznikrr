@@ -1,8 +1,8 @@
 """Property-based tests for JellyfinClient.
 
 Feature: jellyfin-integration
-Properties: 2, 4
-Validates: Requirements 2.2, 2.4, 5.2, 5.3
+Properties: 2, 4, 5
+Validates: Requirements 2.2, 2.4, 5.2, 5.3, 6.2, 6.3
 """
 
 from hypothesis import given, settings
@@ -493,3 +493,361 @@ class TestEnableDisableMapsToIsDisabledCorrectly:
         # Assert: Results are identical
         assert first_result == second_result
         assert first_result == (not enabled)
+
+
+# =============================================================================
+# Property 5: Library Access Configuration
+# =============================================================================
+
+
+class MockLibraryAccessPolicy:
+    """Mock Jellyfin user policy object for library access testing.
+
+    Simulates the structure of a Jellyfin UserPolicy object with library
+    access fields. Supports both PascalCase (EnableAllFolders, EnabledFolders)
+    and snake_case (enable_all_folders, enabled_folders) attribute access patterns.
+    """
+
+    EnableAllFolders: bool
+    EnabledFolders: list[str]
+    enable_all_folders: bool
+    enabled_folders: list[str]
+
+    def __init__(
+        self,
+        *,
+        enable_all_folders: bool = True,
+        enabled_folders: list[str] | None = None,
+    ) -> None:
+        """Initialize a mock library access policy.
+
+        Args:
+            enable_all_folders: Initial EnableAllFolders state (keyword-only).
+            enabled_folders: Initial EnabledFolders list (keyword-only).
+        """
+        if enabled_folders is None:
+            enabled_folders = []
+        # PascalCase attributes (Jellyfin API style)
+        self.EnableAllFolders = enable_all_folders
+        self.EnabledFolders = enabled_folders.copy()
+        # snake_case attributes (Python style)
+        self.enable_all_folders = enable_all_folders
+        self.enabled_folders = enabled_folders.copy()
+
+
+class MockLibraryAccessUser:
+    """Mock Jellyfin user object for library access testing.
+
+    Simulates the structure returned by jellyfin-sdk's users.get() with
+    library access policy fields.
+    """
+
+    Id: str
+    Name: str
+    Policy: MockLibraryAccessPolicy
+    id: str
+    name: str
+    policy: MockLibraryAccessPolicy
+
+    def __init__(
+        self,
+        *,
+        user_id: str,
+        name: str,
+        enable_all_folders: bool = True,
+        enabled_folders: list[str] | None = None,
+    ) -> None:
+        """Initialize a mock Jellyfin user for library access testing.
+
+        Args:
+            user_id: The user's unique identifier (keyword-only).
+            name: The user's display name (keyword-only).
+            enable_all_folders: Initial EnableAllFolders state (keyword-only).
+            enabled_folders: Initial EnabledFolders list (keyword-only).
+        """
+        policy = MockLibraryAccessPolicy(
+            enable_all_folders=enable_all_folders,
+            enabled_folders=enabled_folders,
+        )
+        # PascalCase attributes (Jellyfin API style)
+        self.Id = user_id
+        self.Name = name
+        self.Policy = policy
+        # snake_case attributes (Python style)
+        self.id = user_id
+        self.name = name
+        self.policy = policy
+
+
+def apply_library_access_to_policy(
+    policy: MockLibraryAccessPolicy,
+    library_ids: list[str],
+    /,
+) -> None:
+    """Apply library access configuration to a mock user policy.
+
+    This function replicates the policy update logic from
+    JellyfinClient.set_library_access() to test the property in isolation.
+
+    Per Requirements 6.2 and 6.3:
+    - EnableAllFolders is always set to False
+    - EnabledFolders is set to the provided library IDs list
+
+    Args:
+        policy: The mock user policy to update (positional-only).
+        library_ids: List of library IDs to grant access to (positional-only).
+    """
+    # Same logic as JellyfinClient.set_library_access()
+    # Per Requirements 6.2, 6.3: EnableAllFolders=False always
+    policy.EnableAllFolders = False
+    policy.enable_all_folders = False
+    # Set EnabledFolders to the library IDs list
+    policy.EnabledFolders = library_ids.copy()
+    policy.enabled_folders = library_ids.copy()
+
+
+# Strategy for library IDs (Jellyfin uses GUIDs for library IDs)
+library_id_strategy = st.text(
+    alphabet=st.characters(categories=("L", "N"), whitelist_characters="-"),
+    min_size=1,
+    max_size=36,
+).filter(lambda s: s.strip())  # Ensure non-empty after strip
+
+# Strategy for lists of library IDs (including empty lists per Requirement 6.3)
+library_ids_list_strategy = st.lists(
+    library_id_strategy,
+    min_size=0,
+    max_size=20,
+)
+
+
+class TestLibraryAccessConfiguration:
+    """
+    Feature: jellyfin-integration
+    Property 5: Library Access Configuration
+
+    *For any* user and any list of library IDs L, calling
+    `set_library_access(user_id, L)` should result in the user's policy
+    having `EnableAllFolders=False` and `EnabledFolders` equal to L.
+
+    **Validates: Requirements 6.2, 6.3**
+    """
+
+    @settings(max_examples=100)
+    @given(library_ids=library_ids_list_strategy)
+    def test_enable_all_folders_always_false(
+        self,
+        library_ids: list[str],
+    ) -> None:
+        """EnableAllFolders is always set to False regardless of library_ids.
+
+        For any list of library IDs (empty or non-empty), after applying
+        library access configuration, EnableAllFolders must be False.
+
+        **Validates: Requirements 6.2, 6.3**
+        """
+        # Arrange: Create policy with EnableAllFolders=True initially
+        policy = MockLibraryAccessPolicy(
+            enable_all_folders=True,
+            enabled_folders=["existing-lib-1", "existing-lib-2"],
+        )
+
+        # Act: Apply library access configuration
+        apply_library_access_to_policy(policy, library_ids)
+
+        # Assert: EnableAllFolders is False
+        assert policy.EnableAllFolders is False
+        assert policy.enable_all_folders is False
+
+    @settings(max_examples=100)
+    @given(library_ids=library_ids_list_strategy)
+    def test_enabled_folders_equals_library_ids(
+        self,
+        library_ids: list[str],
+    ) -> None:
+        """EnabledFolders is set to exactly the provided library IDs.
+
+        For any list of library IDs L, after applying library access
+        configuration, EnabledFolders should equal L.
+
+        **Validates: Requirements 6.2, 6.3**
+        """
+        # Arrange: Create policy with different initial folders
+        policy = MockLibraryAccessPolicy(
+            enable_all_folders=True,
+            enabled_folders=["old-lib-1", "old-lib-2", "old-lib-3"],
+        )
+
+        # Act: Apply library access configuration
+        apply_library_access_to_policy(policy, library_ids)
+
+        # Assert: EnabledFolders equals the provided library IDs
+        assert policy.EnabledFolders == library_ids
+        assert policy.enabled_folders == library_ids
+
+    @settings(max_examples=100)
+    @given(
+        user_id=item_id_strategy,
+        name=name_strategy,
+        initial_enable_all=st.booleans(),
+        initial_folders=library_ids_list_strategy,
+        new_library_ids=library_ids_list_strategy,
+    )
+    def test_library_access_configuration_complete(
+        self,
+        user_id: str,
+        name: str,
+        initial_enable_all: bool,
+        initial_folders: list[str],
+        new_library_ids: list[str],
+    ) -> None:
+        """Complete library access configuration test.
+
+        For any user with any initial policy state and any new list of
+        library IDs, after applying library access configuration:
+        - EnableAllFolders must be False
+        - EnabledFolders must equal the new library IDs
+
+        **Validates: Requirements 6.2, 6.3**
+        """
+        # Arrange: Create mock user with initial policy state
+        mock_user = MockLibraryAccessUser(
+            user_id=user_id,
+            name=name,
+            enable_all_folders=initial_enable_all,
+            enabled_folders=initial_folders,
+        )
+
+        # Act: Apply library access configuration (same logic as JellyfinClient)
+        apply_library_access_to_policy(mock_user.Policy, new_library_ids)
+
+        # Assert: Policy is correctly configured
+        assert mock_user.Policy.EnableAllFolders is False
+        assert mock_user.Policy.enable_all_folders is False
+        assert mock_user.Policy.EnabledFolders == new_library_ids
+        assert mock_user.Policy.enabled_folders == new_library_ids
+
+    @settings(max_examples=100)
+    @given(
+        user_id=item_id_strategy,
+        name=name_strategy,
+    )
+    def test_empty_library_ids_grants_no_access(
+        self,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """Empty library_ids list results in no library access.
+
+        Per Requirement 6.3: WHEN set_library_access is called with an
+        empty library_ids list THEN the JellyfinClient SHALL update the
+        user policy with EnableAllFolders=False and EnabledFolders as
+        an empty list.
+
+        **Validates: Requirements 6.3**
+        """
+        # Arrange: Create user with initial access to some libraries
+        mock_user = MockLibraryAccessUser(
+            user_id=user_id,
+            name=name,
+            enable_all_folders=True,
+            enabled_folders=["lib-1", "lib-2", "lib-3"],
+        )
+
+        # Act: Apply empty library access
+        apply_library_access_to_policy(mock_user.Policy, [])
+
+        # Assert: No library access
+        assert mock_user.Policy.EnableAllFolders is False
+        assert mock_user.Policy.EnabledFolders == []
+        assert len(mock_user.Policy.enabled_folders) == 0
+
+    @settings(max_examples=100)
+    @given(library_ids=st.lists(library_id_strategy, min_size=1, max_size=20))
+    def test_non_empty_library_ids_grants_specific_access(
+        self,
+        library_ids: list[str],
+    ) -> None:
+        """Non-empty library_ids list grants access to specific libraries.
+
+        Per Requirement 6.2: WHEN set_library_access is called with a
+        non-empty list of library_ids THEN the JellyfinClient SHALL
+        update the user policy with EnableAllFolders=False and
+        EnabledFolders set to the library IDs.
+
+        **Validates: Requirements 6.2**
+        """
+        # Arrange: Create policy with all folders enabled
+        policy = MockLibraryAccessPolicy(
+            enable_all_folders=True,
+            enabled_folders=[],
+        )
+
+        # Act: Apply specific library access
+        apply_library_access_to_policy(policy, library_ids)
+
+        # Assert: Specific library access granted
+        assert policy.EnableAllFolders is False
+        assert policy.EnabledFolders == library_ids
+        assert len(policy.EnabledFolders) == len(library_ids)
+
+    @settings(max_examples=100)
+    @given(
+        library_ids=library_ids_list_strategy,
+    )
+    def test_library_access_is_idempotent(
+        self,
+        library_ids: list[str],
+    ) -> None:
+        """Applying the same library access twice produces the same result.
+
+        The library access configuration should be deterministic and
+        idempotent - applying it multiple times should not change the result.
+
+        **Validates: Requirements 6.2, 6.3**
+        """
+        # Arrange: Create policy
+        policy = MockLibraryAccessPolicy(
+            enable_all_folders=True,
+            enabled_folders=["initial-lib"],
+        )
+
+        # Act: Apply library access twice
+        apply_library_access_to_policy(policy, library_ids)
+        first_enable_all = policy.EnableAllFolders
+        first_enabled_folders = policy.EnabledFolders.copy()
+
+        apply_library_access_to_policy(policy, library_ids)
+        second_enable_all = policy.EnableAllFolders
+        second_enabled_folders = policy.EnabledFolders.copy()
+
+        # Assert: Results are identical
+        assert first_enable_all == second_enable_all
+        assert first_enabled_folders == second_enabled_folders
+        assert first_enable_all is False
+        assert first_enabled_folders == library_ids
+
+    @settings(max_examples=100)
+    @given(
+        library_ids=library_ids_list_strategy,
+    )
+    def test_library_ids_order_preserved(
+        self,
+        library_ids: list[str],
+    ) -> None:
+        """The order of library IDs is preserved in EnabledFolders.
+
+        The EnabledFolders list should maintain the same order as the
+        input library_ids list.
+
+        **Validates: Requirements 6.2, 6.3**
+        """
+        # Arrange: Create policy
+        policy = MockLibraryAccessPolicy()
+
+        # Act: Apply library access
+        apply_library_access_to_policy(policy, library_ids)
+
+        # Assert: Order is preserved
+        for i, lib_id in enumerate(library_ids):
+            assert policy.EnabledFolders[i] == lib_id

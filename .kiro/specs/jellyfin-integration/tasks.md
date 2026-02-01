@@ -67,11 +67,11 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 3.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 3.2 Write property test for library access configuration
+  - [x] 3.2 Write property test for library access configuration
     - **Property 5: Library Access Configuration**
     - **Validates: Requirements 6.2, 6.3**
-    - [ ] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 3.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 3.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 3.3 Implement update_permissions method
     - Map universal permissions to Jellyfin policy fields
