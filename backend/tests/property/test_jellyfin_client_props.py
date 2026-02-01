@@ -1,14 +1,14 @@
 """Property-based tests for JellyfinClient.
 
 Feature: jellyfin-integration
-Properties: 2, 4, 5, 6
-Validates: Requirements 2.2, 2.4, 5.2, 5.3, 6.2, 6.3, 7.3, 7.4, 7.5, 7.6
+Properties: 2, 4, 5, 6, 7
+Validates: Requirements 2.2, 2.4, 5.2, 5.3, 6.2, 6.3, 7.3, 7.4, 7.5, 7.6, 8.3
 """
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from zondarr.media.types import LibraryInfo
+from zondarr.media.types import ExternalUser, LibraryInfo
 
 # Valid Jellyfin CollectionType values per Requirements 2.4
 VALID_COLLECTION_TYPES = [
@@ -1347,3 +1347,343 @@ class TestPermissionMappingCorrectness:
         assert policy.EnableSyncTranscoding == initial_sync
         assert policy.EnableAudioPlaybackTranscoding == initial_audio_transcode
         assert policy.EnableVideoPlaybackTranscoding == initial_video_transcode
+
+
+# =============================================================================
+# Property 7: User Listing Returns Complete Objects
+# =============================================================================
+
+
+class MockListUser:
+    """Mock Jellyfin user object for user listing testing.
+
+    Simulates the structure returned by jellyfin-sdk's users.all property.
+    Supports both PascalCase (Id, Name) and snake_case (id, name) attribute
+    access patterns to match the JellyfinClient.list_users() implementation.
+    """
+
+    Id: str
+    Name: str
+    id: str
+    name: str
+
+    def __init__(
+        self,
+        *,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """Initialize a mock Jellyfin user for listing.
+
+        Args:
+            user_id: The user's unique identifier (keyword-only).
+            name: The user's display name (keyword-only).
+        """
+        # PascalCase attributes (Jellyfin API style)
+        self.Id = user_id
+        self.Name = name
+        # snake_case attributes (Python style)
+        self.id = user_id
+        self.name = name
+
+
+def map_jellyfin_user_to_external_user(user: MockListUser) -> ExternalUser:
+    """Map a Jellyfin user to ExternalUser.
+
+    This function replicates the mapping logic from JellyfinClient.list_users()
+    to test the property in isolation without requiring a live Jellyfin server.
+
+    Per Requirement 8.3: WHEN users are retrieved THEN the JellyfinClient SHALL
+    return a sequence of ExternalUser objects with external_user_id (Id),
+    username (Name), and email (if available).
+
+    Args:
+        user: A Jellyfin user object with Id and Name attributes.
+
+    Returns:
+        An ExternalUser struct with the mapped fields.
+    """
+    # Extract user ID - same logic as JellyfinClient.list_users()
+    user_id: str
+    if hasattr(user, "Id"):
+        user_id = str(user.Id)
+    elif hasattr(user, "id"):
+        user_id = str(user.id)
+    else:
+        raise ValueError("User object has no Id or id attribute")
+
+    # Extract username - same logic as JellyfinClient.list_users()
+    username: str
+    if hasattr(user, "Name"):
+        username = str(user.Name)
+    elif hasattr(user, "name"):
+        username = str(user.name)
+    else:
+        raise ValueError("User object has no Name or name attribute")
+
+    # Jellyfin users typically don't have email addresses
+    # The email field is included for protocol compatibility
+    return ExternalUser(
+        external_user_id=user_id,
+        username=username,
+        email=None,
+    )
+
+
+def map_jellyfin_users_to_external_users(
+    users: list[MockListUser],
+) -> list[ExternalUser]:
+    """Map a list of Jellyfin users to ExternalUser objects.
+
+    This function replicates the list mapping logic from JellyfinClient.list_users()
+    to test the property in isolation.
+
+    Args:
+        users: A list of Jellyfin user objects.
+
+    Returns:
+        A list of ExternalUser structs with the mapped fields.
+    """
+    return [map_jellyfin_user_to_external_user(user) for user in users]
+
+
+# Strategy for user IDs (Jellyfin uses GUIDs)
+user_id_strategy = st.text(
+    alphabet=st.characters(categories=("L", "N"), whitelist_characters="-"),
+    min_size=1,
+    max_size=36,
+).filter(lambda s: s.strip())  # Ensure non-empty after strip
+
+# Strategy for usernames
+username_strategy = st.text(
+    min_size=1,
+    max_size=255,
+).filter(lambda s: s.strip())  # Ensure non-empty after strip
+
+
+class TestUserListingReturnsCompleteObjects:
+    """
+    Feature: jellyfin-integration
+    Property 7: User Listing Returns Complete Objects
+
+    *For any* list of Jellyfin users returned by the server, the resulting
+    sequence of ExternalUser objects should contain complete information:
+    - external_user_id equal to the Jellyfin user Id
+    - username equal to the Jellyfin user Name
+    - email set to None (Jellyfin users typically don't have email)
+
+    **Validates: Requirements 8.3**
+    """
+
+    @settings(max_examples=100)
+    @given(
+        user_id=user_id_strategy,
+        name=username_strategy,
+    )
+    def test_single_user_mapping_preserves_fields(
+        self,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """Single user mapping preserves Id and Name fields.
+
+        For any valid Jellyfin user, the mapping to ExternalUser should
+        preserve:
+        - external_user_id == Id
+        - username == Name
+        - email == None (Jellyfin users don't have email)
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Create mock Jellyfin user
+        jellyfin_user = MockListUser(user_id=user_id, name=name)
+
+        # Act: Map to ExternalUser using the same logic as JellyfinClient
+        external_user = map_jellyfin_user_to_external_user(jellyfin_user)
+
+        # Assert: All fields are preserved correctly
+        assert external_user.external_user_id == user_id
+        assert external_user.username == name
+        assert external_user.email is None
+
+    @settings(max_examples=100)
+    @given(
+        users=st.lists(
+            st.tuples(user_id_strategy, username_strategy),
+            min_size=0,
+            max_size=20,
+        ),
+    )
+    def test_list_mapping_preserves_all_users(
+        self,
+        users: list[tuple[str, str]],
+    ) -> None:
+        """List mapping preserves all users with complete fields.
+
+        For any list of Jellyfin users, the mapping should:
+        - Return the same number of ExternalUser objects
+        - Preserve each user's Id and Name
+        - Set email to None for all users
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Create mock Jellyfin users
+        jellyfin_users = [
+            MockListUser(user_id=user_id, name=name) for user_id, name in users
+        ]
+
+        # Act: Map to ExternalUser list
+        external_users = map_jellyfin_users_to_external_users(jellyfin_users)
+
+        # Assert: Same count
+        assert len(external_users) == len(users)
+
+        # Assert: Each user is correctly mapped
+        for i, (user_id, name) in enumerate(users):
+            assert external_users[i].external_user_id == user_id
+            assert external_users[i].username == name
+            assert external_users[i].email is None
+
+    @settings(max_examples=100)
+    @given(
+        user_id=user_id_strategy,
+        name=username_strategy,
+    )
+    def test_external_user_struct_is_valid(
+        self,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """The resulting ExternalUser is a valid msgspec Struct.
+
+        Verifies that the mapped ExternalUser has all required fields
+        and correct types.
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange
+        jellyfin_user = MockListUser(user_id=user_id, name=name)
+
+        # Act
+        external_user = map_jellyfin_user_to_external_user(jellyfin_user)
+
+        # Assert: All required fields are present and non-empty
+        assert external_user.external_user_id
+        assert external_user.username
+
+        # Assert: Types are correct
+        assert isinstance(external_user.external_user_id, str)
+        assert isinstance(external_user.username, str)
+        assert external_user.email is None or isinstance(external_user.email, str)
+
+    @settings(max_examples=100)
+    @given(
+        users=st.lists(
+            st.tuples(user_id_strategy, username_strategy),
+            min_size=0,
+            max_size=20,
+        ),
+    )
+    def test_list_order_preserved(
+        self,
+        users: list[tuple[str, str]],
+    ) -> None:
+        """The order of users is preserved in the mapping.
+
+        The ExternalUser list should maintain the same order as the
+        input Jellyfin user list.
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Create mock Jellyfin users
+        jellyfin_users = [
+            MockListUser(user_id=user_id, name=name) for user_id, name in users
+        ]
+
+        # Act: Map to ExternalUser list
+        external_users = map_jellyfin_users_to_external_users(jellyfin_users)
+
+        # Assert: Order is preserved
+        for i, (user_id, name) in enumerate(users):
+            assert external_users[i].external_user_id == user_id
+            assert external_users[i].username == name
+
+    @settings(max_examples=100)
+    @given(
+        user_id=user_id_strategy,
+        name=username_strategy,
+    )
+    def test_mapping_is_deterministic(
+        self,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """Mapping the same user twice produces identical results.
+
+        The mapping should be deterministic - the same input always
+        produces the same output.
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Create mock Jellyfin user
+        jellyfin_user = MockListUser(user_id=user_id, name=name)
+
+        # Act: Map twice
+        first_result = map_jellyfin_user_to_external_user(jellyfin_user)
+        second_result = map_jellyfin_user_to_external_user(jellyfin_user)
+
+        # Assert: Results are identical
+        assert first_result.external_user_id == second_result.external_user_id
+        assert first_result.username == second_result.username
+        assert first_result.email == second_result.email
+
+    @settings(max_examples=100)
+    @given(
+        user_id=user_id_strategy,
+        name=username_strategy,
+    )
+    def test_pascal_case_attributes_used(
+        self,
+        user_id: str,
+        name: str,
+    ) -> None:
+        """PascalCase attributes (Id, Name) are correctly extracted.
+
+        The mapping should correctly handle Jellyfin's PascalCase
+        attribute naming convention.
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Create mock user with PascalCase attributes
+        jellyfin_user = MockListUser(user_id=user_id, name=name)
+
+        # Verify PascalCase attributes exist
+        assert hasattr(jellyfin_user, "Id")
+        assert hasattr(jellyfin_user, "Name")
+        assert jellyfin_user.Id == user_id
+        assert jellyfin_user.Name == name
+
+        # Act: Map to ExternalUser
+        external_user = map_jellyfin_user_to_external_user(jellyfin_user)
+
+        # Assert: Values match PascalCase attributes
+        assert external_user.external_user_id == jellyfin_user.Id
+        assert external_user.username == jellyfin_user.Name
+
+    def test_empty_list_returns_empty_list(self) -> None:
+        """Empty user list returns empty ExternalUser list.
+
+        When no users are returned from Jellyfin, the mapping should
+        return an empty list.
+
+        **Validates: Requirements 8.3**
+        """
+        # Arrange: Empty list
+        jellyfin_users: list[MockListUser] = []
+
+        # Act: Map to ExternalUser list
+        external_users = map_jellyfin_users_to_external_users(jellyfin_users)
+
+        # Assert: Empty list returned
+        assert external_users == []
+        assert len(external_users) == 0

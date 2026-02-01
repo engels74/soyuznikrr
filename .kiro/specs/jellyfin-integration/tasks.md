@@ -96,11 +96,11 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 3.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 3.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 3.6 Write property test for user listing
+  - [x] 3.6 Write property test for user listing
     - **Property 7: User Listing Returns Complete Objects**
     - **Validates: Requirements 8.3**
-    - [ ] 3.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 3.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 3.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 3.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 4. Checkpoint - JellyfinClient complete
   - Ensure all JellyfinClient tests pass, ask the user if questions arise.
