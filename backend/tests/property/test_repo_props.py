@@ -7,7 +7,7 @@ Validates: Requirements 5.2, 5.3, 5.4, 5.5, 5.6
 
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
@@ -388,7 +388,8 @@ class TestRepositoryWrapsErrors:
     async def test_create_wraps_database_errors(self) -> None:
         """create wraps database errors in RepositoryError."""
         mock_session = AsyncMock(spec=AsyncSession)
-        mock_session.add = AsyncMock()
+        # session.add() is synchronous on AsyncSession, so use MagicMock
+        mock_session.add = MagicMock()
         mock_session.flush = AsyncMock(side_effect=SQLAlchemyError("Database error"))
 
         repo = MediaServerRepository(mock_session)
