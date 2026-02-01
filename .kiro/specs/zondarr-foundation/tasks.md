@@ -6,7 +6,7 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
 
 ## Tasks
 
-- [ ] 1. Project Setup and Configuration
+- [x] 1. Project Setup and Configuration
   - [x] 1.1 Update pyproject.toml with dependencies and tooling configuration
     - Add all production dependencies (litestar, msgspec, granian, sqlalchemy, etc.)
     - Add dev dependencies (pytest, hypothesis, ruff, basedpyright)
@@ -33,12 +33,12 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 1.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 2. Core Exceptions and Types
-  - [ ] 2.1 Implement exception hierarchy
+  - [x] 2.1 Implement exception hierarchy
     - Create `core/exceptions.py` with ZondarrError base class
     - Add ConfigurationError, RepositoryError, ValidationError, NotFoundError
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
-    - [ ] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 2.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 2.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 2.2 Implement shared types
     - Create `core/types.py` with common type aliases
