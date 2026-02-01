@@ -94,11 +94,11 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 5.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 5.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 5.2 Implement media exceptions
+  - [x] 5.2 Implement media exceptions
     - Create `media/exceptions.py` with MediaClientError, UnknownServerTypeError
     - _Requirements: 3.9, 4.4_
-    - [ ] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 5.3 Implement MediaClient protocol
     - Create `media/protocol.py` with MediaClient Protocol class
