@@ -2,6 +2,9 @@
 
 Provides:
 - MediaClient: Protocol defining the interface for media server clients
+- MediaClientClass: Protocol for media client classes that can be instantiated
+- ClientRegistry: Singleton registry for media client implementations
+- registry: Global ClientRegistry instance
 - Capability: StrEnum for features that media clients may support
 - LibraryInfo: msgspec Struct for library information from media servers
 - ExternalUser: msgspec Struct for user information from media servers
@@ -11,13 +14,17 @@ Provides:
 
 from .exceptions import MediaClientError, UnknownServerTypeError
 from .protocol import MediaClient
+from .registry import ClientRegistry, MediaClientClass, registry
 from .types import Capability, ExternalUser, LibraryInfo
 
 __all__ = [
     "Capability",
+    "ClientRegistry",
     "ExternalUser",
     "LibraryInfo",
     "MediaClient",
+    "MediaClientClass",
     "MediaClientError",
     "UnknownServerTypeError",
+    "registry",
 ]

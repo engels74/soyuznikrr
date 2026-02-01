@@ -108,13 +108,13 @@ This implementation plan covers the foundation phase of Zondarr - establishing c
     - [x] 5.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 5.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 5.4 Implement ClientRegistry singleton
+  - [x] 5.4 Implement ClientRegistry singleton
     - Create `media/registry.py` with ClientRegistry class
     - Implement register, get_client_class, get_capabilities, create_client methods
     - Use ClassVar for singleton pattern
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-    - [ ] 5.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 5.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
   - [ ] 5.5 Implement Jellyfin client stub
     - Create `media/clients/jellyfin.py` with JellyfinClient class
