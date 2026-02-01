@@ -11,6 +11,7 @@ repositories and external systems. Services handle:
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
 from zondarr.services.media_server import MediaServerService
 from zondarr.services.redemption import RedemptionService
+from zondarr.services.sync import SyncService
 from zondarr.services.user import UserService
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "InvitationValidationFailure",
     "MediaServerService",
     "RedemptionService",
+    "SyncService",
     "UserService",
 ]
