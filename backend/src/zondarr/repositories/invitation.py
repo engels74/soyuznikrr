@@ -143,3 +143,51 @@ class InvitationRepository(Repository[Invitation]):
                 operation="disable",
                 original=e,
             ) from e
+
+    async def update(self, invitation: Invitation) -> Invitation:
+        """Persist changes to an invitation.
+
+        Flushes any pending changes to the invitation entity to the database.
+
+        Args:
+            invitation: The invitation with updated fields.
+
+        Returns:
+            The updated Invitation entity.
+
+        Raises:
+            RepositoryError: If the database operation fails.
+        """
+        try:
+            await self.session.flush()
+            return invitation
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to update invitation",
+                operation="update",
+                original=e,
+            ) from e
+
+    @override
+    async def delete(self, entity: Invitation) -> None:
+        """Delete an invitation from the database.
+
+        Removes the invitation without cascading to User records.
+        Users created from this invitation retain their invitation_id
+        reference but the invitation itself is removed.
+
+        Args:
+            entity: The invitation to delete.
+
+        Raises:
+            RepositoryError: If the database operation fails.
+        """
+        try:
+            await self.session.delete(entity)
+            await self.session.flush()
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to delete invitation",
+                operation="delete",
+                original=e,
+            ) from e

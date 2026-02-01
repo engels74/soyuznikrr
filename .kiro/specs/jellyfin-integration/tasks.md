@@ -123,7 +123,7 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-- [-] 6. Extend InvitationService with CRUD operations
+- [x] 6. Extend InvitationService with CRUD operations
   - [x] 6.1 Add code generation with collision handling
     - Generate 12-char codes using valid alphabet (no 0, O, I, L)
     - Retry up to 3 times on collision
@@ -163,30 +163,30 @@ This implementation plan breaks down the Jellyfin Integration feature into discr
     - [x] 6.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 6.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [-] 6.7 Add update method with immutable field protection
+  - [x] 6.7 Add update method with immutable field protection
     - Allow updating: expires_at, max_uses, duration_days, enabled, server_ids, library_ids
     - Ignore/reject: code, use_count, created_at, created_by
     - _Requirements: 11.2, 11.3, 11.4_
-    - [ ] 6.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.7.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.7.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.8 Write property test for immutable fields
+  - [x] 6.8 Write property test for immutable fields
     - **Property 11: Immutable Fields Cannot Be Updated**
     - **Validates: Requirements 11.3**
-    - [ ] 6.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.8.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.8.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.9 Add delete method preserving users
+  - [x] 6.9 Add delete method preserving users
     - Delete invitation without cascading to User records
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
-    - [ ] 6.9.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.9.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.9.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.9.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
-  - [ ] 6.10 Write property test for user preservation on delete
+  - [x] 6.10 Write property test for user preservation on delete
     - **Property 12: Invitation Deletion Preserves Users**
     - **Validates: Requirements 12.4**
-    - [ ] 6.10.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 6.10.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
+    - [x] 6.10.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 6.10.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines
 
 - [ ] 7. Extend InvitationRepository with pagination and filtering
   - [ ] 7.1 Add list_paginated method

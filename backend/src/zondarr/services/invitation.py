@@ -423,6 +423,108 @@ class InvitationService:
 
         return await self.repository.disable(invitation)
 
+    async def update(
+        self,
+        invitation_id: UUID,
+        /,
+        *,
+        expires_at: datetime | None = None,
+        max_uses: int | None = None,
+        duration_days: int | None = None,
+        enabled: bool | None = None,
+        server_ids: Sequence[UUID] | None = None,
+        library_ids: Sequence[UUID] | None = None,
+    ) -> Invitation:
+        """Update an invitation with the specified fields.
+
+        Only mutable fields can be updated:
+        - expires_at, max_uses, duration_days, enabled, server_ids, library_ids
+
+        Immutable fields are protected and cannot be changed:
+        - code, use_count, created_at, created_by
+
+        Implements Property 11: Immutable Fields Cannot Be Updated.
+
+        Args:
+            invitation_id: The UUID of the invitation to update (positional-only).
+            expires_at: New expiration timestamp (keyword-only).
+            max_uses: New maximum number of redemptions (keyword-only).
+            duration_days: New duration in days for user access (keyword-only).
+            enabled: New enabled status (keyword-only).
+            server_ids: New list of server UUIDs (keyword-only).
+            library_ids: New list of library UUIDs (keyword-only).
+
+        Returns:
+            The updated Invitation entity.
+
+        Raises:
+            NotFoundError: If the invitation does not exist.
+            ValidationError: If server_ids/library_ids validation fails.
+            RepositoryError: If the database operation fails.
+        """
+        invitation = await self.repository.get_by_id(invitation_id)
+        if invitation is None:
+            raise NotFoundError("Invitation", str(invitation_id))
+
+        # Track resolved servers for library validation
+        resolved_servers: list[MediaServer] | None = None
+
+        # Update mutable fields if provided
+        if expires_at is not None:
+            invitation.expires_at = expires_at
+
+        if max_uses is not None:
+            invitation.max_uses = max_uses
+
+        if duration_days is not None:
+            invitation.duration_days = duration_days
+
+        if enabled is not None:
+            invitation.enabled = enabled
+
+        # Validate and update server_ids if provided
+        if server_ids is not None:
+            resolved_servers = await self._validate_server_ids(server_ids)
+            invitation.target_servers = resolved_servers
+
+        # Validate and update library_ids if provided
+        if library_ids is not None:
+            # Use resolved servers if server_ids was updated, otherwise use current
+            target_servers = (
+                resolved_servers
+                if resolved_servers is not None
+                else invitation.target_servers
+            )
+            resolved_libraries = await self._validate_library_ids(
+                library_ids, target_servers
+            )
+            invitation.allowed_libraries = resolved_libraries
+
+        # Persist changes via repository
+        return await self.repository.update(invitation)
+
+    async def delete(self, invitation_id: UUID, /) -> None:
+        """Delete an invitation without cascading to User records.
+
+        Removes the invitation from the database. Users created from this
+        invitation retain their invitation_id reference but the invitation
+        itself is removed.
+
+        Implements Property 12: Invitation Deletion Preserves Users.
+
+        Args:
+            invitation_id: The UUID of the invitation to delete (positional-only).
+
+        Raises:
+            NotFoundError: If the invitation does not exist.
+            RepositoryError: If the database operation fails.
+        """
+        invitation = await self.repository.get_by_id(invitation_id)
+        if invitation is None:
+            raise NotFoundError("Invitation", str(invitation_id))
+
+        await self.repository.delete(invitation)
+
     async def calculate_user_expiration(
         self, invitation: Invitation, /
     ) -> datetime | None:

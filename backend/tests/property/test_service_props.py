@@ -1389,3 +1389,705 @@ class TestInvitationComputedFields:
                 )
         finally:
             await engine.dispose()
+
+
+class TestImmutableFieldsCannotBeUpdated:
+    """
+    Feature: jellyfin-integration
+    Property 11: Immutable Fields Cannot Be Updated
+
+    *For any* invitation update operation, the following fields SHALL NOT be modified:
+    - code
+    - use_count
+    - created_at
+    - created_by
+
+    Only mutable fields (expires_at, max_uses, duration_days, enabled, server_ids,
+    library_ids) can be updated.
+
+    **Validates: Requirements 11.3**
+    """
+
+    @settings(
+        max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        original_created_by=st.one_of(st.none(), name_strategy),
+        new_expires_at=st.one_of(
+            st.none(),
+            st.datetimes(
+                min_value=datetime(2025, 1, 1),
+                max_value=datetime(2030, 12, 31),
+                timezones=st.just(UTC),
+            ),
+        ),
+        new_max_uses=st.one_of(st.none(), st.integers(min_value=1, max_value=1000)),
+        new_duration_days=st.one_of(st.none(), st.integers(min_value=1, max_value=365)),
+        new_enabled=st.booleans(),
+    )
+    @pytest.mark.asyncio
+    async def test_update_preserves_code(
+        self,
+        original_code: str,
+        original_created_by: str | None,
+        new_expires_at: datetime | None,
+        new_max_uses: int | None,
+        new_duration_days: int | None,
+        new_enabled: bool,
+    ) -> None:
+        """Updating an invitation preserves the original code."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation with original values
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.created_by = original_created_by
+                invitation.enabled = True
+                invitation.use_count = 0
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+
+                # Update with new mutable values
+                updated = await service.update(
+                    original_id,
+                    expires_at=new_expires_at,
+                    max_uses=new_max_uses,
+                    duration_days=new_duration_days,
+                    enabled=new_enabled,
+                )
+                await session.commit()
+
+                # Verify code is preserved (immutable)
+                assert updated.code == original_code, (
+                    f"Code should be immutable: expected '{original_code}', got '{updated.code}'"
+                )
+
+                # Verify mutable fields were updated
+                assert updated.expires_at == new_expires_at
+                assert updated.max_uses == new_max_uses
+                assert updated.duration_days == new_duration_days
+                assert updated.enabled == new_enabled
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        original_use_count=st.integers(min_value=0, max_value=100),
+        new_max_uses=st.one_of(st.none(), st.integers(min_value=1, max_value=1000)),
+    )
+    @pytest.mark.asyncio
+    async def test_update_preserves_use_count(
+        self,
+        original_code: str,
+        original_use_count: int,
+        new_max_uses: int | None,
+    ) -> None:
+        """Updating an invitation preserves the original use_count."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation with original use_count
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.enabled = True
+                invitation.use_count = original_use_count
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+
+                # Update with new max_uses (mutable field)
+                updated = await service.update(
+                    original_id,
+                    max_uses=new_max_uses,
+                )
+                await session.commit()
+
+                # Verify use_count is preserved (immutable)
+                assert updated.use_count == original_use_count, (
+                    f"use_count should be immutable: expected {original_use_count}, got {updated.use_count}"
+                )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=100,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        original_created_by=st.one_of(st.none(), name_strategy),
+        new_enabled=st.booleans(),
+    )
+    @pytest.mark.asyncio
+    async def test_update_preserves_created_by(
+        self,
+        original_code: str,
+        original_created_by: str | None,
+        new_enabled: bool,
+    ) -> None:
+        """Updating an invitation preserves the original created_by."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation with original created_by
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.created_by = original_created_by
+                invitation.enabled = True
+                invitation.use_count = 0
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+
+                # Update with new enabled status (mutable field)
+                updated = await service.update(
+                    original_id,
+                    enabled=new_enabled,
+                )
+                await session.commit()
+
+                # Verify created_by is preserved (immutable)
+                assert updated.created_by == original_created_by, (
+                    f"created_by should be immutable: expected '{original_created_by}', got '{updated.created_by}'"
+                )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        new_duration_days=st.integers(min_value=1, max_value=365),
+    )
+    @pytest.mark.asyncio
+    async def test_update_preserves_created_at(
+        self,
+        original_code: str,
+        new_duration_days: int,
+    ) -> None:
+        """Updating an invitation preserves the original created_at timestamp."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.enabled = True
+                invitation.use_count = 0
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+                original_created_at = invitation.created_at
+
+                # Update with new duration_days (mutable field)
+                updated = await service.update(
+                    original_id,
+                    duration_days=new_duration_days,
+                )
+                await session.commit()
+
+                # Verify created_at is preserved (immutable)
+                assert updated.created_at == original_created_at, (
+                    f"created_at should be immutable: expected {original_created_at}, got {updated.created_at}"
+                )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        original_use_count=st.integers(min_value=0, max_value=50),
+        original_created_by=st.one_of(st.none(), name_strategy),
+        new_expires_at=st.one_of(
+            st.none(),
+            st.datetimes(
+                min_value=datetime(2025, 1, 1),
+                max_value=datetime(2030, 12, 31),
+                timezones=st.just(UTC),
+            ),
+        ),
+        new_max_uses=st.one_of(st.none(), st.integers(min_value=1, max_value=1000)),
+        new_duration_days=st.one_of(st.none(), st.integers(min_value=1, max_value=365)),
+        new_enabled=st.booleans(),
+    )
+    @pytest.mark.asyncio
+    async def test_all_immutable_fields_preserved_after_update(
+        self,
+        original_code: str,
+        original_use_count: int,
+        original_created_by: str | None,
+        new_expires_at: datetime | None,
+        new_max_uses: int | None,
+        new_duration_days: int | None,
+        new_enabled: bool,
+    ) -> None:
+        """All immutable fields are preserved when updating mutable fields."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation with original values
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.created_by = original_created_by
+                invitation.enabled = True
+                invitation.use_count = original_use_count
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+                original_created_at = invitation.created_at
+
+                # Update all mutable fields at once
+                updated = await service.update(
+                    original_id,
+                    expires_at=new_expires_at,
+                    max_uses=new_max_uses,
+                    duration_days=new_duration_days,
+                    enabled=new_enabled,
+                )
+                await session.commit()
+
+                # Verify ALL immutable fields are preserved
+                assert updated.code == original_code, "code should be immutable"
+                assert updated.use_count == original_use_count, (
+                    "use_count should be immutable"
+                )
+                assert updated.created_by == original_created_by, (
+                    "created_by should be immutable"
+                )
+                assert updated.created_at == original_created_at, (
+                    "created_at should be immutable"
+                )
+
+                # Verify mutable fields were updated correctly
+                assert updated.expires_at == new_expires_at
+                assert updated.max_uses == new_max_uses
+                assert updated.duration_days == new_duration_days
+                assert updated.enabled == new_enabled
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        original_code=code_strategy,
+        original_use_count=st.integers(min_value=1, max_value=100),
+    )
+    @pytest.mark.asyncio
+    async def test_multiple_updates_preserve_immutable_fields(
+        self,
+        original_code: str,
+        original_use_count: int,
+    ) -> None:
+        """Multiple sequential updates preserve all immutable fields."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                # Create invitation
+                invitation = Invitation()
+                invitation.code = original_code
+                invitation.created_by = "original_creator"
+                invitation.enabled = True
+                invitation.use_count = original_use_count
+                invitation.max_uses = None
+                invitation.expires_at = None
+                _ = await repo.create(invitation)
+                await session.commit()
+
+                original_id = invitation.id
+                original_created_at = invitation.created_at
+
+                # First update
+                _ = await service.update(original_id, enabled=False)
+                await session.commit()
+
+                # Second update
+                _ = await service.update(original_id, max_uses=50)
+                await session.commit()
+
+                # Third update
+                updated3 = await service.update(original_id, duration_days=30)
+                await session.commit()
+
+                # Verify immutable fields are still preserved after multiple updates
+                assert updated3.code == original_code
+                assert updated3.use_count == original_use_count
+                assert updated3.created_by == "original_creator"
+                assert updated3.created_at == original_created_at
+
+                # Verify mutable fields reflect cumulative updates
+                assert updated3.enabled is False
+                assert updated3.max_uses == 50
+                assert updated3.duration_days == 30
+        finally:
+            await engine.dispose()
+
+
+class TestInvitationDeletionPreservesUsers:
+    """
+    Feature: jellyfin-integration
+    Property 12: Invitation Deletion Preserves Users
+
+    *For any* invitation deletion, users created from that invitation SHALL NOT
+    be deleted. The User records SHALL remain in the database with their
+    invitation_id set to NULL (due to ON DELETE SET NULL).
+
+    **Validates: Requirements 12.4**
+    """
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        invitation_code=code_strategy,
+        username=name_strategy,
+        external_user_id=st.text(
+            alphabet=st.characters(categories=("L", "N")),
+            min_size=8,
+            max_size=36,
+        ),
+    )
+    @pytest.mark.asyncio
+    async def test_deleting_invitation_preserves_user_records(
+        self,
+        invitation_code: str,
+        username: str,
+        external_user_id: str,
+    ) -> None:
+        """Deleting an invitation does not delete users created from it."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                from zondarr.models.identity import Identity, User
+                from zondarr.models.media_server import MediaServer
+
+                invitation_repo = InvitationRepository(session)
+                service = InvitationService(invitation_repo)
+
+                # Create a media server
+                server = MediaServer(
+                    name="Test Server",
+                    server_type=ServerType.JELLYFIN,
+                    url="http://test.local",
+                    api_key="testkey",
+                    enabled=True,
+                )
+                session.add(server)
+                await session.flush()
+
+                # Create an invitation
+                invitation = await service.create(code=invitation_code)
+                await session.flush()
+
+                # Create an identity and user linked to the invitation
+                identity = Identity(
+                    display_name=username,
+                    email=f"{username}@test.com",
+                    enabled=True,
+                )
+                session.add(identity)
+                await session.flush()
+
+                user = User(
+                    identity_id=identity.id,
+                    media_server_id=server.id,
+                    invitation_id=invitation.id,
+                    external_user_id=external_user_id,
+                    username=username,
+                    enabled=True,
+                )
+                session.add(user)
+                await session.flush()
+                await session.commit()
+
+                user_id = user.id
+                identity_id = identity.id
+
+                # Verify user exists and is linked to invitation
+                from sqlalchemy import select
+
+                user_before = await session.scalar(
+                    select(User).where(User.id == user_id)
+                )
+                assert user_before is not None
+                assert user_before.invitation_id == invitation.id
+
+                # Delete the invitation
+                await service.delete(invitation.id)
+                await session.commit()
+
+                # Verify user still exists after invitation deletion
+                # Need to expire the session to get fresh data
+                session.expire_all()
+                user_after = await session.scalar(
+                    select(User).where(User.id == user_id)
+                )
+                assert user_after is not None, (
+                    "User should not be deleted when invitation is deleted"
+                )
+                assert user_after.username == username
+                assert user_after.identity_id == identity_id
+
+                # Verify identity still exists
+                identity_after = await session.scalar(
+                    select(Identity).where(Identity.id == identity_id)
+                )
+                assert identity_after is not None, (
+                    "Identity should not be deleted when invitation is deleted"
+                )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(
+        invitation_code=code_strategy,
+        num_users=st.integers(min_value=1, max_value=5),
+    )
+    @pytest.mark.asyncio
+    async def test_deleting_invitation_preserves_multiple_users(
+        self,
+        invitation_code: str,
+        num_users: int,
+    ) -> None:
+        """Deleting an invitation preserves all users created from it."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                from zondarr.models.identity import Identity, User
+                from zondarr.models.media_server import MediaServer
+
+                invitation_repo = InvitationRepository(session)
+                service = InvitationService(invitation_repo)
+
+                # Create a media server
+                server = MediaServer(
+                    name="Test Server",
+                    server_type=ServerType.JELLYFIN,
+                    url="http://test.local",
+                    api_key="testkey",
+                    enabled=True,
+                )
+                session.add(server)
+                await session.flush()
+
+                # Create an invitation
+                invitation = await service.create(code=invitation_code)
+                await session.flush()
+
+                # Create multiple users linked to the invitation
+                user_ids: list[UUID] = []
+                for i in range(num_users):
+                    identity = Identity(
+                        display_name=f"User{i}",
+                        email=f"user{i}@test.com",
+                        enabled=True,
+                    )
+                    session.add(identity)
+                    await session.flush()
+
+                    user = User(
+                        identity_id=identity.id,
+                        media_server_id=server.id,
+                        invitation_id=invitation.id,
+                        external_user_id=f"ext-{i}-{invitation_code[:8]}",
+                        username=f"user{i}",
+                        enabled=True,
+                    )
+                    session.add(user)
+                    await session.flush()
+                    user_ids.append(user.id)
+
+                await session.commit()
+
+                # Delete the invitation
+                await service.delete(invitation.id)
+                await session.commit()
+
+                # Verify all users still exist
+                from sqlalchemy import select
+
+                session.expire_all()
+                for user_id in user_ids:
+                    user_after = await session.scalar(
+                        select(User).where(User.id == user_id)
+                    )
+                    assert user_after is not None, (
+                        f"User {user_id} should not be deleted"
+                    )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(invitation_code=code_strategy)
+    @pytest.mark.asyncio
+    async def test_invitation_deletion_sets_user_invitation_id_to_null(
+        self,
+        invitation_code: str,
+    ) -> None:
+        """After invitation deletion, user's invitation_id is set to NULL."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                from zondarr.models.identity import Identity, User
+                from zondarr.models.media_server import MediaServer
+
+                invitation_repo = InvitationRepository(session)
+                service = InvitationService(invitation_repo)
+
+                # Create a media server
+                server = MediaServer(
+                    name="Test Server",
+                    server_type=ServerType.JELLYFIN,
+                    url="http://test.local",
+                    api_key="testkey",
+                    enabled=True,
+                )
+                session.add(server)
+                await session.flush()
+
+                # Create an invitation
+                invitation = await service.create(code=invitation_code)
+                await session.flush()
+
+                # Create an identity and user linked to the invitation
+                identity = Identity(
+                    display_name="TestUser",
+                    email="test@test.com",
+                    enabled=True,
+                )
+                session.add(identity)
+                await session.flush()
+
+                user = User(
+                    identity_id=identity.id,
+                    media_server_id=server.id,
+                    invitation_id=invitation.id,
+                    external_user_id="ext-123",
+                    username="testuser",
+                    enabled=True,
+                )
+                session.add(user)
+                await session.flush()
+                await session.commit()
+
+                user_id = user.id
+
+                # Verify user is linked to invitation before deletion
+                from sqlalchemy import select
+
+                user_before = await session.scalar(
+                    select(User).where(User.id == user_id)
+                )
+                assert user_before is not None
+                assert user_before.invitation_id == invitation.id
+
+                # Delete the invitation
+                await service.delete(invitation.id)
+                await session.commit()
+
+                # Verify user's invitation_id is now NULL
+                session.expire_all()
+                user_after = await session.scalar(
+                    select(User).where(User.id == user_id)
+                )
+                assert user_after is not None
+                assert user_after.invitation_id is None, (
+                    "User's invitation_id should be NULL after invitation deletion"
+                )
+        finally:
+            await engine.dispose()
+
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+    )
+    @given(invitation_code=code_strategy)
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_invitation_raises_not_found(
+        self,
+        invitation_code: str,  # pyright: ignore[reportUnusedParameter]
+    ) -> None:
+        """Deleting a nonexistent invitation raises NotFoundError."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                invitation_repo = InvitationRepository(session)
+                service = InvitationService(invitation_repo)
+
+                # Generate a random UUID that doesn't exist
+                from uuid import uuid4
+
+                fake_id = uuid4()
+
+                # Attempt to delete nonexistent invitation
+                with pytest.raises(NotFoundError) as exc_info:
+                    await service.delete(fake_id)
+
+                assert exc_info.value.error_code == "NOT_FOUND"
+                assert exc_info.value.context["resource_type"] == "Invitation"
+        finally:
+            await engine.dispose()
