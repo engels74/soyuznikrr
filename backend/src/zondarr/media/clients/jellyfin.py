@@ -431,25 +431,112 @@ class JellyfinClient:
 
     async def set_library_access(
         self,
-        _external_user_id: str,
-        _library_ids: Sequence[str],
+        external_user_id: str,
+        library_ids: Sequence[str],
         /,
     ) -> bool:
         """Set which libraries a user can access on the Jellyfin server.
 
-        Configures the user's library permissions.
+        Retrieves the current user and their policy via jellyfin-sdk,
+        then updates EnableAllFolders to False and EnabledFolders to
+        the specified library IDs.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
-            _library_ids: Sequence of library external IDs to grant access to
-                (positional-only).
+            library_ids: Sequence of library external IDs to grant access to
+                (positional-only). An empty sequence grants access to no libraries.
 
         Returns:
-            True if permissions were successfully updated, False if the user
-            was not found.
+            True if library access was successfully updated, False if the user
+            was not found on the server.
 
         Raises:
-            NotImplementedError: This is a stub implementation.
+            MediaClientError: If the client is not initialized (use async context manager).
+            MediaClientError: If the library access update fails for reasons other
+                than user not found.
         """
-        raise NotImplementedError("Jellyfin client implementation in Phase 2")
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="set_library_access",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            # Step 1: Get current user via jellyfin-sdk users.get
+            # jellyfin-sdk lacks type stubs, so returns Any
+            user = self._api.users.get(external_user_id)  # pyright: ignore[reportAny]
+
+            if user is None:
+                return False
+
+            # Step 2: Get current policy from user
+            # jellyfin-sdk may use Policy or policy attribute
+            policy = None
+            if hasattr(user, "Policy"):  # pyright: ignore[reportAny]
+                policy = user.Policy  # pyright: ignore[reportAny]
+            elif hasattr(user, "policy"):  # pyright: ignore[reportAny]
+                policy = user.policy  # pyright: ignore[reportAny]
+
+            if policy is None:
+                raise MediaClientError(
+                    "Failed to retrieve user policy from Jellyfin response",
+                    operation="set_library_access",
+                    server_url=self.url,
+                    cause="User object has no Policy or policy attribute",
+                )
+
+            # Step 3: Set EnableAllFolders=False per Requirements 6.2, 6.3
+            # This restricts the user to only the specified libraries
+            if hasattr(policy, "EnableAllFolders"):  # pyright: ignore[reportAny]
+                policy.EnableAllFolders = False
+            elif hasattr(policy, "enable_all_folders"):  # pyright: ignore[reportAny]
+                policy.enable_all_folders = False
+            else:
+                raise MediaClientError(
+                    "Failed to update EnableAllFolders flag in user policy",
+                    operation="set_library_access",
+                    server_url=self.url,
+                    cause="Policy object has no EnableAllFolders or enable_all_folders attribute",
+                )
+
+            # Step 4: Set EnabledFolders to the library IDs per Requirements 6.2, 6.3
+            # Convert Sequence to list for the API
+            library_id_list = list(library_ids)
+            if hasattr(policy, "EnabledFolders"):  # pyright: ignore[reportAny]
+                policy.EnabledFolders = library_id_list
+            elif hasattr(policy, "enabled_folders"):  # pyright: ignore[reportAny]
+                policy.enabled_folders = library_id_list
+            else:
+                raise MediaClientError(
+                    "Failed to update EnabledFolders in user policy",
+                    operation="set_library_access",
+                    server_url=self.url,
+                    cause="Policy object has no EnabledFolders or enabled_folders attribute",
+                )
+
+            # Step 5: Update user policy via jellyfin-sdk
+            self._api.users.update_policy(  # pyright: ignore[reportAny]
+                external_user_id, policy
+            )
+
+            return True
+
+        except MediaClientError:
+            # Re-raise our own errors
+            raise
+        except Exception as exc:
+            error_msg = str(exc).lower()
+            # Check for user not found error - return False per Requirements 6.5
+            if "not found" in error_msg or "404" in error_msg:
+                return False
+
+            # Re-raise other errors as MediaClientError per Requirements 6.6
+            raise MediaClientError(
+                f"Failed to set library access on Jellyfin server: {exc}",
+                operation="set_library_access",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
