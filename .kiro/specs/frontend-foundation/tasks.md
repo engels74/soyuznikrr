@@ -6,7 +6,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
 ## Tasks
 
-- [-] 1. Project scaffolding and configuration
+- [x] 1. Project scaffolding and configuration
   - [x] 1.1 Initialize SvelteKit project with Bun and TypeScript
     - Run `bun create svelte@latest frontend` with TypeScript, ESLint options
     - Configure `svelte.config.js` with `svelte-adapter-bun`
@@ -32,59 +32,59 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 1.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.4 Install remaining dependencies
+  - [x] 1.4 Install remaining dependencies
     - Install form handling: `bun add sveltekit-superforms zod`
     - Install API client: `bun add openapi-fetch`
     - Install dev tools: `bun add -D openapi-typescript`
     - Install utilities: `bun add mode-watcher svelte-sonner @lucide/svelte`
     - _Requirements: 1.5, 1.7, 1.8, 1.9, 1.10_
-    - [ ] 1.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 1.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 1.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 1.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.5 Configure custom fonts and design tokens
+  - [x] 1.5 Configure custom fonts and design tokens
     - Add JetBrains Mono and IBM Plex Sans/Mono via Google Fonts or local files
     - Update `uno.config.ts` with custom theme colors (Control Room palette)
     - Create CSS custom properties for design tokens
     - _Requirements: 13.1, 13.2, 13.3_
-    - [ ] 1.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 1.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 1.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 1.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 1.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 2. API client setup and type generation
-  - [ ] 2.1 Generate TypeScript types from OpenAPI spec
+- [x] 2. API client setup and type generation
+  - [x] 2.1 Generate TypeScript types from OpenAPI spec
     - Create `scripts/generate-api-types.ts` script
     - Add npm script: `"generate:api": "openapi-typescript http://localhost:8000/docs/openapi.json -o src/lib/api/types.d.ts"`
     - Generate initial types from running backend
     - _Requirements: 1.6, 2.1_
-    - [ ] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 2.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 2.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 2.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 2.2 Create API client with typed wrappers
+  - [x] 2.2 Create API client with typed wrappers
     - Create `$lib/api/client.ts` with openapi-fetch client
     - Create typed wrapper functions for all endpoints (invitations, users, servers, join)
     - Configure base URL from environment variable
     - _Requirements: 2.2, 2.6, 2.7_
-    - [ ] 2.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 2.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 2.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 2.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 2.3 Create error handling utilities
+  - [x] 2.3 Create error handling utilities
     - Create `$lib/api/errors.ts` with ApiError class
     - Implement error transformation from API responses
     - Create helper functions: `getErrorMessage`, `isNetworkError`
     - _Requirements: 2.3, 2.4, 2.5_
-    - [ ] 2.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 2.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 2.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 2.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 2.4 Write property tests for API client
+  - [x] 2.4 Write property tests for API client
     - **Property 3: API Error Transformation**
     - **Property 4: Pagination Parameter Passing**
     - **Property 5: Filter Parameter Passing**
     - **Validates: Requirements 2.4, 2.5, 2.6, 2.7**
-    - [ ] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 2.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 2.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 2.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 2.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 3. Root layout and dark mode
   - [ ] 3.1 Create root layout with ModeWatcher and Toaster
