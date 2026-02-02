@@ -86,23 +86,23 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 2.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 3. Root layout and dark mode
-  - [ ] 3.1 Create root layout with ModeWatcher and Toaster
+- [-] 3. Root layout and dark mode
+  - [x] 3.1 Create root layout with ModeWatcher and Toaster
     - Update `src/routes/+layout.svelte` with ModeWatcher component
     - Add Toaster from svelte-sonner
     - Import app.css
     - Use `{@render children()}` pattern (Svelte 5)
     - _Requirements: 1.8, 1.9, 3.4_
-    - [ ] 3.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 3.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 3.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 3.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 3.2 Write property test for dark mode persistence
+  - [x] 3.2 Write property test for dark mode persistence
     - **Property 7: Dark Mode Persistence**
     - **Validates: Requirements 3.4**
-    - [ ] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 3.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 3.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 3.3 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 3.3 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 4. Admin layout and navigation
   - [ ] 4.1 Create admin route group layout
