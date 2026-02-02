@@ -24,6 +24,7 @@
 		"formsnap": "^2.0.1",
 		"lucide-svelte": "^0.563.0",
 		"mode-watcher": "^1.1.0",
+		"openapi-typescript": "^7.10.1",
 		"svelte": "^5.48.2",
 		"svelte-adapter-bun": "^1.0.1",
 		"svelte-check": "^4.3.5",
@@ -38,6 +39,7 @@
 	},
 	"dependencies": {
 		"clsx": "^2.1.1",
+		"openapi-fetch": "^0.15.0",
 		"tailwind-merge": "^3.4.0",
 		"tailwind-variants": "^3.2.2"
 	}

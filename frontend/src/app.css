@@ -1,2 +1,90 @@
 @import "uno.css";
 @import "@unocss/reset/tailwind.css";
+
+/* Control Room Design Tokens */
+:root {
+	/* Background colors */
+	--cr-bg: #0a0a0b;
+	--cr-surface: #141416;
+	--cr-border: #27272a;
+
+	/* Accent colors */
+	--cr-accent: #22d3ee;
+	--cr-accent-hover: #06b6d4;
+
+	/* Text colors */
+	--cr-text: #fafafa;
+	--cr-text-muted: #a1a1aa;
+	--cr-text-dim: #71717a;
+
+	/* Status colors */
+	--cr-active: #10b981;
+	--cr-active-glow: rgba(16, 185, 129, 0.3);
+	--cr-pending: #f59e0b;
+	--cr-pending-glow: rgba(245, 158, 11, 0.3);
+	--cr-disabled: #f43f5e;
+	--cr-disabled-glow: rgba(244, 63, 94, 0.3);
+
+	/* Typography */
+	--font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+	--font-display: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+	/* Transitions */
+	--transition-fast: 150ms ease;
+	--transition-normal: 200ms ease;
+}
+
+/* Dark mode is the default for Control Room aesthetic */
+.dark {
+	--cr-bg: #0a0a0b;
+	--cr-surface: #141416;
+	--cr-border: #27272a;
+	--cr-text: #fafafa;
+	--cr-text-muted: #a1a1aa;
+}
+
+/* Light mode overrides (optional, for accessibility) */
+:root:not(.dark) {
+	--cr-bg: #fafafa;
+	--cr-surface: #ffffff;
+	--cr-border: #e4e4e7;
+	--cr-text: #09090b;
+	--cr-text-muted: #71717a;
+}
+
+/* Base styles */
+body {
+	font-family: var(--font-sans);
+	background-color: var(--cr-bg);
+	color: var(--cr-text);
+}
+
+/* Monospace utility for data elements */
+.font-data {
+	font-family: var(--font-mono);
+	opacity: 0.9;
+}
+
+/* Status indicator with glow effect */
+.status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	transition: box-shadow var(--transition-fast);
+}
+
+.status-dot-active {
+	background-color: var(--cr-active);
+	box-shadow: 0 0 8px var(--cr-active-glow);
+}
+
+.status-dot-pending {
+	background-color: var(--cr-pending);
+	box-shadow: 0 0 8px var(--cr-pending-glow);
+}
+
+.status-dot-disabled {
+	background-color: var(--cr-disabled);
+	box-shadow: 0 0 8px var(--cr-disabled-glow);
+}
