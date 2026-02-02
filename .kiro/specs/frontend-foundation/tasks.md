@@ -6,31 +6,31 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
 ## Tasks
 
-- [ ] 1. Project scaffolding and configuration
-  - [ ] 1.1 Initialize SvelteKit project with Bun and TypeScript
+- [-] 1. Project scaffolding and configuration
+  - [x] 1.1 Initialize SvelteKit project with Bun and TypeScript
     - Run `bun create svelte@latest frontend` with TypeScript, ESLint options
     - Configure `svelte.config.js` with `svelte-adapter-bun`
     - Update `tsconfig.json` for strict mode
     - _Requirements: 1.1, 1.2_
-    - [ ] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 1.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 1.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.2 Configure UnoCSS with required presets
+  - [x] 1.2 Configure UnoCSS with required presets
     - Install UnoCSS and presets: `bun add -D unocss @unocss/preset-icons unocss-preset-animations unocss-preset-shadcn`
     - Create `uno.config.ts` with presetWind4, presetShadcn (neutral, .dark), presetIcons, presetAnimations
     - Configure `vite.config.ts` with UnoCSS plugin before sveltekit
     - Create `src/app.css` with UnoCSS directives
     - _Requirements: 1.3_
-    - [ ] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 1.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 1.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.3 Install and configure shadcn-svelte
+  - [x] 1.3 Install and configure shadcn-svelte
     - Run `bunx shadcn-svelte@latest init` with neutral theme
     - Add core components: button, card, dialog, form, input, label, select, table, badge, skeleton, toast
     - Verify components in `$lib/components/ui/`
     - _Requirements: 1.4_
-    - [ ] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 1.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 1.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
   - [ ] 1.4 Install remaining dependencies
     - Install form handling: `bun add sveltekit-superforms zod`
