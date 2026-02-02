@@ -72,7 +72,7 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
 - [x] 3. Checkpoint - Verify core PlexClient functionality
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 4. Implement PlexClient user creation
+- [x] 4. Implement PlexClient user creation
   - [x] 4.1 Implement Friend user creation via inviteFriend
     - Use asyncio.to_thread() to call account.inviteFriend()
     - Return ExternalUser with email as identifier
@@ -116,76 +116,76 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
     - [x] 4.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 4.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [-] 4.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [x] 4.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [ ] 5. Implement PlexClient user management
-  - [ ] 5.1 Implement delete_user method
+- [x] 5. Implement PlexClient user management
+  - [x] 5.1 Implement delete_user method
     - Determine user type (Friend vs Home) from identifier
     - Use removeFriend() for Friends, appropriate method for Home Users
     - Return True on success, False if not found
     - Raise MediaClientError on other failures
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
-    - [ ] 5.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.2 Write property test for delete_user
+  - [x] 5.2 Write property test for delete_user
     - **Property 7: Delete User Return Value Correctness**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
-    - [ ] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.3 Implement set_library_access method
+  - [x] 5.3 Implement set_library_access method
     - Use updateFriend() for Friends with section list
     - Handle Home User library access configuration
     - Return True on success, False if user not found
     - Handle empty library list as revoke all access
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 9.1, 9.2, 9.3, 9.4_
-    - [ ] 5.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.4 Write property test for set_library_access
+  - [x] 5.4 Write property test for set_library_access
     - **Property 8: Library Access Update Return Value Correctness**
     - **Validates: Requirements 8.1, 8.2, 8.3, 9.1, 9.2, 9.3**
-    - [ ] 5.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.5 Implement set_user_enabled method
+  - [x] 5.5 Implement set_user_enabled method
     - Return False always (Plex doesn't support enable/disable)
     - Log warning about unsupported operation
     - Do not raise exception
     - _Requirements: 10.1, 10.2, 10.3_
-    - [ ] 5.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.6 Implement update_permissions method
+  - [x] 5.6 Implement update_permissions method
     - Map can_download to allowSync setting
     - Return True on success, False if user not found
     - Raise MediaClientError on failure
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
-    - [ ] 5.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.7 Write property test for update_permissions
+  - [x] 5.7 Write property test for update_permissions
     - **Property 9: Permission Update Mapping and Return Value**
     - **Validates: Requirements 11.1, 11.2, 11.3, 11.5**
-    - [ ] 5.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.7.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.7.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.8 Implement list_users method
+  - [x] 5.8 Implement list_users method
     - Retrieve all Friends via account.users()
     - Retrieve all Home Users
     - Map each to ExternalUser struct
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
-    - [ ] 5.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.8.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.8.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.9 Write property test for list_users
+  - [x] 5.9 Write property test for list_users
     - **Property 10: List Users Returns All Users as ExternalUser Structs**
     - **Validates: Requirements 12.1, 12.2, 12.3**
-    - [ ] 5.9.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 5.9.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 5.9.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 5.9.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 5.10 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [x] 5.10 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [ ] 6. Checkpoint - Verify complete PlexClient implementation
   - Ensure all tests pass, ask the user if questions arise.

@@ -402,15 +402,15 @@ class PlexClient:
         # plex_user_type == PlexUserType.HOME
         return await self._create_home_user(username)
 
-    async def delete_user(self, _external_user_id: str, /) -> bool:
+    async def delete_user(self, external_user_id: str, /) -> bool:
         """Delete a user from the Plex server.
 
         Removes the user account identified by the external user ID.
-        For Friends, uses removeFriend(). For Home Users, uses the
-        appropriate removal method.
+        Attempts to find the user among Friends first, then Home Users,
+        and uses the appropriate removal method.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
 
         Returns:
@@ -421,15 +421,89 @@ class PlexClient:
             MediaClientError: If the client is not initialized.
             MediaClientError: If deletion fails for reasons other than user not found.
         """
-        # Stub - will be implemented in task 5
-        raise NotImplementedError("Plex delete_user implementation in task 5")
+        if self._account is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="delete_user",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+
+            def _delete() -> bool:
+                assert self._account is not None  # noqa: S101
+                # plexapi lacks type stubs, users() returns list of MyPlexUser
+                users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+
+                # Find the user by ID
+                target_user: object | None = None
+                for user in users:  # pyright: ignore[reportUnknownVariableType]
+                    user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
+                    if user_id == external_user_id:
+                        target_user = user  # pyright: ignore[reportUnknownVariableType]
+                        break
+
+                if target_user is None:
+                    return False
+
+                # Determine if this is a Home User or Friend
+                # Home Users have home=True attribute
+                is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
+
+                if is_home_user:
+                    # Remove Home User via removeHomeUser
+                    self._account.removeHomeUser(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                else:
+                    # Remove Friend via removeFriend
+                    self._account.removeFriend(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+
+                return True
+
+            deleted = await asyncio.to_thread(_delete)
+
+            if deleted:
+                log.info(
+                    "plex_user_deleted",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+            else:
+                log.warning(
+                    "plex_user_not_found",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+
+            return deleted
+
+        except MediaClientError:
+            raise
+        except Exception as exc:
+            error_str = str(exc).lower()
+            # Check for not found error
+            if "not found" in error_str or "does not exist" in error_str:
+                log.warning(
+                    "plex_user_not_found",
+                    url=self.url,
+                    user_id=external_user_id,
+                    error=str(exc),
+                )
+                return False
+
+            raise MediaClientError(
+                f"Failed to delete user: {exc}",
+                operation="delete_user",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def set_user_enabled(
         self,
-        _external_user_id: str,
+        external_user_id: str,
         /,
         *,
-        _enabled: bool,
+        enabled: bool,
     ) -> bool:
         """Enable or disable a user on the Plex server.
 
@@ -437,20 +511,26 @@ class PlexClient:
         This method always returns False and logs a warning.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
-            _enabled: Whether the user should be enabled (keyword-only).
+            enabled: Whether the user should be enabled (keyword-only).
 
         Returns:
             False always - Plex does not support this operation.
         """
-        # Stub - will be implemented in task 5
-        raise NotImplementedError("Plex set_user_enabled implementation in task 5")
+        log.warning(
+            "plex_set_user_enabled_unsupported",
+            url=self.url,
+            user_id=external_user_id,
+            enabled=enabled,
+            message="Plex does not support enable/disable user functionality",
+        )
+        return False
 
     async def set_library_access(
         self,
-        _external_user_id: str,
-        _library_ids: Sequence[str],
+        external_user_id: str,
+        library_ids: Sequence[str],
         /,
     ) -> bool:
         """Set which libraries a user can access on the Plex server.
@@ -459,9 +539,9 @@ class PlexClient:
         for Friends or appropriate method for Home Users.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
-            _library_ids: Sequence of library section keys to grant access to
+            library_ids: Sequence of library section keys to grant access to
                 (positional-only). An empty sequence revokes all access.
 
         Returns:
@@ -473,15 +553,116 @@ class PlexClient:
             MediaClientError: If the library access update fails for reasons
                 other than user not found.
         """
-        # Stub - will be implemented in task 5
-        raise NotImplementedError("Plex set_library_access implementation in task 5")
+        if self._account is None or self._server is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="set_library_access",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+
+            def _set_access() -> bool:
+                assert self._account is not None  # noqa: S101
+                assert self._server is not None  # noqa: S101
+
+                # Get all users to find the target
+                users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+
+                # Find the user by ID
+                target_user: object | None = None
+                for user in users:  # pyright: ignore[reportUnknownVariableType]
+                    user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
+                    if user_id == external_user_id:
+                        target_user = user  # pyright: ignore[reportUnknownVariableType]
+                        break
+
+                if target_user is None:
+                    return False
+
+                # Get library sections to grant access to
+                # Empty list means revoke all access
+                sections: list[object] = []
+                if library_ids:
+                    for lib_id in library_ids:
+                        try:
+                            section = self._server.library.sectionByID(int(lib_id))  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                            sections.append(section)  # pyright: ignore[reportUnknownArgumentType]
+                        except Exception:
+                            # Skip invalid library IDs
+                            log.warning(
+                                "plex_invalid_library_id",
+                                url=self.url,
+                                library_id=lib_id,
+                            )
+
+                # Determine if this is a Home User or Friend
+                is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
+
+                if is_home_user:
+                    # For Home Users, use updateFriend with sections
+                    # Note: Plex API uses same method for both user types
+                    self._account.updateFriend(  # pyright: ignore[reportUnknownMemberType, reportUnusedCallResult]
+                        user=target_user,  # pyright: ignore[reportUnknownArgumentType]
+                        server=self._server,
+                        sections=sections,
+                    )
+                else:
+                    # For Friends, use updateFriend with sections
+                    self._account.updateFriend(  # pyright: ignore[reportUnknownMemberType, reportUnusedCallResult]
+                        user=target_user,  # pyright: ignore[reportUnknownArgumentType]
+                        server=self._server,
+                        sections=sections,
+                    )
+
+                return True
+
+            updated = await asyncio.to_thread(_set_access)
+
+            if updated:
+                log.info(
+                    "plex_library_access_updated",
+                    url=self.url,
+                    user_id=external_user_id,
+                    library_count=len(library_ids),
+                )
+            else:
+                log.warning(
+                    "plex_user_not_found_for_library_access",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+
+            return updated
+
+        except MediaClientError:
+            raise
+        except Exception as exc:
+            error_str = str(exc).lower()
+            # Check for not found error
+            if "not found" in error_str or "does not exist" in error_str:
+                log.warning(
+                    "plex_user_not_found_for_library_access",
+                    url=self.url,
+                    user_id=external_user_id,
+                    error=str(exc),
+                )
+                return False
+
+            raise MediaClientError(
+                f"Failed to set library access: {exc}",
+                operation="set_library_access",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def update_permissions(
         self,
-        _external_user_id: str,
+        external_user_id: str,
         /,
         *,
-        _permissions: dict[str, bool],
+        permissions: dict[str, bool],
     ) -> bool:
         """Update user permissions on the Plex server.
 
@@ -489,9 +670,9 @@ class PlexClient:
         Currently supports can_download → allowSync mapping.
 
         Args:
-            _external_user_id: The user's unique identifier on the server
+            external_user_id: The user's unique identifier on the server
                 (positional-only).
-            _permissions: Dictionary mapping universal permission names to boolean
+            permissions: Dictionary mapping universal permission names to boolean
                 values (keyword-only). Only provided keys are updated.
 
         Returns:
@@ -503,8 +684,87 @@ class PlexClient:
             MediaClientError: If the permission update fails for reasons
                 other than user not found.
         """
-        # Stub - will be implemented in task 5
-        raise NotImplementedError("Plex update_permissions implementation in task 5")
+        if self._account is None or self._server is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="update_permissions",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+
+            def _update_permissions() -> bool:
+                assert self._account is not None  # noqa: S101
+                assert self._server is not None  # noqa: S101
+
+                # Get all users to find the target
+                users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+
+                # Find the user by ID
+                target_user: object | None = None
+                for user in users:  # pyright: ignore[reportUnknownVariableType]
+                    user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
+                    if user_id == external_user_id:
+                        target_user = user  # pyright: ignore[reportUnknownVariableType]
+                        break
+
+                if target_user is None:
+                    return False
+
+                # Map universal permissions to Plex-specific settings
+                # can_download → allowSync
+                allow_sync: bool | None = permissions.get("can_download")
+
+                # Update the user's permissions via updateFriend
+                # Note: Plex uses allowSync for download permission
+                if allow_sync is not None:
+                    self._account.updateFriend(  # pyright: ignore[reportUnknownMemberType, reportUnusedCallResult]
+                        user=target_user,  # pyright: ignore[reportUnknownArgumentType]
+                        server=self._server,
+                        allowSync=allow_sync,
+                    )
+
+                return True
+
+            updated = await asyncio.to_thread(_update_permissions)
+
+            if updated:
+                log.info(
+                    "plex_permissions_updated",
+                    url=self.url,
+                    user_id=external_user_id,
+                    permissions=permissions,
+                )
+            else:
+                log.warning(
+                    "plex_user_not_found_for_permissions",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+
+            return updated
+
+        except MediaClientError:
+            raise
+        except Exception as exc:
+            error_str = str(exc).lower()
+            # Check for not found error
+            if "not found" in error_str or "does not exist" in error_str:
+                log.warning(
+                    "plex_user_not_found_for_permissions",
+                    url=self.url,
+                    user_id=external_user_id,
+                    error=str(exc),
+                )
+                return False
+
+            raise MediaClientError(
+                f"Failed to update permissions: {exc}",
+                operation="update_permissions",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def list_users(self) -> Sequence[ExternalUser]:
         """List all users with access to the Plex server.
@@ -520,5 +780,55 @@ class PlexClient:
             MediaClientError: If the client is not initialized.
             MediaClientError: If user listing fails due to connection or API errors.
         """
-        # Stub - will be implemented in task 5
-        raise NotImplementedError("Plex list_users implementation in task 5")
+        if self._account is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="list_users",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+
+            def _list_users() -> list[ExternalUser]:
+                assert self._account is not None  # noqa: S101
+
+                # Get all users (Friends and Home Users)
+                users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+
+                result: list[ExternalUser] = []
+                for user in users:  # pyright: ignore[reportUnknownVariableType]
+                    user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
+                    username: str = getattr(user, "username", "") or ""  # pyright: ignore[reportUnknownArgumentType]
+                    email: str | None = getattr(user, "email", None)  # pyright: ignore[reportUnknownArgumentType]
+
+                    if user_id:
+                        result.append(
+                            ExternalUser(
+                                external_user_id=user_id,
+                                username=username,
+                                email=email,
+                            )
+                        )
+
+                return result
+
+            users = await asyncio.to_thread(_list_users)
+
+            log.info(
+                "plex_users_listed",
+                url=self.url,
+                count=len(users),
+            )
+
+            return users
+
+        except MediaClientError:
+            raise
+        except Exception as exc:
+            raise MediaClientError(
+                f"Failed to list users: {exc}",
+                operation="list_users",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc

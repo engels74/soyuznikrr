@@ -1217,3 +1217,1033 @@ class TestUserTypeRoutingCorrectness:
                 assert mock_account.invite_friend_called is True
                 assert mock_account.create_home_user_called is False
                 assert result.email == email
+
+
+class MockMyPlexAccountWithUserManagement:
+    """Mock MyPlexAccount that supports user listing and deletion."""
+
+    _users: list[MockMyPlexUser]
+    _remove_friend_error: Exception | None
+    _remove_home_user_error: Exception | None
+    removed_users: list[str]
+
+    def __init__(
+        self,
+        *,
+        users: list[MockMyPlexUser] | None = None,
+        remove_friend_error: Exception | None = None,
+        remove_home_user_error: Exception | None = None,
+    ) -> None:
+        self._users = users or []
+        self._remove_friend_error = remove_friend_error
+        self._remove_home_user_error = remove_home_user_error
+        self.removed_users = []
+
+    def users(self) -> list[MockMyPlexUser]:
+        """Return the list of mock users."""
+        return self._users
+
+    def removeFriend(self, user: MockMyPlexUser) -> None:
+        """Mock removeFriend method."""
+        if self._remove_friend_error is not None:
+            raise self._remove_friend_error
+        self.removed_users.append(str(user.id))
+
+    def removeHomeUser(self, user: MockMyPlexUser) -> None:
+        """Mock removeHomeUser method."""
+        if self._remove_home_user_error is not None:
+            raise self._remove_home_user_error
+        self.removed_users.append(str(user.id))
+
+
+class MockMyPlexUserWithHome(MockMyPlexUser):
+    """Mock MyPlexUser with home attribute for Home Users."""
+
+    home: bool
+
+    def __init__(
+        self,
+        *,
+        user_id: int,
+        username: str,
+        email: str | None = None,
+        home: bool = False,
+    ) -> None:
+        super().__init__(user_id=user_id, username=username, email=email)
+        self.home = home
+
+
+class MockPlexServerWithUserManagement:
+    """Mock PlexServer that returns a configurable MyPlexAccount for user management."""
+
+    url: str
+    token: str
+    friendlyName: str
+    library: MockLibrary
+    _account: MockMyPlexAccountWithUserManagement
+
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        *,
+        friendly_name: str = "Test Server",
+        account: MockMyPlexAccountWithUserManagement | None = None,
+    ) -> None:
+        self.url = url
+        self.token = token
+        self.friendlyName = friendly_name
+        self.library = MockLibrary()
+        self._account = account or MockMyPlexAccountWithUserManagement()
+
+    def myPlexAccount(self) -> MockMyPlexAccountWithUserManagement:
+        """Return the configured mock MyPlexAccount."""
+        return self._account
+
+
+class TestDeleteUserReturnValueCorrectness:
+    """
+    Feature: plex-integration
+    Property 7: Delete User Return Value Correctness
+
+    For any connected PlexClient and user identifier, delete_user() should
+    return True if the user existed and was deleted, False if the user was
+    not found, and raise MediaClientError only for other failures.
+
+    **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
+    """
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_returns_true_when_friend_deleted(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """delete_user returns True when Friend is successfully deleted."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Create a Friend user (home=False)
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(users=[mock_user])
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.delete_user(str(user_id))
+
+                assert result is True
+                assert str(user_id) in mock_account.removed_users
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_returns_true_when_home_user_deleted(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """delete_user returns True when Home User is successfully deleted."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Create a Home User (home=True)
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=None, home=True
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(users=[mock_user])
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.delete_user(str(user_id))
+
+                assert result is True
+                assert str(user_id) in mock_account.removed_users
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_returns_false_when_user_not_found(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """delete_user returns False when user is not found."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Empty user list - user won't be found
+        mock_account = MockMyPlexAccountWithUserManagement(users=[])
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.delete_user(str(user_id))
+
+                assert result is False
+                assert len(mock_account.removed_users) == 0
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_raises_when_not_initialized(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """delete_user raises MediaClientError when client is not initialized."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        client = PlexClient(url=url, api_key=api_key)
+
+        # Without entering context, _account is None
+        with pytest.raises(MediaClientError) as exc_info:
+            _ = await client.delete_user(str(user_id))
+
+        assert exc_info.value.operation == "delete_user"
+        assert exc_info.value.server_url == url
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+        error_message=st.text(min_size=1, max_size=100).filter(lambda s: s.strip()),
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_raises_on_api_failure(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+        error_message: str,
+    ) -> None:
+        """delete_user raises MediaClientError on API failure (not 'not found')."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        # Create a Friend user that will fail to delete
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(
+            users=[mock_user],
+            remove_friend_error=RuntimeError(error_message),
+        )
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                with pytest.raises(MediaClientError) as exc_info:
+                    _ = await client.delete_user(str(user_id))
+
+                assert exc_info.value.operation == "delete_user"
+                assert exc_info.value.server_url == url
+
+
+class MockLibraryWithSections(MockLibrary):
+    """Mock Plex library that supports sectionByID."""
+
+    _sections: list[MockLibrarySection]
+    _sections_by_id: dict[int, MockLibrarySection]
+
+    def __init__(self, sections: list[MockLibrarySection] | None = None) -> None:
+        super().__init__()
+        self._sections = sections or []
+        self._sections_by_id = {s.key: s for s in self._sections}
+
+    def sectionByID(self, section_id: int) -> MockLibrarySection:
+        """Return section by ID or raise."""
+        if section_id not in self._sections_by_id:
+            raise Exception(f"Section {section_id} not found")
+        return self._sections_by_id[section_id]
+
+
+class MockMyPlexAccountWithLibraryAccess:
+    """Mock MyPlexAccount that supports user listing and library access updates."""
+
+    _users: list[MockMyPlexUserWithHome]
+    _update_friend_error: Exception | None
+    update_friend_calls: list[dict[str, object]]
+
+    def __init__(
+        self,
+        *,
+        users: list[MockMyPlexUserWithHome] | None = None,
+        update_friend_error: Exception | None = None,
+    ) -> None:
+        self._users = users or []
+        self._update_friend_error = update_friend_error
+        self.update_friend_calls = []
+
+    def users(self) -> list[MockMyPlexUserWithHome]:
+        """Return the list of mock users."""
+        return self._users
+
+    def updateFriend(
+        self, user: object, server: object, sections: list[object]
+    ) -> None:
+        """Mock updateFriend method."""
+        if self._update_friend_error is not None:
+            raise self._update_friend_error
+        self.update_friend_calls.append(
+            {"user": user, "server": server, "sections": sections}
+        )
+
+
+class MockPlexServerWithLibraryAccess:
+    """Mock PlexServer that supports library access operations."""
+
+    url: str
+    token: str
+    friendlyName: str
+    library: MockLibraryWithSections
+    _account: MockMyPlexAccountWithLibraryAccess
+
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        *,
+        friendly_name: str = "Test Server",
+        account: MockMyPlexAccountWithLibraryAccess | None = None,
+        library_sections: list[MockLibrarySection] | None = None,
+    ) -> None:
+        self.url = url
+        self.token = token
+        self.friendlyName = friendly_name
+        self.library = MockLibraryWithSections(library_sections)
+        self._account = account or MockMyPlexAccountWithLibraryAccess()
+
+    def myPlexAccount(self) -> MockMyPlexAccountWithLibraryAccess:
+        """Return the configured mock MyPlexAccount."""
+        return self._account
+
+
+class TestLibraryAccessUpdateReturnValueCorrectness:
+    """
+    Feature: plex-integration
+    Property 8: Library Access Update Return Value Correctness
+
+    For any connected PlexClient, valid user identifier, and library ID list,
+    set_library_access() should return True if the user exists and access was
+    updated, False if the user was not found.
+
+    **Validates: Requirements 8.1, 8.2, 8.3, 9.1, 9.2, 9.3**
+    """
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+        library_ids=st.lists(
+            st.integers(min_value=1, max_value=100), min_size=1, max_size=5
+        ),
+    )
+    @pytest.mark.asyncio
+    async def test_set_library_access_returns_true_for_friend(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+        library_ids: list[int],
+    ) -> None:
+        """set_library_access returns True when Friend's access is updated."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Create a Friend user
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithLibraryAccess(users=[mock_user])
+
+        # Create library sections
+        sections = [
+            MockLibrarySection(
+                key=lib_id, title=f"Library {lib_id}", section_type="movie"
+            )
+            for lib_id in library_ids
+        ]
+
+        mock_server = MockPlexServerWithLibraryAccess(
+            url, api_key, account=mock_account, library_sections=sections
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.set_library_access(
+                    str(user_id), [str(lib_id) for lib_id in library_ids]
+                )
+
+                assert result is True
+                assert len(mock_account.update_friend_calls) == 1
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+        library_ids=st.lists(
+            st.integers(min_value=1, max_value=100), min_size=1, max_size=5
+        ),
+    )
+    @pytest.mark.asyncio
+    async def test_set_library_access_returns_true_for_home_user(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+        library_ids: list[int],
+    ) -> None:
+        """set_library_access returns True when Home User's access is updated."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Create a Home User
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=None, home=True
+        )
+        mock_account = MockMyPlexAccountWithLibraryAccess(users=[mock_user])
+
+        # Create library sections
+        sections = [
+            MockLibrarySection(
+                key=lib_id, title=f"Library {lib_id}", section_type="movie"
+            )
+            for lib_id in library_ids
+        ]
+
+        mock_server = MockPlexServerWithLibraryAccess(
+            url, api_key, account=mock_account, library_sections=sections
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.set_library_access(
+                    str(user_id), [str(lib_id) for lib_id in library_ids]
+                )
+
+                assert result is True
+                assert len(mock_account.update_friend_calls) == 1
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_set_library_access_returns_false_when_user_not_found(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """set_library_access returns False when user is not found."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Empty user list - user won't be found
+        mock_account = MockMyPlexAccountWithLibraryAccess(users=[])
+        mock_server = MockPlexServerWithLibraryAccess(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.set_library_access(str(user_id), ["1", "2"])
+
+                assert result is False
+                assert len(mock_account.update_friend_calls) == 0
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_set_library_access_with_empty_list_revokes_access(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """set_library_access with empty list revokes all access."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithLibraryAccess(users=[mock_user])
+        mock_server = MockPlexServerWithLibraryAccess(
+            url, api_key, account=mock_account
+        )
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.set_library_access(str(user_id), [])
+
+                assert result is True
+                assert len(mock_account.update_friend_calls) == 1
+                # Empty sections list should be passed
+                assert mock_account.update_friend_calls[0]["sections"] == []
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_set_library_access_raises_when_not_initialized(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """set_library_access raises MediaClientError when client is not initialized."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        client = PlexClient(url=url, api_key=api_key)
+
+        # Without entering context, _account is None
+        with pytest.raises(MediaClientError) as exc_info:
+            _ = await client.set_library_access(str(user_id), ["1"])
+
+        assert exc_info.value.operation == "set_library_access"
+        assert exc_info.value.server_url == url
+
+
+class MockMyPlexAccountWithPermissions:
+    """Mock MyPlexAccount that supports user listing and permission updates."""
+
+    _users: list[MockMyPlexUserWithHome]
+    _update_friend_error: Exception | None
+    update_friend_calls: list[dict[str, object]]
+
+    def __init__(
+        self,
+        *,
+        users: list[MockMyPlexUserWithHome] | None = None,
+        update_friend_error: Exception | None = None,
+    ) -> None:
+        self._users = users or []
+        self._update_friend_error = update_friend_error
+        self.update_friend_calls = []
+
+    def users(self) -> list[MockMyPlexUserWithHome]:
+        """Return the list of mock users."""
+        return self._users
+
+    def updateFriend(
+        self,
+        user: object,
+        server: object,
+        allowSync: bool | None = None,
+        **kwargs: object,
+    ) -> None:
+        """Mock updateFriend method with permission support."""
+        if self._update_friend_error is not None:
+            raise self._update_friend_error
+        self.update_friend_calls.append(
+            {"user": user, "server": server, "allowSync": allowSync, **kwargs}
+        )
+
+
+class MockPlexServerWithPermissions:
+    """Mock PlexServer that supports permission operations."""
+
+    url: str
+    token: str
+    friendlyName: str
+    library: MockLibrary
+    _account: MockMyPlexAccountWithPermissions
+
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        *,
+        friendly_name: str = "Test Server",
+        account: MockMyPlexAccountWithPermissions | None = None,
+    ) -> None:
+        self.url = url
+        self.token = token
+        self.friendlyName = friendly_name
+        self.library = MockLibrary()
+        self._account = account or MockMyPlexAccountWithPermissions()
+
+    def myPlexAccount(self) -> MockMyPlexAccountWithPermissions:
+        """Return the configured mock MyPlexAccount."""
+        return self._account
+
+
+class TestPermissionUpdateMappingAndReturnValue:
+    """
+    Feature: plex-integration
+    Property 9: Permission Update Mapping and Return Value
+
+    For any connected PlexClient, valid user identifier, and permissions dict
+    containing can_download, update_permissions() should map can_download to
+    the Plex allowSync setting and return True on success, False if user not found.
+
+    **Validates: Requirements 11.1, 11.2, 11.3, 11.5**
+    """
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+        can_download=st.booleans(),
+    )
+    @pytest.mark.asyncio
+    async def test_update_permissions_maps_can_download_to_allow_sync(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+        can_download: bool,
+    ) -> None:
+        """update_permissions maps can_download to Plex allowSync setting."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
+        mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.update_permissions(
+                    str(user_id), permissions={"can_download": can_download}
+                )
+
+                assert result is True
+                assert len(mock_account.update_friend_calls) == 1
+                # Verify can_download was mapped to allowSync
+                assert mock_account.update_friend_calls[0]["allowSync"] == can_download
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_update_permissions_returns_true_on_success(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """update_permissions returns True when permissions are successfully updated."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
+        mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.update_permissions(
+                    str(user_id), permissions={"can_download": True}
+                )
+
+                assert result is True
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_update_permissions_returns_false_when_user_not_found(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """update_permissions returns False when user is not found."""
+        from zondarr.media.clients.plex import PlexClient
+
+        # Empty user list - user won't be found
+        mock_account = MockMyPlexAccountWithPermissions(users=[])
+        mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.update_permissions(
+                    str(user_id), permissions={"can_download": True}
+                )
+
+                assert result is False
+                assert len(mock_account.update_friend_calls) == 0
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_update_permissions_raises_when_not_initialized(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """update_permissions raises MediaClientError when client is not initialized."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        client = PlexClient(url=url, api_key=api_key)
+
+        # Without entering context, _account is None
+        with pytest.raises(MediaClientError) as exc_info:
+            _ = await client.update_permissions(
+                str(user_id), permissions={"can_download": True}
+            )
+
+        assert exc_info.value.operation == "update_permissions"
+        assert exc_info.value.server_url == url
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_update_permissions_with_empty_dict_returns_true(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """update_permissions with empty dict returns True (no-op for existing user)."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
+        mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.update_permissions(str(user_id), permissions={})
+
+                assert result is True
+                # No updateFriend call should be made for empty permissions
+                assert len(mock_account.update_friend_calls) == 0
+
+
+class MockMyPlexAccountWithUserList:
+    """Mock MyPlexAccount that supports user listing."""
+
+    _users: list[MockMyPlexUserWithHome]
+    _users_error: Exception | None
+
+    def __init__(
+        self,
+        *,
+        users: list[MockMyPlexUserWithHome] | None = None,
+        users_error: Exception | None = None,
+    ) -> None:
+        self._users = users or []
+        self._users_error = users_error
+
+    def users(self) -> list[MockMyPlexUserWithHome]:
+        """Return the list of mock users."""
+        if self._users_error is not None:
+            raise self._users_error
+        return self._users
+
+
+class MockPlexServerWithUserList:
+    """Mock PlexServer that supports user listing."""
+
+    url: str
+    token: str
+    friendlyName: str
+    library: MockLibrary
+    _account: MockMyPlexAccountWithUserList
+
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        *,
+        friendly_name: str = "Test Server",
+        account: MockMyPlexAccountWithUserList | None = None,
+    ) -> None:
+        self.url = url
+        self.token = token
+        self.friendlyName = friendly_name
+        self.library = MockLibrary()
+        self._account = account or MockMyPlexAccountWithUserList()
+
+    def myPlexAccount(self) -> MockMyPlexAccountWithUserList:
+        """Return the configured mock MyPlexAccount."""
+        return self._account
+
+
+class TestListUsersReturnsAllUsersAsExternalUserStructs:
+    """
+    Feature: plex-integration
+    Property 10: List Users Returns All Users as ExternalUser Structs
+
+    For any connected PlexClient, list_users() should return a sequence
+    containing all Friends and Home Users, where each element is a valid
+    ExternalUser with non-empty external_user_id and username.
+
+    **Validates: Requirements 12.1, 12.2, 12.3**
+    """
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        users_data=st.lists(
+            st.tuples(
+                st.integers(min_value=1, max_value=999999999),
+                username_strategy,
+                st.one_of(email_strategy, st.none()),
+                st.booleans(),
+            ),
+            min_size=0,
+            max_size=10,
+        ),
+    )
+    @pytest.mark.asyncio
+    async def test_list_users_returns_all_users(
+        self,
+        url: str,
+        api_key: str,
+        users_data: list[tuple[int, str, str | None, bool]],
+    ) -> None:
+        """list_users returns all Friends and Home Users as ExternalUser structs."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.types import ExternalUser
+
+        # Create mock users
+        mock_users = [
+            MockMyPlexUserWithHome(
+                user_id=user_id, username=username, email=email, home=is_home
+            )
+            for user_id, username, email, is_home in users_data
+        ]
+        mock_account = MockMyPlexAccountWithUserList(users=mock_users)
+        mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.list_users()
+
+                # Should return same number of users
+                assert len(result) == len(users_data)
+
+                # Each result should be a valid ExternalUser
+                for user in result:
+                    assert isinstance(user, ExternalUser)
+                    assert user.external_user_id  # non-empty
+                    assert user.username is not None
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+        email=email_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_list_users_maps_fields_correctly(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+        email: str,
+    ) -> None:
+        """list_users maps user fields correctly to ExternalUser."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=email, home=False
+        )
+        mock_account = MockMyPlexAccountWithUserList(users=[mock_user])
+        mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.list_users()
+
+                assert len(result) == 1
+                user = result[0]
+                assert user.external_user_id == str(user_id)
+                assert user.username == username
+                assert user.email == email
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_list_users_returns_empty_for_no_users(
+        self,
+        url: str,
+        api_key: str,
+    ) -> None:
+        """list_users returns empty sequence when no users exist."""
+        from zondarr.media.clients.plex import PlexClient
+
+        mock_account = MockMyPlexAccountWithUserList(users=[])
+        mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.list_users()
+                assert len(result) == 0
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_list_users_raises_when_not_initialized(
+        self,
+        url: str,
+        api_key: str,
+    ) -> None:
+        """list_users raises MediaClientError when client is not initialized."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        client = PlexClient(url=url, api_key=api_key)
+
+        # Without entering context, _account is None
+        with pytest.raises(MediaClientError) as exc_info:
+            _ = await client.list_users()
+
+        assert exc_info.value.operation == "list_users"
+        assert exc_info.value.server_url == url
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        error_message=st.text(min_size=1, max_size=100).filter(lambda s: s.strip()),
+    )
+    @pytest.mark.asyncio
+    async def test_list_users_raises_on_api_failure(
+        self,
+        url: str,
+        api_key: str,
+        error_message: str,
+    ) -> None:
+        """list_users raises MediaClientError on API failure."""
+        from zondarr.media.clients.plex import PlexClient
+        from zondarr.media.exceptions import MediaClientError
+
+        mock_account = MockMyPlexAccountWithUserList(
+            users_error=RuntimeError(error_message)
+        )
+        mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
+
+        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                with pytest.raises(MediaClientError) as exc_info:
+                    _ = await client.list_users()
+
+                assert exc_info.value.operation == "list_users"
+                assert exc_info.value.server_url == url
