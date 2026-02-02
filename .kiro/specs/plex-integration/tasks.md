@@ -190,7 +190,7 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
 - [x] 6. Checkpoint - Verify complete PlexClient implementation
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 7. Register PlexClient in registry
+- [x] 7. Register PlexClient in registry
   - [x] 7.1 Register PlexClient for ServerType.PLEX
     - Import PlexClient in app.py or appropriate startup location
     - Call registry.register(ServerType.PLEX, PlexClient)
@@ -205,53 +205,53 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
     - [x] 7.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 7.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [-] 7.3 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [x] 7.3 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [ ] 8. Implement Plex OAuth service
-  - [ ] 8.1 Create PlexOAuthService class
+- [-] 8. Implement Plex OAuth service
+  - [x] 8.1 Create PlexOAuthService class
     - Initialize with httpx.AsyncClient and client_id
     - Implement close() method for cleanup
     - _Requirements: 13.1_
-    - [ ] 8.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.2 Implement create_pin method
+  - [x] 8.2 Implement create_pin method
     - POST to plex.tv/api/v2/pins with X-Plex-Client-Identifier header
     - Parse response for pin id, code, and expiration
     - Return PlexOAuthPin struct with auth_url
     - _Requirements: 13.1, 13.2, 13.3, 13.4_
-    - [ ] 8.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.3 Write property test for create_pin
+  - [x] 8.3 Write property test for create_pin
     - **Property 11: OAuth PIN Generation Returns Valid Response**
     - **Validates: Requirements 13.1, 13.2**
-    - [ ] 8.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.4 Implement check_pin method
+  - [x] 8.4 Implement check_pin method
     - GET plex.tv/api/v2/pins/{pin_id}
     - Check if authToken is present in response
     - If authenticated, call get_user_email to retrieve email
     - Return PlexOAuthResult with authenticated status and email
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
-    - [ ] 8.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.5 Write property test for check_pin
+  - [x] 8.5 Write property test for check_pin
     - **Property 12: OAuth PIN Verification Retrieves Email on Success**
     - **Validates: Requirements 14.1, 14.2, 14.3**
-    - [ ] 8.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.5.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.6 Implement get_user_email method
+  - [x] 8.6 Implement get_user_email method
     - GET plex.tv/api/v2/user with X-Plex-Token header
     - Extract email from response
     - _Requirements: 14.3_
-    - [ ] 8.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 8.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 8.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 8.6.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 8.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [-] 8.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [ ] 9. Implement Plex OAuth controller
   - [ ] 9.1 Create PlexOAuthController with endpoints

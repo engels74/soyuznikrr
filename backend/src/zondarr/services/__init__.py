@@ -10,6 +10,12 @@ repositories and external systems. Services handle:
 
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
 from zondarr.services.media_server import MediaServerService
+from zondarr.services.plex_oauth import (
+    PlexOAuthError,
+    PlexOAuthPin,
+    PlexOAuthResult,
+    PlexOAuthService,
+)
 from zondarr.services.redemption import RedemptionService
 from zondarr.services.sync import SyncService
 from zondarr.services.user import UserService
@@ -18,6 +24,10 @@ __all__ = [
     "InvitationService",
     "InvitationValidationFailure",
     "MediaServerService",
+    "PlexOAuthError",
+    "PlexOAuthPin",
+    "PlexOAuthResult",
+    "PlexOAuthService",
     "RedemptionService",
     "SyncService",
     "UserService",
