@@ -253,7 +253,7 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
 
   - [x] 8.7 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [-] 9. Implement Plex OAuth controller
+- [x] 9. Implement Plex OAuth controller
   - [x] 9.1 Create PlexOAuthController with endpoints
     - POST /api/v1/join/plex/oauth/pin - create_pin endpoint
     - GET /api/v1/join/plex/oauth/pin/{pin_id} - check_pin endpoint
@@ -283,34 +283,34 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
     - [x] 9.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 9.4.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [-] 9.5 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [x] 9.5 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [ ] 10. Checkpoint - Verify OAuth flow
+- [x] 10. Checkpoint - Verify OAuth flow
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Integrate Plex with redemption service
-  - [ ] 11.1 Update RedemptionService for Plex user types
+- [-] 11. Integrate Plex with redemption service
+  - [x] 11.1 Update RedemptionService for Plex user types
     - Handle plex_user_type parameter in redemption
     - Pass OAuth-retrieved email for Friend invitations
     - Pass username for Home User creation
     - _Requirements: 15.1, 15.2_
-    - [ ] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 11.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 11.2 Verify rollback works for Plex
+  - [x] 11.2 Verify rollback works for Plex
     - Ensure delete_user is called on rollback
     - Test multi-server rollback with Plex
     - _Requirements: 15.5_
-    - [ ] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 11.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 11.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 11.3 Write property test for redemption rollback
+  - [x] 11.3 Write property test for redemption rollback
     - **Property 13: Redemption Rollback on Failure**
     - **Validates: Requirements 15.5**
-    - [ ] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 11.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 11.3.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 11.4 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [-] 11.4 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [ ] 12. Add comprehensive error handling
   - [ ] 12.1 Implement error code mapping in PlexClient

@@ -1921,3 +1921,558 @@ class TestRollbackOnFailure:
 
         finally:
             await engine.dispose()
+
+
+# =============================================================================
+# Property 13: Redemption Rollback on Failure (Plex)
+# =============================================================================
+
+
+class TestPlexRedemptionRollbackOnFailure:
+    """Property 13: Redemption Rollback on Failure (Plex).
+
+    **Validates: Requirements 15.5**
+
+    For any invitation targeting multiple servers where user creation succeeds
+    on some servers but fails on a Plex server, all previously created users
+    should be deleted and no local Identity/User records should be created.
+    """
+
+    @given(
+        num_jellyfin_servers=st.integers(min_value=1, max_value=3),
+        code=code_strategy,
+        username=username_strategy,
+        password=password_strategy,
+        email=email_strategy,
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_plex_failure_triggers_rollback_of_created_users(
+        self,
+        num_jellyfin_servers: int,
+        code: str,
+        username: str,
+        password: str,
+        email: str | None,
+    ) -> None:
+        """When Plex creation fails, all previously created users are deleted.
+
+        **Validates: Requirements 15.5**
+
+        Property: For any redemption with N Jellyfin servers and 1 Plex server,
+        if user creation fails on the Plex server, all users created before
+        the failure should be deleted via delete_user calls.
+
+        Note: The order of server processing is not guaranteed, so we verify
+        that all created users are deleted, regardless of how many were created
+        before the Plex failure.
+        """
+        from zondarr.core.exceptions import ValidationError
+        from zondarr.media.exceptions import MediaClientError
+
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+            # Create Jellyfin servers
+            jellyfin_servers: list[MediaServer] = []
+            async with session_factory() as sess:
+                for i in range(num_jellyfin_servers):
+                    server = MediaServer(
+                        name=f"JellyfinServer{i}",
+                        server_type=ServerType.JELLYFIN,
+                        url=f"http://jellyfin{i}.local:8096",
+                        api_key=f"jellyfin-api-key-{i}",
+                        enabled=True,
+                    )
+                    sess.add(server)
+                    jellyfin_servers.append(server)
+                await sess.commit()
+                for server in jellyfin_servers:
+                    await sess.refresh(server)
+
+            # Create Plex server (will fail)
+            async with session_factory() as sess:
+                plex_server = MediaServer(
+                    name="PlexServer",
+                    server_type=ServerType.PLEX,
+                    url="http://plex.local:32400",
+                    api_key="plex-api-key",
+                    enabled=True,
+                )
+                sess.add(plex_server)
+                await sess.commit()
+                await sess.refresh(plex_server)
+
+            # Create invitation targeting all servers
+            all_servers = [*jellyfin_servers, plex_server]
+            async with session_factory() as sess:
+                invitation = Invitation(
+                    code=code,
+                    enabled=True,
+                    expires_at=None,
+                    max_uses=100,
+                    use_count=0,
+                )
+                invitation.target_servers = all_servers
+                sess.add(invitation)
+                await sess.commit()
+
+            # Track created and deleted users
+            created_user_ids: list[str] = []
+            deleted_user_ids: list[str] = []
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+
+            def create_client_side_effect(
+                server_type: ServerType,
+                *,
+                url: str,
+                api_key: str,
+            ) -> AsyncMock:
+                del api_key
+
+                mock_client = AsyncMock()
+                external_id = str(uuid4())
+                # Capture server_type value to avoid closure issues
+                captured_server_type = server_type
+
+                async def mock_create_user(
+                    uname: str,
+                    _pwd: str,
+                    /,
+                    *,
+                    email: str | None = None,
+                    plex_user_type: str | None = None,
+                ) -> ExternalUser:
+                    del plex_user_type  # Unused in mock
+
+                    # Fail if this is the Plex server
+                    if captured_server_type == ServerType.PLEX:
+                        raise MediaClientError(
+                            "Plex server failure",
+                            operation="create_user",
+                            server_url=url,
+                        )
+
+                    # Success for Jellyfin servers
+                    created_user_ids.append(external_id)
+                    return ExternalUser(
+                        external_user_id=external_id,
+                        username=uname,
+                        email=email,
+                    )
+
+                async def mock_delete_user(ext_user_id: str, /) -> bool:
+                    deleted_user_ids.append(ext_user_id)
+                    return True
+
+                mock_client.create_user = mock_create_user
+                mock_client.delete_user = mock_delete_user
+                mock_client.set_library_access = AsyncMock(return_value=True)
+                mock_client.update_permissions = AsyncMock(return_value=True)
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+
+                return mock_client
+
+            mock_registry.create_client = MagicMock(
+                side_effect=create_client_side_effect
+            )
+
+            # Execute redemption - should fail on Plex server
+            async with session_factory() as session:
+                invitation_repo = InvitationRepository(session)
+                user_repo = UserRepository(session)
+                identity_repo = IdentityRepository(session)
+
+                invitation_service = InvitationService(invitation_repo)
+                user_service = UserService(user_repo, identity_repo)
+                redemption_service = RedemptionService(invitation_service, user_service)
+
+                with patch("zondarr.services.redemption.registry", mock_registry):
+                    with pytest.raises(ValidationError):
+                        _ = await redemption_service.redeem(
+                            code,
+                            username=username,
+                            password=password,
+                            email=email,
+                        )
+
+            # PROPERTY ASSERTION: All created users should be deleted
+            # (regardless of how many were created before Plex failure)
+            assert set(deleted_user_ids) == set(created_user_ids), (
+                f"All created users {created_user_ids} should be deleted, "
+                f"but only {deleted_user_ids} were deleted"
+            )
+
+            # PROPERTY ASSERTION: Created users count should be between 0 and num_jellyfin_servers
+            # (depends on server processing order)
+            assert 0 <= len(created_user_ids) <= num_jellyfin_servers, (
+                f"Expected 0 to {num_jellyfin_servers} users to be created, "
+                f"got {len(created_user_ids)}"
+            )
+
+        finally:
+            await engine.dispose()
+
+    @given(
+        num_jellyfin_servers=st.integers(min_value=1, max_value=2),
+        code=code_strategy,
+        username=username_strategy,
+        password=password_strategy,
+        email=email_strategy,
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_no_local_records_on_plex_failure(
+        self,
+        num_jellyfin_servers: int,
+        code: str,
+        username: str,
+        password: str,
+        email: str | None,
+    ) -> None:
+        """When Plex creation fails, no local Identity or User records are created.
+
+        **Validates: Requirements 15.5**
+
+        Property: For any redemption that fails on a Plex server, no Identity
+        or User records should exist in the database for this redemption attempt.
+        """
+        from sqlalchemy import func, select
+
+        from zondarr.core.exceptions import ValidationError
+        from zondarr.media.exceptions import MediaClientError
+        from zondarr.models.identity import Identity as IdentityModel
+        from zondarr.models.identity import User as UserModel
+
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+            # Create Jellyfin servers
+            jellyfin_servers: list[MediaServer] = []
+            async with session_factory() as sess:
+                for i in range(num_jellyfin_servers):
+                    server = MediaServer(
+                        name=f"JellyfinServer{i}",
+                        server_type=ServerType.JELLYFIN,
+                        url=f"http://jellyfin{i}.local:8096",
+                        api_key=f"jellyfin-api-key-{i}",
+                        enabled=True,
+                    )
+                    sess.add(server)
+                    jellyfin_servers.append(server)
+                await sess.commit()
+                for server in jellyfin_servers:
+                    await sess.refresh(server)
+
+            # Create Plex server (will fail)
+            async with session_factory() as sess:
+                plex_server = MediaServer(
+                    name="PlexServer",
+                    server_type=ServerType.PLEX,
+                    url="http://plex.local:32400",
+                    api_key="plex-api-key",
+                    enabled=True,
+                )
+                sess.add(plex_server)
+                await sess.commit()
+                await sess.refresh(plex_server)
+
+            # Create invitation targeting all servers
+            all_servers = [*jellyfin_servers, plex_server]
+            async with session_factory() as sess:
+                invitation = Invitation(
+                    code=code,
+                    enabled=True,
+                    expires_at=None,
+                    max_uses=100,
+                    use_count=0,
+                )
+                invitation.target_servers = all_servers
+                sess.add(invitation)
+                await sess.commit()
+
+            # Count existing records before redemption attempt
+            async with session_factory() as sess:
+                identity_count_before = await sess.scalar(
+                    select(func.count()).select_from(IdentityModel)
+                )
+                user_count_before = await sess.scalar(
+                    select(func.count()).select_from(UserModel)
+                )
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+
+            def create_client_side_effect(
+                server_type: ServerType,
+                *,
+                url: str,
+                api_key: str,
+            ) -> AsyncMock:
+                del api_key
+
+                mock_client = AsyncMock()
+                # Capture server_type value to avoid closure issues
+                captured_server_type = server_type
+
+                async def mock_create_user(
+                    uname: str,
+                    _pwd: str,
+                    /,
+                    *,
+                    email: str | None = None,
+                    plex_user_type: str | None = None,
+                ) -> ExternalUser:
+                    del plex_user_type
+
+                    # Fail if this is the Plex server
+                    if captured_server_type == ServerType.PLEX:
+                        raise MediaClientError(
+                            "Plex server failure",
+                            operation="create_user",
+                            server_url=url,
+                        )
+
+                    return ExternalUser(
+                        external_user_id=str(uuid4()),
+                        username=uname,
+                        email=email,
+                    )
+
+                mock_client.create_user = mock_create_user
+                mock_client.delete_user = AsyncMock(return_value=True)
+                mock_client.set_library_access = AsyncMock(return_value=True)
+                mock_client.update_permissions = AsyncMock(return_value=True)
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+
+                return mock_client
+
+            mock_registry.create_client = MagicMock(
+                side_effect=create_client_side_effect
+            )
+
+            # Execute redemption - should fail on Plex server
+            async with session_factory() as session:
+                invitation_repo = InvitationRepository(session)
+                user_repo = UserRepository(session)
+                identity_repo = IdentityRepository(session)
+
+                invitation_service = InvitationService(invitation_repo)
+                user_service = UserService(user_repo, identity_repo)
+                redemption_service = RedemptionService(invitation_service, user_service)
+
+                with patch("zondarr.services.redemption.registry", mock_registry):
+                    with pytest.raises(ValidationError):
+                        _ = await redemption_service.redeem(
+                            code,
+                            username=username,
+                            password=password,
+                            email=email,
+                        )
+
+            # PROPERTY ASSERTION: No new Identity records created
+            async with session_factory() as sess:
+                identity_count_after = await sess.scalar(
+                    select(func.count()).select_from(IdentityModel)
+                )
+                assert identity_count_after == identity_count_before, (
+                    f"No new Identity records should be created on Plex failure. "
+                    f"Before: {identity_count_before}, After: {identity_count_after}"
+                )
+
+            # PROPERTY ASSERTION: No new User records created
+            async with session_factory() as sess:
+                user_count_after = await sess.scalar(
+                    select(func.count()).select_from(UserModel)
+                )
+                assert user_count_after == user_count_before, (
+                    f"No new User records should be created on Plex failure. "
+                    f"Before: {user_count_before}, After: {user_count_after}"
+                )
+
+        finally:
+            await engine.dispose()
+
+    @given(
+        code=code_strategy,
+        username=username_strategy,
+        password=password_strategy,
+        email=email_strategy,
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_multi_server_rollback_with_plex_and_jellyfin(
+        self,
+        code: str,
+        username: str,
+        password: str,
+        email: str | None,
+    ) -> None:
+        """Multi-server rollback works correctly with mixed Plex and Jellyfin servers.
+
+        **Validates: Requirements 15.5**
+
+        Property: For any redemption with Jellyfin, Plex, and another Jellyfin
+        server where the last server fails, users on all previous servers
+        (both Plex and Jellyfin) should be deleted.
+        """
+        from zondarr.core.exceptions import ValidationError
+        from zondarr.media.exceptions import MediaClientError
+
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+            # Create servers: Jellyfin -> Plex -> Jellyfin (fails)
+            servers: list[MediaServer] = []
+            async with session_factory() as sess:
+                # First Jellyfin server
+                jellyfin1 = MediaServer(
+                    name="Jellyfin1",
+                    server_type=ServerType.JELLYFIN,
+                    url="http://jellyfin1.local:8096",
+                    api_key="jellyfin1-api-key",
+                    enabled=True,
+                )
+                sess.add(jellyfin1)
+                servers.append(jellyfin1)
+
+                # Plex server
+                plex = MediaServer(
+                    name="Plex",
+                    server_type=ServerType.PLEX,
+                    url="http://plex.local:32400",
+                    api_key="plex-api-key",
+                    enabled=True,
+                )
+                sess.add(plex)
+                servers.append(plex)
+
+                # Second Jellyfin server (will fail)
+                jellyfin2 = MediaServer(
+                    name="Jellyfin2",
+                    server_type=ServerType.JELLYFIN,
+                    url="http://jellyfin2.local:8096",
+                    api_key="jellyfin2-api-key",
+                    enabled=True,
+                )
+                sess.add(jellyfin2)
+                servers.append(jellyfin2)
+
+                await sess.commit()
+                for server in servers:
+                    await sess.refresh(server)
+
+            # Create invitation targeting all servers
+            async with session_factory() as sess:
+                invitation = Invitation(
+                    code=code,
+                    enabled=True,
+                    expires_at=None,
+                    max_uses=100,
+                    use_count=0,
+                )
+                invitation.target_servers = servers
+                sess.add(invitation)
+                await sess.commit()
+
+            # Track created and deleted users
+            created_user_ids: list[str] = []
+            deleted_user_ids: list[str] = []
+            create_call_count = 0
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+
+            def create_client_side_effect(
+                server_type: ServerType,
+                *,
+                url: str,
+                api_key: str,
+            ) -> AsyncMock:
+                del api_key, server_type
+
+                mock_client = AsyncMock()
+                external_id = str(uuid4())
+
+                async def mock_create_user(
+                    uname: str,
+                    _pwd: str,
+                    /,
+                    *,
+                    email: str | None = None,
+                    plex_user_type: str | None = None,
+                ) -> ExternalUser:
+                    nonlocal create_call_count
+                    del plex_user_type
+
+                    create_call_count += 1
+
+                    # Fail on the third server (Jellyfin2)
+                    if create_call_count == 3:
+                        raise MediaClientError(
+                            "Third server failure",
+                            operation="create_user",
+                            server_url=url,
+                        )
+
+                    created_user_ids.append(external_id)
+                    return ExternalUser(
+                        external_user_id=external_id,
+                        username=uname,
+                        email=email,
+                    )
+
+                async def mock_delete_user(ext_user_id: str, /) -> bool:
+                    deleted_user_ids.append(ext_user_id)
+                    return True
+
+                mock_client.create_user = mock_create_user
+                mock_client.delete_user = mock_delete_user
+                mock_client.set_library_access = AsyncMock(return_value=True)
+                mock_client.update_permissions = AsyncMock(return_value=True)
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+
+                return mock_client
+
+            mock_registry.create_client = MagicMock(
+                side_effect=create_client_side_effect
+            )
+
+            # Execute redemption - should fail on third server
+            async with session_factory() as session:
+                invitation_repo = InvitationRepository(session)
+                user_repo = UserRepository(session)
+                identity_repo = IdentityRepository(session)
+
+                invitation_service = InvitationService(invitation_repo)
+                user_service = UserService(user_repo, identity_repo)
+                redemption_service = RedemptionService(invitation_service, user_service)
+
+                with patch("zondarr.services.redemption.registry", mock_registry):
+                    with pytest.raises(ValidationError):
+                        _ = await redemption_service.redeem(
+                            code,
+                            username=username,
+                            password=password,
+                            email=email,
+                        )
+
+            # PROPERTY ASSERTION: Both Jellyfin1 and Plex users should be deleted
+            assert set(deleted_user_ids) == set(created_user_ids), (
+                f"All created users {created_user_ids} should be deleted, "
+                f"but only {deleted_user_ids} were deleted"
+            )
+
+            # PROPERTY ASSERTION: 2 users created (Jellyfin1 + Plex)
+            assert len(created_user_ids) == 2, (
+                f"Expected 2 users to be created before failure, "
+                f"got {len(created_user_ids)}"
+            )
+
+        finally:
+            await engine.dispose()

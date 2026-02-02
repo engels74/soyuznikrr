@@ -21,19 +21,24 @@ if duration_days is set, creates Identity and Users with calculated expires_at.
 Implements Property 18: Rollback on Failure -
 if redemption fails after creating users on some servers, all created users
 are deleted and no local records are created.
+
+Implements Property 13: Redemption Rollback on Failure (Plex) -
+if redemption fails after creating users on some servers including Plex,
+all created users are deleted via delete_user and no local records are created.
 """
 
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
 
 from zondarr.core.exceptions import ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
-from zondarr.media.types import ExternalUser
+from zondarr.media.types import ExternalUser, PlexUserType
 from zondarr.models.identity import Identity, User
-from zondarr.models.media_server import MediaServer
+from zondarr.models.media_server import MediaServer, ServerType
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
 from zondarr.services.user import UserService
 
@@ -94,6 +99,7 @@ class RedemptionService:
         username: str,
         password: str,
         email: str | None = None,
+        plex_user_type: PlexUserType = PlexUserType.FRIEND,
     ) -> tuple[Identity, Sequence[User]]:
         """Redeem an invitation code and create user accounts.
 
@@ -104,13 +110,16 @@ class RedemptionService:
         If any step fails, rolls back all changes (deletes created users,
         does not create local records, does not increment use count).
 
-        Implements Requirements 14.3, 14.4, 14.5, 14.6, 14.7, 14.8.
+        Implements Requirements 14.3, 14.4, 14.5, 14.6, 14.7, 14.8, 15.1, 15.2.
 
         Args:
             code: The invitation code to redeem (positional-only).
             username: Username for the new accounts (keyword-only).
             password: Password for the new accounts (keyword-only).
-            email: Optional email address (keyword-only).
+            email: Optional email address (keyword-only). Required for Plex
+                Friend invitations when plex_user_type is FRIEND.
+            plex_user_type: Type of Plex user to create - FRIEND or HOME
+                (keyword-only). Only used for Plex servers. Defaults to FRIEND.
 
         Returns:
             Tuple of (Identity, list of Users created).
@@ -142,11 +151,24 @@ class RedemptionService:
 
                 async with client:
                     # Create user on the media server
-                    external_user = await client.create_user(
-                        username,
-                        password,
-                        email=email,
-                    )
+                    # For Plex servers, pass the plex_user_type parameter
+                    if server.server_type == ServerType.PLEX:
+                        # PlexClient accepts plex_user_type parameter beyond the protocol
+                        # Cast to Any to allow the extra keyword argument
+                        plex_client: Any = client  # pyright: ignore[reportExplicitAny]
+                        external_user = await plex_client.create_user(  # pyright: ignore[reportAny]
+                            username,
+                            password,
+                            email=email,
+                            plex_user_type=plex_user_type,
+                        )
+                    else:
+                        # For non-Plex servers (e.g., Jellyfin), use standard call
+                        external_user = await client.create_user(
+                            username,
+                            password,
+                            email=email,
+                        )
                     created_external_users.append((server, external_user))
 
                     log.info(  # pyright: ignore[reportAny]
@@ -155,6 +177,11 @@ class RedemptionService:
                         server_type=server.server_type,
                         username=username,
                         external_user_id=external_user.external_user_id,
+                        plex_user_type=(
+                            plex_user_type.value
+                            if server.server_type == ServerType.PLEX
+                            else None
+                        ),
                     )
 
                     # Step 3: Apply library restrictions (Requirement 14.5)
