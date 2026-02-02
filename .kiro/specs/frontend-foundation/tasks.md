@@ -102,7 +102,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 3.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 3.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 3.3 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [ ] 3.3 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 4. Admin layout and navigation
   - [ ] 4.1 Create admin route group layout
