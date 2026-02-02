@@ -492,45 +492,47 @@ bun --bun run dev
 
 ## Implementation Priority
 
-### Phase 1: Foundation (COMPLETE)
+### Phase 1: Foundation
 
 1. Project scaffolding (monorepo structure, tooling configuration)
 2. Database models and migrations
 3. Media client protocol and registry
 4. Basic Litestar app with health endpoint
 
-### Phase 2: Jellyfin Integration (COMPLETE)
+### Phase 2: Jellyfin Integration
 
 1. Jellyfin client implementation
 2. Invitation CRUD API
 3. Invitation redemption flow (Jellyfin)
 4. User listing and sync
 
-### Phase 3: Plex Integration (COMPLETE)
+### Phase 3: Plex Integration
 
 1. Plex client implementation with OAuth
 2. Plex-specific invitation flow
 3. Friend vs Home user handling
 
-### Phase 4: Wizard System
+### Phase 4: Frontend Foundation & Core UI
+
+1. SvelteKit project setup with shadcn-svelte, UnoCSS, and mode-watcher
+2. API client generation pipeline (openapi-typescript + openapi-fetch)
+3. Admin dashboard layout with dark mode and navigation
+4. Invitation management UI (list, create, delete)
+5. User management UI (list, permissions, enable/disable, delete)
+6. Server management UI (add, remove, sync, library listing)
+7. Public join flow with Superforms (Jellyfin registration, Plex OAuth)
+
+### Phase 5: Wizard System
 
 1. Backend wizard models, CRUD API, and step management
 2. Interaction type protocol, registry, and built-in implementations (click, timer, tos, text input, quiz)
 3. Server-side step validation endpoint
-4. Frontend wizard shell component (step sequencer, progress indicator, navigation)
-5. Frontend interaction components (one per type, modular)
-6. Markdown editor component for admin step authoring (toolbar, live preview, identical rendering to user-facing flow)
+4. Markdown editor component for admin step authoring (toolbar, live preview, identical rendering to user-facing flow)
+5. Frontend wizard shell component (step sequencer, progress indicator, navigation)
+6. Frontend interaction components (one per type, modular)
 7. Admin wizard builder UI (create wizard, drag-reorder steps, configure interactions per step)
 8. Integration with invitation creation/editing (select pre-invite and post-invite wizards)
-
-### Phase 5: Frontend
-
-1. SvelteKit project setup with shadcn-svelte and UnoCSS
-2. API client generation pipeline
-3. Admin dashboard layout with dark mode
-4. Invitation management UI (list, create, delete, wizard assignment)
-5. User management UI (list, permissions, delete)
-6. Public join flow with Superforms and wizard integration
+9. Wire wizard steps into public join flow (pre-invite and post-invite)
 
 ### Phase 6: Polish
 
