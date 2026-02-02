@@ -187,25 +187,25 @@ This implementation plan covers Phase 3 of the Zondarr project: Plex media serve
 
   - [x] 5.10 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [ ] 6. Checkpoint - Verify complete PlexClient implementation
+- [x] 6. Checkpoint - Verify complete PlexClient implementation
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Register PlexClient in registry
-  - [ ] 7.1 Register PlexClient for ServerType.PLEX
+- [-] 7. Register PlexClient in registry
+  - [x] 7.1 Register PlexClient for ServerType.PLEX
     - Import PlexClient in app.py or appropriate startup location
     - Call registry.register(ServerType.PLEX, PlexClient)
     - _Requirements: 16.1, 16.2, 16.3_
-    - [ ] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 7.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 7.1.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 7.2 Write unit tests for registry integration
+  - [x] 7.2 Write unit tests for registry integration
     - Test create_client returns PlexClient instance
     - Test get_capabilities returns correct set
     - _Requirements: 16.1, 16.2, 16.3_
-    - [ ] 7.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 7.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+    - [x] 7.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 7.2.2 Run `uvx basedpyright@latest` and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-  - [ ] 7.3 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [-] 7.3 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [ ] 8. Implement Plex OAuth service
   - [ ] 8.1 Create PlexOAuthService class
