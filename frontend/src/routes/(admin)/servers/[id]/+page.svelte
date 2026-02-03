@@ -16,12 +16,14 @@ import {
 	Database,
 	ExternalLink,
 	RefreshCw,
-	Server
+	Server,
+	Trash2
 } from '@lucide/svelte';
 import { toast } from 'svelte-sonner';
 import { goto, invalidateAll } from '$app/navigation';
-import { type SyncResult, syncServer } from '$lib/api/client';
+import { deleteServer, type SyncResult, syncServer } from '$lib/api/client';
 import { ApiError, getErrorMessage } from '$lib/api/errors';
+import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 import ErrorState from '$lib/components/error-state.svelte';
 import SyncResultsDialog from '$lib/components/servers/sync-results-dialog.svelte';
 import StatusBadge from '$lib/components/status-badge.svelte';
@@ -36,6 +38,10 @@ let { data }: { data: PageData } = $props();
 let syncing = $state(false);
 let syncResult = $state<SyncResult | null>(null);
 let showSyncDialog = $state(false);
+
+// Delete state
+let deleting = $state(false);
+let showDeleteDialog = $state(false);
 
 /**
  * Get server type badge class based on server type.
@@ -105,7 +111,7 @@ async function handleSync() {
 		}
 
 		if (result.data) {
-			syncResult = result.data;
+			syncResult = result.data as SyncResult;
 			showSyncDialog = true;
 			toast.success('Sync completed successfully');
 		}
@@ -130,6 +136,38 @@ async function handleRetry() {
  */
 function closeSyncDialog() {
 	showSyncDialog = false;
+}
+
+/**
+ * Handle delete server action.
+ */
+async function handleDelete() {
+	if (!data.server) return;
+
+	deleting = true;
+	try {
+		const result = await deleteServer(data.server.id);
+
+		if (result.error) {
+			const status = result.response?.status ?? 500;
+			const errorBody = result.error as { error_code?: string; detail?: string };
+			throw new ApiError(
+				status,
+				errorBody?.error_code ?? 'UNKNOWN_ERROR',
+				errorBody?.detail ?? 'Failed to delete server'
+			);
+		}
+
+		toast.success('Server deleted successfully');
+		goto('/servers');
+	} catch (error) {
+		toast.error('Failed to delete server', {
+			description: getErrorMessage(error)
+		});
+	} finally {
+		deleting = false;
+		showDeleteDialog = false;
+	}
 }
 </script>
 
@@ -298,7 +336,7 @@ function closeSyncDialog() {
 						<!-- Sync Button -->
 						<Button
 							onclick={handleSync}
-							disabled={syncing}
+							disabled={syncing || deleting}
 							class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 							data-action-sync
 						>
@@ -310,9 +348,21 @@ function closeSyncDialog() {
 								Sync Users
 							{/if}
 						</Button>
-						<p class="text-sm text-cr-text-muted">
+						<p class="text-sm text-cr-text-muted flex-1">
 							Synchronize local user records with the media server to identify discrepancies.
 						</p>
+
+						<!-- Delete Button -->
+						<Button
+							variant="outline"
+							onclick={() => (showDeleteDialog = true)}
+							disabled={syncing || deleting}
+							class="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500"
+							data-action-delete
+						>
+							<Trash2 class="size-4" />
+							Delete Server
+						</Button>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -325,4 +375,16 @@ function closeSyncDialog() {
 	bind:open={showSyncDialog}
 	result={syncResult}
 	onClose={closeSyncDialog}
+/>
+
+<!-- Delete Confirmation Dialog -->
+<ConfirmDialog
+	bind:open={showDeleteDialog}
+	title="Delete Server"
+	description="Are you sure you want to delete this server? This will remove all associated libraries and user records. Users will NOT be deleted from the media server itself, but their local tracking records will be lost. This action cannot be undone."
+	confirmLabel="Delete"
+	variant="destructive"
+	loading={deleting}
+	onConfirm={handleDelete}
+	onCancel={() => (showDeleteDialog = false)}
 />

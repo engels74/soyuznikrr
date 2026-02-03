@@ -601,6 +601,27 @@ class UserListFilters(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     page_size: PageSize = 50
 
 
+class UpdatePermissionsRequest(
+    msgspec.Struct, kw_only=True, forbid_unknown_fields=True
+):
+    """Request to update user permissions on the media server.
+
+    Maps to universal permission names that are translated to server-specific
+    settings by the media client implementations.
+
+    Attributes:
+        can_download: Whether the user can download content.
+        can_stream: Whether the user can stream/play content.
+        can_sync: Whether the user can sync content for offline use.
+        can_transcode: Whether the user can use transcoding.
+    """
+
+    can_download: bool | None = None
+    can_stream: bool | None = None
+    can_sync: bool | None = None
+    can_transcode: bool | None = None
+
+
 class IdentityWithUsersResponse(msgspec.Struct, omit_defaults=True):
     """Identity response including linked users.
 

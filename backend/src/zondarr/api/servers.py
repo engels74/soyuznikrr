@@ -1,6 +1,9 @@
 """ServerController for media server management endpoints.
 
 Provides REST endpoints for media server operations including:
+- POST /api/v1/servers - Create a new media server
+- GET /api/v1/servers/{id} - Get media server details
+- DELETE /api/v1/servers/{id} - Delete a media server
 - POST /api/v1/servers/{id}/sync - Synchronize users with media server
 
 Uses Litestar Controller pattern with dependency injection for services.
@@ -13,7 +16,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 import structlog
-from litestar import Controller, Response, post
+from litestar import Controller, Response, delete, get, post
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_503_SERVICE_UNAVAILABLE
@@ -21,11 +24,21 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.media.exceptions import MediaClientError
+from zondarr.models.media_server import ServerType
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
+from zondarr.services.media_server import MediaServerService
 from zondarr.services.sync import SyncService
 
-from .schemas import ErrorResponse, SyncRequest, SyncResult
+from .schemas import (
+    ErrorResponse,
+    LibraryResponse,
+    MediaServerCreate,
+    MediaServerResponse,
+    MediaServerWithLibrariesResponse,
+    SyncRequest,
+    SyncResult,
+)
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
@@ -77,6 +90,20 @@ async def provide_sync_service(
     )
 
 
+async def provide_media_server_service(
+    server_repository: MediaServerRepository,
+) -> MediaServerService:
+    """Provide MediaServerService instance.
+
+    Args:
+        server_repository: MediaServerRepository from DI.
+
+    Returns:
+        Configured MediaServerService instance.
+    """
+    return MediaServerService(server_repository)
+
+
 class ServerController(Controller):
     """Controller for media server management endpoints.
 
@@ -91,7 +118,179 @@ class ServerController(Controller):
         "server_repository": Provide(provide_media_server_repository),
         "user_repository": Provide(provide_user_repository),
         "sync_service": Provide(provide_sync_service),
+        "media_server_service": Provide(provide_media_server_service),
     }
+
+    @get(
+        "/",
+        summary="List media servers",
+        description="List all media servers with their libraries.",
+    )
+    async def list_servers(
+        self,
+        media_server_service: MediaServerService,
+        enabled: Annotated[
+            bool | None,
+            Parameter(description="Filter by enabled status"),
+        ] = None,
+    ) -> list[MediaServerWithLibrariesResponse]:
+        """List all media servers with libraries.
+
+        Returns all configured media servers with their associated libraries.
+        Optionally filter by enabled status.
+
+        Args:
+            media_server_service: MediaServerService from DI.
+            enabled: Optional filter for enabled/disabled servers.
+
+        Returns:
+            List of media servers with their libraries.
+        """
+        if enabled is True:
+            servers = await media_server_service.get_enabled()
+        elif enabled is False:
+            # Need to get all and filter disabled
+            all_servers = await media_server_service.get_all()
+            servers = [s for s in all_servers if not s.enabled]
+        else:
+            servers = await media_server_service.get_all()
+
+        return [
+            MediaServerWithLibrariesResponse(
+                id=server.id,
+                name=server.name,
+                server_type=server.server_type.value,
+                url=server.url,
+                enabled=server.enabled,
+                created_at=server.created_at,
+                updated_at=server.updated_at,
+                libraries=[
+                    LibraryResponse(
+                        id=lib.id,
+                        name=lib.name,
+                        library_type=lib.library_type,
+                        external_id=lib.external_id,
+                        created_at=lib.created_at,
+                        updated_at=lib.updated_at,
+                    )
+                    for lib in server.libraries
+                ],
+            )
+            for server in servers
+        ]
+
+    @post(
+        "/",
+        status_code=201,
+        summary="Create media server",
+        description="Add a new media server with connection validation.",
+    )
+    async def create_server(
+        self,
+        data: MediaServerCreate,
+        media_server_service: MediaServerService,
+    ) -> MediaServerResponse:
+        """Create a new media server.
+
+        Validates the connection to the media server before persisting.
+        If the connection test fails, returns a validation error.
+
+        Args:
+            data: MediaServerCreate with server configuration.
+            media_server_service: MediaServerService from DI.
+
+        Returns:
+            Created media server details.
+
+        Raises:
+            ValidationError: If connection validation fails.
+        """
+        # Convert server_type string to enum
+        server_type = ServerType(data.server_type)
+
+        server = await media_server_service.add(
+            name=data.name,
+            server_type=server_type,
+            url=data.url,
+            api_key=data.api_key,
+        )
+
+        return MediaServerResponse(
+            id=server.id,
+            name=server.name,
+            server_type=server.server_type.value,
+            url=server.url,
+            enabled=server.enabled,
+            created_at=server.created_at,
+            updated_at=server.updated_at,
+        )
+
+    @get(
+        "/{server_id:uuid}",
+        summary="Get media server",
+        description="Retrieve details for a specific media server.",
+    )
+    async def get_server(
+        self,
+        server_id: Annotated[
+            UUID,
+            Parameter(description="Media server UUID"),
+        ],
+        media_server_service: MediaServerService,
+    ) -> MediaServerResponse:
+        """Get media server details by ID.
+
+        Args:
+            server_id: The UUID of the media server.
+            media_server_service: MediaServerService from DI.
+
+        Returns:
+            Media server details.
+
+        Raises:
+            NotFoundError: If the server does not exist.
+        """
+        server = await media_server_service.get_by_id(server_id)
+
+        return MediaServerResponse(
+            id=server.id,
+            name=server.name,
+            server_type=server.server_type.value,
+            url=server.url,
+            enabled=server.enabled,
+            created_at=server.created_at,
+            updated_at=server.updated_at,
+        )
+
+    @delete(
+        "/{server_id:uuid}",
+        status_code=204,
+        summary="Delete media server",
+        description="Remove a media server and all associated data.",
+    )
+    async def delete_server(
+        self,
+        server_id: Annotated[
+            UUID,
+            Parameter(description="Media server UUID"),
+        ],
+        media_server_service: MediaServerService,
+    ) -> None:
+        """Delete a media server.
+
+        Removes the server and all associated libraries and users via cascade.
+
+        Args:
+            server_id: The UUID of the media server to delete.
+            media_server_service: MediaServerService from DI.
+
+        Returns:
+            None (HTTP 204 No Content on success).
+
+        Raises:
+            NotFoundError: If the server does not exist.
+        """
+        await media_server_service.remove(server_id)
 
     @post(
         "/{server_id:uuid}/sync",

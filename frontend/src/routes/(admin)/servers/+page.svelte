@@ -15,6 +15,7 @@ import { goto, invalidateAll } from '$app/navigation';
 import { getErrorMessage, isNetworkError } from '$lib/api/errors';
 import EmptyState from '$lib/components/empty-state.svelte';
 import ErrorState from '$lib/components/error-state.svelte';
+import CreateServerDialog from '$lib/components/servers/create-server-dialog.svelte';
 import ServerCard from '$lib/components/servers/server-card.svelte';
 import ServerListSkeleton from '$lib/components/servers/server-list-skeleton.svelte';
 import type { PageData } from './$types';
@@ -48,6 +49,7 @@ function handleViewDetails(serverId: string) {
 	<!-- Header with description -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<p class="text-cr-text-muted">View and manage connected media servers.</p>
+		<CreateServerDialog onSuccess={handleRetry} />
 	</div>
 
 	<!-- Content area with loading/error/empty/data states -->

@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated
 from uuid import UUID
 
-from litestar import Controller, delete, get, post
+from litestar import Controller, delete, get, patch, post
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.types import AnyCallable
@@ -31,6 +31,7 @@ from .schemas import (
     IdentityResponse,
     InvitationResponse,
     MediaServerResponse,
+    UpdatePermissionsRequest,
     UserDetailResponse,
     UserListResponse,
 )
@@ -310,6 +311,53 @@ class UserController(Controller):
             ValidationError: If the media server operation fails.
         """
         user = await user_service.set_enabled(user_id, enabled=False)
+        # Reload with full relationships for response
+        user = await user_service.get_user_detail(user_id)
+        return self._to_detail_response(user)
+
+    @patch(
+        "/{user_id:uuid}/permissions",
+        summary="Update user permissions",
+        description="Update user permissions on the media server.",
+    )
+    async def update_permissions(
+        self,
+        user_id: Annotated[
+            UUID,
+            Parameter(description="User UUID"),
+        ],
+        data: UpdatePermissionsRequest,
+        user_service: UserService,
+    ) -> UserDetailResponse:
+        """Update user permissions on the media server.
+
+        Updates the specified permissions on the external media server.
+        Only provided permissions are changed; others remain unchanged.
+
+        Args:
+            user_id: The UUID of the user to update.
+            data: UpdatePermissionsRequest with permission values.
+            user_service: UserService from DI.
+
+        Returns:
+            Updated user details including relationships.
+
+        Raises:
+            NotFoundError: If the user does not exist.
+            ValidationError: If no valid permissions provided or media server fails.
+        """
+        # Build permissions dict from request, excluding None values
+        permissions: dict[str, bool] = {}
+        if data.can_download is not None:
+            permissions["can_download"] = data.can_download
+        if data.can_stream is not None:
+            permissions["can_stream"] = data.can_stream
+        if data.can_sync is not None:
+            permissions["can_sync"] = data.can_sync
+        if data.can_transcode is not None:
+            permissions["can_transcode"] = data.can_transcode
+
+        _ = await user_service.update_permissions(user_id, permissions=permissions)
         # Reload with full relationships for response
         user = await user_service.get_user_detail(user_id)
         return self._to_detail_response(user)
