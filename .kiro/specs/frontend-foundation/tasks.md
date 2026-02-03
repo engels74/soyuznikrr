@@ -145,7 +145,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
   - Verify navigation between sections works
   - Verify API client can connect to backend
 
-- [-] 6. Invitation management - List view
+- [x] 6. Invitation management - List view
   - [x] 6.1 Create invitation list page with data loading
     - Create `src/routes/(admin)/invitations/+page.svelte`
     - Create `src/routes/(admin)/invitations/+page.ts` for load function
@@ -187,19 +187,19 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 6.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 6.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 6.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 6.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 
-- [ ] 7. Invitation management - Create and edit
-  - [ ] 7.1 Create invitation form schema
+- [-] 7. Invitation management - Create and edit
+  - [x] 7.1 Create invitation form schema
     - Create `$lib/schemas/invitation.ts` with Zod schemas
     - Define createInvitationSchema with all fields
     - Define updateInvitationSchema for mutable fields only
     - _Requirements: 5.10_
-    - [ ] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 7.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 7.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 7.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 7.2 Create invitation form component
+  - [x] 7.2 Create invitation form component
     - Create `$lib/components/invitations/InvitationForm.svelte`
     - Use Superforms with zodClient adapter
     - Implement server multi-select for target servers
@@ -207,20 +207,20 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Implement optional fields: code, expires_at, max_uses, duration_days
     - Display inline validation errors
     - _Requirements: 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.9, 5.10_
-    - [ ] 7.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 7.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 7.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 7.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 7.3 Create invitation dialog
+  - [x] 7.3 Create invitation dialog
     - Create `$lib/components/invitations/CreateInvitationDialog.svelte`
     - Wire form submission to API client
     - Display success toast on creation
     - Display error toast on failure
     - Close dialog and refresh list on success
     - _Requirements: 5.1, 5.8_
-    - [ ] 7.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 7.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 7.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 7.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 7.4 Create invitation detail page
+  - [x] 7.4 Create invitation detail page
     - Create `src/routes/(admin)/invitations/[id]/+page.svelte`
     - Create `src/routes/(admin)/invitations/[id]/+page.ts` for load function
     - Display all invitation fields including target_servers and allowed_libraries
@@ -228,18 +228,18 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Implement edit form for mutable fields
     - Implement delete button with confirmation dialog
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
-    - [ ] 7.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 7.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 7.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 7.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 7.5 Write property tests for invitation forms
+  - [x] 7.5 Write property tests for invitation forms
     - **Property 14: Form Validation Error Display**
     - **Property 15: Invitation Detail Field Display**
     - **Property 16: Immutable Field Protection**
     - **Validates: Requirements 5.9, 6.2, 6.4, 14.3**
-    - [ ] 7.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 7.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 7.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 7.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 7.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 7.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 8. Checkpoint - Verify invitation management
   - Ensure all tests pass, ask the user if questions arise.

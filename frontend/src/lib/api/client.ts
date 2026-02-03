@@ -230,6 +230,18 @@ export async function deleteUser(userId: string) {
 // =============================================================================
 
 /**
+ * List all media servers with their libraries.
+ *
+ * @param enabled - Optional filter for enabled servers only
+ * @returns List of servers with libraries
+ */
+export async function getServers(enabled?: boolean) {
+	return api.GET('/api/v1/servers', {
+		params: { query: enabled !== undefined ? { enabled } : {} }
+	});
+}
+
+/**
  * Sync users between local database and media server.
  *
  * @param serverId - UUID of the server to sync
