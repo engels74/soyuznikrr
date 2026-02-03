@@ -435,7 +435,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 14.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [-] 15. Public join flow - Plex OAuth
+- [x] 15. Public join flow - Plex OAuth
   - [x] 15.1 Create Plex OAuth flow component
     - Create `$lib/components/join/PlexOAuthFlow.svelte`
     - Display "Sign in with Plex" button
@@ -469,39 +469,39 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 15.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 15.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 15.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 15.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 16. Final polish and accessibility
-  - [ ] 16.1 Add loading states throughout
+- [-] 16. Final polish and accessibility
+  - [x] 16.1 Add loading states throughout
     - Ensure all data fetching shows skeleton loaders
     - Add loading spinners to action buttons
     - _Requirements: 14.1_
-    - [ ] 16.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 16.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 16.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 16.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 16.2 Add toast notifications throughout
+  - [x] 16.2 Add toast notifications throughout
     - Ensure all API errors show toast notifications
     - Ensure all successful actions show success toasts
     - _Requirements: 14.2, 3.6_
-    - [ ] 16.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 16.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 16.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 16.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 16.3 Write property tests for loading and error states
+  - [x] 16.3 Write property tests for loading and error states
     - **Property 35: Loading State Display**
     - **Property 36: API Error Toast Display**
     - **Validates: Requirements 14.1, 14.2**
-    - [ ] 16.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 16.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 16.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 16.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 16.4 Write accessibility tests
+  - [x] 16.4 Write accessibility tests
     - **Property 34: Accessibility Compliance**
     - Test keyboard navigation
     - Test ARIA attributes
     - **Validates: Requirements 13.8**
-    - [ ] 16.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 16.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 16.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 16.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 16.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 16.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 17. Final checkpoint - Complete verification
   - Ensure all tests pass, ask the user if questions arise.
