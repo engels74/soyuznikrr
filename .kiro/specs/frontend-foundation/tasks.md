@@ -471,7 +471,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 15.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [-] 16. Final polish and accessibility
+- [x] 16. Final polish and accessibility
   - [x] 16.1 Add loading states throughout
     - Ensure all data fetching shows skeleton loaders
     - Add loading spinners to action buttons
@@ -501,9 +501,9 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 16.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 16.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 16.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 16.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 17. Final checkpoint - Complete verification
+- [x] 17. Final checkpoint - Complete verification
   - Ensure all tests pass, ask the user if questions arise.
   - Verify complete invitation management flow
   - Verify complete user management flow
