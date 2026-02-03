@@ -38,6 +38,7 @@ export type UpdateInvitationRequest = components['schemas']['UpdateInvitationReq
 export type UserResponse = components['schemas']['UserResponse'];
 export type UserDetailResponse = components['schemas']['UserDetailResponse'];
 export type UserListResponse = components['schemas']['UserListResponse'];
+export type IdentityResponse = components['schemas']['IdentityResponse'];
 
 export type MediaServerResponse = components['schemas']['MediaServerResponse'];
 export type MediaServerWithLibrariesResponse =
