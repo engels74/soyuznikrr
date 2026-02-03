@@ -161,8 +161,8 @@ async function handleRegistrationSubmit() {
 		const response = await redeemInvitation(data.code, apiData);
 
 		if (response.error) {
-			// Handle API error response
-			const errorBody = response.error as RedemptionErrorResponse;
+			// Handle API error response - cast through unknown for type safety
+			const errorBody = response.error as unknown as RedemptionErrorResponse;
 			if (errorBody.error_code) {
 				redemptionError = errorBody;
 				currentStep = 'error';
@@ -213,7 +213,8 @@ async function handlePlexAuthenticated(email: string) {
 		});
 
 		if (response.error) {
-			const errorBody = response.error as RedemptionErrorResponse;
+			// Cast through unknown for type safety
+			const errorBody = response.error as unknown as RedemptionErrorResponse;
 			if (errorBody.error_code) {
 				redemptionError = errorBody;
 				currentStep = 'error';

@@ -395,3 +395,81 @@ class UserService:
                 user.identity = identity
 
         return users, total
+
+    async def update_permissions(
+        self,
+        user_id: UUID,
+        /,
+        *,
+        permissions: dict[str, bool],
+    ) -> User:
+        """Update user permissions on the external media server.
+
+        Updates the user's permissions on the media server. Only provided
+        permissions are updated; other permissions remain unchanged.
+
+        Atomicity: Updates the media server first, then returns the user.
+        If the media server update fails, raises an error and makes no changes.
+
+        Args:
+            user_id: The UUID of the user to update (positional-only).
+            permissions: Dictionary mapping permission names to boolean values.
+                Valid keys: can_download, can_stream, can_sync, can_transcode
+                (keyword-only).
+
+        Returns:
+            The User entity (permissions are stored on the media server, not locally).
+
+        Raises:
+            NotFoundError: If the user does not exist.
+            ValidationError: If no valid permissions provided or media server
+                operation fails.
+            RepositoryError: If the database operation fails.
+        """
+        # Filter to valid permission keys
+        valid_keys = {"can_download", "can_stream", "can_sync", "can_transcode"}
+        filtered_permissions = {k: v for k, v in permissions.items() if k in valid_keys}
+
+        if not filtered_permissions:
+            raise ValidationError(
+                "No valid permissions provided",
+                field_errors={
+                    "permissions": [
+                        (
+                            "At least one valid permission must be provided"
+                            " (can_download, can_stream, can_sync, can_transcode)"
+                        )
+                    ],
+                },
+            )
+
+        user = await self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError("User", str(user_id))
+
+        # Update external media server first (atomicity guarantee)
+        server = user.media_server
+        client = registry.create_client(
+            server.server_type,
+            url=server.url,
+            api_key=server.api_key,
+        )
+
+        try:
+            async with client:
+                success = await client.update_permissions(
+                    user.external_user_id,
+                    permissions=filtered_permissions,
+                )
+                if not success:
+                    raise ValidationError(
+                        f"User not found on media server: {user.external_user_id}",
+                        field_errors={"user_id": ["User not found on media server"]},
+                    )
+        except MediaClientError as e:
+            raise ValidationError(
+                f"Failed to update permissions on media server: {e}",
+                field_errors={"permissions": [str(e)]},
+            ) from e
+
+        return user

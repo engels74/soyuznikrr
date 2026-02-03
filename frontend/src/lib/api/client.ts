@@ -46,7 +46,17 @@ export type MediaServerWithLibrariesResponse =
 export type LibraryResponse = components['schemas']['LibraryResponse'];
 
 export type SyncRequest = components['schemas']['SyncRequest'];
-export type SyncResult = components['schemas']['SyncResult'];
+
+// SyncResult is manually defined because the OpenAPI generator doesn't handle
+// Union return types well (Response[SyncResult] | Response[ErrorResponse])
+export interface SyncResult {
+	server_id: string;
+	server_name: string;
+	synced_at: string;
+	orphaned_users: string[];
+	stale_users: string[];
+	matched_users: number;
+}
 
 export type RedeemInvitationRequest = components['schemas']['RedeemInvitationRequest'];
 export type RedemptionResponse = components['schemas']['RedemptionResponse'];
@@ -55,8 +65,21 @@ export type RedemptionErrorResponse = components['schemas']['RedemptionErrorResp
 export type PlexOAuthPinResponse = components['schemas']['PlexOAuthPinResponse'];
 export type PlexOAuthCheckResponse = components['schemas']['PlexOAuthCheckResponse'];
 
-export type ErrorResponse = components['schemas']['ErrorResponse'];
-export type ValidationErrorResponse = components['schemas']['ValidationErrorResponse'];
+// ErrorResponse is manually defined because it's not used directly in endpoint responses
+export interface ErrorResponse {
+	detail: string;
+	error_code: string;
+	timestamp: string;
+	correlation_id?: string | null;
+}
+
+// ValidationErrorResponse is manually defined for consistency
+export interface ValidationErrorResponse extends ErrorResponse {
+	field_errors: Array<{
+		field: string;
+		messages: string[];
+	}>;
+}
 
 // =============================================================================
 // Invitation API Wrappers
@@ -226,6 +249,28 @@ export async function deleteUser(userId: string) {
 	});
 }
 
+/** User permissions update request */
+export interface UpdateUserPermissions {
+	can_download?: boolean;
+	can_stream?: boolean;
+	can_sync?: boolean;
+	can_transcode?: boolean;
+}
+
+/**
+ * Update user permissions on the media server.
+ *
+ * @param userId - UUID of the user to update
+ * @param permissions - Permission values to update
+ * @returns Updated user detail response
+ */
+export async function updateUserPermissions(userId: string, permissions: UpdateUserPermissions) {
+	return api.PATCH('/api/v1/users/{user_id}/permissions', {
+		params: { path: { user_id: userId } },
+		body: permissions
+	});
+}
+
 // =============================================================================
 // Server API Wrappers
 // =============================================================================
@@ -253,6 +298,48 @@ export async function syncServer(serverId: string, dryRun = true) {
 	return api.POST('/api/v1/servers/{server_id}/sync', {
 		params: { path: { server_id: serverId } },
 		body: { dry_run: dryRun }
+	});
+}
+
+/** Create server request */
+export interface CreateServerRequest {
+	name: string;
+	server_type: 'jellyfin' | 'plex';
+	url: string;
+	api_key: string;
+}
+
+/**
+ * Create a new media server.
+ *
+ * @param data - Server creation data
+ * @returns Created media server response
+ */
+export async function createServer(data: CreateServerRequest) {
+	return api.POST('/api/v1/servers', { body: data });
+}
+
+/**
+ * Get a single media server by ID.
+ *
+ * @param serverId - UUID of the server
+ * @returns Media server response
+ */
+export async function getServer(serverId: string) {
+	return api.GET('/api/v1/servers/{server_id}', {
+		params: { path: { server_id: serverId } }
+	});
+}
+
+/**
+ * Delete a media server.
+ *
+ * @param serverId - UUID of the server to delete
+ * @returns Empty response on success
+ */
+export async function deleteServer(serverId: string) {
+	return api.DELETE('/api/v1/servers/{server_id}', {
+		params: { path: { server_id: serverId } }
 	});
 }
 
@@ -305,9 +392,11 @@ export async function checkPlexPin(pinId: number) {
 
 /**
  * Check the health status of the backend.
+ * Note: Uses direct fetch since health endpoint isn't in OpenAPI spec.
  *
  * @returns Health check response
  */
 export async function healthCheck() {
-	return api.GET('/health');
+	const response = await fetch(`${API_BASE_URL}/health`);
+	return response.json() as Promise<{ status: string; checks: Record<string, boolean> }>;
 }

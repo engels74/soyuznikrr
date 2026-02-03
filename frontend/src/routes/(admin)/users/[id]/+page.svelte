@@ -20,6 +20,7 @@ import {
 	Power,
 	PowerOff,
 	Server,
+	Settings,
 	Trash2,
 	User,
 	Users
@@ -34,6 +35,7 @@ import StatusBadge, { type StatusBadgeStatus } from '$lib/components/status-badg
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Label } from '$lib/components/ui/label';
+import UserPermissionsEditor from '$lib/components/users/user-permissions-editor.svelte';
 import type { PageData } from './$types';
 
 let { data }: { data: PageData } = $props();
@@ -325,6 +327,25 @@ function viewLinkedUser(userId: string) {
 							<div class="text-cr-text font-data">{formatDate(data.user.updated_at)}</div>
 						</div>
 					{/if}
+				</Card.Content>
+			</Card.Root>
+
+			<!-- Permissions Card -->
+			<Card.Root class="border-cr-border bg-cr-surface" data-permissions>
+				<Card.Header>
+					<Card.Title class="text-cr-text flex items-center gap-2">
+						<Settings class="size-5 text-cr-accent" />
+						Permissions
+					</Card.Title>
+					<Card.Description class="text-cr-text-muted">
+						Control what this user can do on the media server.
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<UserPermissionsEditor
+						userId={data.user.id}
+						disabled={!data.user.enabled || enabling || disabling || deleting}
+					/>
 				</Card.Content>
 			</Card.Root>
 
