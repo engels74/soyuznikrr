@@ -37,14 +37,34 @@ import type { PageData } from './$types';
 
 let { data }: { data: PageData } = $props();
 
-// Form state for mutable fields
-let formData = $state<UpdateInvitationInput>({
+// Derive initial form values from data (reactive to data changes)
+let initialFormData = $derived<UpdateInvitationInput>({
 	expires_at: data.invitation?.expires_at ?? '',
 	max_uses: data.invitation?.max_uses ?? undefined,
 	duration_days: data.invitation?.duration_days ?? undefined,
 	enabled: data.invitation?.enabled ?? true,
 	server_ids: data.invitation?.target_servers.map((s) => s.id) ?? [],
 	library_ids: data.invitation?.allowed_libraries.map((l) => l.id) ?? []
+});
+
+// Form state for mutable fields (user-editable copy)
+let formData = $state<UpdateInvitationInput>({
+	expires_at: '',
+	max_uses: undefined,
+	duration_days: undefined,
+	enabled: true,
+	server_ids: [],
+	library_ids: []
+});
+
+// Sync form data when initial data changes (e.g., after invalidateAll)
+$effect(() => {
+	formData.expires_at = initialFormData.expires_at;
+	formData.max_uses = initialFormData.max_uses;
+	formData.duration_days = initialFormData.duration_days;
+	formData.enabled = initialFormData.enabled;
+	formData.server_ids = [...(initialFormData.server_ids ?? [])];
+	formData.library_ids = [...(initialFormData.library_ids ?? [])];
 });
 
 // Validation errors
@@ -57,8 +77,16 @@ let deleting = $state(false);
 // Delete confirmation dialog
 let showDeleteDialog = $state(false);
 
+// Derive local datetime value from initial data
+let initialExpiresAtLocal = $derived(formatDateTimeLocal(data.invitation?.expires_at));
+
 // Local state for datetime-local input
-let expiresAtLocal = $state(formatDateTimeLocal(data.invitation?.expires_at));
+let expiresAtLocal = $state('');
+
+// Sync expiresAtLocal when initial data changes
+$effect(() => {
+	expiresAtLocal = initialExpiresAtLocal;
+});
 
 // Derive status for badge
 let status = $derived.by((): StatusBadgeStatus => {

@@ -294,7 +294,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 9.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [-] 10. User management - Detail and actions
+- [x] 10. User management - Detail and actions
   - [x] 10.1 Create user detail page
     - Create `src/routes/(admin)/users/[id]/+page.svelte`
     - Create `src/routes/(admin)/users/[id]/+page.ts` for load function
@@ -326,7 +326,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 10.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 10.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 10.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 10.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 11. Server management
   - [ ] 11.1 Create server list page
