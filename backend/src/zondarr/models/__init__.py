@@ -8,10 +8,12 @@ from zondarr.models.invitation import (
     invitation_servers,
 )
 from zondarr.models.media_server import Library, MediaServer, ServerType
+from zondarr.models.wizard import InteractionType, Wizard, WizardStep
 
 __all__ = [
     "Base",
     "Identity",
+    "InteractionType",
     "Invitation",
     "Library",
     "MediaServer",
@@ -19,6 +21,8 @@ __all__ = [
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "User",
+    "Wizard",
+    "WizardStep",
     "invitation_libraries",
     "invitation_servers",
 ]

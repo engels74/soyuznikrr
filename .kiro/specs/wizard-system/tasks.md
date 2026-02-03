@@ -6,36 +6,36 @@ This plan implements the wizard system for configurable multi-step onboarding fl
 
 ## Tasks
 
-- [ ] 1. Create database models and migration
-  - [ ] 1.1 Create Wizard and WizardStep SQLAlchemy models in `backend/src/zondarr/models/wizard.py`
+- [x] 1. Create database models and migration
+  - [x] 1.1 Create Wizard and WizardStep SQLAlchemy models in `backend/src/zondarr/models/wizard.py`
     - Define InteractionType StrEnum with click, timer, tos, text_input, quiz values
     - Create Wizard model with name, description, enabled fields and TimestampMixin
     - Create WizardStep model with wizard_id FK, step_order, interaction_type, title, content_markdown, config JSON
     - Add cascade delete relationship and unique constraint on (wizard_id, step_order)
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
-    - [ ] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/`
-    - [ ] 1.1.2 Run type checking with `uv run basedpyright` and fix all type errors (no warnings, no errors)
+    - [x] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/`
+    - [x] 1.1.2 Run type checking with `uv run basedpyright` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.2 Update Invitation model with wizard foreign keys
+  - [x] 1.2 Update Invitation model with wizard foreign keys
     - Add pre_wizard_id and post_wizard_id nullable FKs with ON DELETE SET NULL
     - Add pre_wizard and post_wizard relationships with selectin loading
     - _Requirements: 10.1, 10.4_
-    - [ ] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/`
-    - [ ] 1.2.2 Run type checking with `uv run basedpyright` and fix all type errors (no warnings, no errors)
+    - [x] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/`
+    - [x] 1.2.2 Run type checking with `uv run basedpyright` and fix all type errors (no warnings, no errors)
 
-  - [ ] 1.3 Create Alembic migration for wizard tables
+  - [x] 1.3 Create Alembic migration for wizard tables
     - Generate migration with `alembic revision --autogenerate`
     - Verify cascade delete and SET NULL behaviors
     - _Requirements: 1.1, 1.2, 10.1_
-    - [ ] 1.3.1 Verify migration script is correct and applies cleanly
+    - [x] 1.3.1 Verify migration script is correct and applies cleanly
 
-  - [ ] 1.4 Write property tests for model constraints
+  - [x] 1.4 Write property tests for model constraints
     - **Property 3: Cascade Delete Integrity**
     - **Property 4: Step Order Uniqueness**
     - **Validates: Requirements 1.3, 1.4**
-    - [ ] 1.4.1 Run tests with `uv run pytest tests/property/` and ensure all pass
+    - [x] 1.4.1 Run tests with `uv run pytest tests/property/` and ensure all pass
 
-  - [ ] 1.5 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
+  - [x] 1.5 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
 - [ ] 2. Implement wizard repository and service layer
   - [ ] 2.1 Create WizardRepository in `backend/src/zondarr/repositories/wizard.py`

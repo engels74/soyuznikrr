@@ -10,6 +10,7 @@ Association tables use Table construct for many-to-many relationships.
 """
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
@@ -17,6 +18,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from zondarr.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from zondarr.models.media_server import Library, MediaServer
+
+if TYPE_CHECKING:
+    from zondarr.models.wizard import Wizard
 
 # Association table for invitation-to-media-server many-to-many relationship
 invitation_servers: Table = Table(
@@ -50,10 +54,14 @@ class Invitation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         duration_days: Optional duration in days for user access after redemption
         enabled: Whether the invitation is currently active
         created_by: Optional identifier of who created the invitation
+        pre_wizard_id: Optional FK to wizard to run before account creation
+        post_wizard_id: Optional FK to wizard to run after account creation
         created_at: Timestamp when the invitation was created
         updated_at: Timestamp of last modification
         target_servers: List of media servers this invitation grants access to
         allowed_libraries: List of specific libraries this invitation grants access to
+        pre_wizard: Optional wizard to run before account creation
+        post_wizard: Optional wizard to run after account creation
     """
 
     __tablename__: str = "invitations"
@@ -66,6 +74,16 @@ class Invitation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[str | None] = mapped_column(String(255), default=None)
 
+    # Wizard foreign keys - SET NULL on wizard deletion
+    pre_wizard_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("wizards.id", ondelete="SET NULL"),
+        default=None,
+    )
+    post_wizard_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("wizards.id", ondelete="SET NULL"),
+        default=None,
+    )
+
     # Relationships - many-to-many via association tables
     target_servers: Mapped[list[MediaServer]] = relationship(
         secondary=invitation_servers,
@@ -74,4 +92,14 @@ class Invitation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     allowed_libraries: Mapped[list[Library]] = relationship(
         secondary=invitation_libraries,
         lazy="selectin",  # Eager load for async contexts
+    )
+
+    # Wizard relationships - use selectin for eager loading
+    pre_wizard: Mapped[Wizard | None] = relationship(
+        foreign_keys=[pre_wizard_id],
+        lazy="selectin",
+    )
+    post_wizard: Mapped[Wizard | None] = relationship(
+        foreign_keys=[post_wizard_id],
+        lazy="selectin",
     )
