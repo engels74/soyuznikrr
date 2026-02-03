@@ -512,7 +512,7 @@ bun --bun run dev
 2. Plex-specific invitation flow
 3. Friend vs Home user handling
 
-### Phase 4: Frontend Foundation & Core UI
+### Phase 4: Frontend Foundation & Core UI (COMPLETED)
 
 1. SvelteKit project setup with shadcn-svelte, UnoCSS, and mode-watcher
 2. API client generation pipeline (openapi-typescript + openapi-fetch)
