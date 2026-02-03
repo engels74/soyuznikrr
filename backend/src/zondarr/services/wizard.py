@@ -645,7 +645,7 @@ class WizardService:
             )
 
         # Cast to list for type checking - we validate elements below
-        options_list: list[object] = list(options)
+        options_list: list[object] = list(options)  # pyright: ignore[reportUnknownArgumentType]
 
         if len(options_list) < MIN_QUIZ_OPTIONS:
             raise ValidationError(
