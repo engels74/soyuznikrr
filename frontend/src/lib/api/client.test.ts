@@ -15,6 +15,21 @@ import type { ListInvitationsParams, ListUsersParams } from './client';
 import { ApiError, getErrorMessage, isNetworkError, transformApiError } from './errors';
 
 // =============================================================================
+// Test Data Generators
+// =============================================================================
+
+/**
+ * Generate a valid ISO 8601 date string within a reasonable range.
+ * Uses integer timestamps to avoid invalid date issues.
+ */
+const isoDateArb = fc
+	.integer({
+		min: new Date('2020-01-01T00:00:00.000Z').getTime(),
+		max: new Date('2030-12-31T23:59:59.999Z').getTime()
+	})
+	.map((timestamp) => new Date(timestamp).toISOString());
+
+// =============================================================================
 // Property 3: API Error Transformation
 // Validates: Requirements 2.4, 2.5
 // =============================================================================
@@ -31,7 +46,7 @@ describe('Property 3: API Error Transformation', () => {
 				fc.record({
 					error_code: fc.string({ minLength: 1, maxLength: 50 }),
 					detail: fc.string({ minLength: 1, maxLength: 500 }),
-					timestamp: fc.date().map((d) => d.toISOString()),
+					timestamp: isoDateArb,
 					correlation_id: fc.option(fc.uuid(), { nil: undefined })
 				}),
 				fc.integer({ min: 400, max: 599 }),
@@ -70,7 +85,7 @@ describe('Property 3: API Error Transformation', () => {
 				fc.record({
 					error_code: fc.constant('VALIDATION_ERROR'),
 					detail: fc.string({ minLength: 1, maxLength: 500 }),
-					timestamp: fc.date().map((d) => d.toISOString()),
+					timestamp: isoDateArb,
 					correlation_id: fc.option(fc.uuid(), { nil: undefined }),
 					field_errors: fc.uniqueArray(
 						fc.record({

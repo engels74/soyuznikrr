@@ -156,7 +156,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 6.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 6.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 6.2 Create invitation table component
+  - [x] 6.2 Create invitation table component
     - Create `$lib/components/invitations/InvitationTable.svelte`
     - Create `$lib/components/invitations/InvitationRow.svelte`
     - Display code, use_count, max_uses, expires_at, enabled, is_active
@@ -165,9 +165,9 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Use monospace font for code display
     - _Requirements: 4.2, 4.5, 4.6, 13.3_
     - [x] 6.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 6.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 6.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 6.3 Create invitation filters component
+  - [x] 6.3 Create invitation filters component
     - Create `$lib/components/invitations/InvitationFilters.svelte`
     - Implement enabled filter (all/enabled/disabled)
     - Implement expired filter (all/active/expired)
@@ -175,19 +175,19 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Implement sort_order toggle (asc/desc)
     - Sync filters with URL search params
     - _Requirements: 4.3, 4.4_
-    - [ ] 6.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 6.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 6.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 6.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 6.4 Write property tests for invitation list
+  - [x] 6.4 Write property tests for invitation list
     - **Property 9: Invitation Field Display**
     - **Property 10: Invitation Filter Application**
     - **Property 11: Invitation Sort Application**
     - **Property 13: Remaining Uses Display**
     - **Validates: Requirements 4.2, 4.3, 4.4, 4.6**
-    - [ ] 6.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 6.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 6.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 6.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 6.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 6.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 
 - [ ] 7. Invitation management - Create and edit
