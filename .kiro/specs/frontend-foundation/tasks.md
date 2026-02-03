@@ -328,7 +328,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 10.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [-] 11. Server management
+- [x] 11. Server management
   - [x] 11.1 Create server list page
     - Create `src/routes/(admin)/servers/+page.svelte`
     - Create `src/routes/(admin)/servers/+page.ts` for load function
@@ -357,9 +357,9 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 11.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 11.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 11.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 12. Checkpoint - Verify admin features
+- [x] 12. Checkpoint - Verify admin features
   - Ensure all tests pass, ask the user if questions arise.
   - Verify user list displays correctly
   - Verify user filters and sorting work
@@ -367,16 +367,16 @@ This implementation plan breaks down the frontend foundation into discrete, incr
   - Verify server list displays correctly
   - Verify server sync works
 
-- [ ] 13. Public join flow - Code validation
-  - [ ] 13.1 Create public route group layout
+- [-] 13. Public join flow - Code validation
+  - [x] 13.1 Create public route group layout
     - Create `src/routes/(public)/+layout.svelte`
     - Implement minimal layout for public pages
     - Include ModeWatcher for dark mode support
     - _Requirements: 10.1_
-    - [ ] 13.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 13.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 13.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 13.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 13.2 Create join page with code validation
+  - [x] 13.2 Create join page with code validation
     - Create `src/routes/(public)/join/[code]/+page.svelte`
     - Create `src/routes/(public)/join/[code]/+page.ts` for load function
     - Call validation endpoint on page load
@@ -385,18 +385,18 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Display duration_days if set
     - Display error message for invalid codes with failure_reason
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
-    - [ ] 13.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 13.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 13.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 13.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 13.3 Write property tests for code validation
+  - [x] 13.3 Write property tests for code validation
     - **Property 27: Valid Code Display**
     - **Property 28: Invalid Code Error Display**
     - **Property 29: Duration Display**
     - **Validates: Requirements 10.2, 10.3, 10.4**
-    - [ ] 13.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 13.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 13.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 13.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 13.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 13.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 14. Public join flow - Jellyfin registration
   - [ ] 14.1 Create Jellyfin registration form schema
