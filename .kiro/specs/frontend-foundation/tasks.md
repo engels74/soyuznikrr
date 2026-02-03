@@ -190,7 +190,7 @@ This implementation plan breaks down the frontend foundation into discrete, incr
   - [x] 6.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 
-- [-] 7. Invitation management - Create and edit
+- [x] 7. Invitation management - Create and edit
   - [x] 7.1 Create invitation form schema
     - Create `$lib/schemas/invitation.ts` with Zod schemas
     - Define createInvitationSchema with all fields
@@ -239,9 +239,9 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - [x] 7.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 7.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 7.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [x] 7.6 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 8. Checkpoint - Verify invitation management
+- [x] 8. Checkpoint - Verify invitation management
   - Ensure all tests pass, ask the user if questions arise.
   - Verify invitation list displays correctly
   - Verify filters and sorting work
@@ -249,28 +249,28 @@ This implementation plan breaks down the frontend foundation into discrete, incr
   - Verify edit invitation flow works
   - Verify delete invitation flow works
 
-- [ ] 9. User management - List view
-  - [ ] 9.1 Create user list page with data loading
+- [-] 9. User management - List view
+  - [x] 9.1 Create user list page with data loading
     - Create `src/routes/(admin)/users/+page.svelte`
     - Create `src/routes/(admin)/users/+page.ts` for load function
     - Implement loading skeleton state
     - Implement error state with retry
     - Implement empty state
     - _Requirements: 7.1, 14.1, 14.5, 14.6_
-    - [ ] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.2 Create user table component
+  - [x] 9.2 Create user table component
     - Create `$lib/components/users/UserTable.svelte`
     - Create `$lib/components/users/UserRow.svelte`
     - Display username, media_server name, enabled, expires_at, created_at
     - Display source invitation code when available
     - Use StatusBadge for status display
     - _Requirements: 7.2, 7.5, 7.7_
-    - [ ] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.3 Create user filters component
+  - [x] 9.3 Create user filters component
     - Create `$lib/components/users/UserFilters.svelte`
     - Implement server_id filter (select from available servers)
     - Implement invitation_id filter (select from available invitations)
@@ -280,19 +280,19 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Implement sort_order toggle (asc/desc)
     - Sync filters with URL search params
     - _Requirements: 7.3, 7.4_
-    - [ ] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.4 Write property tests for user list
+  - [x] 9.4 Write property tests for user list
     - **Property 17: User Field Display**
     - **Property 18: User Filter Application**
     - **Property 19: User Sort Application**
     - **Property 20: User Invitation Code Display**
     - **Validates: Requirements 7.2, 7.3, 7.4, 7.7**
-    - [ ] 9.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 9.5 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 10. User management - Detail and actions
   - [ ] 10.1 Create user detail page

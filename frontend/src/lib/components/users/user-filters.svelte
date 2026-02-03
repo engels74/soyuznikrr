@@ -1,0 +1,259 @@
+<script lang="ts">
+/**
+ * User filters component.
+ *
+ * Provides filtering and sorting controls for the user list:
+ * - Server filter (select from available servers)
+ * - Invitation filter (select from available invitations)
+ * - Enabled filter (all/enabled/disabled)
+ * - Expired filter (all/active/expired)
+ * - Sort by select (created_at, username, expires_at)
+ * - Sort order toggle (asc/desc)
+ *
+ * Syncs filter state with URL search params for shareable URLs.
+ *
+ * @module $lib/components/users/user-filters
+ */
+
+import { ArrowDownAZ, ArrowUpAZ, Filter } from '@lucide/svelte';
+import type { InvitationResponse, ListUsersParams, MediaServerWithLibrariesResponse } from '$lib/api/client';
+import { Button } from '$lib/components/ui/button';
+import * as Select from '$lib/components/ui/select';
+
+interface Props {
+	serverId?: string;
+	invitationId?: string;
+	enabled?: boolean;
+	expired?: boolean;
+	sortBy: 'created_at' | 'username' | 'expires_at';
+	sortOrder: 'asc' | 'desc';
+	servers: MediaServerWithLibrariesResponse[];
+	invitations: InvitationResponse[];
+	onFilterChange: (params: Partial<ListUsersParams>) => void;
+}
+
+let {
+	serverId,
+	invitationId,
+	enabled,
+	expired,
+	sortBy,
+	sortOrder,
+	servers,
+	invitations,
+	onFilterChange
+}: Props = $props();
+
+// Convert boolean to select value
+let enabledValue = $derived.by(() => {
+	if (enabled === undefined) return 'all';
+	return enabled ? 'enabled' : 'disabled';
+});
+
+let expiredValue = $derived.by(() => {
+	if (expired === undefined) return 'all';
+	return expired ? 'expired' : 'active';
+});
+
+// Get selected server name for display
+let selectedServerName = $derived.by(() => {
+	if (!serverId) return 'All Servers';
+	const server = servers.find((s) => s.id === serverId);
+	return server?.name ?? 'All Servers';
+});
+
+// Get selected invitation code for display
+let selectedInvitationCode = $derived.by(() => {
+	if (!invitationId) return 'All Invitations';
+	const invitation = invitations.find((i) => i.id === invitationId);
+	return invitation?.code ?? 'All Invitations';
+});
+
+/**
+ * Handle server filter change.
+ */
+function handleServerChange(value: string | undefined) {
+	if (value === 'all' || value === undefined) {
+		onFilterChange({ server_id: undefined });
+	} else {
+		onFilterChange({ server_id: value });
+	}
+}
+
+/**
+ * Handle invitation filter change.
+ */
+function handleInvitationChange(value: string | undefined) {
+	if (value === 'all' || value === undefined) {
+		onFilterChange({ invitation_id: undefined });
+	} else {
+		onFilterChange({ invitation_id: value });
+	}
+}
+
+/**
+ * Handle enabled filter change.
+ */
+function handleEnabledChange(value: string | undefined) {
+	if (value === 'all' || value === undefined) {
+		onFilterChange({ enabled: undefined });
+	} else {
+		onFilterChange({ enabled: value === 'enabled' });
+	}
+}
+
+/**
+ * Handle expired filter change.
+ */
+function handleExpiredChange(value: string | undefined) {
+	if (value === 'all' || value === undefined) {
+		onFilterChange({ expired: undefined });
+	} else {
+		onFilterChange({ expired: value === 'expired' });
+	}
+}
+
+/**
+ * Handle sort by change.
+ */
+function handleSortByChange(value: string | undefined) {
+	if (value) {
+		onFilterChange({ sort_by: value as ListUsersParams['sort_by'] });
+	}
+}
+
+/**
+ * Toggle sort order.
+ */
+function toggleSortOrder() {
+	onFilterChange({ sort_order: sortOrder === 'asc' ? 'desc' : 'asc' });
+}
+
+// Sort by options
+const sortByOptions = [
+	{ value: 'created_at', label: 'Created Date' },
+	{ value: 'username', label: 'Username' },
+	{ value: 'expires_at', label: 'Expiration Date' }
+] as const;
+</script>
+
+<div
+	class="flex flex-wrap items-center gap-3 rounded-lg border border-cr-border bg-cr-surface p-3"
+	data-user-filters
+>
+	<div class="flex items-center gap-2 text-cr-text-muted">
+		<Filter class="size-4" />
+		<span class="text-sm font-medium">Filters</span>
+	</div>
+
+	<!-- Server filter -->
+	<Select.Root type="single" value={serverId ?? 'all'} onValueChange={handleServerChange}>
+		<Select.Trigger
+			class="w-36 border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border/50"
+			aria-label="Filter by server"
+		>
+			<span class="truncate">{selectedServerName}</span>
+		</Select.Trigger>
+		<Select.Content class="border-cr-border bg-cr-surface max-h-60">
+			<Select.Item value="all" class="text-cr-text hover:bg-cr-border">All Servers</Select.Item>
+			{#each servers as server (server.id)}
+				<Select.Item value={server.id} class="text-cr-text hover:bg-cr-border">
+					<span class="flex items-center gap-2">
+						<span
+							class="inline-flex items-center rounded border px-1 py-0.5 text-xs font-medium {server.server_type === 'plex'
+								? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+								: 'bg-purple-500/15 text-purple-400 border-purple-500/30'}"
+						>
+							{server.server_type}
+						</span>
+						{server.name}
+					</span>
+				</Select.Item>
+			{/each}
+		</Select.Content>
+	</Select.Root>
+
+	<!-- Invitation filter -->
+	{#if invitations.length > 0}
+		<Select.Root type="single" value={invitationId ?? 'all'} onValueChange={handleInvitationChange}>
+			<Select.Trigger
+				class="w-36 border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border/50"
+				aria-label="Filter by invitation"
+			>
+				<span class="truncate font-mono text-xs">{selectedInvitationCode}</span>
+			</Select.Trigger>
+			<Select.Content class="border-cr-border bg-cr-surface max-h-60">
+				<Select.Item value="all" class="text-cr-text hover:bg-cr-border">All Invitations</Select.Item>
+				{#each invitations as invitation (invitation.id)}
+					<Select.Item value={invitation.id} class="text-cr-text hover:bg-cr-border">
+						<code class="font-mono text-xs">{invitation.code}</code>
+					</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+	{/if}
+
+	<!-- Enabled filter -->
+	<Select.Root type="single" value={enabledValue} onValueChange={handleEnabledChange}>
+		<Select.Trigger
+			class="w-32 border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border/50"
+			aria-label="Filter by enabled status"
+		>
+			{enabledValue === 'all' ? 'All Status' : enabledValue === 'enabled' ? 'Enabled' : 'Disabled'}
+		</Select.Trigger>
+		<Select.Content class="border-cr-border bg-cr-surface">
+			<Select.Item value="all" class="text-cr-text hover:bg-cr-border">All Status</Select.Item>
+			<Select.Item value="enabled" class="text-cr-text hover:bg-cr-border">Enabled</Select.Item>
+			<Select.Item value="disabled" class="text-cr-text hover:bg-cr-border">Disabled</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<!-- Expired filter -->
+	<Select.Root type="single" value={expiredValue} onValueChange={handleExpiredChange}>
+		<Select.Trigger
+			class="w-32 border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border/50"
+			aria-label="Filter by expiration status"
+		>
+			{expiredValue === 'all' ? 'All' : expiredValue === 'active' ? 'Active' : 'Expired'}
+		</Select.Trigger>
+		<Select.Content class="border-cr-border bg-cr-surface">
+			<Select.Item value="all" class="text-cr-text hover:bg-cr-border">All</Select.Item>
+			<Select.Item value="active" class="text-cr-text hover:bg-cr-border">Active</Select.Item>
+			<Select.Item value="expired" class="text-cr-text hover:bg-cr-border">Expired</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<div class="h-6 w-px bg-cr-border hidden sm:block" aria-hidden="true"></div>
+
+	<!-- Sort by -->
+	<Select.Root type="single" value={sortBy} onValueChange={handleSortByChange}>
+		<Select.Trigger
+			class="w-40 border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border/50"
+			aria-label="Sort by"
+		>
+			{sortByOptions.find((o) => o.value === sortBy)?.label ?? 'Sort by'}
+		</Select.Trigger>
+		<Select.Content class="border-cr-border bg-cr-surface">
+			{#each sortByOptions as option (option.value)}
+				<Select.Item value={option.value} class="text-cr-text hover:bg-cr-border">
+					{option.label}
+				</Select.Item>
+			{/each}
+		</Select.Content>
+	</Select.Root>
+
+	<!-- Sort order toggle -->
+	<Button
+		variant="outline"
+		size="icon"
+		onclick={toggleSortOrder}
+		aria-label={sortOrder === 'asc' ? 'Sort ascending' : 'Sort descending'}
+		class="border-cr-border bg-cr-bg text-cr-text-muted hover:text-cr-accent hover:bg-cr-border/50"
+	>
+		{#if sortOrder === 'asc'}
+			<ArrowUpAZ class="size-4" />
+		{:else}
+			<ArrowDownAZ class="size-4" />
+		{/if}
+	</Button>
+</div>

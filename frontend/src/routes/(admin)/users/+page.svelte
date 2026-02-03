@@ -1,13 +1,123 @@
 <script lang="ts">
-// Users page - placeholder for now
+/**
+ * User list page.
+ *
+ * Displays a paginated, filterable list of users with:
+ * - Loading skeleton state during data fetch
+ * - Error state with retry functionality
+ * - Empty state when no users exist
+ * - Table view with status badges and actions
+ *
+ * @module routes/(admin)/users/+page
+ */
+
+import { goto, invalidateAll } from '$app/navigation';
+import { page } from '$app/state';
+import type { ListUsersParams } from '$lib/api/client';
+import { getErrorMessage, isNetworkError } from '$lib/api/errors';
+import EmptyState from '$lib/components/empty-state.svelte';
+import ErrorState from '$lib/components/error-state.svelte';
+import Pagination from '$lib/components/pagination.svelte';
+import UserFilters from '$lib/components/users/user-filters.svelte';
+import UserListSkeleton from '$lib/components/users/user-list-skeleton.svelte';
+import UserTable from '$lib/components/users/user-table.svelte';
+import type { PageData } from './$types';
+
+let { data }: { data: PageData } = $props();
+
+// Loading state for refresh operations
+let isRefreshing = $state(false);
+
+// Derive current filter state from URL params
+let currentParams = $derived(data.params);
+
+/**
+ * Handle retry after error.
+ */
+async function handleRetry() {
+	isRefreshing = true;
+	try {
+		await invalidateAll();
+	} finally {
+		isRefreshing = false;
+	}
+}
+
+/**
+ * Handle filter changes by updating URL params.
+ */
+function handleFilterChange(newParams: Partial<ListUsersParams>) {
+	const url = new URL(page.url);
+
+	// Update or remove each param
+	for (const [key, value] of Object.entries(newParams)) {
+		if (value === undefined || value === null) {
+			url.searchParams.delete(key);
+		} else {
+			url.searchParams.set(key, String(value));
+		}
+	}
+
+	// Reset to page 1 when filters change (except for page changes)
+	if (!('page' in newParams)) {
+		url.searchParams.set('page', '1');
+	}
+
+	goto(url.toString(), { keepFocus: true, noScroll: true });
+}
+
+/**
+ * Handle page change.
+ */
+function handlePageChange(newPage: number) {
+	handleFilterChange({ page: newPage });
+}
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<!-- Header with description -->
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<p class="text-cr-text-muted">Manage users across all connected media servers.</p>
 	</div>
 
-	<div class="rounded-lg border border-cr-border bg-cr-surface p-6">
-		<p class="text-cr-text-muted">User list will be implemented in Task 9.</p>
-	</div>
+	<!-- Filters -->
+	<UserFilters
+		serverId={currentParams.server_id}
+		invitationId={currentParams.invitation_id}
+		enabled={currentParams.enabled}
+		expired={currentParams.expired}
+		sortBy={currentParams.sort_by ?? 'created_at'}
+		sortOrder={currentParams.sort_order ?? 'desc'}
+		servers={data.servers}
+		invitations={data.invitations}
+		onFilterChange={handleFilterChange}
+	/>
+
+	<!-- Content area with loading/error/empty/data states -->
+	{#if isRefreshing}
+		<UserListSkeleton />
+	{:else if data.error}
+		<ErrorState
+			message={getErrorMessage(data.error)}
+			title={isNetworkError(data.error) ? 'Connection Error' : 'Failed to load users'}
+			onRetry={handleRetry}
+		/>
+	{:else if !data.users || data.users.items.length === 0}
+		<EmptyState
+			title="No users yet"
+			description="Users will appear here once they redeem invitation codes and create accounts on your media servers."
+		/>
+	{:else}
+		<!-- User table -->
+		<UserTable users={data.users.items} />
+
+		<!-- Pagination -->
+		<Pagination
+			page={data.users.page}
+			pageSize={data.users.page_size}
+			total={data.users.total}
+			hasNext={data.users.has_next}
+			onPageChange={handlePageChange}
+		/>
+	{/if}
 </div>
