@@ -328,17 +328,17 @@ This implementation plan breaks down the frontend foundation into discrete, incr
 
   - [x] 10.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
-- [ ] 11. Server management
-  - [ ] 11.1 Create server list page
+- [-] 11. Server management
+  - [x] 11.1 Create server list page
     - Create `src/routes/(admin)/servers/+page.svelte`
     - Create `src/routes/(admin)/servers/+page.ts` for load function
     - Display servers as cards with name, server_type, url, enabled, library count
     - Implement loading and error states
     - _Requirements: 9.1, 9.2_
-    - [ ] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.2 Create server detail page with sync
+  - [x] 11.2 Create server detail page with sync
     - Create `src/routes/(admin)/servers/[id]/+page.svelte`
     - Create `src/routes/(admin)/servers/[id]/+page.ts` for load function
     - Display server details and library list
@@ -347,17 +347,17 @@ This implementation plan breaks down the frontend foundation into discrete, incr
     - Display orphaned_users, stale_users, matched_users
     - Handle sync errors with appropriate messaging
     - _Requirements: 9.3, 9.4, 9.5, 9.6, 9.7_
-    - [ ] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.3 Write property tests for server management
+  - [x] 11.3 Write property tests for server management
     - **Property 25: Server Field Display**
     - **Property 26: Sync Result Display**
     - **Validates: Requirements 9.2, 9.6**
-    - [ ] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
+  - [-] 11.4 Commit and push changes with all type errors fixed (no warnings, no errors, no excuses)
 
 - [ ] 12. Checkpoint - Verify admin features
   - Ensure all tests pass, ask the user if questions arise.
