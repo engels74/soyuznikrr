@@ -304,7 +304,7 @@ class TestInteractionTypeValidation:
         service = WizardService.__new__(WizardService)
 
         # Should not raise
-        result = service._validate_interaction_type(interaction_type)
+        result = service._validate_interaction_type(interaction_type)  # pyright: ignore[reportPrivateUsage]
         assert result.value == interaction_type
 
     @settings(max_examples=10)
@@ -326,7 +326,7 @@ class TestInteractionTypeValidation:
 
         # Should raise ValidationError
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_interaction_type(invalid_type)
+            _ = service._validate_interaction_type(invalid_type)  # pyright: ignore[reportPrivateUsage]
 
         assert "interaction_type" in exc_info.value.field_errors
 
@@ -437,7 +437,7 @@ class TestTimerDurationBounds:
         service = WizardService.__new__(WizardService)
 
         config = {"duration_seconds": duration}
-        result = service._validate_timer_config(config)
+        result = service._validate_timer_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert result["duration_seconds"] == duration
 
@@ -461,7 +461,7 @@ class TestTimerDurationBounds:
         config = {"duration_seconds": duration}
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_timer_config(config)
+            _ = service._validate_timer_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "duration_seconds" in str(exc_info.value.field_errors)
 
@@ -475,7 +475,7 @@ class TestTimerDurationBounds:
         config: dict[str, object] = {}
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_timer_config(config)
+            _ = service._validate_timer_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "duration_seconds" in str(exc_info.value.field_errors)
 
@@ -520,7 +520,7 @@ class TestQuizConfigurationCompleteness:
             "correct_answer_index": correct_index,
         }
 
-        result = service._validate_quiz_config(config)
+        result = service._validate_quiz_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert result["question"] == question
         assert result["correct_answer_index"] == correct_index
@@ -539,7 +539,7 @@ class TestQuizConfigurationCompleteness:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_quiz_config(config)
+            _ = service._validate_quiz_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "question" in str(exc_info.value.field_errors)
 
@@ -557,7 +557,7 @@ class TestQuizConfigurationCompleteness:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_quiz_config(config)
+            _ = service._validate_quiz_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "options" in str(exc_info.value.field_errors)
 
@@ -582,7 +582,7 @@ class TestQuizConfigurationCompleteness:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_quiz_config(config)
+            _ = service._validate_quiz_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "correct_answer_index" in str(exc_info.value.field_errors)
 
@@ -599,6 +599,6 @@ class TestQuizConfigurationCompleteness:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            service._validate_quiz_config(config)
+            _ = service._validate_quiz_config(config)  # pyright: ignore[reportPrivateUsage]
 
         assert "correct_answer_index" in str(exc_info.value.field_errors)
