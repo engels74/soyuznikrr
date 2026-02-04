@@ -35,7 +35,11 @@ export type InvitationDetailResponse = components['schemas']['InvitationDetailRe
 	post_wizard?: WizardResponse | null;
 };
 export type InvitationListResponse = components['schemas']['InvitationListResponse'];
-export type InvitationValidationResponse = components['schemas']['InvitationValidationResponse'];
+// Extended InvitationValidationResponse to include wizard fields (until OpenAPI types are regenerated)
+export type InvitationValidationResponse = components['schemas']['InvitationValidationResponse'] & {
+	pre_wizard?: WizardDetailResponse | null;
+	post_wizard?: WizardDetailResponse | null;
+};
 export type CreateInvitationRequest = components['schemas']['CreateInvitationRequest'];
 export type UpdateInvitationRequest = components['schemas']['UpdateInvitationRequest'];
 

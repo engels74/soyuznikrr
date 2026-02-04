@@ -4,6 +4,8 @@
  * Validates the invitation code on page load and returns validation results.
  * Handles valid codes, invalid codes, and network errors.
  *
+ * Requirements: 14.1, 14.2 - Load wizard data with invitation validation
+ *
  * @module routes/(public)/join/[code]/+page
  */
 
@@ -19,9 +21,11 @@ export const load: PageLoad = async ({ params }) => {
 
 		// Check for successful response with data
 		if (result.data) {
+			// Cast to our extended type that includes wizard fields
+			const validation = result.data as InvitationValidationResponse;
 			return {
 				code,
-				validation: result.data,
+				validation,
 				error: null as Error | null
 			};
 		}
