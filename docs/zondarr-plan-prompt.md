@@ -522,7 +522,7 @@ bun --bun run dev
 6. Server management UI (add, remove, sync, library listing)
 7. Public join flow with Superforms (Jellyfin registration, Plex OAuth)
 
-### Phase 5: Wizard System
+### Phase 5: Wizard System (COMPLETED)
 
 1. Backend wizard models, CRUD API, and step management
 2. Interaction type protocol, registry, and built-in implementations (click, timer, tos, text input, quiz)
