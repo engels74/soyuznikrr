@@ -4,23 +4,29 @@
  *
  * Displays:
  * - Loading state during validation
+ * - Pre-wizard flow (if configured) before registration
  * - Target servers and allowed libraries for valid codes
  * - Duration information if set
  * - Error messages for invalid codes with failure reasons
  * - Jellyfin registration form for Jellyfin servers
  * - Plex OAuth flow for Plex servers
+ * - Post-wizard flow (if configured) after registration
  * - Success page after successful registration
+ *
+ * Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
  *
  * @module routes/(public)/join/[code]/+page
  */
 
 import { AlertTriangle, ArrowLeft, Calendar, CheckCircle, Library, Server } from '@lucide/svelte';
 import { toast } from 'svelte-sonner';
+import { browser } from '$app/environment';
 import { invalidateAll } from '$app/navigation';
 import {
 	type RedemptionErrorResponse,
 	type RedemptionResponse,
-	redeemInvitation
+	redeemInvitation,
+	type WizardDetailResponse
 } from '$lib/api/client';
 import { getErrorMessage, isNetworkError } from '$lib/api/errors';
 import ErrorState from '$lib/components/error-state.svelte';
@@ -28,6 +34,15 @@ import { JellyfinRegistrationForm, PlexOAuthFlow, RegistrationError, SuccessPage
 import { Button } from '$lib/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 import { Skeleton } from '$lib/components/ui/skeleton';
+import {
+	ClickInteraction,
+	QuizInteraction,
+	type StepResponse,
+	TextInputInteraction,
+	TimerInteraction,
+	TosInteraction,
+	WizardShell
+} from '$lib/components/wizard';
 import {
 	type JellyfinRegistrationInput,
 	jellyfinRegistrationSchema,
@@ -37,8 +52,16 @@ import type { PageData } from './$types';
 
 let { data }: { data: PageData } = $props();
 
-// Flow state
-type FlowStep = 'validation' | 'registration' | 'plex_oauth' | 'plex_redeeming' | 'success' | 'error';
+// Flow state - extended to include wizard steps
+type FlowStep =
+	| 'validation'
+	| 'pre_wizard'
+	| 'registration'
+	| 'plex_oauth'
+	| 'plex_redeeming'
+	| 'post_wizard'
+	| 'success'
+	| 'error';
 let currentStep = $state<FlowStep>('validation');
 
 // Loading states
@@ -60,6 +83,10 @@ let plexEmail = $state<string | null>(null);
 let redemptionResponse = $state<RedemptionResponse | null>(null);
 let redemptionError = $state<RedemptionErrorResponse | null>(null);
 
+// Wizard state
+let preWizardCompleted = $state(false);
+let postWizardCompleted = $state(false);
+
 // Derive server URLs for success page
 let serverUrls = $derived.by(() => {
 	const urls: Record<string, string> = {};
@@ -80,6 +107,56 @@ let hasJellyfinServer = $derived(
 let hasPlexServer = $derived(
 	data.validation?.target_servers?.some((s) => s.server_type === 'plex') ?? false
 );
+
+// Check if invitation has pre-wizard
+let hasPreWizard = $derived(
+	data.validation?.valid === true &&
+		(data.validation?.pre_wizard?.steps?.length ?? 0) > 0
+);
+
+// Check if invitation has post-wizard
+let hasPostWizard = $derived(
+	data.validation?.valid === true &&
+		(data.validation?.post_wizard?.steps?.length ?? 0) > 0
+);
+
+// Session storage key for wizard progress
+const getWizardStorageKey = (wizardId: string) => `wizard-${wizardId}-progress`;
+const getJoinFlowStorageKey = (code: string) => `join-flow-${code}`;
+
+// Restore join flow state from session storage on mount
+$effect(() => {
+	if (browser && data.code) {
+		const saved = sessionStorage.getItem(getJoinFlowStorageKey(data.code));
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				preWizardCompleted = parsed.preWizardCompleted ?? false;
+				postWizardCompleted = parsed.postWizardCompleted ?? false;
+				// Restore redemption response if we were in post-wizard
+				if (parsed.redemptionResponse) {
+					redemptionResponse = parsed.redemptionResponse;
+				}
+			} catch {
+				// Invalid saved state, start fresh
+			}
+		}
+	}
+});
+
+// Persist join flow state to session storage
+$effect(() => {
+	if (browser && data.code) {
+		sessionStorage.setItem(
+			getJoinFlowStorageKey(data.code),
+			JSON.stringify({
+				preWizardCompleted,
+				postWizardCompleted,
+				redemptionResponse: redemptionResponse
+			})
+		);
+	}
+});
 
 /**
  * Map failure reasons to user-friendly messages.
@@ -112,9 +189,15 @@ async function handleRetry() {
 }
 
 /**
- * Proceed to registration flow.
+ * Proceed to registration flow (or pre-wizard if configured).
  */
 function handleContinue() {
+	// Check if pre-wizard needs to be completed first
+	if (hasPreWizard && !preWizardCompleted) {
+		currentStep = 'pre_wizard';
+		return;
+	}
+
 	// Determine which registration flow to use based on server types
 	if (hasPlexServer && !hasJellyfinServer) {
 		currentStep = 'plex_oauth';
@@ -130,6 +213,62 @@ function handleBack() {
 	currentStep = 'validation';
 	formErrors = {};
 	plexEmail = null;
+}
+
+/**
+ * Handle pre-wizard completion.
+ */
+function handlePreWizardComplete() {
+	preWizardCompleted = true;
+	// Proceed to registration
+	if (hasPlexServer && !hasJellyfinServer) {
+		currentStep = 'plex_oauth';
+	} else {
+		currentStep = 'registration';
+	}
+}
+
+/**
+ * Handle pre-wizard cancellation/abandonment.
+ * Requirements: 14.5 - No accounts created if pre-wizard abandoned
+ */
+function handlePreWizardCancel() {
+	// Clear wizard progress from session storage
+	if (browser && data.validation?.pre_wizard?.id) {
+		sessionStorage.removeItem(getWizardStorageKey(data.validation.pre_wizard.id));
+	}
+	// Clear join flow state
+	if (browser && data.code) {
+		sessionStorage.removeItem(getJoinFlowStorageKey(data.code));
+	}
+	// Reset state
+	preWizardCompleted = false;
+	currentStep = 'validation';
+}
+
+/**
+ * Handle post-wizard completion.
+ */
+function handlePostWizardComplete() {
+	postWizardCompleted = true;
+	// Clear join flow state on successful completion
+	if (browser && data.code) {
+		sessionStorage.removeItem(getJoinFlowStorageKey(data.code));
+	}
+	currentStep = 'success';
+}
+
+/**
+ * Handle post-wizard cancellation.
+ * Note: Account is already created at this point, so we just skip to success.
+ */
+function handlePostWizardCancel() {
+	// Clear wizard progress from session storage
+	if (browser && data.validation?.post_wizard?.id) {
+		sessionStorage.removeItem(getWizardStorageKey(data.validation.post_wizard.id));
+	}
+	postWizardCompleted = true;
+	currentStep = 'success';
 }
 
 /**
@@ -182,8 +321,14 @@ async function handleRegistrationSubmit() {
 				toast.error(redemptionError.message || 'Registration failed');
 			} else if (responseData.success) {
 				redemptionResponse = responseData as RedemptionResponse;
-				currentStep = 'success';
-				toast.success('Account created successfully!');
+				// Check if post-wizard needs to be shown
+				if (hasPostWizard && !postWizardCompleted) {
+					currentStep = 'post_wizard';
+					toast.success('Account created! Please complete the final steps.');
+				} else {
+					currentStep = 'success';
+					toast.success('Account created successfully!');
+				}
 			} else {
 				toast.error('Registration failed');
 			}
@@ -233,8 +378,14 @@ async function handlePlexAuthenticated(email: string) {
 				toast.error(redemptionError.message || 'Registration failed');
 			} else if (responseData.success) {
 				redemptionResponse = responseData as RedemptionResponse;
-				currentStep = 'success';
-				toast.success('Successfully added to Plex server!');
+				// Check if post-wizard needs to be shown
+				if (hasPostWizard && !postWizardCompleted) {
+					currentStep = 'post_wizard';
+					toast.success('Added to server! Please complete the final steps.');
+				} else {
+					currentStep = 'success';
+					toast.success('Successfully added to Plex server!');
+				}
 			} else {
 				toast.error('Registration failed');
 			}
@@ -271,6 +422,17 @@ function handleRegistrationRetry() {
 		currentStep = 'registration';
 	}
 }
+
+/**
+ * Render the appropriate interaction component for a wizard step.
+ */
+function renderInteraction(
+	step: { interaction_type: string; id: string; config: Record<string, unknown> },
+	onStepComplete: (response: StepResponse) => void,
+	disabled: boolean
+) {
+	return { step, onStepComplete, disabled };
+}
 </script>
 
 <div class="space-y-6">
@@ -280,12 +442,16 @@ function handleRegistrationRetry() {
 		<p class="mt-2 text-cr-text-muted">
 			{#if currentStep === 'validation'}
 				Validate your invitation code to get started
+			{:else if currentStep === 'pre_wizard'}
+				Complete the required steps to continue
 			{:else if currentStep === 'registration'}
 				Create your account
 			{:else if currentStep === 'plex_oauth'}
 				Sign in with Plex
 			{:else if currentStep === 'plex_redeeming'}
 				Adding you to the server...
+			{:else if currentStep === 'post_wizard'}
+				Almost there! Complete the final steps
 			{:else if currentStep === 'success'}
 				Welcome aboard!
 			{:else}
@@ -337,6 +503,50 @@ function handleRegistrationRetry() {
 				</p>
 			</CardContent>
 		</Card>
+
+	<!-- Pre-wizard state -->
+	{:else if currentStep === 'pre_wizard' && data.validation?.pre_wizard}
+		<WizardShell
+			wizard={data.validation.pre_wizard}
+			onComplete={handlePreWizardComplete}
+			onCancel={handlePreWizardCancel}
+		>
+			{#snippet interaction({ step, onStepComplete, disabled })}
+				{#if step.interaction_type === 'click'}
+					<ClickInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'timer'}
+					<TimerInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'tos'}
+					<TosInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'text_input'}
+					<TextInputInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'quiz'}
+					<QuizInteraction {step} onComplete={onStepComplete} {disabled} />
+				{/if}
+			{/snippet}
+		</WizardShell>
+
+	<!-- Post-wizard state -->
+	{:else if currentStep === 'post_wizard' && data.validation?.post_wizard}
+		<WizardShell
+			wizard={data.validation.post_wizard}
+			onComplete={handlePostWizardComplete}
+			onCancel={handlePostWizardCancel}
+		>
+			{#snippet interaction({ step, onStepComplete, disabled })}
+				{#if step.interaction_type === 'click'}
+					<ClickInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'timer'}
+					<TimerInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'tos'}
+					<TosInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'text_input'}
+					<TextInputInteraction {step} onComplete={onStepComplete} {disabled} />
+				{:else if step.interaction_type === 'quiz'}
+					<QuizInteraction {step} onComplete={onStepComplete} {disabled} />
+				{/if}
+			{/snippet}
+		</WizardShell>
 
 	<!-- Success state -->
 	{:else if currentStep === 'success' && redemptionResponse}
@@ -514,12 +724,27 @@ function handleRegistrationRetry() {
 					</div>
 				{/if}
 
+				<!-- Pre-wizard notice -->
+				{#if hasPreWizard}
+					<div class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+						<div class="rounded-full bg-amber-500/15 p-2 text-amber-400">
+							<AlertTriangle class="size-5" />
+						</div>
+						<div>
+							<p class="font-medium text-cr-text">Additional Steps Required</p>
+							<p class="text-sm text-cr-text-muted">
+								You'll need to complete a few steps before creating your account.
+							</p>
+						</div>
+					</div>
+				{/if}
+
 				<!-- Continue button -->
 				<Button
 					onclick={handleContinue}
 					class="w-full bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 				>
-					Continue to Registration
+					{hasPreWizard && !preWizardCompleted ? 'Continue to Required Steps' : 'Continue to Registration'}
 				</Button>
 			</CardContent>
 		</Card>

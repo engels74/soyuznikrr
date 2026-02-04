@@ -294,7 +294,7 @@ This plan implements the wizard system for configurable multi-step onboarding fl
 
   - [x] 9.6 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
-- [-] 10. Integrate wizards into invitation management
+- [x] 10. Integrate wizards into invitation management
   - [x] 10.1 Update invitation form components
     - Add pre_wizard_id and post_wizard_id select fields
     - Fetch available wizards for dropdown options
@@ -309,39 +309,39 @@ This plan implements the wizard system for configurable multi-step onboarding fl
     - [x] 10.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
     - [x] 10.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [-] 10.3 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
+  - [x] 10.3 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
-- [ ] 11. Integrate wizards into join flow
-  - [ ] 11.1 Update join page to handle pre-wizard
+- [x] 11. Integrate wizards into join flow
+  - [x] 11.1 Update join page to handle pre-wizard
     - Check invitation validation response for pre_wizard
     - Display WizardShell before registration form
     - Track wizard completion state
     - _Requirements: 14.1, 14.3_
-    - [ ] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.2 Update join page to handle post-wizard
+  - [x] 11.2 Update join page to handle post-wizard
     - Check invitation for post_wizard after successful redemption
     - Display WizardShell before success page
     - _Requirements: 14.2, 14.4_
-    - [ ] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.3 Implement wizard abandonment handling
+  - [x] 11.3 Implement wizard abandonment handling
     - Ensure no accounts created if pre-wizard abandoned
     - Clear session storage on abandonment
     - _Requirements: 14.5_
-    - [ ] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 11.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 11.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 11.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 11.4 Write integration tests for join flow with wizards
+  - [x] 11.4 Write integration tests for join flow with wizards
     - Test pre-wizard completion before registration
     - Test post-wizard completion after registration
     - Test abandonment handling
     - _Requirements: 14.1-14.5_
-    - [ ] 11.4.1 Run tests with `bun run test` and ensure all pass
+    - [x] 11.4.1 Run tests with `bun run test` and ensure all pass
 
-  - [ ] 11.5 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
+  - [x] 11.5 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
 - [ ] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
