@@ -308,6 +308,142 @@ export interface paths {
 		patch: operations['ApiV1UsersUserIdPermissionsUpdatePermissions'];
 		trace?: never;
 	};
+	'/api/v1/wizards/{wizard_id}/steps': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Create step
+		 * @description Create a new step in a wizard.
+		 */
+		post: operations['ApiV1WizardsWizardIdStepsCreateStep'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/wizards': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List wizards
+		 * @description List wizards with pagination and filtering.
+		 */
+		get: operations['ApiV1WizardsListWizards'];
+		put?: never;
+		/**
+		 * Create wizard
+		 * @description Create a new wizard with configurable settings.
+		 */
+		post: operations['ApiV1WizardsCreateWizard'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/wizards/{wizard_id}/steps/{step_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Delete step
+		 * @description Delete a wizard step and normalize remaining step orders.
+		 */
+		delete: operations['ApiV1WizardsWizardIdStepsStepIdDeleteStep'];
+		options?: never;
+		head?: never;
+		/**
+		 * Update step
+		 * @description Update mutable fields of a wizard step.
+		 */
+		patch: operations['ApiV1WizardsWizardIdStepsStepIdUpdateStep'];
+		trace?: never;
+	};
+	'/api/v1/wizards/{wizard_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get wizard details
+		 * @description Retrieve complete details for a wizard including all steps.
+		 */
+		get: operations['ApiV1WizardsWizardIdGetWizard'];
+		put?: never;
+		post?: never;
+		/**
+		 * Delete wizard
+		 * @description Delete a wizard and all its steps.
+		 */
+		delete: operations['ApiV1WizardsWizardIdDeleteWizard'];
+		options?: never;
+		head?: never;
+		/**
+		 * Update wizard
+		 * @description Update mutable fields of a wizard.
+		 */
+		patch: operations['ApiV1WizardsWizardIdUpdateWizard'];
+		trace?: never;
+	};
+	'/api/v1/wizards/{wizard_id}/steps/{step_id}/reorder': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Reorder step
+		 * @description Move a step to a new position in the wizard.
+		 */
+		post: operations['ApiV1WizardsWizardIdStepsStepIdReorderReorderStep'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/wizards/validate-step': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Validate step completion
+		 * @description Validate a step completion response. Public endpoint.
+		 */
+		post: operations['ApiV1WizardsValidateStepValidateStep'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -323,6 +459,8 @@ export interface components {
 			permissions?: {
 				[key: string]: boolean;
 			} | null;
+			pre_wizard_id?: string | null;
+			post_wizard_id?: string | null;
 		};
 		/** IdentityResponse */
 		IdentityResponse: {
@@ -355,6 +493,8 @@ export interface components {
 			/** @default true */
 			is_active: boolean;
 			remaining_uses?: number | null;
+			pre_wizard?: components['schemas']['WizardResponse'] | null;
+			post_wizard?: components['schemas']['WizardResponse'] | null;
 		};
 		/** InvitationListResponse */
 		InvitationListResponse: {
@@ -389,6 +529,8 @@ export interface components {
 			target_servers?: components['schemas']['MediaServerResponse'][] | null;
 			allowed_libraries?: components['schemas']['LibraryResponse'][] | null;
 			duration_days?: number | null;
+			pre_wizard?: components['schemas']['WizardDetailResponse'] | null;
+			post_wizard?: components['schemas']['WizardDetailResponse'] | null;
 		};
 		/** LibraryResponse */
 		LibraryResponse: {
@@ -470,6 +612,25 @@ export interface components {
 			users_created: components['schemas']['UserResponse'][];
 			message?: string | null;
 		};
+		/** StepReorderRequest */
+		StepReorderRequest: {
+			new_order: number;
+		};
+		/** StepValidationRequest */
+		StepValidationRequest: {
+			/** Format: uuid */
+			step_id: string;
+			response: {
+				[key: string]: string | number | boolean | null;
+			};
+			started_at?: string | null;
+		};
+		/** StepValidationResponse */
+		StepValidationResponse: {
+			valid: boolean;
+			completion_token?: string | null;
+			error?: string | null;
+		};
 		/** SyncRequest */
 		SyncRequest: {
 			/** @default true */
@@ -486,6 +647,8 @@ export interface components {
 			permissions?: {
 				[key: string]: boolean;
 			} | null;
+			pre_wizard_id?: string | null;
+			post_wizard_id?: string | null;
 		};
 		/** UpdatePermissionsRequest */
 		UpdatePermissionsRequest: {
@@ -537,6 +700,85 @@ export interface components {
 			created_at: string;
 			expires_at?: string | null;
 			updated_at?: string | null;
+		};
+		/** WizardCreate */
+		WizardCreate: {
+			name: string;
+			description?: string | null;
+			/** @default true */
+			enabled: boolean;
+		};
+		/** WizardDetailResponse */
+		WizardDetailResponse: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			enabled: boolean;
+			/** Format: date-time */
+			created_at: string;
+			steps: components['schemas']['WizardStepResponse'][];
+			description?: string | null;
+			updated_at?: string | null;
+		};
+		/** WizardListResponse */
+		WizardListResponse: {
+			items: components['schemas']['WizardResponse'][];
+			total: number;
+			page: number;
+			page_size: number;
+			has_next: boolean;
+		};
+		/** WizardResponse */
+		WizardResponse: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			enabled: boolean;
+			/** Format: date-time */
+			created_at: string;
+			description?: string | null;
+			updated_at?: string | null;
+		};
+		/** WizardStepCreate */
+		WizardStepCreate: {
+			interaction_type: string;
+			title: string;
+			content_markdown: string;
+			config?: {
+				[key: string]: string | number | boolean | string[] | null;
+			};
+			step_order?: number | null;
+		};
+		/** WizardStepResponse */
+		WizardStepResponse: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			wizard_id: string;
+			step_order: number;
+			interaction_type: string;
+			title: string;
+			content_markdown: string;
+			config: {
+				[key: string]: string | number | boolean | string[] | null;
+			};
+			/** Format: date-time */
+			created_at: string;
+			updated_at?: string | null;
+		};
+		/** WizardStepUpdate */
+		WizardStepUpdate: {
+			title?: string | null;
+			content_markdown?: string | null;
+			config?: {
+				[key: string]: string | number | boolean | string[] | null;
+			} | null;
+		};
+		/** WizardUpdate */
+		WizardUpdate: {
+			name?: string | null;
+			description?: string | null;
+			enabled?: boolean | null;
 		};
 	};
 	responses: never;
@@ -1362,6 +1604,440 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['UserDetailResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsCreateStep: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WizardStepCreate'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardStepResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsListWizards: {
+		parameters: {
+			query?: {
+				/** @description Page number (1-indexed) */
+				page?: number;
+				/** @description Number of items per page (max 100) */
+				page_size?: number;
+				/** @description Filter by enabled status */
+				enabled?: boolean | null;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardListResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsCreateWizard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WizardCreate'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdDeleteStep: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, nothing follows */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdUpdateStep: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WizardStepUpdate'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardStepResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdGetWizard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardDetailResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdDeleteWizard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, nothing follows */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdUpdateWizard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WizardUpdate'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdReorderReorderStep: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['StepReorderRequest'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WizardStepResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsValidateStepValidateStep: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['StepValidationRequest'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StepValidationResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

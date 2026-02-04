@@ -11,7 +11,7 @@
  * @module routes/(public)/join/[code]/join-page-wizard.svelte.test
  */
 
-import { cleanup, render, screen } from '@testing-library/svelte';
+import { cleanup } from '@testing-library/svelte';
 import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -99,10 +99,10 @@ const wizardStepResponseArb: fc.Arbitrary<WizardStepResponse> = fc.record({
 	interaction_type: fc.constantFrom('click' as const, 'timer' as const, 'tos' as const),
 	title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
 	content_markdown: fc.string({ minLength: 1, maxLength: 500 }),
-	config: fc.constant({}),
+	config: fc.constant({} as { [key: string]: string | number | boolean | string[] | null }),
 	created_at: isoDateArb,
 	updated_at: fc.option(isoDateArb, { nil: null })
-});
+}) as fc.Arbitrary<WizardStepResponse>;
 
 /**
  * Arbitrary for generating wizard detail responses with steps.
@@ -128,7 +128,7 @@ const validationWithPreWizardArb: fc.Arbitrary<InvitationValidationResponse> = f
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: wizardDetailResponseArb,
 	post_wizard: fc.constant(null)
-});
+}) as fc.Arbitrary<InvitationValidationResponse>;
 
 /**
  * Arbitrary for generating valid invitation validation responses with post-wizard.
@@ -141,7 +141,7 @@ const validationWithPostWizardArb: fc.Arbitrary<InvitationValidationResponse> = 
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: fc.constant(null),
 	post_wizard: wizardDetailResponseArb
-});
+}) as fc.Arbitrary<InvitationValidationResponse>;
 
 /**
  * Arbitrary for generating valid invitation validation responses with both wizards.
@@ -154,7 +154,7 @@ const validationWithBothWizardsArb: fc.Arbitrary<InvitationValidationResponse> =
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: wizardDetailResponseArb,
 	post_wizard: wizardDetailResponseArb
-});
+}) as fc.Arbitrary<InvitationValidationResponse>;
 
 // =============================================================================
 // Test Setup
@@ -182,7 +182,7 @@ describe('Requirement 14.1: Pre-wizard display before registration', () => {
 	 */
 	it('should indicate additional steps when pre-wizard exists', () => {
 		fc.assert(
-			fc.property(invitationCodeArb, validationWithPreWizardArb, (code, validation) => {
+			fc.property(invitationCodeArb, validationWithPreWizardArb, (_code, validation) => {
 				// Verify the validation has a pre-wizard with steps
 				expect(validation.pre_wizard).not.toBeNull();
 				expect(validation.pre_wizard?.steps.length).toBeGreaterThan(0);

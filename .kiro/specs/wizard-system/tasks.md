@@ -343,7 +343,7 @@ This plan implements the wizard system for configurable multi-step onboarding fl
 
   - [x] 11.5 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
-- [ ] 12. Final checkpoint
+- [x] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
   - Run `bun run generate:api` to regenerate OpenAPI types
   - Run `uv run basedpyright` for backend type checking

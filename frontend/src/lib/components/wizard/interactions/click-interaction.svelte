@@ -12,7 +12,7 @@
 	export interface StepResponse {
 		stepId: string;
 		interactionType: string;
-		data: Record<string, unknown>;
+		data: { [key: string]: string | number | boolean | null };
 		startedAt?: string;
 		completedAt: string;
 	}

@@ -450,7 +450,7 @@ export interface WizardStepResponse {
 	interaction_type: 'click' | 'timer' | 'tos' | 'text_input' | 'quiz';
 	title: string;
 	content_markdown: string;
-	config: Record<string, unknown>;
+	config: { [key: string]: string | number | boolean | string[] | null };
 	created_at: string;
 	updated_at?: string | null;
 }
@@ -511,7 +511,7 @@ export interface CreateWizardStepRequest {
 	interaction_type: 'click' | 'timer' | 'tos' | 'text_input' | 'quiz';
 	title: string;
 	content_markdown: string;
-	config?: Record<string, unknown>;
+	config?: { [key: string]: string | number | boolean | string[] | null };
 	step_order?: number | null;
 }
 
@@ -519,7 +519,7 @@ export interface CreateWizardStepRequest {
 export interface UpdateWizardStepRequest {
 	title?: string | null;
 	content_markdown?: string | null;
-	config?: Record<string, unknown> | null;
+	config?: { [key: string]: string | number | boolean | string[] | null } | null;
 }
 
 /** Step reorder request */
@@ -530,7 +530,7 @@ export interface StepReorderRequest {
 /** Step validation request */
 export interface StepValidationRequest {
 	step_id: string;
-	response: Record<string, unknown>;
+	response: { [key: string]: string | number | boolean | null };
 	started_at?: string | null;
 }
 

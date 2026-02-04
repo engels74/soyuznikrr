@@ -276,7 +276,9 @@ export function validateStepConfig(type: InteractionType, config: unknown) {
 /**
  * Get default configuration for an interaction type.
  */
-export function getDefaultConfig(type: InteractionType): Record<string, unknown> {
+export function getDefaultConfig(type: InteractionType): {
+	[key: string]: string | number | boolean | string[] | null;
+} {
 	switch (type) {
 		case 'click':
 			return { button_text: 'I Understand' };

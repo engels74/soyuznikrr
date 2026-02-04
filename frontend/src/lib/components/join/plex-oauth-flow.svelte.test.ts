@@ -43,14 +43,15 @@ afterEach(() => {
 
 /**
  * Generate a valid PIN response.
+ * Note: We use a fixed date range to avoid issues with fake timers.
  */
 const pinResponseArb = fc.record({
 	pin_id: fc.integer({ min: 1, max: 999999 }),
 	code: fc.stringMatching(/^[A-Z0-9]{4}$/),
 	auth_url: fc.webUrl(),
 	expires_at: fc
-		.date({ min: new Date(), max: new Date(Date.now() + 300000) })
-		.map((d) => d.toISOString())
+		.integer({ min: 60000, max: 300000 })
+		.map((offset) => new Date(Date.now() + offset).toISOString())
 });
 
 /**

@@ -41,7 +41,7 @@ let { step, onSave, onCancel }: Props = $props();
 // Form state
 let title = $state(step.title);
 let contentMarkdown = $state(step.content_markdown);
-let config = $state<Record<string, unknown>>({ ...step.config });
+let config = $state<{ [key: string]: string | number | boolean | string[] | null }>({ ...step.config });
 let errors = $state<Record<string, string[]>>({});
 let isSaving = $state(false);
 
@@ -96,7 +96,7 @@ function handleSave() {
 /**
  * Update config field.
  */
-function updateConfig<T>(field: string, value: T) {
+function updateConfig(field: string, value: string | number | boolean | string[] | null) {
 	config = { ...config, [field]: value };
 }
 
@@ -240,7 +240,7 @@ function updateQuizOption(index: number, value: string) {
 						oninput={(e) =>
 							updateConfig(
 								'min_length',
-								e.currentTarget.value ? parseInt(e.currentTarget.value) : undefined
+								e.currentTarget.value ? parseInt(e.currentTarget.value) : null
 							)}
 						placeholder="0"
 						class="border-cr-border bg-cr-bg text-cr-text"
@@ -260,7 +260,7 @@ function updateQuizOption(index: number, value: string) {
 						oninput={(e) =>
 							updateConfig(
 								'max_length',
-								e.currentTarget.value ? parseInt(e.currentTarget.value) : undefined
+								e.currentTarget.value ? parseInt(e.currentTarget.value) : null
 							)}
 						placeholder="No limit"
 						class="border-cr-border bg-cr-bg text-cr-text"

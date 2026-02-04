@@ -29,7 +29,7 @@ import TosInteraction from '../interactions/tos-interaction.svelte';
 
 function createMockStep(
 	interactionType: string,
-	config: Record<string, unknown> = {}
+	config: { [key: string]: string | number | boolean | string[] | null } = {}
 ): WizardStepResponse {
 	return {
 		id: 'test-step-id',
