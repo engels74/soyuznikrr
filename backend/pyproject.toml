@@ -49,7 +49,7 @@ select = ["E4", "E7", "E9", "F", "I", "B", "UP", "S", "C4", "RUF"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "S106"]
 "__init__.py" = ["F401"]
 
 [tool.ruff.format]

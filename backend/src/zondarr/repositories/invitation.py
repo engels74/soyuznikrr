@@ -149,6 +149,38 @@ class InvitationRepository(Repository[Invitation]):
                 original=e,
             ) from e
 
+    async def get_expired(self, now: datetime) -> Sequence[Invitation]:
+        """Retrieve all expired but still enabled invitations.
+
+        Returns invitations where expires_at is in the past and enabled=True.
+        Used by the background expiration task to find invitations that need
+        to be disabled.
+
+        Args:
+            now: The current timestamp to compare against expires_at.
+
+        Returns:
+            A sequence of expired Invitation entities that are still enabled.
+
+        Raises:
+            RepositoryError: If the database operation fails.
+        """
+        try:
+            result = await self.session.scalars(
+                select(Invitation).where(
+                    Invitation.enabled == True,  # noqa: E712
+                    Invitation.expires_at != None,  # noqa: E711
+                    Invitation.expires_at < now,
+                )
+            )
+            return result.all()
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to get expired invitations",
+                operation="get_expired",
+                original=e,
+            ) from e
+
     async def update(self, invitation: Invitation) -> Invitation:
         """Persist changes to an invitation.
 

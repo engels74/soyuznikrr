@@ -41,6 +41,7 @@ from zondarr.api.wizards import WizardController
 from zondarr.config import Settings, load_settings
 from zondarr.core.database import db_lifespan, provide_db_session
 from zondarr.core.exceptions import NotFoundError, ValidationError
+from zondarr.core.tasks import background_tasks_lifespan
 from zondarr.media.clients.jellyfin import JellyfinClient
 from zondarr.media.clients.plex import PlexClient
 from zondarr.media.registry import registry
@@ -149,7 +150,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
             UserController,
             WizardController,
         ],
-        lifespan=[db_lifespan],
+        lifespan=[db_lifespan, background_tasks_lifespan],
         state=State({"settings": settings}),
         dependencies={
             "session": Provide(provide_db_session),

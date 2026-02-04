@@ -31,6 +31,22 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     # Security
     secret_key: Annotated[str, msgspec.Meta(min_length=32)]
 
+    # Background task intervals (in seconds)
+    expiration_check_interval_seconds: Annotated[
+        int,
+        msgspec.Meta(
+            ge=60,
+            description="Interval in seconds for checking expired invitations (default: 1 hour)",
+        ),
+    ] = 3600
+    sync_interval_seconds: Annotated[
+        int,
+        msgspec.Meta(
+            ge=60,
+            description="Interval in seconds for syncing media servers (default: 15 minutes)",
+        ),
+    ] = 900
+
 
 def load_settings() -> Settings:
     """Load and validate settings from environment variables.
@@ -57,6 +73,10 @@ def load_settings() -> Settings:
         "port": int(os.environ.get("PORT", "8000")),
         "debug": os.environ.get("DEBUG", "").lower() in ("true", "1", "yes"),
         "secret_key": secret_key,
+        "expiration_check_interval_seconds": int(
+            os.environ.get("EXPIRATION_CHECK_INTERVAL_SECONDS", "3600")
+        ),
+        "sync_interval_seconds": int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
     }
 
     # msgspec.convert validates constraints
