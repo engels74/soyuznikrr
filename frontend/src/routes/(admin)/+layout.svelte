@@ -1,5 +1,5 @@
 <script lang="ts">
-import { LayoutDashboard, Menu, Server, Ticket, Users, X } from '@lucide/svelte';
+import { LayoutDashboard, Menu, Server, Ticket, Users, Wand2, X } from '@lucide/svelte';
 import type { Snippet } from 'svelte';
 import { page } from '$app/state';
 import NavItem from '$lib/components/nav-item.svelte';
@@ -24,6 +24,7 @@ let currentTitle = $derived.by(() => {
 	if (pathname.startsWith('/invitations')) return 'Invitations';
 	if (pathname.startsWith('/users')) return 'Users';
 	if (pathname.startsWith('/servers')) return 'Servers';
+	if (pathname.startsWith('/wizards')) return 'Wizards';
 	return 'Admin';
 });
 
@@ -32,7 +33,8 @@ const navItems = [
 	{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 	{ href: '/invitations', label: 'Invitations', icon: Ticket },
 	{ href: '/users', label: 'Users', icon: Users },
-	{ href: '/servers', label: 'Servers', icon: Server }
+	{ href: '/servers', label: 'Servers', icon: Server },
+	{ href: '/wizards', label: 'Wizards', icon: Wand2 }
 ] as const;
 
 // Close mobile menu when route changes
