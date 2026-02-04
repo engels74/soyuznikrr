@@ -251,48 +251,48 @@ This plan implements the wizard system for configurable multi-step onboarding fl
 
   - [x] 7.8 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
-- [ ] 8. Checkpoint - Frontend wizard components
+- [x] 8. Checkpoint - Frontend wizard components
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Create admin wizard builder UI
-  - [ ] 9.1 Create wizard-builder.svelte component
+- [x] 9. Create admin wizard builder UI
+  - [x] 9.1 Create wizard-builder.svelte component
     - Implement wizard metadata form (name, description, enabled)
     - Display step list with reorder capability
     - Add step creation with type selection
     - _Requirements: 13.1, 13.2, 13.3_
-    - [ ] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.1.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.2 Create step-editor.svelte component
+  - [x] 9.2 Create step-editor.svelte component
     - Render type-specific configuration forms
     - Validate config against Zod schemas
     - _Requirements: 13.3_
-    - [ ] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.2.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.3 Create markdown-editor.svelte component
+  - [x] 9.3 Create markdown-editor.svelte component
     - Implement textarea with markdown input
     - Render live preview with sanitized HTML
     - _Requirements: 13.4, 15.4_
-    - [ ] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.3.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.4 Add preview mode to wizard-builder
+  - [x] 9.4 Add preview mode to wizard-builder
     - Render WizardShell in preview mode
     - Allow testing wizard flow without saving
     - _Requirements: 13.5_
-    - [ ] 9.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.4.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.5 Create admin wizard routes
+  - [x] 9.5 Create admin wizard routes
     - Create `frontend/src/routes/(admin)/wizards/+page.svelte` for wizard list
     - Create `frontend/src/routes/(admin)/wizards/[id]/+page.svelte` for wizard editor
     - Create `frontend/src/routes/(admin)/wizards/new/+page.svelte` for wizard creation
     - _Requirements: 13.1-13.6_
-    - [ ] 9.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
-    - [ ] 9.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
+    - [x] 9.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/frontend-dev-pro.md`
+    - [x] 9.5.2 Run type checking with `bun run check` and fix all type errors (no warnings, no errors)
 
-  - [ ] 9.6 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
+  - [x] 9.6 Commit and push changes, fix all type errors (no warnings, no errors, no excuses)
 
 - [ ] 10. Integrate wizards into invitation management
   - [ ] 10.1 Update invitation form components
