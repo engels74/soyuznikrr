@@ -601,3 +601,164 @@ class TestSyncDoesNotModifyUsers:
                 mock_client.set_library_access.assert_not_called()  # pyright: ignore[reportAny]
         finally:
             await engine.dispose()
+
+
+# =============================================================================
+# Property 4: Sync Task Error Resilience (Background Task)
+# =============================================================================
+
+
+class TestSyncTaskErrorResilience:
+    """Property 4: Sync Task Error Resilience.
+
+    For any set of media servers being synced, if syncing one server fails,
+    the remaining servers SHALL still be synced.
+
+    **Validates: Requirements 2.5**
+    """
+
+    @given(
+        num_servers=st.integers(min_value=2, max_value=4),
+        failing_server_index=st.integers(min_value=0, max_value=3),
+    )
+    @pytest.mark.asyncio
+    async def test_sync_continues_after_server_failure(
+        self,
+        num_servers: int,
+        failing_server_index: int,
+    ) -> None:
+        """Sync task continues processing servers even when one fails.
+
+        **Validates: Requirement 2.5**
+        """
+        # Ensure failing index is within bounds
+        failing_server_index = failing_server_index % num_servers
+
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+            # Create multiple media servers
+            server_ids: list[str] = []
+            async with session_factory() as session:
+                server_repo = MediaServerRepository(session)
+
+                for i in range(num_servers):
+                    server = MediaServer()
+                    server.name = f"Test Server {i}"
+                    server.server_type = ServerType.JELLYFIN
+                    server.url = f"http://server{i}:8096"
+                    server.api_key = f"api-key-{i}"
+                    server.enabled = True
+                    server = await server_repo.create(server)
+                    server_ids.append(str(server.id))
+                await session.commit()
+
+            # Create mock client that fails for one server
+            call_count = 0
+            successful_syncs: list[str] = []
+
+            def create_mock_client(
+                _server_type: ServerType,
+                *,
+                url: str,
+                api_key: str,  # pyright: ignore[reportUnusedParameter]
+            ) -> AsyncMock:
+                nonlocal call_count
+                current_call = call_count
+                call_count += 1
+
+                mock_client = AsyncMock()
+
+                if current_call == failing_server_index:
+                    # This server will fail
+                    mock_client.list_users = AsyncMock(
+                        side_effect=Exception("Connection failed")
+                    )
+                else:
+                    # This server will succeed
+                    mock_client.list_users = AsyncMock(return_value=[])
+                    successful_syncs.append(url)
+
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                return mock_client
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(side_effect=create_mock_client)
+
+            # Run the background task sync
+            from zondarr.config import Settings
+            from zondarr.core.tasks import BackgroundTaskManager
+
+            settings = Settings(
+                secret_key="test-secret-key-at-least-32-characters-long",
+                expiration_check_interval_seconds=60,
+                sync_interval_seconds=60,
+            )
+            manager = BackgroundTaskManager(settings)
+
+            state = MagicMock()
+            state.session_factory = session_factory
+
+            with patch("zondarr.services.sync.registry", mock_registry):
+                await manager.sync_all_servers(state)
+
+            # Verify that all servers were attempted (num_servers calls)
+            assert call_count == num_servers, (
+                f"Expected {num_servers} sync attempts, got {call_count}"
+            )
+
+            # Verify that successful servers were synced (num_servers - 1)
+            assert len(successful_syncs) == num_servers - 1, (
+                f"Expected {num_servers - 1} successful syncs, got {len(successful_syncs)}"
+            )
+        finally:
+            await engine.dispose()
+
+    @given(num_servers=st.integers(min_value=1, max_value=3))
+    @pytest.mark.asyncio
+    async def test_sync_task_handles_empty_server_list(
+        self,
+        num_servers: int,
+    ) -> None:
+        """Sync task handles case when no servers are enabled.
+
+        **Validates: Requirement 2.5**
+        """
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+            # Create disabled servers
+            async with session_factory() as session:
+                server_repo = MediaServerRepository(session)
+
+                for i in range(num_servers):
+                    server = MediaServer()
+                    server.name = f"Disabled Server {i}"
+                    server.server_type = ServerType.JELLYFIN
+                    server.url = f"http://disabled{i}:8096"
+                    server.api_key = f"api-key-{i}"
+                    server.enabled = False  # All disabled
+                    _ = await server_repo.create(server)
+                await session.commit()
+
+            # Run the background task sync
+            from zondarr.config import Settings
+            from zondarr.core.tasks import BackgroundTaskManager
+
+            settings = Settings(
+                secret_key="test-secret-key-at-least-32-characters-long",
+                expiration_check_interval_seconds=60,
+                sync_interval_seconds=60,
+            )
+            manager = BackgroundTaskManager(settings)
+
+            state = MagicMock()
+            state.session_factory = session_factory
+
+            # Should complete without error even with no enabled servers
+            await manager.sync_all_servers(state)
+        finally:
+            await engine.dispose()

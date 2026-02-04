@@ -6,65 +6,65 @@ This plan implements production polish features: background tasks, error handlin
 
 ## Tasks
 
-- [ ] 1. Backend Background Tasks
-  - [ ] 1.1 Add task configuration to Settings
+- [-] 1. Backend Background Tasks
+  - [x] 1.1 Add task configuration to Settings
     - Add `expiration_check_interval_seconds` (default: 3600)
     - Add `sync_interval_seconds` (default: 900)
     - _Requirements: 1.3, 2.4_
-    - [ ] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.1.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.1.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.1.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.2 Create BackgroundTaskManager class
+  - [x] 1.2 Create BackgroundTaskManager class
     - Implement `backend/src/zondarr/core/tasks.py`
     - Use asyncio tasks with graceful shutdown
     - Follow Python 3.14+ patterns (no `from __future__ import annotations`)
     - _Requirements: 1.1, 2.1_
-    - [ ] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.2.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.2.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.2.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.3 Implement invitation expiration task
+  - [x] 1.3 Implement invitation expiration task
     - Query expired invitations and set `enabled=false`
     - Log count of processed invitations
     - Handle individual errors without stopping batch
     - _Requirements: 1.2, 1.4, 1.5_
-    - [ ] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.3.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.3.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.3.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.4 Implement media server sync task
+  - [x] 1.4 Implement media server sync task
     - Iterate all enabled servers and call sync
     - Log results per server
     - Continue on individual server failures
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
-    - [ ] 1.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.4.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.4.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.5 Add InvitationRepository.get_expired method
+  - [x] 1.5 Add InvitationRepository.get_expired method
     - Query invitations where `expires_at < now` and `enabled=true`
     - _Requirements: 1.1_
-    - [ ] 1.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.5.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.5.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.6 Integrate background tasks into app lifespan
+  - [x] 1.6 Integrate background tasks into app lifespan
     - Add `background_tasks_lifespan` to `app.py`
     - _Requirements: 1.1, 2.1_
-    - [ ] 1.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.6.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.6.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.6.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.7 Write property tests for expiration task
+  - [x] 1.7 Write property tests for expiration task
     - **Property 1: Expired Invitation Disabling**
     - **Property 2: Expiration Task Error Resilience**
     - **Validates: Requirements 1.1, 1.2, 1.5**
-    - [ ] 1.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.7.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.7.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.7.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.8 Write property tests for sync task
+  - [x] 1.8 Write property tests for sync task
     - **Property 3: Sync Identifies Discrepancies**
     - **Property 4: Sync Task Error Resilience**
     - **Validates: Requirements 2.1, 2.5, 2.6, 2.7**
-    - [ ] 1.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 1.8.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 1.8.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 1.8.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 1.9 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [-] 1.9 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [ ] 2. Backend Error Handling Enhancements
   - [ ] 2.1 Add ExternalServiceError exception

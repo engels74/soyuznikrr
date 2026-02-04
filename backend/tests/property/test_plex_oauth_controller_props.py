@@ -51,7 +51,7 @@ def sample_authenticated_result() -> PlexOAuthResult:
     return PlexOAuthResult(
         authenticated=True,
         email="user@example.com",
-        auth_token="test-auth-token",  # noqa: S106
+        auth_token="test-auth-token",
     )
 
 
