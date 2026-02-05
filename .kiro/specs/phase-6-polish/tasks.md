@@ -131,41 +131,41 @@ This plan implements production polish features: background tasks, error handlin
     - Show generic messages for unexpected errors
     - _Requirements: 5.5_
 
-  - [ ]* 5.4 Write tests for error boundary
+  - [x] 5.4 Write tests for error boundary
     - **Property 11: Error Boundary Containment**
     - **Property 12: Error Message Safety**
     - **Validates: Requirements 5.4, 5.5**
 
-- [ ] 6. Checkpoint - Frontend Complete
+- [x] 6. Checkpoint - Frontend Complete
   - Ensure all frontend tests pass, ask the user if questions arise.
 
-- [ ] 7. Test Coverage Improvements
-  - [ ]* 7.1 Add backend property tests for invitation flow
+- [x] 7. Test Coverage Improvements
+  - [x] 7.1 Add backend property tests for invitation flow
     - Test invitation creation with various configurations
     - Test invitation redemption validation
     - _Requirements: 6.1, 6.2_
 
-  - [ ]* 7.2 Add backend property tests for user management
+  - [x] 7.2 Add backend property tests for user management
     - Test user enable/disable operations
     - Test user deletion cascade behavior
     - _Requirements: 6.3_
 
-  - [ ]* 7.3 Add backend property tests for media server integration
+  - [x] 7.3 Add backend property tests for media server integration
     - Test client creation from registry
     - Test sync result calculation
     - _Requirements: 6.4_
 
-  - [ ]* 7.4 Add frontend component tests for invitation form
+  - [x] 7.4 Add frontend component tests for invitation form
     - Test form validation
     - Test submission behavior
     - _Requirements: 7.1_
 
-  - [ ]* 7.5 Add frontend component tests for user table
+  - [x] 7.5 Add frontend component tests for user table
     - Test user list rendering
     - Test action button behavior
     - _Requirements: 7.2_
 
-  - [ ]* 7.6 Add frontend component tests for server management
+  - [x] 7.6 Add frontend component tests for server management
     - Test server list rendering
     - Test add/delete flows
     - _Requirements: 7.3_
