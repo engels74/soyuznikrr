@@ -66,7 +66,7 @@ This plan implements production polish features: background tasks, error handlin
 
   - [x] 1.9 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
-- [ ] 2. Backend Error Handling Enhancements
+- [-] 2. Backend Error Handling Enhancements
   - [x] 2.1 Add ExternalServiceError exception
     - Add to `backend/src/zondarr/core/exceptions.py`
     - Include `service_name` and optional `original` exception
@@ -94,16 +94,16 @@ This plan implements production polish features: background tasks, error handlin
     - [x] 2.4.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
     - [x] 2.4.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [ ] 2.5 Write property tests for error handling
+  - [x] 2.5 Write property tests for error handling
     - **Property 5: Error Response Structure**
     - **Property 6: Validation Error Field Mapping**
     - **Property 7: NotFound Error Resource Identification**
     - **Property 8: External Service Error Mapping**
     - **Validates: Requirements 3.1, 3.3, 3.4, 3.5**
-    - [-] 2.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
-    - [ ] 2.5.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
+    - [x] 2.5.1 Verify implementation adheres to coding guidelines in `.augment/rules/backend-dev-pro.md`
+    - [x] 2.5.2 Run `uv run basedpyright` and fix all type errors (no warnings, no errors, no excuses)
 
-  - [~] 2.6 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
+  - [-] 2.6 Commit and push changes and fix all type errors following Type Safety Guidelines (no warnings, no errors, no excuses)
 
 - [~] 3. Checkpoint - Backend Complete
   - Ensure all backend tests pass, ask the user if questions arise.
