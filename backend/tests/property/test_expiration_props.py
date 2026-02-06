@@ -12,9 +12,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from litestar.datastructures import State
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.config import Settings
 from zondarr.core.tasks import BackgroundTaskManager
 from zondarr.models.invitation import Invitation
@@ -52,118 +51,112 @@ class TestExpiredInvitationDisabling:
     @pytest.mark.asyncio
     async def test_expired_invitations_are_disabled(
         self,
+        db: TestDB,
         expired_codes: list[str],
         active_codes: list[str],
         days_expired: int,
         days_until_expiry: int,
     ) -> None:
         """Expired invitations are disabled while active ones remain enabled."""
+        await db.clean()
+
         # Ensure no overlap between expired and active codes
         active_codes = [c for c in active_codes if c not in expired_codes]
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        # Create invitations
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            now = datetime.now(UTC)
 
-            # Create invitations
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                now = datetime.now(UTC)
+            # Create expired invitations
+            for code in expired_codes:
+                invitation = Invitation()
+                invitation.code = code
+                invitation.enabled = True
+                invitation.expires_at = now - timedelta(days=days_expired)
+                invitation.max_uses = None
+                invitation.use_count = 0
+                _ = await repo.create(invitation)
 
-                # Create expired invitations
-                for code in expired_codes:
-                    invitation = Invitation()
-                    invitation.code = code
-                    invitation.enabled = True
-                    invitation.expires_at = now - timedelta(days=days_expired)
-                    invitation.max_uses = None
-                    invitation.use_count = 0
-                    _ = await repo.create(invitation)
+            # Create active invitations
+            for code in active_codes:
+                invitation = Invitation()
+                invitation.code = code
+                invitation.enabled = True
+                invitation.expires_at = now + timedelta(days=days_until_expiry)
+                invitation.max_uses = None
+                invitation.use_count = 0
+                _ = await repo.create(invitation)
 
-                # Create active invitations
-                for code in active_codes:
-                    invitation = Invitation()
-                    invitation.code = code
-                    invitation.enabled = True
-                    invitation.expires_at = now + timedelta(days=days_until_expiry)
-                    invitation.max_uses = None
-                    invitation.use_count = 0
-                    _ = await repo.create(invitation)
+            await session.commit()
 
-                await session.commit()
+        # Run expiration check
+        settings = create_test_settings()
+        manager = BackgroundTaskManager(settings)
 
-            # Run expiration check
-            settings = create_test_settings()
-            manager = BackgroundTaskManager(settings)
+        state = MagicMock(spec=State)
+        state.session_factory = db.session_factory
 
-            state = MagicMock(spec=State)
-            state.session_factory = session_factory
+        await manager.check_expired_invitations(state)
 
-            await manager.check_expired_invitations(state)
+        # Verify results
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
 
-            # Verify results
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
+            # All expired invitations should be disabled
+            for code in expired_codes:
+                invitation = await repo.get_by_code(code)
+                assert invitation is not None
+                assert invitation.enabled is False, (
+                    f"Expired invitation {code} should be disabled"
+                )
 
-                # All expired invitations should be disabled
-                for code in expired_codes:
-                    invitation = await repo.get_by_code(code)
-                    assert invitation is not None
-                    assert invitation.enabled is False, (
-                        f"Expired invitation {code} should be disabled"
-                    )
-
-                # All active invitations should remain enabled
-                for code in active_codes:
-                    invitation = await repo.get_by_code(code)
-                    assert invitation is not None
-                    assert invitation.enabled is True, (
-                        f"Active invitation {code} should remain enabled"
-                    )
-        finally:
-            await engine.dispose()
+            # All active invitations should remain enabled
+            for code in active_codes:
+                invitation = await repo.get_by_code(code)
+                assert invitation is not None
+                assert invitation.enabled is True, (
+                    f"Active invitation {code} should remain enabled"
+                )
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_never_expiring_invitations_remain_enabled(
         self,
+        db: TestDB,
         code: str,
     ) -> None:
         """Invitations without expiration date remain enabled."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create invitation without expiration
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
+        # Create invitation without expiration
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = None  # Never expires
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = None  # Never expires
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-            # Run expiration check
-            settings = create_test_settings()
-            manager = BackgroundTaskManager(settings)
+        # Run expiration check
+        settings = create_test_settings()
+        manager = BackgroundTaskManager(settings)
 
-            state = MagicMock(spec=State)
-            state.session_factory = session_factory
+        state = MagicMock(spec=State)
+        state.session_factory = db.session_factory
 
-            await manager.check_expired_invitations(state)
+        await manager.check_expired_invitations(state)
 
-            # Verify invitation remains enabled
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                invitation = await repo.get_by_code(code)
-                assert invitation is not None
-                assert invitation.enabled is True
-        finally:
-            await engine.dispose()
+        # Verify invitation remains enabled
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            invitation = await repo.get_by_code(code)
+            assert invitation is not None
+            assert invitation.enabled is True
 
 
 class TestExpirationTaskErrorResilience:
@@ -183,90 +176,84 @@ class TestExpirationTaskErrorResilience:
     @pytest.mark.asyncio
     async def test_error_in_one_invitation_does_not_stop_others(
         self,
+        db: TestDB,
         codes: list[str],
         days_expired: int,
     ) -> None:
         """Processing continues even if one invitation fails."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create expired invitations
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                now = datetime.now(UTC)
+        # Create expired invitations
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            now = datetime.now(UTC)
 
-                for code in codes:
-                    invitation = Invitation()
-                    invitation.code = code
-                    invitation.enabled = True
-                    invitation.expires_at = now - timedelta(days=days_expired)
-                    invitation.max_uses = None
-                    invitation.use_count = 0
-                    _ = await repo.create(invitation)
+            for code in codes:
+                invitation = Invitation()
+                invitation.code = code
+                invitation.enabled = True
+                invitation.expires_at = now - timedelta(days=days_expired)
+                invitation.max_uses = None
+                invitation.use_count = 0
+                _ = await repo.create(invitation)
 
-                await session.commit()
+            await session.commit()
 
-            # Run expiration check - should process all without errors
-            settings = create_test_settings()
-            manager = BackgroundTaskManager(settings)
+        # Run expiration check - should process all without errors
+        settings = create_test_settings()
+        manager = BackgroundTaskManager(settings)
 
-            state = MagicMock(spec=State)
-            state.session_factory = session_factory
+        state = MagicMock(spec=State)
+        state.session_factory = db.session_factory
 
-            # This should complete without raising
-            await manager.check_expired_invitations(state)
+        # This should complete without raising
+        await manager.check_expired_invitations(state)
 
-            # Verify all invitations were processed
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
+        # Verify all invitations were processed
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
 
-                for code in codes:
-                    invitation = await repo.get_by_code(code)
-                    assert invitation is not None
-                    assert invitation.enabled is False
-        finally:
-            await engine.dispose()
+            for code in codes:
+                invitation = await repo.get_by_code(code)
+                assert invitation is not None
+                assert invitation.enabled is False
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_already_disabled_invitations_are_skipped(
         self,
+        db: TestDB,
         code: str,
     ) -> None:
         """Already disabled expired invitations are not processed again."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create already disabled expired invitation
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                now = datetime.now(UTC)
+        # Create already disabled expired invitation
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            now = datetime.now(UTC)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = False  # Already disabled
-                invitation.expires_at = now - timedelta(days=1)
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False  # Already disabled
+            invitation.expires_at = now - timedelta(days=1)
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-            # Run expiration check
-            settings = create_test_settings()
-            manager = BackgroundTaskManager(settings)
+        # Run expiration check
+        settings = create_test_settings()
+        manager = BackgroundTaskManager(settings)
 
-            state = MagicMock(spec=State)
-            state.session_factory = session_factory
+        state = MagicMock(spec=State)
+        state.session_factory = db.session_factory
 
-            await manager.check_expired_invitations(state)
+        await manager.check_expired_invitations(state)
 
-            # Verify invitation is still disabled (no error from re-processing)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                invitation = await repo.get_by_code(code)
-                assert invitation is not None
-                assert invitation.enabled is False
-        finally:
-            await engine.dispose()
+        # Verify invitation is still disabled (no error from re-processing)
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            invitation = await repo.get_by_code(code)
+            assert invitation is not None
+            assert invitation.enabled is False

@@ -17,7 +17,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ExternalUser
 from zondarr.models import Invitation, ServerType
@@ -166,6 +166,7 @@ class TestRedemptionCreatesUsersOnAllServers:
     @pytest.mark.asyncio
     async def test_redemption_creates_n_users_for_n_servers(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -179,88 +180,82 @@ class TestRedemptionCreatesUsersOnAllServers:
         Property: For any invitation with N target servers (N >= 1),
         successful redemption creates exactly N User records.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            _invitation = await create_invitation_with_servers(
-                session_factory, code, servers
+        # Create invitation targeting all servers
+        _invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
+
+        # Create mock registry that returns mock clients for each server
+        mock_registry = MagicMock(spec=ClientRegistry)
+        server_to_external_id: dict[UUID, str] = {}
+
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            # Find the server by URL to get its ID
+            del server_type, api_key  # Unused but required by interface
+            for server in servers:
+                if server.url == url:
+                    external_id = str(uuid4())
+                    server_to_external_id[server.id] = external_id
+                    return create_mock_client(external_id, username, email)
+            # Fallback - should not happen in normal test flow
+            return create_mock_client(str(uuid4()), username, email)
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Create services with real repositories
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            # Patch the registry in the redemption module
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                # Execute redemption
+                identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                    email=email,
+                )
+
+            await session.commit()
+
+            # PROPERTY ASSERTION 1: Exactly N users created for N servers
+            assert len(users) == num_servers, (
+                f"Expected {num_servers} users, got {len(users)}"
             )
 
-            # Create mock registry that returns mock clients for each server
-            mock_registry = MagicMock(spec=ClientRegistry)
-            server_to_external_id: dict[UUID, str] = {}
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                # Find the server by URL to get its ID
-                del server_type, api_key  # Unused but required by interface
-                for server in servers:
-                    if server.url == url:
-                        external_id = str(uuid4())
-                        server_to_external_id[server.id] = external_id
-                        return create_mock_client(external_id, username, email)
-                # Fallback - should not happen in normal test flow
-                return create_mock_client(str(uuid4()), username, email)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+            # PROPERTY ASSERTION 2: Each user is linked to a different server
+            user_server_ids = {user.media_server_id for user in users}
+            expected_server_ids = {server.id for server in servers}
+            assert user_server_ids == expected_server_ids, (
+                f"User server IDs {user_server_ids} don't match "
+                f"expected {expected_server_ids}"
             )
 
-            # Create services with real repositories
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                # Patch the registry in the redemption module
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    # Execute redemption
-                    identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                        email=email,
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION 1: Exactly N users created for N servers
-                assert len(users) == num_servers, (
-                    f"Expected {num_servers} users, got {len(users)}"
-                )
-
-                # PROPERTY ASSERTION 2: Each user is linked to a different server
-                user_server_ids = {user.media_server_id for user in users}
-                expected_server_ids = {server.id for server in servers}
-                assert user_server_ids == expected_server_ids, (
-                    f"User server IDs {user_server_ids} don't match "
-                    f"expected {expected_server_ids}"
-                )
-
-                # PROPERTY ASSERTION 3: All users are linked to the same Identity
-                user_identity_ids = {user.identity_id for user in users}
-                assert len(user_identity_ids) == 1, (
-                    f"Users should all have same identity, got {user_identity_ids}"
-                )
-                assert identity.id in user_identity_ids, (
-                    f"Users should be linked to returned identity {identity.id}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION 3: All users are linked to the same Identity
+            user_identity_ids = {user.identity_id for user in users}
+            assert len(user_identity_ids) == 1, (
+                f"Users should all have same identity, got {user_identity_ids}"
+            )
+            assert identity.id in user_identity_ids, (
+                f"Users should be linked to returned identity {identity.id}"
+            )
 
     @given(
         num_servers=st.integers(min_value=1, max_value=5),
@@ -272,6 +267,7 @@ class TestRedemptionCreatesUsersOnAllServers:
     @pytest.mark.asyncio
     async def test_each_user_has_correct_external_user_id(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -284,68 +280,62 @@ class TestRedemptionCreatesUsersOnAllServers:
         Property: For each target server, the created User record contains
         the external_user_id returned by that server's create_user call.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            _invitation = await create_invitation_with_servers(
-                session_factory, code, servers
-            )
+        # Create invitation targeting all servers
+        _invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
 
-            # Track external IDs per server URL
-            url_to_external_id: dict[str, str] = {}
-            mock_registry = MagicMock(spec=ClientRegistry)
+        # Track external IDs per server URL
+        url_to_external_id: dict[str, str] = {}
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, api_key  # Unused but required by interface
-                external_id = str(uuid4())
-                url_to_external_id[url] = external_id
-                return create_mock_client(external_id, username, None)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, api_key  # Unused but required by interface
+            external_id = str(uuid4())
+            url_to_external_id[url] = external_id
+            return create_mock_client(external_id, username, None)
 
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    _identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
 
-                await session.commit()
+            await session.commit()
 
-                # PROPERTY ASSERTION: Each user's external_user_id matches
-                # what was returned by the mock client for that server
-                for user in users:
-                    # Find the server for this user
-                    server = next(s for s in servers if s.id == user.media_server_id)
-                    expected_external_id = url_to_external_id[server.url]
-                    assert user.external_user_id == expected_external_id, (
-                        f"User external_user_id {user.external_user_id} doesn't match "
-                        f"expected {expected_external_id} for server {server.name}"
-                    )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: Each user's external_user_id matches
+            # what was returned by the mock client for that server
+            for user in users:
+                # Find the server for this user
+                server = next(s for s in servers if s.id == user.media_server_id)
+                expected_external_id = url_to_external_id[server.url]
+                assert user.external_user_id == expected_external_id, (
+                    f"User external_user_id {user.external_user_id} doesn't match "
+                    f"expected {expected_external_id} for server {server.name}"
+                )
 
     @given(
         num_servers=st.integers(min_value=2, max_value=5),
@@ -357,6 +347,7 @@ class TestRedemptionCreatesUsersOnAllServers:
     @pytest.mark.asyncio
     async def test_all_users_share_same_invitation_id(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -369,63 +360,57 @@ class TestRedemptionCreatesUsersOnAllServers:
         Property: For any redemption, all created User records have
         the same invitation_id pointing to the redeemed invitation.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            invitation = await create_invitation_with_servers(
-                session_factory, code, servers
-            )
-            invitation_id = invitation.id
+        # Create invitation targeting all servers
+        invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
+        invitation_id = invitation.id
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), username, None)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), username, None)
 
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    _identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION: All users have the same invitation_id
-                user_invitation_ids = {user.invitation_id for user in users}
-                assert len(user_invitation_ids) == 1, (
-                    f"All users should have same invitation_id, got {user_invitation_ids}"
-                )
-                assert invitation_id in user_invitation_ids, (
-                    f"Users should reference invitation {invitation_id}"
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: All users have the same invitation_id
+            user_invitation_ids = {user.invitation_id for user in users}
+            assert len(user_invitation_ids) == 1, (
+                f"All users should have same invitation_id, got {user_invitation_ids}"
+            )
+            assert invitation_id in user_invitation_ids, (
+                f"Users should reference invitation {invitation_id}"
+            )
 
     @given(
         num_servers=st.integers(min_value=1, max_value=5),
@@ -437,6 +422,7 @@ class TestRedemptionCreatesUsersOnAllServers:
     @pytest.mark.asyncio
     async def test_identity_has_correct_display_name(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -449,57 +435,51 @@ class TestRedemptionCreatesUsersOnAllServers:
         Property: The Identity created during redemption has display_name
         equal to the username provided in the redemption request.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            _ = await create_invitation_with_servers(session_factory, code, servers)
+        # Create invitation targeting all servers
+        _ = await create_invitation_with_servers(session_factory, code, servers)
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), username, None)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), username, None)
 
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    identity, _users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION: Identity display_name matches username
-                assert identity.display_name == username, (
-                    f"Identity display_name '{identity.display_name}' "
-                    f"should match username '{username}'"
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                identity, _users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: Identity display_name matches username
+            assert identity.display_name == username, (
+                f"Identity display_name '{identity.display_name}' "
+                f"should match username '{username}'"
+            )
 
 
 # =============================================================================
@@ -527,6 +507,7 @@ class TestRedemptionIncrementsUseCount:
     @pytest.mark.asyncio
     async def test_use_count_increments_by_one(
         self,
+        db: TestDB,
         initial_use_count: int,
         code: str,
         username: str,
@@ -540,83 +521,77 @@ class TestRedemptionIncrementsUseCount:
         Property: For any invitation with use_count U, after successful
         redemption the use_count should be U + 1.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create a single test media server
-            servers = await create_media_servers(session_factory, 1)
+        # Create a single test media server
+        servers = await create_media_servers(session_factory, 1)
 
-            # Create invitation with specific initial use_count
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,  # Never expires
-                    max_uses=100,  # High limit to avoid exhaustion
-                    use_count=initial_use_count,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-                await sess.refresh(invitation)
-                invitation_id = invitation.id
-
-            # Verify initial use_count
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_before = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_before is not None
-                assert invitation_before.use_count == initial_use_count
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), username, email)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation with specific initial use_count
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,  # Never expires
+                max_uses=100,  # High limit to avoid exhaustion
+                use_count=initial_use_count,
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+            await sess.refresh(invitation)
+            invitation_id = invitation.id
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        # Verify initial use_count
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_before = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_before is not None
+            assert invitation_before.use_count == initial_use_count
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    _identity, _users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                        email=email,
-                    )
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), username, email)
 
-                await session.commit()
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-            # PROPERTY ASSERTION: use_count should be initial + 1
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_after = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_after is not None
-                assert invitation_after.use_count == initial_use_count + 1, (
-                    f"Expected use_count to be {initial_use_count + 1}, "
-                    f"got {invitation_after.use_count}"
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, _users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                    email=email,
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+        # PROPERTY ASSERTION: use_count should be initial + 1
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_after = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_after is not None
+            assert invitation_after.use_count == initial_use_count + 1, (
+                f"Expected use_count to be {initial_use_count + 1}, "
+                f"got {invitation_after.use_count}"
+            )
 
     @given(
         num_redemptions=st.integers(min_value=1, max_value=5),
@@ -628,6 +603,7 @@ class TestRedemptionIncrementsUseCount:
     @pytest.mark.asyncio
     async def test_multiple_redemptions_increment_correctly(
         self,
+        db: TestDB,
         num_redemptions: int,
         code: str,
         base_username: str,
@@ -640,148 +616,46 @@ class TestRedemptionIncrementsUseCount:
         Property: For N successful redemptions, the use_count should
         increase by exactly N.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create a single test media server
-            servers = await create_media_servers(session_factory, 1)
+        # Create a single test media server
+        servers = await create_media_servers(session_factory, 1)
 
-            # Create invitation with use_count = 0
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,  # Never expires
-                    max_uses=100,  # High limit to allow multiple redemptions
-                    use_count=0,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-                await sess.refresh(invitation)
-                invitation_id = invitation.id
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), base_username, None)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation with use_count = 0
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,  # Never expires
+                max_uses=100,  # High limit to allow multiple redemptions
+                use_count=0,
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+            await sess.refresh(invitation)
+            invitation_id = invitation.id
 
-            # Execute N redemptions with unique usernames
-            for i in range(num_redemptions):
-                # Generate unique username for each redemption
-                unique_username = f"{base_username}{i}"
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-                async with session_factory() as session:
-                    invitation_repo = InvitationRepository(session)
-                    user_repo = UserRepository(session)
-                    identity_repo = IdentityRepository(session)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), base_username, None)
 
-                    invitation_service = InvitationService(invitation_repo)
-                    user_service = UserService(user_repo, identity_repo)
-                    redemption_service = RedemptionService(
-                        invitation_service, user_service
-                    )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-                    with patch("zondarr.services.redemption.registry", mock_registry):
-                        _identity, _users = await redemption_service.redeem(
-                            code,
-                            username=unique_username,
-                            password=password,
-                        )
+        # Execute N redemptions with unique usernames
+        for i in range(num_redemptions):
+            # Generate unique username for each redemption
+            unique_username = f"{base_username}{i}"
 
-                    await session.commit()
-
-            # PROPERTY ASSERTION: use_count should equal num_redemptions
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_after = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_after is not None
-                assert invitation_after.use_count == num_redemptions, (
-                    f"Expected use_count to be {num_redemptions} after "
-                    f"{num_redemptions} redemptions, got {invitation_after.use_count}"
-                )
-
-        finally:
-            await engine.dispose()
-
-    @given(
-        code=code_strategy,
-        username=username_strategy,
-        password=password_strategy,
-    )
-    @settings(max_examples=15, deadline=None)
-    @pytest.mark.asyncio
-    async def test_use_count_before_plus_one_equals_after(
-        self,
-        code: str,
-        username: str,
-        password: str,
-    ) -> None:
-        """The use_count before redemption + 1 equals use_count after redemption.
-
-        **Validates: Requirements 14.8**
-
-        Property: For any successful redemption, the invariant
-        use_count_before + 1 == use_count_after holds.
-        """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-            # Create a single test media server
-            servers = await create_media_servers(session_factory, 1)
-
-            # Create invitation
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,  # Never expires
-                    max_uses=100,  # High limit
-                    use_count=0,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-                await sess.refresh(invitation)
-                invitation_id = invitation.id
-
-            # Capture use_count before redemption
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_before = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_before is not None
-                use_count_before = invitation_before.use_count
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), username, None)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption
             async with session_factory() as session:
                 invitation_repo = InvitationRepository(session)
                 user_repo = UserRepository(session)
@@ -794,26 +668,115 @@ class TestRedemptionIncrementsUseCount:
                 with patch("zondarr.services.redemption.registry", mock_registry):
                     _identity, _users = await redemption_service.redeem(
                         code,
-                        username=username,
+                        username=unique_username,
                         password=password,
                     )
 
                 await session.commit()
 
-            # Capture use_count after redemption
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_after = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_after is not None
-                use_count_after = invitation_after.use_count
-
-            # PROPERTY ASSERTION: use_count_before + 1 == use_count_after
-            assert use_count_before + 1 == use_count_after, (
-                f"Invariant violated: {use_count_before} + 1 != {use_count_after}"
+        # PROPERTY ASSERTION: use_count should equal num_redemptions
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_after = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_after is not None
+            assert invitation_after.use_count == num_redemptions, (
+                f"Expected use_count to be {num_redemptions} after "
+                f"{num_redemptions} redemptions, got {invitation_after.use_count}"
             )
 
-        finally:
-            await engine.dispose()
+    @given(
+        code=code_strategy,
+        username=username_strategy,
+        password=password_strategy,
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_use_count_before_plus_one_equals_after(
+        self,
+        db: TestDB,
+        code: str,
+        username: str,
+        password: str,
+    ) -> None:
+        """The use_count before redemption + 1 equals use_count after redemption.
+
+        **Validates: Requirements 14.8**
+
+        Property: For any successful redemption, the invariant
+        use_count_before + 1 == use_count_after holds.
+        """
+        await db.clean()
+        session_factory = db.session_factory
+
+        # Create a single test media server
+        servers = await create_media_servers(session_factory, 1)
+
+        # Create invitation
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,  # Never expires
+                max_uses=100,  # High limit
+                use_count=0,
+            )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+            await sess.refresh(invitation)
+            invitation_id = invitation.id
+
+        # Capture use_count before redemption
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_before = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_before is not None
+            use_count_before = invitation_before.use_count
+
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), username, None)
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, _users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
+
+            await session.commit()
+
+        # Capture use_count after redemption
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_after = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_after is not None
+            use_count_after = invitation_after.use_count
+
+        # PROPERTY ASSERTION: use_count_before + 1 == use_count_after
+        assert use_count_before + 1 == use_count_after, (
+            f"Invariant violated: {use_count_before} + 1 != {use_count_after}"
+        )
 
 
 # =============================================================================
@@ -842,6 +805,7 @@ class TestDurationDaysSetsExpiration:
     @pytest.mark.asyncio
     async def test_duration_days_sets_expires_at_on_identity(
         self,
+        db: TestDB,
         duration_days: int,
         code: str,
         username: str,
@@ -857,86 +821,80 @@ class TestDurationDaysSetsExpiration:
         """
         from datetime import UTC, datetime, timedelta
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create a single test media server
-            servers = await create_media_servers(session_factory, 1)
+        # Create a single test media server
+        servers = await create_media_servers(session_factory, 1)
 
-            # Create invitation with duration_days set
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,  # Never expires
-                    max_uses=100,
-                    use_count=0,
-                    duration_days=duration_days,
+        # Create invitation with duration_days set
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,  # Never expires
+                max_uses=100,
+                use_count=0,
+                duration_days=duration_days,
+            )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key  # Unused but required by interface
+            return create_mock_client(str(uuid4()), username, email)
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Capture time before redemption
+        time_before = datetime.now(UTC)
+
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                identity, _users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                    email=email,
                 )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
 
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
+            await session.commit()
 
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key  # Unused but required by interface
-                return create_mock_client(str(uuid4()), username, email)
+            # Capture time after redemption
+            time_after = datetime.now(UTC)
 
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+            # PROPERTY ASSERTION: Identity has expires_at set
+            assert identity.expires_at is not None, (
+                f"Identity expires_at should be set when duration_days={duration_days}"
             )
 
-            # Capture time before redemption
-            time_before = datetime.now(UTC)
+            # Calculate expected expiration range
+            expected_min = time_before + timedelta(days=duration_days)
+            expected_max = time_after + timedelta(days=duration_days)
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    identity, _users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                        email=email,
-                    )
-
-                await session.commit()
-
-                # Capture time after redemption
-                time_after = datetime.now(UTC)
-
-                # PROPERTY ASSERTION: Identity has expires_at set
-                assert identity.expires_at is not None, (
-                    f"Identity expires_at should be set when duration_days={duration_days}"
-                )
-
-                # Calculate expected expiration range
-                expected_min = time_before + timedelta(days=duration_days)
-                expected_max = time_after + timedelta(days=duration_days)
-
-                # PROPERTY ASSERTION: expires_at is within expected range
-                assert expected_min <= identity.expires_at <= expected_max, (
-                    f"Identity expires_at {identity.expires_at} should be between "
-                    f"{expected_min} and {expected_max} for duration_days={duration_days}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: expires_at is within expected range
+            assert expected_min <= identity.expires_at <= expected_max, (
+                f"Identity expires_at {identity.expires_at} should be between "
+                f"{expected_min} and {expected_max} for duration_days={duration_days}"
+            )
 
     @given(
         duration_days=st.integers(min_value=1, max_value=365),
@@ -949,6 +907,7 @@ class TestDurationDaysSetsExpiration:
     @pytest.mark.asyncio
     async def test_duration_days_sets_expires_at_on_all_users(
         self,
+        db: TestDB,
         duration_days: int,
         num_servers: int,
         code: str,
@@ -965,87 +924,81 @@ class TestDurationDaysSetsExpiration:
         """
         from datetime import UTC, datetime, timedelta
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation with duration_days set
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                    duration_days=duration_days,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key
-                return create_mock_client(str(uuid4()), username, None)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation with duration_days set
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+                duration_days=duration_days,
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
 
-            # Capture time before redemption
-            time_before = datetime.now(UTC)
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key
+            return create_mock_client(str(uuid4()), username, None)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    _identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
+        # Capture time before redemption
+        time_before = datetime.now(UTC)
 
-                await session.commit()
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                # Capture time after redemption
-                time_after = datetime.now(UTC)
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-                # Calculate expected expiration range
-                expected_min = time_before + timedelta(days=duration_days)
-                expected_max = time_after + timedelta(days=duration_days)
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
 
-                # PROPERTY ASSERTION: All users have expires_at set
-                for user in users:
-                    assert user.expires_at is not None, (
-                        f"User {user.id} expires_at should be set when "
-                        f"duration_days={duration_days}"
-                    )
+            await session.commit()
 
-                    # PROPERTY ASSERTION: expires_at is within expected range
-                    assert expected_min <= user.expires_at <= expected_max, (
-                        f"User {user.id} expires_at {user.expires_at} should be "
-                        f"between {expected_min} and {expected_max}"
-                    )
+            # Capture time after redemption
+            time_after = datetime.now(UTC)
 
-        finally:
-            await engine.dispose()
+            # Calculate expected expiration range
+            expected_min = time_before + timedelta(days=duration_days)
+            expected_max = time_after + timedelta(days=duration_days)
+
+            # PROPERTY ASSERTION: All users have expires_at set
+            for user in users:
+                assert user.expires_at is not None, (
+                    f"User {user.id} expires_at should be set when "
+                    f"duration_days={duration_days}"
+                )
+
+                # PROPERTY ASSERTION: expires_at is within expected range
+                assert expected_min <= user.expires_at <= expected_max, (
+                    f"User {user.id} expires_at {user.expires_at} should be "
+                    f"between {expected_min} and {expected_max}"
+                )
 
     @given(
         code=code_strategy,
@@ -1057,6 +1010,7 @@ class TestDurationDaysSetsExpiration:
     @pytest.mark.asyncio
     async def test_no_duration_days_means_no_expires_at_on_identity(
         self,
+        db: TestDB,
         code: str,
         username: str,
         password: str,
@@ -1069,71 +1023,65 @@ class TestDurationDaysSetsExpiration:
         Property: For any invitation with duration_days=None, the created
         Identity should have expires_at=None.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create a single test media server
-            servers = await create_media_servers(session_factory, 1)
+        # Create a single test media server
+        servers = await create_media_servers(session_factory, 1)
 
-            # Create invitation WITHOUT duration_days
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                    duration_days=None,  # Explicitly None
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key
-                return create_mock_client(str(uuid4()), username, email)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation WITHOUT duration_days
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+                duration_days=None,  # Explicitly None
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key
+            return create_mock_client(str(uuid4()), username, email)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    identity, _users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                        email=email,
-                    )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-                await session.commit()
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                # PROPERTY ASSERTION: Identity has expires_at as None
-                assert identity.expires_at is None, (
-                    f"Identity expires_at should be None when duration_days is None, "
-                    f"got {identity.expires_at}"
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                identity, _users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                    email=email,
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: Identity has expires_at as None
+            assert identity.expires_at is None, (
+                f"Identity expires_at should be None when duration_days is None, "
+                f"got {identity.expires_at}"
+            )
 
     @given(
         num_servers=st.integers(min_value=1, max_value=3),
@@ -1145,6 +1093,7 @@ class TestDurationDaysSetsExpiration:
     @pytest.mark.asyncio
     async def test_no_duration_days_means_no_expires_at_on_users(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -1157,71 +1106,65 @@ class TestDurationDaysSetsExpiration:
         Property: For any invitation with duration_days=None and N target servers,
         all N created User records should have expires_at=None.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation WITHOUT duration_days
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                    duration_days=None,  # Explicitly None
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key
-                return create_mock_client(str(uuid4()), username, None)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation WITHOUT duration_days
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+                duration_days=None,  # Explicitly None
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key
+            return create_mock_client(str(uuid4()), username, None)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    _identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-                await session.commit()
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                # PROPERTY ASSERTION: All users have expires_at as None
-                for user in users:
-                    assert user.expires_at is None, (
-                        f"User {user.id} expires_at should be None when "
-                        f"duration_days is None, got {user.expires_at}"
-                    )
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-        finally:
-            await engine.dispose()
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                _identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
+
+            await session.commit()
+
+            # PROPERTY ASSERTION: All users have expires_at as None
+            for user in users:
+                assert user.expires_at is None, (
+                    f"User {user.id} expires_at should be None when "
+                    f"duration_days is None, got {user.expires_at}"
+                )
 
     @given(
         duration_days=st.integers(min_value=1, max_value=365),
@@ -1234,6 +1177,7 @@ class TestDurationDaysSetsExpiration:
     @pytest.mark.asyncio
     async def test_identity_and_users_have_same_expires_at(
         self,
+        db: TestDB,
         duration_days: int,
         num_servers: int,
         code: str,
@@ -1247,74 +1191,68 @@ class TestDurationDaysSetsExpiration:
         Property: For any invitation with duration_days D, the created
         Identity and all User records should have the same expires_at value.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation with duration_days set
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                    duration_days=duration_days,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-
-            # Create mock registry
-            mock_registry = MagicMock(spec=ClientRegistry)
-
-            def create_client_side_effect(
-                server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, url, api_key
-                return create_mock_client(str(uuid4()), username, None)
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # Create invitation with duration_days set
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+                duration_days=duration_days,
             )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
 
-            # Execute redemption
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
+        # Create mock registry
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, url, api_key
+            return create_mock_client(str(uuid4()), username, None)
 
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    identity, users = await redemption_service.redeem(
-                        code,
-                        username=username,
-                        password=password,
-                    )
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
 
-                await session.commit()
+        # Execute redemption
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
 
-                # PROPERTY ASSERTION: Identity and all users have same expires_at
-                identity_expires_at = identity.expires_at
-                assert identity_expires_at is not None
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
 
-                for user in users:
-                    assert user.expires_at == identity_expires_at, (
-                        f"User {user.id} expires_at {user.expires_at} should match "
-                        f"Identity expires_at {identity_expires_at}"
-                    )
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                identity, users = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: Identity and all users have same expires_at
+            identity_expires_at = identity.expires_at
+            assert identity_expires_at is not None
+
+            for user in users:
+                assert user.expires_at == identity_expires_at, (
+                    f"User {user.id} expires_at {user.expires_at} should match "
+                    f"Identity expires_at {identity_expires_at}"
+                )
 
 
 # =============================================================================
@@ -1345,6 +1283,7 @@ class TestRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_rollback_deletes_created_users_on_failure(
         self,
+        db: TestDB,
         num_servers: int,
         fail_at_server: int,
         code: str,
@@ -1368,112 +1307,106 @@ class TestRollbackOnFailure:
         if fail_at_server < 1:
             fail_at_server = 1
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            _invitation = await create_invitation_with_servers(
-                session_factory, code, servers
-            )
+        # Create invitation targeting all servers
+        _invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
 
-            # Track which users were created and deleted
-            created_user_ids: list[str] = []
-            deleted_user_ids: list[str] = []
-            create_call_count = 0
+        # Track which users were created and deleted
+        created_user_ids: list[str] = []
+        deleted_user_ids: list[str] = []
+        create_call_count = 0
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, api_key, url  # Unused but required by interface
+
+            mock_client = AsyncMock()
+
+            # Track the external_user_id for this server
+            external_id = str(uuid4())
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, api_key, url  # Unused but required by interface
+                email: str | None = None,
+            ) -> ExternalUser:
+                nonlocal create_call_count
+                create_call_count += 1
 
-                mock_client = AsyncMock()
+                # Fail on the Nth call (1-indexed fail_at_server)
+                if create_call_count == fail_at_server + 1:
+                    raise MediaClientError(
+                        "Simulated failure",
+                        operation="create_user",
+                    )
 
-                # Track the external_user_id for this server
-                external_id = str(uuid4())
+                created_user_ids.append(external_id)
+                return ExternalUser(
+                    external_user_id=external_id,
+                    username=uname,
+                    email=email,
+                )
 
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                ) -> ExternalUser:
-                    nonlocal create_call_count
-                    create_call_count += 1
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
 
-                    # Fail on the Nth call (1-indexed fail_at_server)
-                    if create_call_count == fail_at_server + 1:
-                        raise MediaClientError(
-                            "Simulated failure",
-                            operation="create_user",
-                        )
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = mock_delete_user
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                    created_user_ids.append(external_id)
-                    return ExternalUser(
-                        external_user_id=external_id,
-                        username=uname,
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
                         email=email,
                     )
 
-                async def mock_delete_user(ext_user_id: str, /) -> bool:
-                    deleted_user_ids.append(ext_user_id)
-                    return True
+        # PROPERTY ASSERTION: All created users should be deleted
+        assert set(deleted_user_ids) == set(created_user_ids), (
+            f"Created users {created_user_ids} should all be deleted, "
+            f"but only {deleted_user_ids} were deleted"
+        )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = mock_delete_user
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption - should fail
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                            email=email,
-                        )
-
-            # PROPERTY ASSERTION: All created users should be deleted
-            assert set(deleted_user_ids) == set(created_user_ids), (
-                f"Created users {created_user_ids} should all be deleted, "
-                f"but only {deleted_user_ids} were deleted"
-            )
-
-            # PROPERTY ASSERTION: Number of created users equals fail_at_server
-            assert len(created_user_ids) == fail_at_server, (
-                f"Expected {fail_at_server} users to be created before failure, "
-                f"got {len(created_user_ids)}"
-            )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Number of created users equals fail_at_server
+        assert len(created_user_ids) == fail_at_server, (
+            f"Expected {fail_at_server} users to be created before failure, "
+            f"got {len(created_user_ids)}"
+        )
 
     @given(
         num_servers=st.integers(min_value=2, max_value=5),
@@ -1487,6 +1420,7 @@ class TestRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_use_count_not_incremented_on_failure(
         self,
+        db: TestDB,
         num_servers: int,
         fail_at_server: int,
         initial_use_count: int,
@@ -1509,107 +1443,101 @@ class TestRollbackOnFailure:
         if fail_at_server < 1:
             fail_at_server = 1
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation with specific initial use_count
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=initial_use_count,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-                await sess.refresh(invitation)
-                invitation_id = invitation.id
+        # Create invitation with specific initial use_count
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=initial_use_count,
+            )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+            await sess.refresh(invitation)
+            invitation_id = invitation.id
 
-            create_call_count = 0
-            mock_registry = MagicMock(spec=ClientRegistry)
+        create_call_count = 0
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, api_key, url
+
+            mock_client = AsyncMock()
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, api_key, url
+                email: str | None = None,
+            ) -> ExternalUser:
+                nonlocal create_call_count
+                create_call_count += 1
 
-                mock_client = AsyncMock()
-
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                ) -> ExternalUser:
-                    nonlocal create_call_count
-                    create_call_count += 1
-
-                    # Fail on the Nth call (1-indexed fail_at_server)
-                    if create_call_count == fail_at_server + 1:
-                        raise MediaClientError(
-                            "Simulated failure",
-                            operation="create_user",
-                        )
-
-                    return ExternalUser(
-                        external_user_id=str(uuid4()),
-                        username=uname,
-                        email=email,
+                # Fail on the Nth call (1-indexed fail_at_server)
+                if create_call_count == fail_at_server + 1:
+                    raise MediaClientError(
+                        "Simulated failure",
+                        operation="create_user",
                     )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = AsyncMock(return_value=True)
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption - should fail
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                        )
-
-            # PROPERTY ASSERTION: use_count should remain unchanged
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_after = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_after is not None
-                assert invitation_after.use_count == initial_use_count, (
-                    f"use_count should remain {initial_use_count} after failed "
-                    f"redemption, but got {invitation_after.use_count}"
+                return ExternalUser(
+                    external_user_id=str(uuid4()),
+                    username=uname,
+                    email=email,
                 )
 
-        finally:
-            await engine.dispose()
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = AsyncMock(return_value=True)
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
+                    )
+
+        # PROPERTY ASSERTION: use_count should remain unchanged
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_after = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_after is not None
+            assert invitation_after.use_count == initial_use_count, (
+                f"use_count should remain {initial_use_count} after failed "
+                f"redemption, but got {invitation_after.use_count}"
+            )
 
     @given(
         num_servers=st.integers(min_value=2, max_value=5),
@@ -1623,6 +1551,7 @@ class TestRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_no_local_records_created_on_failure(
         self,
+        db: TestDB,
         num_servers: int,
         fail_at_server: int,
         code: str,
@@ -1649,117 +1578,111 @@ class TestRollbackOnFailure:
         if fail_at_server < 1:
             fail_at_server = 1
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation targeting all servers
-            _invitation = await create_invitation_with_servers(
-                session_factory, code, servers
+        # Create invitation targeting all servers
+        _invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
+
+        # Count existing records before redemption attempt
+        async with session_factory() as sess:
+            identity_count_before = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            user_count_before = await sess.scalar(
+                select(func.count()).select_from(UserModel)
             )
 
-            # Count existing records before redemption attempt
-            async with session_factory() as sess:
-                identity_count_before = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
-                )
-                user_count_before = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
+        create_call_count = 0
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            create_call_count = 0
-            mock_registry = MagicMock(spec=ClientRegistry)
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, api_key, url
 
-            def create_client_side_effect(
-                server_type: ServerType,
+            mock_client = AsyncMock()
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, api_key, url
+                email: str | None = None,
+            ) -> ExternalUser:
+                nonlocal create_call_count
+                create_call_count += 1
 
-                mock_client = AsyncMock()
+                # Fail on the Nth call (1-indexed fail_at_server)
+                if create_call_count == fail_at_server + 1:
+                    raise MediaClientError(
+                        "Simulated failure",
+                        operation="create_user",
+                    )
 
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                ) -> ExternalUser:
-                    nonlocal create_call_count
-                    create_call_count += 1
+                return ExternalUser(
+                    external_user_id=str(uuid4()),
+                    username=uname,
+                    email=email,
+                )
 
-                    # Fail on the Nth call (1-indexed fail_at_server)
-                    if create_call_count == fail_at_server + 1:
-                        raise MediaClientError(
-                            "Simulated failure",
-                            operation="create_user",
-                        )
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = AsyncMock(return_value=True)
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                    return ExternalUser(
-                        external_user_id=str(uuid4()),
-                        username=uname,
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
                         email=email,
                     )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = AsyncMock(return_value=True)
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # PROPERTY ASSERTION: No new Identity records created
+        async with session_factory() as sess:
+            identity_count_after = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            assert identity_count_after == identity_count_before, (
+                f"No new Identity records should be created on failure. "
+                f"Before: {identity_count_before}, After: {identity_count_after}"
             )
 
-            # Execute redemption - should fail
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                            email=email,
-                        )
-
-            # PROPERTY ASSERTION: No new Identity records created
-            async with session_factory() as sess:
-                identity_count_after = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
-                )
-                assert identity_count_after == identity_count_before, (
-                    f"No new Identity records should be created on failure. "
-                    f"Before: {identity_count_before}, After: {identity_count_after}"
-                )
-
-            # PROPERTY ASSERTION: No new User records created
-            async with session_factory() as sess:
-                user_count_after = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
-                assert user_count_after == user_count_before, (
-                    f"No new User records should be created on failure. "
-                    f"Before: {user_count_before}, After: {user_count_after}"
-                )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: No new User records created
+        async with session_factory() as sess:
+            user_count_after = await sess.scalar(
+                select(func.count()).select_from(UserModel)
+            )
+            assert user_count_after == user_count_before, (
+                f"No new User records should be created on failure. "
+                f"Before: {user_count_before}, After: {user_count_after}"
+            )
 
     @given(
         num_servers=st.integers(min_value=2, max_value=4),
@@ -1771,6 +1694,7 @@ class TestRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_rollback_on_first_server_failure(
         self,
+        db: TestDB,
         num_servers: int,
         code: str,
         username: str,
@@ -1791,136 +1715,130 @@ class TestRollbackOnFailure:
         from zondarr.models.identity import Identity as IdentityModel
         from zondarr.models.identity import User as UserModel
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create test media servers
-            servers = await create_media_servers(session_factory, num_servers)
+        # Create test media servers
+        servers = await create_media_servers(session_factory, num_servers)
 
-            # Create invitation with initial use_count
-            initial_use_count = 5
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=initial_use_count,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
-                await sess.refresh(invitation)
-                invitation_id = invitation.id
+        # Create invitation with initial use_count
+        initial_use_count = 5
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=initial_use_count,
+            )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
+            await sess.refresh(invitation)
+            invitation_id = invitation.id
 
-            # Count existing records before redemption attempt
-            async with session_factory() as sess:
-                identity_count_before = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
-                )
-                user_count_before = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
+        # Count existing records before redemption attempt
+        async with session_factory() as sess:
+            identity_count_before = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            user_count_before = await sess.scalar(
+                select(func.count()).select_from(UserModel)
+            )
 
-            delete_calls: list[str] = []
-            create_call_count = 0
-            mock_registry = MagicMock(spec=ClientRegistry)
+        delete_calls: list[str] = []
+        create_call_count = 0
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del server_type, api_key, url
+
+            mock_client = AsyncMock()
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del server_type, api_key, url
+                email: str | None = None,
+            ) -> ExternalUser:
+                nonlocal create_call_count
+                create_call_count += 1
 
-                mock_client = AsyncMock()
-
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                ) -> ExternalUser:
-                    nonlocal create_call_count
-                    create_call_count += 1
-
-                    # Fail on the first call
-                    if create_call_count == 1:
-                        raise MediaClientError(
-                            "First server failure",
-                            operation="create_user",
-                        )
-
-                    return ExternalUser(
-                        external_user_id=str(uuid4()),
-                        username=uname,
-                        email=email,
+                # Fail on the first call
+                if create_call_count == 1:
+                    raise MediaClientError(
+                        "First server failure",
+                        operation="create_user",
                     )
 
-                async def mock_delete_user(ext_user_id: str, /) -> bool:
-                    delete_calls.append(ext_user_id)
-                    return True
-
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = mock_delete_user
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption - should fail on first server
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                        )
-
-            # PROPERTY ASSERTION: No delete calls should have been made
-            assert len(delete_calls) == 0, (
-                f"No delete calls should be made when first server fails, "
-                f"but got {len(delete_calls)} calls"
-            )
-
-            # PROPERTY ASSERTION: use_count unchanged
-            async with session_factory() as sess:
-                invitation_repo = InvitationRepository(sess)
-                invitation_after = await invitation_repo.get_by_id(invitation_id)
-                assert invitation_after is not None
-                assert invitation_after.use_count == initial_use_count
-
-            # PROPERTY ASSERTION: No new local records
-            async with session_factory() as sess:
-                identity_count_after = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
+                return ExternalUser(
+                    external_user_id=str(uuid4()),
+                    username=uname,
+                    email=email,
                 )
-                user_count_after = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
-                assert identity_count_after == identity_count_before
-                assert user_count_after == user_count_before
 
-        finally:
-            await engine.dispose()
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                delete_calls.append(ext_user_id)
+                return True
+
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = mock_delete_user
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail on first server
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
+                    )
+
+        # PROPERTY ASSERTION: No delete calls should have been made
+        assert len(delete_calls) == 0, (
+            f"No delete calls should be made when first server fails, "
+            f"but got {len(delete_calls)} calls"
+        )
+
+        # PROPERTY ASSERTION: use_count unchanged
+        async with session_factory() as sess:
+            invitation_repo = InvitationRepository(sess)
+            invitation_after = await invitation_repo.get_by_id(invitation_id)
+            assert invitation_after is not None
+            assert invitation_after.use_count == initial_use_count
+
+        # PROPERTY ASSERTION: No new local records
+        async with session_factory() as sess:
+            identity_count_after = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            user_count_after = await sess.scalar(
+                select(func.count()).select_from(UserModel)
+            )
+            assert identity_count_after == identity_count_before
+            assert user_count_after == user_count_before
 
 
 # =============================================================================
@@ -1949,6 +1867,7 @@ class TestPlexRedemptionRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_plex_failure_triggers_rollback_of_created_users(
         self,
+        db: TestDB,
         num_jellyfin_servers: int,
         code: str,
         username: str,
@@ -1970,151 +1889,145 @@ class TestPlexRedemptionRollbackOnFailure:
         from zondarr.core.exceptions import ValidationError
         from zondarr.media.exceptions import MediaClientError
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create Jellyfin servers
-            jellyfin_servers: list[MediaServer] = []
-            async with session_factory() as sess:
-                for i in range(num_jellyfin_servers):
-                    server = MediaServer(
-                        name=f"JellyfinServer{i}",
-                        server_type=ServerType.JELLYFIN,
-                        url=f"http://jellyfin{i}.local:8096",
-                        api_key=f"jellyfin-api-key-{i}",
-                        enabled=True,
-                    )
-                    sess.add(server)
-                    jellyfin_servers.append(server)
-                await sess.commit()
-                for server in jellyfin_servers:
-                    await sess.refresh(server)
-
-            # Create Plex server (will fail)
-            async with session_factory() as sess:
-                plex_server = MediaServer(
-                    name="PlexServer",
-                    server_type=ServerType.PLEX,
-                    url="http://plex.local:32400",
-                    api_key="plex-api-key",
+        # Create Jellyfin servers
+        jellyfin_servers: list[MediaServer] = []
+        async with session_factory() as sess:
+            for i in range(num_jellyfin_servers):
+                server = MediaServer(
+                    name=f"JellyfinServer{i}",
+                    server_type=ServerType.JELLYFIN,
+                    url=f"http://jellyfin{i}.local:8096",
+                    api_key=f"jellyfin-api-key-{i}",
                     enabled=True,
                 )
-                sess.add(plex_server)
-                await sess.commit()
-                await sess.refresh(plex_server)
+                sess.add(server)
+                jellyfin_servers.append(server)
+            await sess.commit()
+            for server in jellyfin_servers:
+                await sess.refresh(server)
 
-            # Create invitation targeting all servers
-            all_servers = [*jellyfin_servers, plex_server]
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                )
-                invitation.target_servers = all_servers
-                sess.add(invitation)
-                await sess.commit()
+        # Create Plex server (will fail)
+        async with session_factory() as sess:
+            plex_server = MediaServer(
+                name="PlexServer",
+                server_type=ServerType.PLEX,
+                url="http://plex.local:32400",
+                api_key="plex-api-key",
+                enabled=True,
+            )
+            sess.add(plex_server)
+            await sess.commit()
+            await sess.refresh(plex_server)
 
-            # Track created and deleted users
-            created_user_ids: list[str] = []
-            deleted_user_ids: list[str] = []
+        # Create invitation targeting all servers
+        all_servers = [*jellyfin_servers, plex_server]
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+            )
+            invitation.target_servers = all_servers
+            sess.add(invitation)
+            await sess.commit()
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        # Track created and deleted users
+        created_user_ids: list[str] = []
+        deleted_user_ids: list[str] = []
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del api_key
+
+            mock_client = AsyncMock()
+            external_id = str(uuid4())
+            # Capture server_type value to avoid closure issues
+            captured_server_type = server_type
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del api_key
+                email: str | None = None,
+                plex_user_type: str | None = None,
+            ) -> ExternalUser:
+                del plex_user_type  # Unused in mock
 
-                mock_client = AsyncMock()
-                external_id = str(uuid4())
-                # Capture server_type value to avoid closure issues
-                captured_server_type = server_type
+                # Fail if this is the Plex server
+                if captured_server_type == ServerType.PLEX:
+                    raise MediaClientError(
+                        "Plex server failure",
+                        operation="create_user",
+                        server_url=url,
+                    )
 
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                    plex_user_type: str | None = None,
-                ) -> ExternalUser:
-                    del plex_user_type  # Unused in mock
+                # Success for Jellyfin servers
+                created_user_ids.append(external_id)
+                return ExternalUser(
+                    external_user_id=external_id,
+                    username=uname,
+                    email=email,
+                )
 
-                    # Fail if this is the Plex server
-                    if captured_server_type == ServerType.PLEX:
-                        raise MediaClientError(
-                            "Plex server failure",
-                            operation="create_user",
-                            server_url=url,
-                        )
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
 
-                    # Success for Jellyfin servers
-                    created_user_ids.append(external_id)
-                    return ExternalUser(
-                        external_user_id=external_id,
-                        username=uname,
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = mock_delete_user
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail on Plex server
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
                         email=email,
                     )
 
-                async def mock_delete_user(ext_user_id: str, /) -> bool:
-                    deleted_user_ids.append(ext_user_id)
-                    return True
+        # PROPERTY ASSERTION: All created users should be deleted
+        # (regardless of how many were created before Plex failure)
+        assert set(deleted_user_ids) == set(created_user_ids), (
+            f"All created users {created_user_ids} should be deleted, "
+            f"but only {deleted_user_ids} were deleted"
+        )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = mock_delete_user
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption - should fail on Plex server
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                            email=email,
-                        )
-
-            # PROPERTY ASSERTION: All created users should be deleted
-            # (regardless of how many were created before Plex failure)
-            assert set(deleted_user_ids) == set(created_user_ids), (
-                f"All created users {created_user_ids} should be deleted, "
-                f"but only {deleted_user_ids} were deleted"
-            )
-
-            # PROPERTY ASSERTION: Created users count should be between 0 and num_jellyfin_servers
-            # (depends on server processing order)
-            assert 0 <= len(created_user_ids) <= num_jellyfin_servers, (
-                f"Expected 0 to {num_jellyfin_servers} users to be created, "
-                f"got {len(created_user_ids)}"
-            )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Created users count should be between 0 and num_jellyfin_servers
+        # (depends on server processing order)
+        assert 0 <= len(created_user_ids) <= num_jellyfin_servers, (
+            f"Expected 0 to {num_jellyfin_servers} users to be created, "
+            f"got {len(created_user_ids)}"
+        )
 
     @given(
         num_jellyfin_servers=st.integers(min_value=1, max_value=2),
@@ -2127,6 +2040,7 @@ class TestPlexRedemptionRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_no_local_records_on_plex_failure(
         self,
+        db: TestDB,
         num_jellyfin_servers: int,
         code: str,
         username: str,
@@ -2147,155 +2061,149 @@ class TestPlexRedemptionRollbackOnFailure:
         from zondarr.models.identity import Identity as IdentityModel
         from zondarr.models.identity import User as UserModel
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create Jellyfin servers
-            jellyfin_servers: list[MediaServer] = []
-            async with session_factory() as sess:
-                for i in range(num_jellyfin_servers):
-                    server = MediaServer(
-                        name=f"JellyfinServer{i}",
-                        server_type=ServerType.JELLYFIN,
-                        url=f"http://jellyfin{i}.local:8096",
-                        api_key=f"jellyfin-api-key-{i}",
-                        enabled=True,
-                    )
-                    sess.add(server)
-                    jellyfin_servers.append(server)
-                await sess.commit()
-                for server in jellyfin_servers:
-                    await sess.refresh(server)
-
-            # Create Plex server (will fail)
-            async with session_factory() as sess:
-                plex_server = MediaServer(
-                    name="PlexServer",
-                    server_type=ServerType.PLEX,
-                    url="http://plex.local:32400",
-                    api_key="plex-api-key",
+        # Create Jellyfin servers
+        jellyfin_servers: list[MediaServer] = []
+        async with session_factory() as sess:
+            for i in range(num_jellyfin_servers):
+                server = MediaServer(
+                    name=f"JellyfinServer{i}",
+                    server_type=ServerType.JELLYFIN,
+                    url=f"http://jellyfin{i}.local:8096",
+                    api_key=f"jellyfin-api-key-{i}",
                     enabled=True,
                 )
-                sess.add(plex_server)
-                await sess.commit()
-                await sess.refresh(plex_server)
+                sess.add(server)
+                jellyfin_servers.append(server)
+            await sess.commit()
+            for server in jellyfin_servers:
+                await sess.refresh(server)
 
-            # Create invitation targeting all servers
-            all_servers = [*jellyfin_servers, plex_server]
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                )
-                invitation.target_servers = all_servers
-                sess.add(invitation)
-                await sess.commit()
+        # Create Plex server (will fail)
+        async with session_factory() as sess:
+            plex_server = MediaServer(
+                name="PlexServer",
+                server_type=ServerType.PLEX,
+                url="http://plex.local:32400",
+                api_key="plex-api-key",
+                enabled=True,
+            )
+            sess.add(plex_server)
+            await sess.commit()
+            await sess.refresh(plex_server)
 
-            # Count existing records before redemption attempt
-            async with session_factory() as sess:
-                identity_count_before = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
-                )
-                user_count_before = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
+        # Create invitation targeting all servers
+        all_servers = [*jellyfin_servers, plex_server]
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+            )
+            invitation.target_servers = all_servers
+            sess.add(invitation)
+            await sess.commit()
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        # Count existing records before redemption attempt
+        async with session_factory() as sess:
+            identity_count_before = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            user_count_before = await sess.scalar(
+                select(func.count()).select_from(UserModel)
+            )
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del api_key
+
+            mock_client = AsyncMock()
+            # Capture server_type value to avoid closure issues
+            captured_server_type = server_type
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del api_key
+                email: str | None = None,
+                plex_user_type: str | None = None,
+            ) -> ExternalUser:
+                del plex_user_type
 
-                mock_client = AsyncMock()
-                # Capture server_type value to avoid closure issues
-                captured_server_type = server_type
+                # Fail if this is the Plex server
+                if captured_server_type == ServerType.PLEX:
+                    raise MediaClientError(
+                        "Plex server failure",
+                        operation="create_user",
+                        server_url=url,
+                    )
 
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                    plex_user_type: str | None = None,
-                ) -> ExternalUser:
-                    del plex_user_type
+                return ExternalUser(
+                    external_user_id=str(uuid4()),
+                    username=uname,
+                    email=email,
+                )
 
-                    # Fail if this is the Plex server
-                    if captured_server_type == ServerType.PLEX:
-                        raise MediaClientError(
-                            "Plex server failure",
-                            operation="create_user",
-                            server_url=url,
-                        )
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = AsyncMock(return_value=True)
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                    return ExternalUser(
-                        external_user_id=str(uuid4()),
-                        username=uname,
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail on Plex server
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
                         email=email,
                     )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = AsyncMock(return_value=True)
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
+        # PROPERTY ASSERTION: No new Identity records created
+        async with session_factory() as sess:
+            identity_count_after = await sess.scalar(
+                select(func.count()).select_from(IdentityModel)
+            )
+            assert identity_count_after == identity_count_before, (
+                f"No new Identity records should be created on Plex failure. "
+                f"Before: {identity_count_before}, After: {identity_count_after}"
             )
 
-            # Execute redemption - should fail on Plex server
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                            email=email,
-                        )
-
-            # PROPERTY ASSERTION: No new Identity records created
-            async with session_factory() as sess:
-                identity_count_after = await sess.scalar(
-                    select(func.count()).select_from(IdentityModel)
-                )
-                assert identity_count_after == identity_count_before, (
-                    f"No new Identity records should be created on Plex failure. "
-                    f"Before: {identity_count_before}, After: {identity_count_after}"
-                )
-
-            # PROPERTY ASSERTION: No new User records created
-            async with session_factory() as sess:
-                user_count_after = await sess.scalar(
-                    select(func.count()).select_from(UserModel)
-                )
-                assert user_count_after == user_count_before, (
-                    f"No new User records should be created on Plex failure. "
-                    f"Before: {user_count_before}, After: {user_count_after}"
-                )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: No new User records created
+        async with session_factory() as sess:
+            user_count_after = await sess.scalar(
+                select(func.count()).select_from(UserModel)
+            )
+            assert user_count_after == user_count_before, (
+                f"No new User records should be created on Plex failure. "
+                f"Before: {user_count_before}, After: {user_count_after}"
+            )
 
     @given(
         code=code_strategy,
@@ -2307,6 +2215,7 @@ class TestPlexRedemptionRollbackOnFailure:
     @pytest.mark.asyncio
     async def test_multi_server_rollback_with_plex_and_jellyfin(
         self,
+        db: TestDB,
         code: str,
         username: str,
         password: str,
@@ -2323,156 +2232,150 @@ class TestPlexRedemptionRollbackOnFailure:
         from zondarr.core.exceptions import ValidationError
         from zondarr.media.exceptions import MediaClientError
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
+        session_factory = db.session_factory
 
-            # Create servers: Jellyfin -> Plex -> Jellyfin (fails)
-            servers: list[MediaServer] = []
-            async with session_factory() as sess:
-                # First Jellyfin server
-                jellyfin1 = MediaServer(
-                    name="Jellyfin1",
-                    server_type=ServerType.JELLYFIN,
-                    url="http://jellyfin1.local:8096",
-                    api_key="jellyfin1-api-key",
-                    enabled=True,
-                )
-                sess.add(jellyfin1)
-                servers.append(jellyfin1)
+        # Create servers: Jellyfin -> Plex -> Jellyfin (fails)
+        servers: list[MediaServer] = []
+        async with session_factory() as sess:
+            # First Jellyfin server
+            jellyfin1 = MediaServer(
+                name="Jellyfin1",
+                server_type=ServerType.JELLYFIN,
+                url="http://jellyfin1.local:8096",
+                api_key="jellyfin1-api-key",
+                enabled=True,
+            )
+            sess.add(jellyfin1)
+            servers.append(jellyfin1)
 
-                # Plex server
-                plex = MediaServer(
-                    name="Plex",
-                    server_type=ServerType.PLEX,
-                    url="http://plex.local:32400",
-                    api_key="plex-api-key",
-                    enabled=True,
-                )
-                sess.add(plex)
-                servers.append(plex)
+            # Plex server
+            plex = MediaServer(
+                name="Plex",
+                server_type=ServerType.PLEX,
+                url="http://plex.local:32400",
+                api_key="plex-api-key",
+                enabled=True,
+            )
+            sess.add(plex)
+            servers.append(plex)
 
-                # Second Jellyfin server (will fail)
-                jellyfin2 = MediaServer(
-                    name="Jellyfin2",
-                    server_type=ServerType.JELLYFIN,
-                    url="http://jellyfin2.local:8096",
-                    api_key="jellyfin2-api-key",
-                    enabled=True,
-                )
-                sess.add(jellyfin2)
-                servers.append(jellyfin2)
+            # Second Jellyfin server (will fail)
+            jellyfin2 = MediaServer(
+                name="Jellyfin2",
+                server_type=ServerType.JELLYFIN,
+                url="http://jellyfin2.local:8096",
+                api_key="jellyfin2-api-key",
+                enabled=True,
+            )
+            sess.add(jellyfin2)
+            servers.append(jellyfin2)
 
-                await sess.commit()
-                for server in servers:
-                    await sess.refresh(server)
+            await sess.commit()
+            for server in servers:
+                await sess.refresh(server)
 
-            # Create invitation targeting all servers
-            async with session_factory() as sess:
-                invitation = Invitation(
-                    code=code,
-                    enabled=True,
-                    expires_at=None,
-                    max_uses=100,
-                    use_count=0,
-                )
-                invitation.target_servers = servers
-                sess.add(invitation)
-                await sess.commit()
+        # Create invitation targeting all servers
+        async with session_factory() as sess:
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=0,
+            )
+            invitation.target_servers = servers
+            sess.add(invitation)
+            await sess.commit()
 
-            # Track created and deleted users
-            created_user_ids: list[str] = []
-            deleted_user_ids: list[str] = []
-            create_call_count = 0
+        # Track created and deleted users
+        created_user_ids: list[str] = []
+        deleted_user_ids: list[str] = []
+        create_call_count = 0
 
-            mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry = MagicMock(spec=ClientRegistry)
 
-            def create_client_side_effect(
-                server_type: ServerType,
+        def create_client_side_effect(
+            server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,
+        ) -> AsyncMock:
+            del api_key, server_type
+
+            mock_client = AsyncMock()
+            external_id = str(uuid4())
+
+            async def mock_create_user(
+                uname: str,
+                _pwd: str,
+                /,
                 *,
-                url: str,
-                api_key: str,
-            ) -> AsyncMock:
-                del api_key, server_type
+                email: str | None = None,
+                plex_user_type: str | None = None,
+            ) -> ExternalUser:
+                nonlocal create_call_count
+                del plex_user_type
 
-                mock_client = AsyncMock()
-                external_id = str(uuid4())
+                create_call_count += 1
 
-                async def mock_create_user(
-                    uname: str,
-                    _pwd: str,
-                    /,
-                    *,
-                    email: str | None = None,
-                    plex_user_type: str | None = None,
-                ) -> ExternalUser:
-                    nonlocal create_call_count
-                    del plex_user_type
+                # Fail on the third server (Jellyfin2)
+                if create_call_count == 3:
+                    raise MediaClientError(
+                        "Third server failure",
+                        operation="create_user",
+                        server_url=url,
+                    )
 
-                    create_call_count += 1
+                created_user_ids.append(external_id)
+                return ExternalUser(
+                    external_user_id=external_id,
+                    username=uname,
+                    email=email,
+                )
 
-                    # Fail on the third server (Jellyfin2)
-                    if create_call_count == 3:
-                        raise MediaClientError(
-                            "Third server failure",
-                            operation="create_user",
-                            server_url=url,
-                        )
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
 
-                    created_user_ids.append(external_id)
-                    return ExternalUser(
-                        external_user_id=external_id,
-                        username=uname,
+            mock_client.create_user = mock_create_user
+            mock_client.delete_user = mock_delete_user
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_side_effect)
+
+        # Execute redemption - should fail on third server
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    _ = await redemption_service.redeem(
+                        code,
+                        username=username,
+                        password=password,
                         email=email,
                     )
 
-                async def mock_delete_user(ext_user_id: str, /) -> bool:
-                    deleted_user_ids.append(ext_user_id)
-                    return True
+        # PROPERTY ASSERTION: Both Jellyfin1 and Plex users should be deleted
+        assert set(deleted_user_ids) == set(created_user_ids), (
+            f"All created users {created_user_ids} should be deleted, "
+            f"but only {deleted_user_ids} were deleted"
+        )
 
-                mock_client.create_user = mock_create_user
-                mock_client.delete_user = mock_delete_user
-                mock_client.set_library_access = AsyncMock(return_value=True)
-                mock_client.update_permissions = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                return mock_client
-
-            mock_registry.create_client = MagicMock(
-                side_effect=create_client_side_effect
-            )
-
-            # Execute redemption - should fail on third server
-            async with session_factory() as session:
-                invitation_repo = InvitationRepository(session)
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-
-                invitation_service = InvitationService(invitation_repo)
-                user_service = UserService(user_repo, identity_repo)
-                redemption_service = RedemptionService(invitation_service, user_service)
-
-                with patch("zondarr.services.redemption.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        _ = await redemption_service.redeem(
-                            code,
-                            username=username,
-                            password=password,
-                            email=email,
-                        )
-
-            # PROPERTY ASSERTION: Both Jellyfin1 and Plex users should be deleted
-            assert set(deleted_user_ids) == set(created_user_ids), (
-                f"All created users {created_user_ids} should be deleted, "
-                f"but only {deleted_user_ids} were deleted"
-            )
-
-            # PROPERTY ASSERTION: 2 users created (Jellyfin1 + Plex)
-            assert len(created_user_ids) == 2, (
-                f"Expected 2 users to be created before failure, "
-                f"got {len(created_user_ids)}"
-            )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: 2 users created (Jellyfin1 + Plex)
+        assert len(created_user_ids) == 2, (
+            f"Expected 2 users to be created before failure, "
+            f"got {len(created_user_ids)}"
+        )

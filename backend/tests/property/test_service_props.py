@@ -13,7 +13,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB, create_test_engine
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.media.registry import ClientRegistry
 from zondarr.models import Invitation, ServerType
@@ -49,43 +49,40 @@ class TestServiceValidatesBeforePersisting:
     @pytest.mark.asyncio
     async def test_add_server_fails_when_connection_test_fails(
         self,
+        db: TestDB,
         name: str,
         server_type: ServerType,
         url: str,
         api_key: str,
     ) -> None:
         """MediaServerService.add raises ValidationError when connection test fails."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = MediaServerRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = MediaServerRepository(session)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_client = AsyncMock()
-                mock_client.test_connection = AsyncMock(return_value=False)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_client = AsyncMock()
+            mock_client.test_connection = AsyncMock(return_value=False)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                service = MediaServerService(repo, registry=mock_registry)
+            service = MediaServerService(repo, registry=mock_registry)
 
-                with pytest.raises(ValidationError) as exc_info:
-                    _ = await service.add(
-                        name=name,
-                        server_type=server_type,
-                        url=url,
-                        api_key=api_key,
-                    )
+            with pytest.raises(ValidationError) as exc_info:
+                _ = await service.add(
+                    name=name,
+                    server_type=server_type,
+                    url=url,
+                    api_key=api_key,
+                )
 
-                assert exc_info.value.error_code == "VALIDATION_ERROR"
-                assert "url" in exc_info.value.field_errors
-                assert "api_key" in exc_info.value.field_errors
+            assert exc_info.value.error_code == "VALIDATION_ERROR"
+            assert "url" in exc_info.value.field_errors
+            assert "api_key" in exc_info.value.field_errors
 
-                all_servers = await repo.get_all()
-                assert len(all_servers) == 0
-        finally:
-            await engine.dispose()
+            all_servers = await repo.get_all()
+            assert len(all_servers) == 0
 
     @given(
         name=name_strategy,
@@ -96,44 +93,41 @@ class TestServiceValidatesBeforePersisting:
     @pytest.mark.asyncio
     async def test_add_server_succeeds_when_connection_test_passes(
         self,
+        db: TestDB,
         name: str,
         server_type: ServerType,
         url: str,
         api_key: str,
     ) -> None:
         """MediaServerService.add persists server when connection test passes."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = MediaServerRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = MediaServerRepository(session)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_client = AsyncMock()
-                mock_client.test_connection = AsyncMock(return_value=True)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_client = AsyncMock()
+            mock_client.test_connection = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                service = MediaServerService(repo, registry=mock_registry)
+            service = MediaServerService(repo, registry=mock_registry)
 
-                created = await service.add(
-                    name=name,
-                    server_type=server_type,
-                    url=url,
-                    api_key=api_key,
-                )
-                await session.commit()
+            created = await service.add(
+                name=name,
+                server_type=server_type,
+                url=url,
+                api_key=api_key,
+            )
+            await session.commit()
 
-                assert created.id is not None
-                assert created.name == name
-                assert created.server_type == server_type
+            assert created.id is not None
+            assert created.name == name
+            assert created.server_type == server_type
 
-                retrieved = await repo.get_by_id(created.id)
-                assert retrieved is not None
-                assert retrieved.name == name
-        finally:
-            await engine.dispose()
+            retrieved = await repo.get_by_id(created.id)
+            assert retrieved is not None
+            assert retrieved.name == name
 
 
 class TestInvitationValidationChecksAllConditions:
@@ -141,59 +135,55 @@ class TestInvitationValidationChecksAllConditions:
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_redeem_fails_for_disabled_invitation(self, code: str) -> None:
+    async def test_redeem_fails_for_disabled_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
         """InvitationService.redeem fails with DISABLED for disabled invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = False
-                invitation.expires_at = None
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False
+            invitation.expires_at = None
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                with pytest.raises(ValidationError) as exc_info:
-                    _ = await service.redeem(code)
+            with pytest.raises(ValidationError) as exc_info:
+                _ = await service.redeem(code)
 
-                assert "disabled" in exc_info.value.message.lower()
-                assert "code" in exc_info.value.field_errors
-        finally:
-            await engine.dispose()
+            assert "disabled" in exc_info.value.message.lower()
+            assert "code" in exc_info.value.field_errors
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_redeem_fails_for_expired_invitation(self, code: str) -> None:
+    async def test_redeem_fails_for_expired_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
         """InvitationService.redeem fails with EXPIRED for expired invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) - timedelta(days=1)
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) - timedelta(days=1)
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                with pytest.raises(ValidationError) as exc_info:
-                    _ = await service.redeem(code)
+            with pytest.raises(ValidationError) as exc_info:
+                _ = await service.redeem(code)
 
-                assert "expired" in exc_info.value.message.lower()
-                assert "code" in exc_info.value.field_errors
-        finally:
-            await engine.dispose()
+            assert "expired" in exc_info.value.message.lower()
+            assert "code" in exc_info.value.field_errors
 
     @given(
         code=code_strategy,
@@ -201,121 +191,110 @@ class TestInvitationValidationChecksAllConditions:
     )
     @pytest.mark.asyncio
     async def test_redeem_fails_for_exhausted_invitation(
-        self, code: str, max_uses: int
+        self, db: TestDB, code: str, max_uses: int
     ) -> None:
         """InvitationService.redeem fails with MAX_USES_REACHED for exhausted invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = None
-                invitation.max_uses = max_uses
-                invitation.use_count = max_uses
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = None
+            invitation.max_uses = max_uses
+            invitation.use_count = max_uses
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                with pytest.raises(ValidationError) as exc_info:
-                    _ = await service.redeem(code)
+            with pytest.raises(ValidationError) as exc_info:
+                _ = await service.redeem(code)
 
-                assert "max" in exc_info.value.message.lower()
-                assert "code" in exc_info.value.field_errors
-        finally:
-            await engine.dispose()
+            assert "max" in exc_info.value.message.lower()
+            assert "code" in exc_info.value.field_errors
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_redeem_fails_for_nonexistent_invitation(self, code: str) -> None:
+    async def test_redeem_fails_for_nonexistent_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
         """InvitationService.redeem fails with NOT_FOUND for nonexistent invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                with pytest.raises(NotFoundError) as exc_info:
-                    _ = await service.redeem(code)
+            with pytest.raises(NotFoundError) as exc_info:
+                _ = await service.redeem(code)
 
-                assert exc_info.value.error_code == "NOT_FOUND"
-                assert exc_info.value.context["resource_type"] == "Invitation"
-        finally:
-            await engine.dispose()
+            assert exc_info.value.error_code == "NOT_FOUND"
+            assert exc_info.value.context["resource_type"] == "Invitation"
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_redeem_succeeds_for_valid_invitation(self, code: str) -> None:
+    async def test_redeem_succeeds_for_valid_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
         """InvitationService.redeem succeeds and increments use_count for valid invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
-                invitation.max_uses = 10
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
+            invitation.max_uses = 10
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                redeemed = await service.redeem(code)
-                await session.commit()
+            redeemed = await service.redeem(code)
+            await session.commit()
 
-                assert redeemed.use_count == 1
-                assert redeemed.code == code
+            assert redeemed.use_count == 1
+            assert redeemed.code == code
 
-                retrieved = await repo.get_by_code(code)
-                assert retrieved is not None
-                assert retrieved.use_count == 1
-        finally:
-            await engine.dispose()
+            retrieved = await repo.get_by_code(code)
+            assert retrieved is not None
+            assert retrieved.use_count == 1
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_validate_returns_correct_failure_reason(self, code: str) -> None:
+    async def test_validate_returns_correct_failure_reason(
+        self, db: TestDB, code: str
+    ) -> None:
         """InvitationService.validate returns specific failure reasons."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                is_valid, reason = await service.validate(code)
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.NOT_FOUND
+            is_valid, reason = await service.validate(code)
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.NOT_FOUND
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = False
-                invitation.expires_at = None
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False
+            invitation.expires_at = None
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                is_valid, reason = await service.validate(code)
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.DISABLED
-        finally:
-            await engine.dispose()
+            is_valid, reason = await service.validate(code)
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.DISABLED
 
 
 class TestGeneratedCodesAreValid:
     """Property 8: Generated Codes Are Valid."""
 
-    @given(st.integers(min_value=1, max_value=10))
     @pytest.mark.asyncio
-    async def test_generated_code_has_correct_length(self, _iteration: int) -> None:
+    async def test_generated_code_has_correct_length(self) -> None:
         """Generated invitation codes are exactly 12 characters long."""
         engine = await create_test_engine()
         try:
@@ -331,11 +310,8 @@ class TestGeneratedCodesAreValid:
         finally:
             await engine.dispose()
 
-    @given(st.integers(min_value=1, max_value=10))
     @pytest.mark.asyncio
-    async def test_generated_code_contains_only_valid_characters(
-        self, _iteration: int
-    ) -> None:
+    async def test_generated_code_contains_only_valid_characters(self) -> None:
         """Generated codes contain only uppercase letters and digits."""
         engine = await create_test_engine()
         try:
@@ -352,11 +328,8 @@ class TestGeneratedCodesAreValid:
         finally:
             await engine.dispose()
 
-    @given(st.integers(min_value=1, max_value=10))
     @pytest.mark.asyncio
-    async def test_generated_code_excludes_ambiguous_characters(
-        self, _iteration: int
-    ) -> None:
+    async def test_generated_code_excludes_ambiguous_characters(self) -> None:
         """Generated codes exclude ambiguous characters (0, O, I, L)."""
         engine = await create_test_engine()
         try:
@@ -374,9 +347,8 @@ class TestGeneratedCodesAreValid:
         finally:
             await engine.dispose()
 
-    @given(st.integers(min_value=1, max_value=5))
     @pytest.mark.asyncio
-    async def test_generated_codes_are_unique(self, _iteration: int) -> None:
+    async def test_generated_codes_are_unique(self) -> None:
         """Multiple generated codes are unique."""
         engine = await create_test_engine()
         try:

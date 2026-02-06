@@ -10,9 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ExternalUser
 from zondarr.models import MediaServer, ServerType
@@ -117,6 +116,7 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
     @pytest.mark.asyncio
     async def test_sync_identifies_orphaned_users(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
         """Sync correctly identifies users on server but not in local DB (orphaned).
@@ -125,68 +125,65 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                await session.commit()
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
 
-                # Mock the client to return orphaned + matched users (server users)
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                user_repo = UserRepository(session)
-                sync_service = SyncService(server_repo, user_repo)
+            user_repo = UserRepository(session)
+            sync_service = SyncService(server_repo, user_repo)
 
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    result = await sync_service.sync_server(server.id)
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result = await sync_service.sync_server(server.id)
 
-                # Verify orphaned users are correctly identified
-                expected_orphaned = {u.username for u in orphaned_users}
-                actual_orphaned = set(result.orphaned_users)
-                assert actual_orphaned == expected_orphaned, (
-                    f"Expected orphaned: {expected_orphaned}, got: {actual_orphaned}"
-                )
-        finally:
-            await engine.dispose()
+            # Verify orphaned users are correctly identified
+            expected_orphaned = {u.username for u in orphaned_users}
+            actual_orphaned = set(result.orphaned_users)
+            assert actual_orphaned == expected_orphaned, (
+                f"Expected orphaned: {expected_orphaned}, got: {actual_orphaned}"
+            )
 
     @given(user_sets=user_sets_strategy())
     @pytest.mark.asyncio
     async def test_sync_identifies_stale_users(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
         """Sync correctly identifies users in local DB but not on server (stale).
@@ -195,68 +192,65 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                await session.commit()
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
 
-                # Mock the client to return orphaned + matched users (server users)
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                user_repo = UserRepository(session)
-                sync_service = SyncService(server_repo, user_repo)
+            user_repo = UserRepository(session)
+            sync_service = SyncService(server_repo, user_repo)
 
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    result = await sync_service.sync_server(server.id)
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result = await sync_service.sync_server(server.id)
 
-                # Verify stale users are correctly identified
-                expected_stale = {u.username for u in stale_users}
-                actual_stale = set(result.stale_users)
-                assert actual_stale == expected_stale, (
-                    f"Expected stale: {expected_stale}, got: {actual_stale}"
-                )
-        finally:
-            await engine.dispose()
+            # Verify stale users are correctly identified
+            expected_stale = {u.username for u in stale_users}
+            actual_stale = set(result.stale_users)
+            assert actual_stale == expected_stale, (
+                f"Expected stale: {expected_stale}, got: {actual_stale}"
+            )
 
     @given(user_sets=user_sets_strategy())
     @pytest.mark.asyncio
     async def test_sync_counts_matched_users(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
         """Sync correctly counts users that exist in both places (matched).
@@ -265,61 +259,57 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                await session.commit()
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
 
-                # Mock the client to return orphaned + matched users (server users)
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                user_repo = UserRepository(session)
-                sync_service = SyncService(server_repo, user_repo)
+            user_repo = UserRepository(session)
+            sync_service = SyncService(server_repo, user_repo)
 
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    result = await sync_service.sync_server(server.id)
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result = await sync_service.sync_server(server.id)
 
-                # Verify matched count is correct
-                assert result.matched_users == len(matched_users), (
-                    f"Expected {len(matched_users)} matched users, got {result.matched_users}"
-                )
-        finally:
-            await engine.dispose()
+            # Verify matched count is correct
+            assert result.matched_users == len(matched_users), (
+                f"Expected {len(matched_users)} matched users, got {result.matched_users}"
+            )
 
 
 # =============================================================================
@@ -343,6 +333,7 @@ class TestSyncIsIdempotent:
     @pytest.mark.asyncio
     async def test_sync_produces_same_results_on_multiple_runs(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
         num_runs: int,
     ) -> None:
@@ -352,77 +343,73 @@ class TestSyncIsIdempotent:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                await session.commit()
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
 
-                # Mock the client to return orphaned + matched users (server users)
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                user_repo = UserRepository(session)
-                sync_service = SyncService(server_repo, user_repo)
+            user_repo = UserRepository(session)
+            sync_service = SyncService(server_repo, user_repo)
 
-                # Run sync multiple times and collect results
-                from zondarr.api.schemas import SyncResult
+            # Run sync multiple times and collect results
+            from zondarr.api.schemas import SyncResult
 
-                results: list[SyncResult] = []
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    for _ in range(num_runs):
-                        result = await sync_service.sync_server(server.id)
-                        results.append(result)
+            results: list[SyncResult] = []
+            with patch("zondarr.services.sync.registry", mock_registry):
+                for _ in range(num_runs):
+                    result = await sync_service.sync_server(server.id)
+                    results.append(result)
 
-                # Verify all results are identical (except synced_at timestamp)
-                first_result: SyncResult = results[0]
-                for i, result in enumerate(results[1:], start=2):
-                    assert set(result.orphaned_users) == set(
-                        first_result.orphaned_users
-                    ), f"Run {i} orphaned_users differs from run 1"
-                    assert set(result.stale_users) == set(first_result.stale_users), (
-                        f"Run {i} stale_users differs from run 1"
-                    )
-                    assert result.matched_users == first_result.matched_users, (
-                        f"Run {i} matched_users ({result.matched_users}) differs from run 1 ({first_result.matched_users})"
-                    )
-                    assert result.server_id == first_result.server_id
-                    assert result.server_name == first_result.server_name
-        finally:
-            await engine.dispose()
+            # Verify all results are identical (except synced_at timestamp)
+            first_result: SyncResult = results[0]
+            for i, result in enumerate(results[1:], start=2):
+                assert set(result.orphaned_users) == set(first_result.orphaned_users), (
+                    f"Run {i} orphaned_users differs from run 1"
+                )
+                assert set(result.stale_users) == set(first_result.stale_users), (
+                    f"Run {i} stale_users differs from run 1"
+                )
+                assert result.matched_users == first_result.matched_users, (
+                    f"Run {i} matched_users ({result.matched_users}) differs from run 1 ({first_result.matched_users})"
+                )
+                assert result.server_id == first_result.server_id
+                assert result.server_name == first_result.server_name
 
 
 # =============================================================================
@@ -443,6 +430,7 @@ class TestSyncDoesNotModifyUsers:
     @pytest.mark.asyncio
     async def test_sync_does_not_modify_local_users(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
         """Sync does not create, delete, or modify local User records.
@@ -451,85 +439,80 @@ class TestSyncDoesNotModifyUsers:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                local_users_before: list[tuple[str, str]] = []
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                    local_users_before.append(
-                        (ext_user.external_user_id, ext_user.username)
-                    )
-                await session.commit()
-
-                # Record the count of local users before sync
-                user_repo = UserRepository(session)
-                users_before = await user_repo.get_by_server(server.id)
-                count_before = len(users_before)
-
-                # Mock the client to return orphaned + matched users (server users)
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
-
-                sync_service = SyncService(server_repo, user_repo)
-
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    _ = await sync_service.sync_server(server.id)
-
-                # Verify local users are unchanged after sync
-                users_after = await user_repo.get_by_server(server.id)
-                count_after = len(users_after)
-
-                assert count_after == count_before, (
-                    f"Local user count changed from {count_before} to {count_after}"
+            # Create local users for stale and matched categories
+            local_users_before: list[tuple[str, str]] = []
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+                local_users_before.append(
+                    (ext_user.external_user_id, ext_user.username)
                 )
+            await session.commit()
 
-                # Verify the same users exist with same data
-                local_users_after = {
-                    (u.external_user_id, u.username) for u in users_after
-                }
-                assert local_users_after == set(local_users_before), (
-                    "Local user data was modified during sync"
-                )
-        finally:
-            await engine.dispose()
+            # Record the count of local users before sync
+            user_repo = UserRepository(session)
+            users_before = await user_repo.get_by_server(server.id)
+            count_before = len(users_before)
+
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
+
+            sync_service = SyncService(server_repo, user_repo)
+
+            with patch("zondarr.services.sync.registry", mock_registry):
+                _ = await sync_service.sync_server(server.id)
+
+            # Verify local users are unchanged after sync
+            users_after = await user_repo.get_by_server(server.id)
+            count_after = len(users_after)
+
+            assert count_after == count_before, (
+                f"Local user count changed from {count_before} to {count_after}"
+            )
+
+            # Verify the same users exist with same data
+            local_users_after = {(u.external_user_id, u.username) for u in users_after}
+            assert local_users_after == set(local_users_before), (
+                "Local user data was modified during sync"
+            )
 
     @given(user_sets=user_sets_strategy())
     @pytest.mark.asyncio
     async def test_sync_does_not_call_modify_methods_on_client(
         self,
+        db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
         """Sync only calls list_users, not create/delete/update methods.
@@ -538,69 +521,65 @@ class TestSyncDoesNotModifyUsers:
         """
         orphaned_users, stale_users, matched_users = user_sets
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # Create a media server
-                server_repo = MediaServerRepository(session)
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://localhost:8096"
-                server.api_key = "test-api-key"
-                server.enabled = True
-                server = await server_repo.create(server)
-                await session.commit()
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
 
-                # Create an identity for local users
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
-                await session.flush()
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
 
-                # Create local users for stale and matched categories
-                for ext_user in stale_users + matched_users:
-                    local_user = User()
-                    local_user.identity_id = identity.id
-                    local_user.media_server_id = server.id
-                    local_user.external_user_id = ext_user.external_user_id
-                    local_user.username = ext_user.username
-                    local_user.enabled = True
-                    session.add(local_user)
-                await session.commit()
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
 
-                # Mock the client with all methods tracked
-                server_users = orphaned_users + matched_users
-                mock_client = AsyncMock()
-                mock_client.list_users = AsyncMock(return_value=server_users)
-                mock_client.create_user = AsyncMock()
-                mock_client.delete_user = AsyncMock()
-                mock_client.set_user_enabled = AsyncMock()
-                mock_client.update_permissions = AsyncMock()
-                mock_client.set_library_access = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
+            # Mock the client with all methods tracked
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.create_user = AsyncMock()
+            mock_client.delete_user = AsyncMock()
+            mock_client.set_user_enabled = AsyncMock()
+            mock_client.update_permissions = AsyncMock()
+            mock_client.set_library_access = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
 
-                mock_registry = MagicMock(spec=ClientRegistry)
-                mock_registry.create_client = MagicMock(return_value=mock_client)
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client = MagicMock(return_value=mock_client)
 
-                user_repo = UserRepository(session)
-                sync_service = SyncService(server_repo, user_repo)
+            user_repo = UserRepository(session)
+            sync_service = SyncService(server_repo, user_repo)
 
-                with patch("zondarr.services.sync.registry", mock_registry):
-                    _ = await sync_service.sync_server(server.id)
+            with patch("zondarr.services.sync.registry", mock_registry):
+                _ = await sync_service.sync_server(server.id)
 
-                # Verify only list_users was called, not any modification methods
-                mock_client.list_users.assert_called_once()  # pyright: ignore[reportAny]
-                mock_client.create_user.assert_not_called()  # pyright: ignore[reportAny]
-                mock_client.delete_user.assert_not_called()  # pyright: ignore[reportAny]
-                mock_client.set_user_enabled.assert_not_called()  # pyright: ignore[reportAny]
-                mock_client.update_permissions.assert_not_called()  # pyright: ignore[reportAny]
-                mock_client.set_library_access.assert_not_called()  # pyright: ignore[reportAny]
-        finally:
-            await engine.dispose()
+            # Verify only list_users was called, not any modification methods
+            mock_client.list_users.assert_called_once()  # pyright: ignore[reportAny]
+            mock_client.create_user.assert_not_called()  # pyright: ignore[reportAny]
+            mock_client.delete_user.assert_not_called()  # pyright: ignore[reportAny]
+            mock_client.set_user_enabled.assert_not_called()  # pyright: ignore[reportAny]
+            mock_client.update_permissions.assert_not_called()  # pyright: ignore[reportAny]
+            mock_client.set_library_access.assert_not_called()  # pyright: ignore[reportAny]
 
 
 # =============================================================================
@@ -624,6 +603,7 @@ class TestSyncTaskErrorResilience:
     @pytest.mark.asyncio
     async def test_sync_continues_after_server_failure(
         self,
+        db: TestDB,
         num_servers: int,
         failing_server_index: int,
     ) -> None:
@@ -634,131 +614,124 @@ class TestSyncTaskErrorResilience:
         # Ensure failing index is within bounds
         failing_server_index = failing_server_index % num_servers
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create multiple media servers
-            server_ids: list[str] = []
-            async with session_factory() as session:
-                server_repo = MediaServerRepository(session)
+        # Create multiple media servers
+        server_ids: list[str] = []
+        async with db.session_factory() as session:
+            server_repo = MediaServerRepository(session)
 
-                for i in range(num_servers):
-                    server = MediaServer()
-                    server.name = f"Test Server {i}"
-                    server.server_type = ServerType.JELLYFIN
-                    server.url = f"http://server{i}:8096"
-                    server.api_key = f"api-key-{i}"
-                    server.enabled = True
-                    server = await server_repo.create(server)
-                    server_ids.append(str(server.id))
-                await session.commit()
+            for i in range(num_servers):
+                server = MediaServer()
+                server.name = f"Test Server {i}"
+                server.server_type = ServerType.JELLYFIN
+                server.url = f"http://server{i}:8096"
+                server.api_key = f"api-key-{i}"
+                server.enabled = True
+                server = await server_repo.create(server)
+                server_ids.append(str(server.id))
+            await session.commit()
 
-            # Create mock client that fails for one server
-            call_count = 0
-            successful_syncs: list[str] = []
+        # Create mock client that fails for one server
+        call_count = 0
+        successful_syncs: list[str] = []
 
-            def create_mock_client(
-                _server_type: ServerType,
-                *,
-                url: str,
-                api_key: str,  # pyright: ignore[reportUnusedParameter]
-            ) -> AsyncMock:
-                nonlocal call_count
-                current_call = call_count
-                call_count += 1
+        def create_mock_client(
+            _server_type: ServerType,
+            *,
+            url: str,
+            api_key: str,  # pyright: ignore[reportUnusedParameter]
+        ) -> AsyncMock:
+            nonlocal call_count
+            current_call = call_count
+            call_count += 1
 
-                mock_client = AsyncMock()
+            mock_client = AsyncMock()
 
-                if current_call == failing_server_index:
-                    # This server will fail
-                    mock_client.list_users = AsyncMock(
-                        side_effect=Exception("Connection failed")
-                    )
-                else:
-                    # This server will succeed
-                    mock_client.list_users = AsyncMock(return_value=[])
-                    successful_syncs.append(url)
+            if current_call == failing_server_index:
+                # This server will fail
+                mock_client.list_users = AsyncMock(
+                    side_effect=Exception("Connection failed")
+                )
+            else:
+                # This server will succeed
+                mock_client.list_users = AsyncMock(return_value=[])
+                successful_syncs.append(url)
 
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=None)
-                return mock_client
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            return mock_client
 
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(side_effect=create_mock_client)
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(side_effect=create_mock_client)
 
-            # Run the background task sync
-            from zondarr.config import Settings
-            from zondarr.core.tasks import BackgroundTaskManager
+        # Run the background task sync
+        from zondarr.config import Settings
+        from zondarr.core.tasks import BackgroundTaskManager
 
-            settings = Settings(
-                secret_key="test-secret-key-at-least-32-characters-long",
-                expiration_check_interval_seconds=60,
-                sync_interval_seconds=60,
-            )
-            manager = BackgroundTaskManager(settings)
+        settings = Settings(
+            secret_key="test-secret-key-at-least-32-characters-long",
+            expiration_check_interval_seconds=60,
+            sync_interval_seconds=60,
+        )
+        manager = BackgroundTaskManager(settings)
 
-            state = MagicMock()
-            state.session_factory = session_factory
+        state = MagicMock()
+        state.session_factory = db.session_factory
 
-            with patch("zondarr.services.sync.registry", mock_registry):
-                await manager.sync_all_servers(state)
+        with patch("zondarr.services.sync.registry", mock_registry):
+            await manager.sync_all_servers(state)
 
-            # Verify that all servers were attempted (num_servers calls)
-            assert call_count == num_servers, (
-                f"Expected {num_servers} sync attempts, got {call_count}"
-            )
+        # Verify that all servers were attempted (num_servers calls)
+        assert call_count == num_servers, (
+            f"Expected {num_servers} sync attempts, got {call_count}"
+        )
 
-            # Verify that successful servers were synced (num_servers - 1)
-            assert len(successful_syncs) == num_servers - 1, (
-                f"Expected {num_servers - 1} successful syncs, got {len(successful_syncs)}"
-            )
-        finally:
-            await engine.dispose()
+        # Verify that successful servers were synced (num_servers - 1)
+        assert len(successful_syncs) == num_servers - 1, (
+            f"Expected {num_servers - 1} successful syncs, got {len(successful_syncs)}"
+        )
 
     @given(num_servers=st.integers(min_value=1, max_value=3))
     @pytest.mark.asyncio
     async def test_sync_task_handles_empty_server_list(
         self,
+        db: TestDB,
         num_servers: int,
     ) -> None:
         """Sync task handles case when no servers are enabled.
 
         **Validates: Requirement 2.5**
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create disabled servers
-            async with session_factory() as session:
-                server_repo = MediaServerRepository(session)
+        # Create disabled servers
+        async with db.session_factory() as session:
+            server_repo = MediaServerRepository(session)
 
-                for i in range(num_servers):
-                    server = MediaServer()
-                    server.name = f"Disabled Server {i}"
-                    server.server_type = ServerType.JELLYFIN
-                    server.url = f"http://disabled{i}:8096"
-                    server.api_key = f"api-key-{i}"
-                    server.enabled = False  # All disabled
-                    _ = await server_repo.create(server)
-                await session.commit()
+            for i in range(num_servers):
+                server = MediaServer()
+                server.name = f"Disabled Server {i}"
+                server.server_type = ServerType.JELLYFIN
+                server.url = f"http://disabled{i}:8096"
+                server.api_key = f"api-key-{i}"
+                server.enabled = False  # All disabled
+                _ = await server_repo.create(server)
+            await session.commit()
 
-            # Run the background task sync
-            from zondarr.config import Settings
-            from zondarr.core.tasks import BackgroundTaskManager
+        # Run the background task sync
+        from zondarr.config import Settings
+        from zondarr.core.tasks import BackgroundTaskManager
 
-            settings = Settings(
-                secret_key="test-secret-key-at-least-32-characters-long",
-                expiration_check_interval_seconds=60,
-                sync_interval_seconds=60,
-            )
-            manager = BackgroundTaskManager(settings)
+        settings = Settings(
+            secret_key="test-secret-key-at-least-32-characters-long",
+            expiration_check_interval_seconds=60,
+            sync_interval_seconds=60,
+        )
+        manager = BackgroundTaskManager(settings)
 
-            state = MagicMock()
-            state.session_factory = session_factory
+        state = MagicMock()
+        state.session_factory = db.session_factory
 
-            # Should complete without error even with no enabled servers
-            await manager.sync_all_servers(state)
-        finally:
-            await engine.dispose()
+        # Should complete without error even with no enabled servers
+        await manager.sync_all_servers(state)

@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB, create_test_engine
 from zondarr.models import (
     Identity,
     Invitation,
@@ -83,6 +83,7 @@ class TestMigrationsPreserveData:
     @pytest.mark.asyncio
     async def test_media_server_data_survives_migration_cycle(
         self,
+        db: TestDB,
         name: str,
         server_type: ServerType,
         url: str,
@@ -90,31 +91,27 @@ class TestMigrationsPreserveData:
         enabled: bool,
     ) -> None:
         """MediaServer data is preserved through migration upgrade."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            server_id = uuid4()
-            async with session_factory() as session:
-                server = MediaServer()
-                server.id = server_id
-                server.name = name
-                server.server_type = server_type
-                server.url = url
-                server.api_key = api_key
-                server.enabled = enabled
-                session.add(server)
-                await session.commit()
+        await db.clean()
+        server_id = uuid4()
+        async with db.session_factory() as session:
+            server = MediaServer()
+            server.id = server_id
+            server.name = name
+            server.server_type = server_type
+            server.url = url
+            server.api_key = api_key
+            server.enabled = enabled
+            session.add(server)
+            await session.commit()
 
-            async with session_factory() as session:
-                result = await session.get(MediaServer, server_id)
-                assert result is not None
-                assert result.name == name
-                assert result.server_type == server_type
-                assert result.url == url
-                assert result.api_key == api_key
-                assert result.enabled == enabled
-        finally:
-            await engine.dispose()
+        async with db.session_factory() as session:
+            result = await session.get(MediaServer, server_id)
+            assert result is not None
+            assert result.name == name
+            assert result.server_type == server_type
+            assert result.url == url
+            assert result.api_key == api_key
+            assert result.enabled == enabled
 
     @given(
         code=code_strategy,
@@ -125,35 +122,32 @@ class TestMigrationsPreserveData:
     @pytest.mark.asyncio
     async def test_invitation_data_survives_migration_cycle(
         self,
+        db: TestDB,
         code: str,
         max_uses: int | None,
         use_count: int,
         enabled: bool,
     ) -> None:
         """Invitation data is preserved through migration upgrade."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            invitation_id = uuid4()
-            async with session_factory() as session:
-                invitation = Invitation()
-                invitation.id = invitation_id
-                invitation.code = code
-                invitation.max_uses = max_uses
-                invitation.use_count = use_count
-                invitation.enabled = enabled
-                session.add(invitation)
-                await session.commit()
+        await db.clean()
+        invitation_id = uuid4()
+        async with db.session_factory() as session:
+            invitation = Invitation()
+            invitation.id = invitation_id
+            invitation.code = code
+            invitation.max_uses = max_uses
+            invitation.use_count = use_count
+            invitation.enabled = enabled
+            session.add(invitation)
+            await session.commit()
 
-            async with session_factory() as session:
-                result = await session.get(Invitation, invitation_id)
-                assert result is not None
-                assert result.code == code
-                assert result.max_uses == max_uses
-                assert result.use_count == use_count
-                assert result.enabled == enabled
-        finally:
-            await engine.dispose()
+        async with db.session_factory() as session:
+            result = await session.get(Invitation, invitation_id)
+            assert result is not None
+            assert result.code == code
+            assert result.max_uses == max_uses
+            assert result.use_count == use_count
+            assert result.enabled == enabled
 
     @given(
         display_name=name_strategy,
@@ -162,29 +156,26 @@ class TestMigrationsPreserveData:
     @pytest.mark.asyncio
     async def test_identity_data_survives_migration_cycle(
         self,
+        db: TestDB,
         display_name: str,
         enabled: bool,
     ) -> None:
         """Identity data is preserved through migration upgrade."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            identity_id = uuid4()
-            async with session_factory() as session:
-                identity = Identity()
-                identity.id = identity_id
-                identity.display_name = display_name
-                identity.enabled = enabled
-                session.add(identity)
-                await session.commit()
+        await db.clean()
+        identity_id = uuid4()
+        async with db.session_factory() as session:
+            identity = Identity()
+            identity.id = identity_id
+            identity.display_name = display_name
+            identity.enabled = enabled
+            session.add(identity)
+            await session.commit()
 
-            async with session_factory() as session:
-                result = await session.get(Identity, identity_id)
-                assert result is not None
-                assert result.display_name == display_name
-                assert result.enabled == enabled
-        finally:
-            await engine.dispose()
+        async with db.session_factory() as session:
+            result = await session.get(Identity, identity_id)
+            assert result is not None
+            assert result.display_name == display_name
+            assert result.enabled == enabled
 
     @given(
         external_user_id=name_strategy,
@@ -194,56 +185,53 @@ class TestMigrationsPreserveData:
     @pytest.mark.asyncio
     async def test_user_data_survives_migration_cycle(
         self,
+        db: TestDB,
         external_user_id: str,
         username: str,
         enabled: bool,
     ) -> None:
         """User data with relationships is preserved through migration upgrade."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            identity_id = uuid4()
-            server_id = uuid4()
-            user_id = uuid4()
+        await db.clean()
+        identity_id = uuid4()
+        server_id = uuid4()
+        user_id = uuid4()
 
-            async with session_factory() as session:
-                identity = Identity()
-                identity.id = identity_id
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                session.add(identity)
+        async with db.session_factory() as session:
+            identity = Identity()
+            identity.id = identity_id
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
 
-                server = MediaServer()
-                server.id = server_id
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://test.local"
-                server.api_key = "testkey"
-                server.enabled = True
-                session.add(server)
-                await session.commit()
+            server = MediaServer()
+            server.id = server_id
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://test.local"
+            server.api_key = "testkey"
+            server.enabled = True
+            session.add(server)
+            await session.commit()
 
-            async with session_factory() as session:
-                user = User()
-                user.id = user_id
-                user.identity_id = identity_id
-                user.media_server_id = server_id
-                user.external_user_id = external_user_id
-                user.username = username
-                user.enabled = enabled
-                session.add(user)
-                await session.commit()
+        async with db.session_factory() as session:
+            user = User()
+            user.id = user_id
+            user.identity_id = identity_id
+            user.media_server_id = server_id
+            user.external_user_id = external_user_id
+            user.username = username
+            user.enabled = enabled
+            session.add(user)
+            await session.commit()
 
-            async with session_factory() as session:
-                result = await session.get(User, user_id)
-                assert result is not None
-                assert result.identity_id == identity_id
-                assert result.media_server_id == server_id
-                assert result.external_user_id == external_user_id
-                assert result.username == username
-                assert result.enabled == enabled
-        finally:
-            await engine.dispose()
+        async with db.session_factory() as session:
+            result = await session.get(User, user_id)
+            assert result is not None
+            assert result.identity_id == identity_id
+            assert result.media_server_id == server_id
+            assert result.external_user_id == external_user_id
+            assert result.username == username
+            assert result.enabled == enabled
 
     @given(
         external_id=name_strategy,
@@ -253,47 +241,44 @@ class TestMigrationsPreserveData:
     @pytest.mark.asyncio
     async def test_library_data_survives_migration_cycle(
         self,
+        db: TestDB,
         external_id: str,
         library_name: str,
         library_type: str,
     ) -> None:
         """Library data with foreign key relationships is preserved."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            server_id = uuid4()
-            library_id = uuid4()
+        await db.clean()
+        server_id = uuid4()
+        library_id = uuid4()
 
-            async with session_factory() as session:
-                server = MediaServer()
-                server.id = server_id
-                server.name = "Test Server"
-                server.server_type = ServerType.PLEX
-                server.url = "http://plex.local"
-                server.api_key = "plexkey"
-                server.enabled = True
-                session.add(server)
-                await session.commit()
+        async with db.session_factory() as session:
+            server = MediaServer()
+            server.id = server_id
+            server.name = "Test Server"
+            server.server_type = ServerType.PLEX
+            server.url = "http://plex.local"
+            server.api_key = "plexkey"
+            server.enabled = True
+            session.add(server)
+            await session.commit()
 
-            async with session_factory() as session:
-                library = Library()
-                library.id = library_id
-                library.media_server_id = server_id
-                library.external_id = external_id
-                library.name = library_name
-                library.library_type = library_type
-                session.add(library)
-                await session.commit()
+        async with db.session_factory() as session:
+            library = Library()
+            library.id = library_id
+            library.media_server_id = server_id
+            library.external_id = external_id
+            library.name = library_name
+            library.library_type = library_type
+            session.add(library)
+            await session.commit()
 
-            async with session_factory() as session:
-                result = await session.get(Library, library_id)
-                assert result is not None
-                assert result.media_server_id == server_id
-                assert result.external_id == external_id
-                assert result.name == library_name
-                assert result.library_type == library_type
-        finally:
-            await engine.dispose()
+        async with db.session_factory() as session:
+            result = await session.get(Library, library_id)
+            assert result is not None
+            assert result.media_server_id == server_id
+            assert result.external_id == external_id
+            assert result.name == library_name
+            assert result.library_type == library_type
 
 
 class TestMigrationRollback:

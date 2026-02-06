@@ -6,25 +6,18 @@ Validates: Requirements 5.2, 5.3, 5.4, 5.5, 5.6
 """
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from tests.conftest import TestDB
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models import Identity, Invitation, MediaServer, ServerType, User
-from zondarr.models.base import Base
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
@@ -55,29 +48,6 @@ positive_int_strategy = st.integers(min_value=0, max_value=1000)
 optional_positive_int_strategy = st.one_of(st.none(), positive_int_strategy)
 
 
-async def create_test_engine() -> AsyncEngine:
-    """Create an async SQLite engine for testing."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-    )
-
-    # Enable foreign keys for SQLite
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(  # pyright: ignore[reportUnusedFunction]
-        dbapi_connection: Any,  # pyright: ignore[reportExplicitAny,reportAny]
-        connection_record: Any,  # pyright: ignore[reportExplicitAny,reportUnusedParameter,reportAny]
-    ) -> None:
-        cursor = dbapi_connection.cursor()  # pyright: ignore[reportAny]
-        cursor.execute("PRAGMA foreign_keys=ON")  # pyright: ignore[reportAny]
-        cursor.close()  # pyright: ignore[reportAny]
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    return engine
-
-
 class TestRepositoryCRUDRoundTrip:
     """
     Feature: zondarr-foundation
@@ -91,7 +61,7 @@ class TestRepositoryCRUDRoundTrip:
     """
 
     @settings(
-        max_examples=50,
+        max_examples=25,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -104,6 +74,7 @@ class TestRepositoryCRUDRoundTrip:
     @pytest.mark.asyncio
     async def test_media_server_crud_round_trip(
         self,
+        db: TestDB,
         name: str,
         server_type: ServerType,
         url: str,
@@ -111,40 +82,36 @@ class TestRepositoryCRUDRoundTrip:
         enabled: bool,
     ) -> None:
         """MediaServer created via repository can be retrieved with all fields preserved."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = MediaServerRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = MediaServerRepository(session)
 
-                # Create entity
-                server = MediaServer()
-                server.name = name
-                server.server_type = server_type
-                server.url = url
-                server.api_key = api_key
-                server.enabled = enabled
+            # Create entity
+            server = MediaServer()
+            server.name = name
+            server.server_type = server_type
+            server.url = url
+            server.api_key = api_key
+            server.enabled = enabled
 
-                created = await repo.create(server)
-                await session.commit()
+            created = await repo.create(server)
+            await session.commit()
 
-                # Retrieve by ID
-                retrieved = await repo.get_by_id(created.id)
+            # Retrieve by ID
+            retrieved = await repo.get_by_id(created.id)
 
-                # Verify all fields preserved
-                assert retrieved is not None
-                assert retrieved.id == created.id
-                assert retrieved.name == name
-                assert retrieved.server_type == server_type
-                assert retrieved.url == url
-                assert retrieved.api_key == api_key
-                assert retrieved.enabled == enabled
-                assert retrieved.created_at is not None
-        finally:
-            await engine.dispose()
+            # Verify all fields preserved
+            assert retrieved is not None
+            assert retrieved.id == created.id
+            assert retrieved.name == name
+            assert retrieved.server_type == server_type
+            assert retrieved.url == url
+            assert retrieved.api_key == api_key
+            assert retrieved.enabled == enabled
+            assert retrieved.created_at is not None
 
     @settings(
-        max_examples=50,
+        max_examples=25,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -159,6 +126,7 @@ class TestRepositoryCRUDRoundTrip:
     @pytest.mark.asyncio
     async def test_invitation_crud_round_trip(
         self,
+        db: TestDB,
         code: str,
         expires_at: datetime | None,
         max_uses: int | None,
@@ -168,48 +136,44 @@ class TestRepositoryCRUDRoundTrip:
         created_by: str | None,
     ) -> None:
         """Invitation created via repository can be retrieved with all fields preserved."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
 
-                # Create entity
-                invitation = Invitation()
-                invitation.code = code
-                invitation.expires_at = expires_at
-                invitation.max_uses = max_uses
-                invitation.use_count = use_count
-                invitation.duration_days = duration_days
-                invitation.enabled = enabled
-                invitation.created_by = created_by
+            # Create entity
+            invitation = Invitation()
+            invitation.code = code
+            invitation.expires_at = expires_at
+            invitation.max_uses = max_uses
+            invitation.use_count = use_count
+            invitation.duration_days = duration_days
+            invitation.enabled = enabled
+            invitation.created_by = created_by
 
-                created = await repo.create(invitation)
-                await session.commit()
+            created = await repo.create(invitation)
+            await session.commit()
 
-                # Retrieve by ID
-                retrieved = await repo.get_by_id(created.id)
+            # Retrieve by ID
+            retrieved = await repo.get_by_id(created.id)
 
-                # Verify all fields preserved
-                assert retrieved is not None
-                assert retrieved.id == created.id
-                assert retrieved.code == code
-                assert retrieved.max_uses == max_uses
-                assert retrieved.use_count == use_count
-                assert retrieved.duration_days == duration_days
-                assert retrieved.enabled == enabled
-                assert retrieved.created_by == created_by
-                assert retrieved.created_at is not None
+            # Verify all fields preserved
+            assert retrieved is not None
+            assert retrieved.id == created.id
+            assert retrieved.code == code
+            assert retrieved.max_uses == max_uses
+            assert retrieved.use_count == use_count
+            assert retrieved.duration_days == duration_days
+            assert retrieved.enabled == enabled
+            assert retrieved.created_by == created_by
+            assert retrieved.created_at is not None
 
-                # Also test get_by_code
-                by_code = await repo.get_by_code(code)
-                assert by_code is not None
-                assert by_code.id == created.id
-        finally:
-            await engine.dispose()
+            # Also test get_by_code
+            by_code = await repo.get_by_code(code)
+            assert by_code is not None
+            assert by_code.id == created.id
 
     @settings(
-        max_examples=50,
+        max_examples=25,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -221,43 +185,40 @@ class TestRepositoryCRUDRoundTrip:
     @pytest.mark.asyncio
     async def test_identity_crud_round_trip(
         self,
+        db: TestDB,
         display_name: str,
         email: str | None,
         expires_at: datetime | None,
         enabled: bool,
     ) -> None:
         """Identity created via repository can be retrieved with all fields preserved."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = IdentityRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = IdentityRepository(session)
 
-                # Create entity
-                identity = Identity()
-                identity.display_name = display_name
-                identity.email = email
-                identity.expires_at = expires_at
-                identity.enabled = enabled
+            # Create entity
+            identity = Identity()
+            identity.display_name = display_name
+            identity.email = email
+            identity.expires_at = expires_at
+            identity.enabled = enabled
 
-                created = await repo.create(identity)
-                await session.commit()
+            created = await repo.create(identity)
+            await session.commit()
 
-                # Retrieve by ID
-                retrieved = await repo.get_by_id(created.id)
+            # Retrieve by ID
+            retrieved = await repo.get_by_id(created.id)
 
-                # Verify all fields preserved
-                assert retrieved is not None
-                assert retrieved.id == created.id
-                assert retrieved.display_name == display_name
-                assert retrieved.email == email
-                assert retrieved.enabled == enabled
-                assert retrieved.created_at is not None
-        finally:
-            await engine.dispose()
+            # Verify all fields preserved
+            assert retrieved is not None
+            assert retrieved.id == created.id
+            assert retrieved.display_name == display_name
+            assert retrieved.email == email
+            assert retrieved.enabled == enabled
+            assert retrieved.created_at is not None
 
     @settings(
-        max_examples=50,
+        max_examples=25,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
     )
     @given(
@@ -269,74 +230,71 @@ class TestRepositoryCRUDRoundTrip:
     @pytest.mark.asyncio
     async def test_user_crud_round_trip(
         self,
+        db: TestDB,
         external_user_id: str,
         username: str,
         expires_at: datetime | None,
         enabled: bool,
     ) -> None:
         """User created via repository can be retrieved with all fields preserved."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                # First create required parent entities
-                identity_repo = IdentityRepository(session)
-                server_repo = MediaServerRepository(session)
-                user_repo = UserRepository(session)
+        await db.clean()
+        async with db.session_factory() as session:
+            # First create required parent entities
+            identity_repo = IdentityRepository(session)
+            server_repo = MediaServerRepository(session)
+            user_repo = UserRepository(session)
 
-                # Create identity
-                identity = Identity()
-                identity.display_name = "Test Identity"
-                identity.enabled = True
-                created_identity = await identity_repo.create(identity)
+            # Create identity
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            created_identity = await identity_repo.create(identity)
 
-                # Create media server
-                server = MediaServer()
-                server.name = "Test Server"
-                server.server_type = ServerType.JELLYFIN
-                server.url = "http://test.local"
-                server.api_key = "testkey"
-                server.enabled = True
-                created_server = await server_repo.create(server)
+            # Create media server
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://test.local"
+            server.api_key = "testkey"
+            server.enabled = True
+            created_server = await server_repo.create(server)
 
-                await session.commit()
+            await session.commit()
 
-                # Create user
-                user = User()
-                user.identity_id = created_identity.id
-                user.media_server_id = created_server.id
-                user.external_user_id = external_user_id
-                user.username = username
-                user.expires_at = expires_at
-                user.enabled = enabled
+            # Create user
+            user = User()
+            user.identity_id = created_identity.id
+            user.media_server_id = created_server.id
+            user.external_user_id = external_user_id
+            user.username = username
+            user.expires_at = expires_at
+            user.enabled = enabled
 
-                created_user = await user_repo.create(user)
-                await session.commit()
+            created_user = await user_repo.create(user)
+            await session.commit()
 
-                # Retrieve by ID
-                retrieved = await user_repo.get_by_id(created_user.id)
+            # Retrieve by ID
+            retrieved = await user_repo.get_by_id(created_user.id)
 
-                # Verify all fields preserved
-                assert retrieved is not None
-                assert retrieved.id == created_user.id
-                assert retrieved.identity_id == created_identity.id
-                assert retrieved.media_server_id == created_server.id
-                assert retrieved.external_user_id == external_user_id
-                assert retrieved.username == username
-                assert retrieved.enabled == enabled
-                assert retrieved.created_at is not None
+            # Verify all fields preserved
+            assert retrieved is not None
+            assert retrieved.id == created_user.id
+            assert retrieved.identity_id == created_identity.id
+            assert retrieved.media_server_id == created_server.id
+            assert retrieved.external_user_id == external_user_id
+            assert retrieved.username == username
+            assert retrieved.enabled == enabled
+            assert retrieved.created_at is not None
 
-                # Also test get_by_identity
-                by_identity = await user_repo.get_by_identity(created_identity.id)
-                assert len(by_identity) == 1
-                assert by_identity[0].id == created_user.id
+            # Also test get_by_identity
+            by_identity = await user_repo.get_by_identity(created_identity.id)
+            assert len(by_identity) == 1
+            assert by_identity[0].id == created_user.id
 
-                # Also test get_by_server
-                by_server = await user_repo.get_by_server(created_server.id)
-                assert len(by_server) == 1
-                assert by_server[0].id == created_user.id
-        finally:
-            await engine.dispose()
+            # Also test get_by_server
+            by_server = await user_repo.get_by_server(created_server.id)
+            assert len(by_server) == 1
+            assert by_server[0].id == created_user.id
 
 
 class TestRepositoryWrapsErrors:

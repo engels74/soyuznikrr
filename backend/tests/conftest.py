@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from hypothesis import HealthCheck, Phase, Verbosity, settings
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -108,6 +108,86 @@ async def create_test_engine() -> AsyncEngine:
         await conn.run_sync(Base.metadata.create_all)
 
     return engine
+
+
+# =============================================================================
+# Reusable Test Database (for Hypothesis @given tests)
+# =============================================================================
+
+# Tables in deletion order (children before parents) to respect FK constraints.
+_TRUNCATE_ORDER: list[str] = [
+    "wizard_steps",
+    "wizards",
+    "users",
+    "invitation_libraries",
+    "invitation_servers",
+    "invitations",
+    "libraries",
+    "identities",
+    "media_servers",
+]
+
+
+class TestDB:
+    """Reusable test database — creates engine once, truncates between examples.
+
+    Use this in @given tests to avoid recreating the engine+schema per Hypothesis
+    example. Call ``await db.clean()`` at the start of each example.
+    """
+
+    __test__ = False  # Tell pytest this is not a test class
+
+    _engine: AsyncEngine | None
+    _session_factory: async_sessionmaker[AsyncSession] | None
+
+    def __init__(self) -> None:
+        self._engine = None
+        self._session_factory = None
+
+    async def clean(self) -> None:
+        """Prepare DB for the next example.
+
+        First call creates the engine + schema. Subsequent calls truncate all
+        tables via DELETE (much faster than recreating the engine).
+        """
+        if self._engine is None:
+            self._engine = await create_test_engine()
+            self._session_factory = async_sessionmaker(
+                self._engine, expire_on_commit=False
+            )
+        else:
+            async with self._engine.begin() as conn:
+                for table in _TRUNCATE_ORDER:
+                    await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608
+
+    @property
+    def engine(self) -> AsyncEngine:
+        """Return the engine (must call ``clean()`` first)."""
+        assert self._engine is not None, "call clean() before accessing engine"
+        return self._engine
+
+    @property
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        """Return the session factory (must call ``clean()`` first)."""
+        assert self._session_factory is not None, (
+            "call clean() before accessing session_factory"
+        )
+        return self._session_factory
+
+    async def dispose(self) -> None:
+        """Dispose the engine (called by the fixture teardown)."""
+        if self._engine is not None:
+            await self._engine.dispose()
+            self._engine = None
+            self._session_factory = None
+
+
+@pytest.fixture
+async def db() -> AsyncGenerator[TestDB]:
+    """Provide a reusable TestDB instance for @given tests."""
+    test_db = TestDB()
+    yield test_db
+    await test_db.dispose()
 
 
 # =============================================================================

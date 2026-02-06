@@ -10,9 +10,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.models import Invitation
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
@@ -35,80 +34,68 @@ class TestValidationChecksAllConditions:
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_validate_returns_not_found_for_nonexistent_code(
-        self, code: str
+        self, db: TestDB, code: str
     ) -> None:
         """Validation returns NOT_FOUND for nonexistent invitation codes."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                is_valid, reason = await service.validate(code)
+            is_valid, reason = await service.validate(code)
 
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.NOT_FOUND
-        finally:
-            await engine.dispose()
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.NOT_FOUND
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_validate_returns_disabled_for_disabled_invitation(
-        self, code: str
+        self, db: TestDB, code: str
     ) -> None:
         """Validation returns DISABLED for disabled invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = False
-                invitation.expires_at = None
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False
+            invitation.expires_at = None
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                is_valid, reason = await service.validate(code)
+            is_valid, reason = await service.validate(code)
 
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.DISABLED
-        finally:
-            await engine.dispose()
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.DISABLED
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_validate_returns_expired_for_expired_invitation(
-        self, code: str
+        self, db: TestDB, code: str
     ) -> None:
         """Validation returns EXPIRED for expired invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) - timedelta(days=1)
-                invitation.max_uses = None
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) - timedelta(days=1)
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                is_valid, reason = await service.validate(code)
+            is_valid, reason = await service.validate(code)
 
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.EXPIRED
-        finally:
-            await engine.dispose()
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.EXPIRED
 
     @given(
         code=code_strategy,
@@ -116,58 +103,52 @@ class TestValidationChecksAllConditions:
     )
     @pytest.mark.asyncio
     async def test_validate_returns_max_uses_reached_for_exhausted_invitation(
-        self, code: str, max_uses: int
+        self, db: TestDB, code: str, max_uses: int
     ) -> None:
         """Validation returns MAX_USES_REACHED for exhausted invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = None
-                invitation.max_uses = max_uses
-                invitation.use_count = max_uses
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = None
+            invitation.max_uses = max_uses
+            invitation.use_count = max_uses
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                is_valid, reason = await service.validate(code)
+            is_valid, reason = await service.validate(code)
 
-                assert is_valid is False
-                assert reason == InvitationValidationFailure.MAX_USES_REACHED
-        finally:
-            await engine.dispose()
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.MAX_USES_REACHED
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
-    async def test_validate_returns_valid_for_valid_invitation(self, code: str) -> None:
+    async def test_validate_returns_valid_for_valid_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
         """Validation returns valid=True for valid invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
-                invitation.max_uses = 10
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
+            invitation.max_uses = 10
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                is_valid, reason = await service.validate(code)
+            is_valid, reason = await service.validate(code)
 
-                assert is_valid is True
-                assert reason is None
-        finally:
-            await engine.dispose()
+            assert is_valid is True
+            assert reason is None
 
 
 class TestValidationDoesNotIncrementUseCount:
@@ -185,36 +166,32 @@ class TestValidationDoesNotIncrementUseCount:
     )
     @pytest.mark.asyncio
     async def test_validate_does_not_increment_use_count_for_valid_invitation(
-        self, code: str, initial_use_count: int
+        self, db: TestDB, code: str, initial_use_count: int
     ) -> None:
         """Validation does not increment use_count for valid invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
-                invitation.max_uses = 100
-                invitation.use_count = initial_use_count
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
+            invitation.max_uses = 100
+            invitation.use_count = initial_use_count
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                # Validate multiple times
-                for _ in range(3):
-                    is_valid, _ = await service.validate(code)
-                    assert is_valid is True
+            # Validate multiple times
+            for _ in range(3):
+                is_valid, _ = await service.validate(code)
+                assert is_valid is True
 
-                # Verify use_count unchanged
-                retrieved = await repo.get_by_code(code)
-                assert retrieved is not None
-                assert retrieved.use_count == initial_use_count
-        finally:
-            await engine.dispose()
+            # Verify use_count unchanged
+            retrieved = await repo.get_by_code(code)
+            assert retrieved is not None
+            assert retrieved.use_count == initial_use_count
 
     @given(
         code=code_strategy,
@@ -222,79 +199,71 @@ class TestValidationDoesNotIncrementUseCount:
     )
     @pytest.mark.asyncio
     async def test_validate_does_not_increment_use_count_for_invalid_invitation(
-        self, code: str, initial_use_count: int
+        self, db: TestDB, code: str, initial_use_count: int
     ) -> None:
         """Validation does not increment use_count for invalid invitations."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                # Create a disabled invitation
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = False
-                invitation.expires_at = None
-                invitation.max_uses = None
-                invitation.use_count = initial_use_count
-                _ = await repo.create(invitation)
-                await session.commit()
+            # Create a disabled invitation
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False
+            invitation.expires_at = None
+            invitation.max_uses = None
+            invitation.use_count = initial_use_count
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                # Validate multiple times
-                for _ in range(3):
-                    is_valid, _ = await service.validate(code)
-                    assert is_valid is False
+            # Validate multiple times
+            for _ in range(3):
+                is_valid, _ = await service.validate(code)
+                assert is_valid is False
 
-                # Verify use_count unchanged
-                retrieved = await repo.get_by_code(code)
-                assert retrieved is not None
-                assert retrieved.use_count == initial_use_count
-        finally:
-            await engine.dispose()
+            # Verify use_count unchanged
+            retrieved = await repo.get_by_code(code)
+            assert retrieved is not None
+            assert retrieved.use_count == initial_use_count
 
     @given(code=code_strategy)
     @pytest.mark.asyncio
     async def test_redeem_increments_use_count_but_validate_does_not(
-        self, code: str
+        self, db: TestDB, code: str
     ) -> None:
         """Redeem increments use_count while validate does not."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            async with session_factory() as session:
-                repo = InvitationRepository(session)
-                service = InvitationService(repo)
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
 
-                invitation = Invitation()
-                invitation.code = code
-                invitation.enabled = True
-                invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
-                invitation.max_uses = 10
-                invitation.use_count = 0
-                _ = await repo.create(invitation)
-                await session.commit()
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = True
+            invitation.expires_at = datetime.now(UTC) + timedelta(days=7)
+            invitation.max_uses = 10
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
 
-                # Validate should not increment
-                is_valid, _ = await service.validate(code)
-                assert is_valid is True
+            # Validate should not increment
+            is_valid, _ = await service.validate(code)
+            assert is_valid is True
 
-                retrieved = await repo.get_by_code(code)
-                assert retrieved is not None
-                assert retrieved.use_count == 0
+            retrieved = await repo.get_by_code(code)
+            assert retrieved is not None
+            assert retrieved.use_count == 0
 
-                # Redeem should increment
-                redeemed = await service.redeem(code)
-                await session.commit()
-                assert redeemed.use_count == 1
+            # Redeem should increment
+            redeemed = await service.redeem(code)
+            await session.commit()
+            assert redeemed.use_count == 1
 
-                # Validate again should still not increment
-                is_valid, _ = await service.validate(code)
-                assert is_valid is True
+            # Validate again should still not increment
+            is_valid, _ = await service.validate(code)
+            assert is_valid is True
 
-                retrieved = await repo.get_by_code(code)
-                assert retrieved is not None
-                assert retrieved.use_count == 1
-        finally:
-            await engine.dispose()
+            retrieved = await repo.get_by_code(code)
+            assert retrieved is not None
+            assert retrieved.use_count == 1

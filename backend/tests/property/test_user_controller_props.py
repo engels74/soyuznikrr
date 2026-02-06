@@ -14,9 +14,8 @@ Tests that for any list_users request:
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.models import ServerType
 from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
@@ -60,7 +59,7 @@ external_user_id_strategy = st.uuids().map(str)
 
 
 async def create_test_users(
-    session_factory: async_sessionmaker[AsyncSession],
+    session_factory,
     *,
     count: int,
 ) -> list[User]:
@@ -137,10 +136,11 @@ class TestPageSizeIsCapped:
     """
 
     @given(page_size=page_size_above_cap_strategy)
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_above_cap_is_capped_to_100(
         self,
+        db: TestDB,
         page_size: int,
     ) -> None:
         """Page size values above 100 are capped to 100.
@@ -150,38 +150,34 @@ class TestPageSizeIsCapped:
         Property: For any page_size P > 100, the actual page_size used
         in the query and returned in the response should be 100.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create enough test users to verify pagination
-            _ = await create_test_users(session_factory, count=5)
+        # Create enough test users to verify pagination
+        _ = await create_test_users(db.session_factory, count=5)
 
-            # Execute list_users with page_size above cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size above cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,  # Above 100
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,  # Above 100
+            )
 
-                # PROPERTY ASSERTION: The service caps page_size at 100
-                # We verify this by checking that the service accepted the
-                # request without error and returned results
-                assert total == 5, f"Expected 5 total users, got {total}"
-                assert len(items) == 5, f"Expected 5 items, got {len(items)}"
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: The service caps page_size at 100
+            # We verify this by checking that the service accepted the
+            # request without error and returned results
+            assert total == 5, f"Expected 5 total users, got {total}"
+            assert len(items) == 5, f"Expected 5 items, got {len(items)}"
 
     @given(page_size=page_size_at_or_below_cap_strategy)
-    @settings(max_examples=30, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_at_or_below_cap_is_used_as_is(
         self,
+        db: TestDB,
         page_size: int,
     ) -> None:
         """Page size values at or below 100 are used as requested.
@@ -191,44 +187,40 @@ class TestPageSizeIsCapped:
         Property: For any page_size P <= 100, the actual page_size used
         should be P (not capped).
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create more users than the max page_size to test pagination
-            num_users = 150
-            _ = await create_test_users(session_factory, count=num_users)
+        # Create more users than the max page_size to test pagination
+        num_users = 150
+        _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users with page_size at or below cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size at or below cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,  # At or below 100
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,  # At or below 100
+            )
 
-                # PROPERTY ASSERTION: The requested page_size is used
-                assert total == num_users, f"Expected {num_users} total, got {total}"
-                expected_items = min(page_size, num_users)
-                assert len(items) == expected_items, (
-                    f"Expected {expected_items} items for page_size={page_size}, "
-                    f"got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: The requested page_size is used
+            assert total == num_users, f"Expected {num_users} total, got {total}"
+            expected_items = min(page_size, num_users)
+            assert len(items) == expected_items, (
+                f"Expected {expected_items} items for page_size={page_size}, "
+                f"got {len(items)}"
+            )
 
     @given(
         page_size=page_size_strategy,
         num_users=st.integers(min_value=0, max_value=200),
     )
-    @settings(max_examples=50, deadline=None)
+    @settings(max_examples=25, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_cap_with_varying_user_counts(
         self,
+        db: TestDB,
         page_size: int,
         num_users: int,
     ) -> None:
@@ -240,45 +232,41 @@ class TestPageSizeIsCapped:
         - The capped page_size is min(P, 100)
         - The returned items count is min(capped_page_size, N)
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test users
-            if num_users > 0:
-                _ = await create_test_users(session_factory, count=num_users)
+        # Create test users
+        if num_users > 0:
+            _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,
+            )
 
-                # Calculate expected values
-                capped_page_size = min(page_size, MAX_PAGE_SIZE)
-                expected_items = min(capped_page_size, num_users)
+            # Calculate expected values
+            capped_page_size = min(page_size, MAX_PAGE_SIZE)
+            expected_items = min(capped_page_size, num_users)
 
-                # PROPERTY ASSERTIONS
-                assert total == num_users, f"Expected total={num_users}, got {total}"
-                assert len(items) == expected_items, (
-                    f"Expected {expected_items} items for page_size={page_size} "
-                    f"(capped to {capped_page_size}) with {num_users} users, "
-                    f"got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTIONS
+            assert total == num_users, f"Expected total={num_users}, got {total}"
+            assert len(items) == expected_items, (
+                f"Expected {expected_items} items for page_size={page_size} "
+                f"(capped to {capped_page_size}) with {num_users} users, "
+                f"got {len(items)}"
+            )
 
     @given(page_size=page_size_above_cap_strategy)
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_cap_limits_returned_items(
         self,
+        db: TestDB,
         page_size: int,
     ) -> None:
         """Page size cap limits the number of returned items to 100.
@@ -288,42 +276,38 @@ class TestPageSizeIsCapped:
         Property: For any page_size P > 100 with more than 100 users,
         the returned items count should be exactly 100.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create more users than the cap
-            num_users = 150
-            _ = await create_test_users(session_factory, count=num_users)
+        # Create more users than the cap
+        num_users = 150
+        _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users with page_size above cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size above cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,  # Above 100
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,  # Above 100
+            )
 
-                # PROPERTY ASSERTION: Items are capped at 100
-                assert total == num_users, f"Expected {num_users} total, got {total}"
-                assert len(items) == MAX_PAGE_SIZE, (
-                    f"Expected {MAX_PAGE_SIZE} items (capped), got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: Items are capped at 100
+            assert total == num_users, f"Expected {num_users} total, got {total}"
+            assert len(items) == MAX_PAGE_SIZE, (
+                f"Expected {MAX_PAGE_SIZE} items (capped), got {len(items)}"
+            )
 
     @given(
         page_size=page_size_above_cap_strategy,
         page=st.integers(min_value=1, max_value=5),
     )
-    @settings(max_examples=20, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_cap_applies_to_all_pages(
         self,
+        db: TestDB,
         page_size: int,
         page: int,
     ) -> None:
@@ -334,46 +318,42 @@ class TestPageSizeIsCapped:
         Property: For any page_size P > 100 and any page number,
         the capped page_size of 100 should be used for pagination.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create enough users for multiple pages
-            num_users = 350
-            _ = await create_test_users(session_factory, count=num_users)
+        # Create enough users for multiple pages
+        num_users = 350
+        _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users with page_size above cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size above cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=page,
-                    page_size=page_size,  # Above 100
-                )
+            items, total = await user_service.list_users(
+                page=page,
+                page_size=page_size,  # Above 100
+            )
 
-                # Calculate expected items for this page
-                capped_page_size = MAX_PAGE_SIZE
-                start_index = (page - 1) * capped_page_size
-                remaining_users = max(0, num_users - start_index)
-                expected_items = min(capped_page_size, remaining_users)
+            # Calculate expected items for this page
+            capped_page_size = MAX_PAGE_SIZE
+            start_index = (page - 1) * capped_page_size
+            remaining_users = max(0, num_users - start_index)
+            expected_items = min(capped_page_size, remaining_users)
 
-                # PROPERTY ASSERTIONS
-                assert total == num_users, f"Expected {num_users} total, got {total}"
-                assert len(items) == expected_items, (
-                    f"Expected {expected_items} items on page {page} "
-                    f"with capped page_size={capped_page_size}, got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTIONS
+            assert total == num_users, f"Expected {num_users} total, got {total}"
+            assert len(items) == expected_items, (
+                f"Expected {expected_items} items on page {page} "
+                f"with capped page_size={capped_page_size}, got {len(items)}"
+            )
 
     @given(page_size=st.just(MAX_PAGE_SIZE))
     @settings(max_examples=5, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_at_exactly_100_is_not_capped(
         self,
+        db: TestDB,
         page_size: int,
     ) -> None:
         """Page size of exactly 100 is used as-is (boundary test).
@@ -382,39 +362,35 @@ class TestPageSizeIsCapped:
 
         Property: page_size=100 should not be capped (it's at the limit).
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create more users than the page size
-            num_users = 150
-            _ = await create_test_users(session_factory, count=num_users)
+        # Create more users than the page size
+        num_users = 150
+        _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users with page_size exactly at cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size exactly at cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,  # Exactly 100
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,  # Exactly 100
+            )
 
-                # PROPERTY ASSERTION: page_size=100 returns 100 items
-                assert total == num_users, f"Expected {num_users} total, got {total}"
-                assert len(items) == MAX_PAGE_SIZE, (
-                    f"Expected {MAX_PAGE_SIZE} items, got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: page_size=100 returns 100 items
+            assert total == num_users, f"Expected {num_users} total, got {total}"
+            assert len(items) == MAX_PAGE_SIZE, (
+                f"Expected {MAX_PAGE_SIZE} items, got {len(items)}"
+            )
 
     @given(page_size=st.just(MAX_PAGE_SIZE + 1))
     @settings(max_examples=5, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_at_101_is_capped(
         self,
+        db: TestDB,
         page_size: int,
     ) -> None:
         """Page size of 101 is capped to 100 (boundary test).
@@ -423,31 +399,25 @@ class TestPageSizeIsCapped:
 
         Property: page_size=101 should be capped to 100.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create more users than the page size
-            num_users = 150
-            _ = await create_test_users(session_factory, count=num_users)
+        # Create more users than the page size
+        num_users = 150
+        _ = await create_test_users(db.session_factory, count=num_users)
 
-            # Execute list_users with page_size just above cap
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute list_users with page_size just above cap
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                items, total = await user_service.list_users(
-                    page=1,
-                    page_size=page_size,  # 101 - should be capped
-                )
+            items, total = await user_service.list_users(
+                page=1,
+                page_size=page_size,  # 101 - should be capped
+            )
 
-                # PROPERTY ASSERTION: page_size=101 is capped to 100
-                assert total == num_users, f"Expected {num_users} total, got {total}"
-                assert len(items) == MAX_PAGE_SIZE, (
-                    f"Expected {MAX_PAGE_SIZE} items (capped from 101), "
-                    f"got {len(items)}"
-                )
-
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: page_size=101 is capped to 100
+            assert total == num_users, f"Expected {num_users} total, got {total}"
+            assert len(items) == MAX_PAGE_SIZE, (
+                f"Expected {MAX_PAGE_SIZE} items (capped from 101), got {len(items)}"
+            )

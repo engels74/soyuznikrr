@@ -24,7 +24,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.core.exceptions import ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import ClientRegistry
@@ -250,6 +250,7 @@ class TestEnableDisableAtomicity:
     @pytest.mark.asyncio
     async def test_successful_update_changes_local_record(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -262,56 +263,50 @@ class TestEnableDisableAtomicity:
         Property: For any user with initial enabled state I and target state T,
         if the Jellyfin API call succeeds, the local User.enabled becomes T.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user with initial enabled state
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
-            )
-            user_id = user.id
+        # Create test user with initial enabled state
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
 
-            # Create mock registry that returns successful client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_success(enabled=target_enabled)
-            )
+        # Create mock registry that returns successful client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_success(enabled=target_enabled)
+        )
 
-            # Execute set_enabled operation
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute set_enabled operation
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    updated_user = await user_service.set_enabled(
-                        user_id,
-                        enabled=target_enabled,
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION: Local record is updated to target state
-                assert updated_user.enabled == target_enabled, (
-                    f"Expected enabled={target_enabled}, got {updated_user.enabled}"
+            with patch("zondarr.services.user.registry", mock_registry):
+                updated_user = await user_service.set_enabled(
+                    user_id,
+                    enabled=target_enabled,
                 )
 
-            # Verify persistence by reading from fresh session
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None
-                assert persisted_user.enabled == target_enabled, (
-                    f"Persisted enabled={persisted_user.enabled}, "
-                    f"expected {target_enabled}"
-                )
+            await session.commit()
 
-        finally:
-            await engine.dispose()
+            # PROPERTY ASSERTION: Local record is updated to target state
+            assert updated_user.enabled == target_enabled, (
+                f"Expected enabled={target_enabled}, got {updated_user.enabled}"
+            )
+
+        # Verify persistence by reading from fresh session
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None
+            assert persisted_user.enabled == target_enabled, (
+                f"Persisted enabled={persisted_user.enabled}, expected {target_enabled}"
+            )
 
     @given(
         username=username_strategy,
@@ -323,6 +318,7 @@ class TestEnableDisableAtomicity:
     @pytest.mark.asyncio
     async def test_failed_update_preserves_local_record(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -335,55 +331,50 @@ class TestEnableDisableAtomicity:
         Property: For any user with initial enabled state I and target state T,
         if the Jellyfin API call fails, the local User.enabled remains I.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user with initial enabled state
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
+        # Create test user with initial enabled state
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns failing client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_failure(
+                error_message="Jellyfin server unavailable"
             )
-            user_id = user.id
+        )
 
-            # Create mock registry that returns failing client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_failure(
-                    error_message="Jellyfin server unavailable"
-                )
+        # Execute set_enabled operation - should raise ValidationError
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError) as exc_info:
+                    _ = await user_service.set_enabled(
+                        user_id,
+                        enabled=target_enabled,
+                    )
+
+            # Verify exception contains relevant error info
+            assert "media server" in exc_info.value.message.lower()
+
+        # PROPERTY ASSERTION: Local record is unchanged
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None
+            assert persisted_user.enabled == initial_enabled, (
+                f"Expected enabled to remain {initial_enabled}, "
+                f"but got {persisted_user.enabled}"
             )
-
-            # Execute set_enabled operation - should raise ValidationError
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    with pytest.raises(ValidationError) as exc_info:
-                        _ = await user_service.set_enabled(
-                            user_id,
-                            enabled=target_enabled,
-                        )
-
-                # Verify exception contains relevant error info
-                assert "media server" in exc_info.value.message.lower()
-
-            # PROPERTY ASSERTION: Local record is unchanged
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None
-                assert persisted_user.enabled == initial_enabled, (
-                    f"Expected enabled to remain {initial_enabled}, "
-                    f"but got {persisted_user.enabled}"
-                )
-
-        finally:
-            await engine.dispose()
 
     @given(
         username=username_strategy,
@@ -395,6 +386,7 @@ class TestEnableDisableAtomicity:
     @pytest.mark.asyncio
     async def test_user_not_found_on_server_preserves_local_record(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -407,53 +399,48 @@ class TestEnableDisableAtomicity:
         Property: For any user that exists locally but not on the media server,
         the set_enabled operation should fail and preserve the local state.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user with initial enabled state
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
+        # Create test user with initial enabled state
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns "user not found" response
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_user_not_found()
+        )
+
+        # Execute set_enabled operation - should raise ValidationError
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError) as exc_info:
+                    _ = await user_service.set_enabled(
+                        user_id,
+                        enabled=target_enabled,
+                    )
+
+            # Verify exception indicates user not found
+            assert "not found" in exc_info.value.message.lower()
+
+        # PROPERTY ASSERTION: Local record is unchanged
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None
+            assert persisted_user.enabled == initial_enabled, (
+                f"Expected enabled to remain {initial_enabled}, "
+                f"but got {persisted_user.enabled}"
             )
-            user_id = user.id
-
-            # Create mock registry that returns "user not found" response
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_user_not_found()
-            )
-
-            # Execute set_enabled operation - should raise ValidationError
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    with pytest.raises(ValidationError) as exc_info:
-                        _ = await user_service.set_enabled(
-                            user_id,
-                            enabled=target_enabled,
-                        )
-
-                # Verify exception indicates user not found
-                assert "not found" in exc_info.value.message.lower()
-
-            # PROPERTY ASSERTION: Local record is unchanged
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None
-                assert persisted_user.enabled == initial_enabled, (
-                    f"Expected enabled to remain {initial_enabled}, "
-                    f"but got {persisted_user.enabled}"
-                )
-
-        finally:
-            await engine.dispose()
 
     @given(
         username=username_strategy,
@@ -464,6 +451,7 @@ class TestEnableDisableAtomicity:
     @pytest.mark.asyncio
     async def test_idempotent_enable_disable(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -475,46 +463,41 @@ class TestEnableDisableAtomicity:
         Property: For any user with enabled state E, setting enabled to E
         should succeed and leave the state as E.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user with initial enabled state
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
-            )
-            user_id = user.id
+        # Create test user with initial enabled state
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
 
-            # Create mock registry that returns successful client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_success(enabled=initial_enabled)
-            )
+        # Create mock registry that returns successful client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_success(enabled=initial_enabled)
+        )
 
-            # Execute set_enabled with same value
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute set_enabled with same value
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    updated_user = await user_service.set_enabled(
-                        user_id,
-                        enabled=initial_enabled,  # Same as current
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION: State remains the same
-                assert updated_user.enabled == initial_enabled, (
-                    f"Expected enabled={initial_enabled}, got {updated_user.enabled}"
+            with patch("zondarr.services.user.registry", mock_registry):
+                updated_user = await user_service.set_enabled(
+                    user_id,
+                    enabled=initial_enabled,  # Same as current
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: State remains the same
+            assert updated_user.enabled == initial_enabled, (
+                f"Expected enabled={initial_enabled}, got {updated_user.enabled}"
+            )
 
     @given(
         username=username_strategy,
@@ -525,6 +508,7 @@ class TestEnableDisableAtomicity:
     @pytest.mark.asyncio
     async def test_toggle_enabled_state(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -536,50 +520,45 @@ class TestEnableDisableAtomicity:
         Property: For any user with enabled state E, setting enabled to !E
         should result in the user having enabled state !E.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user with initial enabled state
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
-            )
-            user_id = user.id
-            target_enabled = not initial_enabled
+        # Create test user with initial enabled state
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+        target_enabled = not initial_enabled
 
-            # Create mock registry that returns successful client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_success(enabled=target_enabled)
-            )
+        # Create mock registry that returns successful client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_success(enabled=target_enabled)
+        )
 
-            # Execute set_enabled with toggled value
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute set_enabled with toggled value
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    updated_user = await user_service.set_enabled(
-                        user_id,
-                        enabled=target_enabled,
-                    )
-
-                await session.commit()
-
-                # PROPERTY ASSERTION: State is toggled
-                assert updated_user.enabled == target_enabled, (
-                    f"Expected enabled={target_enabled}, got {updated_user.enabled}"
-                )
-                assert updated_user.enabled != initial_enabled, (
-                    f"Expected enabled to change from {initial_enabled}"
+            with patch("zondarr.services.user.registry", mock_registry):
+                updated_user = await user_service.set_enabled(
+                    user_id,
+                    enabled=target_enabled,
                 )
 
-        finally:
-            await engine.dispose()
+            await session.commit()
+
+            # PROPERTY ASSERTION: State is toggled
+            assert updated_user.enabled == target_enabled, (
+                f"Expected enabled={target_enabled}, got {updated_user.enabled}"
+            )
+            assert updated_user.enabled != initial_enabled, (
+                f"Expected enabled to change from {initial_enabled}"
+            )
 
 
 # =============================================================================
@@ -606,6 +585,7 @@ class TestUserDeletionAtomicity:
     @pytest.mark.asyncio
     async def test_successful_delete_removes_local_record(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -617,46 +597,41 @@ class TestUserDeletionAtomicity:
         Property: For any user, if the Jellyfin API delete_user call succeeds,
         the local User record is deleted from the database.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns successful delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_success()
+        )
+
+        # Execute delete operation
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_id)
+
+            await session.commit()
+
+        # PROPERTY ASSERTION: Local record is deleted
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            deleted_user = await user_repo.get_by_id(user_id)
+            assert deleted_user is None, (
+                f"Expected user {user_id} to be deleted, but it still exists"
             )
-            user_id = user.id
-
-            # Create mock registry that returns successful delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_success()
-            )
-
-            # Execute delete operation
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(user_id)
-
-                await session.commit()
-
-            # PROPERTY ASSERTION: Local record is deleted
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                deleted_user = await user_repo.get_by_id(user_id)
-                assert deleted_user is None, (
-                    f"Expected user {user_id} to be deleted, but it still exists"
-                )
-
-        finally:
-            await engine.dispose()
 
     @given(
         username=username_strategy,
@@ -667,6 +642,7 @@ class TestUserDeletionAtomicity:
     @pytest.mark.asyncio
     async def test_failed_delete_preserves_local_record(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -678,56 +654,51 @@ class TestUserDeletionAtomicity:
         Property: For any user, if the Jellyfin API delete_user call fails
         with MediaClientError, the local User record still exists in the database.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns failing delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_failure(
+                error_message="Jellyfin server unavailable"
             )
-            user_id = user.id
+        )
 
-            # Create mock registry that returns failing delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_failure(
-                    error_message="Jellyfin server unavailable"
-                )
+        # Execute delete operation - should raise ValidationError
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError) as exc_info:
+                    await user_service.delete(user_id)
+
+            # Verify exception contains relevant error info
+            assert "media server" in exc_info.value.message.lower()
+
+        # PROPERTY ASSERTION: Local record still exists
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None, (
+                f"Expected user {user_id} to still exist after failed delete"
             )
-
-            # Execute delete operation - should raise ValidationError
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    with pytest.raises(ValidationError) as exc_info:
-                        await user_service.delete(user_id)
-
-                # Verify exception contains relevant error info
-                assert "media server" in exc_info.value.message.lower()
-
-            # PROPERTY ASSERTION: Local record still exists
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None, (
-                    f"Expected user {user_id} to still exist after failed delete"
-                )
-                assert persisted_user.username == username, (
-                    f"Expected username {username}, got {persisted_user.username}"
-                )
-                assert persisted_user.enabled == initial_enabled, (
-                    f"Expected enabled={initial_enabled}, got {persisted_user.enabled}"
-                )
-
-        finally:
-            await engine.dispose()
+            assert persisted_user.username == username, (
+                f"Expected username {username}, got {persisted_user.username}"
+            )
+            assert persisted_user.enabled == initial_enabled, (
+                f"Expected enabled={initial_enabled}, got {persisted_user.enabled}"
+            )
 
     @given(
         username=username_strategy,
@@ -738,6 +709,7 @@ class TestUserDeletionAtomicity:
     @pytest.mark.asyncio
     async def test_user_not_found_on_server_still_deletes_local(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
@@ -750,46 +722,41 @@ class TestUserDeletionAtomicity:
         (delete_user returns False), the local User record should still be deleted.
         This handles the case where the user was already deleted externally.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=initial_enabled,
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns "user not found" response
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_user_not_found()
+        )
+
+        # Execute delete operation - should succeed even if user not on server
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_id)
+
+            await session.commit()
+
+        # PROPERTY ASSERTION: Local record is deleted
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            deleted_user = await user_repo.get_by_id(user_id)
+            assert deleted_user is None, (
+                f"Expected user {user_id} to be deleted even when not found on server"
             )
-            user_id = user.id
-
-            # Create mock registry that returns "user not found" response
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_user_not_found()
-            )
-
-            # Execute delete operation - should succeed even if user not on server
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(user_id)
-
-                await session.commit()
-
-            # PROPERTY ASSERTION: Local record is deleted
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                deleted_user = await user_repo.get_by_id(user_id)
-                assert deleted_user is None, (
-                    f"Expected user {user_id} to be deleted even when not found on server"
-                )
-
-        finally:
-            await engine.dispose()
 
     @given(
         username=username_strategy,
@@ -799,6 +766,7 @@ class TestUserDeletionAtomicity:
     @pytest.mark.asyncio
     async def test_delete_atomicity_external_first(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
     ) -> None:
@@ -810,64 +778,59 @@ class TestUserDeletionAtomicity:
         If external deletion fails, local deletion must not occur.
         This ensures atomicity - either both succeed or neither happens.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=True,
-            )
-            user_id = user.id
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=True,
+        )
+        user_id = user.id
 
-            # Track call order
-            call_order: list[str] = []
+        # Track call order
+        call_order: list[str] = []
 
-            # Create mock client that tracks calls and fails
-            mock_client = AsyncMock()
+        # Create mock client that tracks calls and fails
+        mock_client = AsyncMock()
 
-            async def track_delete_user(_ext_id: str, /) -> bool:
-                call_order.append("external_delete")
-                raise MediaClientError(
-                    "Server error",
-                    operation="delete_user",
-                )
-
-            mock_client.delete_user = track_delete_user
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(return_value=mock_client)
-
-            # Execute delete operation - should fail
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    with pytest.raises(ValidationError):
-                        await user_service.delete(user_id)
-
-            # PROPERTY ASSERTION: External delete was attempted
-            assert "external_delete" in call_order, (
-                "External delete should be attempted before local delete"
+        async def track_delete_user(_ext_id: str, /) -> bool:
+            call_order.append("external_delete")
+            raise MediaClientError(
+                "Server error",
+                operation="delete_user",
             )
 
-            # PROPERTY ASSERTION: Local record still exists (atomicity)
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None, (
-                    "Local record should exist when external delete fails (atomicity)"
-                )
+        mock_client.delete_user = track_delete_user
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        finally:
-            await engine.dispose()
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(return_value=mock_client)
+
+        # Execute delete operation - should fail
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError):
+                    await user_service.delete(user_id)
+
+        # PROPERTY ASSERTION: External delete was attempted
+        assert "external_delete" in call_order, (
+            "External delete should be attempted before local delete"
+        )
+
+        # PROPERTY ASSERTION: Local record still exists (atomicity)
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None, (
+                "Local record should exist when external delete fails (atomicity)"
+            )
 
     @given(
         username=username_strategy,
@@ -877,6 +840,7 @@ class TestUserDeletionAtomicity:
     @pytest.mark.asyncio
     async def test_delete_calls_correct_external_user_id(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
     ) -> None:
@@ -887,57 +851,52 @@ class TestUserDeletionAtomicity:
         Property: The delete operation must call the media client's delete_user
         method with the correct external_user_id from the User record.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user
-            user, _server, _identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=True,
-            )
-            user_id = user.id
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=True,
+        )
+        user_id = user.id
 
-            # Track the external_user_id passed to delete_user
-            captured_external_id: list[str] = []
+        # Track the external_user_id passed to delete_user
+        captured_external_id: list[str] = []
 
-            mock_client = AsyncMock()
+        mock_client = AsyncMock()
 
-            async def capture_delete_user(ext_id: str, /) -> bool:
-                captured_external_id.append(ext_id)
-                return True
+        async def capture_delete_user(ext_id: str, /) -> bool:
+            captured_external_id.append(ext_id)
+            return True
 
-            mock_client.delete_user = capture_delete_user
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.delete_user = capture_delete_user
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
 
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(return_value=mock_client)
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(return_value=mock_client)
 
-            # Execute delete operation
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Execute delete operation
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(user_id)
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_id)
 
-                await session.commit()
+            await session.commit()
 
-            # PROPERTY ASSERTION: Correct external_user_id was used
-            assert len(captured_external_id) == 1, (
-                f"Expected exactly one delete_user call, got {len(captured_external_id)}"
-            )
-            assert captured_external_id[0] == external_user_id, (
-                f"Expected external_user_id {external_user_id}, "
-                f"got {captured_external_id[0]}"
-            )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Correct external_user_id was used
+        assert len(captured_external_id) == 1, (
+            f"Expected exactly one delete_user call, got {len(captured_external_id)}"
+        )
+        assert captured_external_id[0] == external_user_id, (
+            f"Expected external_user_id {external_user_id}, "
+            f"got {captured_external_id[0]}"
+        )
 
 
 # =============================================================================
@@ -1026,6 +985,7 @@ class TestIdentityCascade:
     @pytest.mark.asyncio
     async def test_last_user_deletion_cascades_to_identity(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
     ) -> None:
@@ -1036,53 +996,48 @@ class TestIdentityCascade:
         Property: For any Identity with exactly one User, when that User is
         deleted successfully, the Identity should also be deleted.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user (single user for identity)
-            user, _server, identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=True,
+        # Create test user (single user for identity)
+        user, _server, identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=True,
+        )
+        user_id = user.id
+        identity_id = identity.id
+
+        # Create mock registry that returns successful delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_success()
+        )
+
+        # Execute delete operation
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_id)
+
+            await session.commit()
+
+        # PROPERTY ASSERTION: User is deleted
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            deleted_user = await user_repo.get_by_id(user_id)
+            assert deleted_user is None, f"Expected user {user_id} to be deleted"
+
+        # PROPERTY ASSERTION: Identity is also deleted (cascade)
+        async with db.session_factory() as session:
+            identity_repo = IdentityRepository(session)
+            deleted_identity = await identity_repo.get_by_id(identity_id)
+            assert deleted_identity is None, (
+                f"Expected identity {identity_id} to be deleted when last user deleted"
             )
-            user_id = user.id
-            identity_id = identity.id
-
-            # Create mock registry that returns successful delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_success()
-            )
-
-            # Execute delete operation
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(user_id)
-
-                await session.commit()
-
-            # PROPERTY ASSERTION: User is deleted
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                deleted_user = await user_repo.get_by_id(user_id)
-                assert deleted_user is None, f"Expected user {user_id} to be deleted"
-
-            # PROPERTY ASSERTION: Identity is also deleted (cascade)
-            async with session_factory() as session:
-                identity_repo = IdentityRepository(session)
-                deleted_identity = await identity_repo.get_by_id(identity_id)
-                assert deleted_identity is None, (
-                    f"Expected identity {identity_id} to be deleted when last user deleted"
-                )
-
-        finally:
-            await engine.dispose()
 
     @given(
         username1=username_strategy,
@@ -1094,6 +1049,7 @@ class TestIdentityCascade:
     @pytest.mark.asyncio
     async def test_non_last_user_deletion_preserves_identity(
         self,
+        db: TestDB,
         username1: str,
         username2: str,
         external_user_id1: str,
@@ -1112,66 +1068,61 @@ class TestIdentityCascade:
         if external_user_id1 == external_user_id2:
             external_user_id2 = external_user_id2 + "x"
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create identity with two users
-            identity, users, _server = await create_multiple_users_for_identity(
-                session_factory,
-                identity_display_name="TestIdentity",
-                users_data=[
-                    (username1, external_user_id1),
-                    (username2, external_user_id2),
-                ],
+        # Create identity with two users
+        identity, users, _server = await create_multiple_users_for_identity(
+            db.session_factory,
+            identity_display_name="TestIdentity",
+            users_data=[
+                (username1, external_user_id1),
+                (username2, external_user_id2),
+            ],
+        )
+        user_to_delete_id = users[0].id
+        remaining_user_id = users[1].id
+        identity_id = identity.id
+
+        # Create mock registry that returns successful delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_success()
+        )
+
+        # Execute delete operation on first user
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_to_delete_id)
+
+            await session.commit()
+
+        # PROPERTY ASSERTION: Deleted user is gone
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            deleted_user = await user_repo.get_by_id(user_to_delete_id)
+            assert deleted_user is None, (
+                f"Expected user {user_to_delete_id} to be deleted"
             )
-            user_to_delete_id = users[0].id
-            remaining_user_id = users[1].id
-            identity_id = identity.id
 
-            # Create mock registry that returns successful delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_success()
+        # PROPERTY ASSERTION: Remaining user still exists
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            remaining_user = await user_repo.get_by_id(remaining_user_id)
+            assert remaining_user is not None, (
+                f"Expected user {remaining_user_id} to still exist"
             )
 
-            # Execute delete operation on first user
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(user_to_delete_id)
-
-                await session.commit()
-
-            # PROPERTY ASSERTION: Deleted user is gone
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                deleted_user = await user_repo.get_by_id(user_to_delete_id)
-                assert deleted_user is None, (
-                    f"Expected user {user_to_delete_id} to be deleted"
-                )
-
-            # PROPERTY ASSERTION: Remaining user still exists
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                remaining_user = await user_repo.get_by_id(remaining_user_id)
-                assert remaining_user is not None, (
-                    f"Expected user {remaining_user_id} to still exist"
-                )
-
-            # PROPERTY ASSERTION: Identity is NOT deleted (other users remain)
-            async with session_factory() as session:
-                identity_repo = IdentityRepository(session)
-                preserved_identity = await identity_repo.get_by_id(identity_id)
-                assert preserved_identity is not None, (
-                    f"Expected identity {identity_id} to be preserved when other users remain"
-                )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Identity is NOT deleted (other users remain)
+        async with db.session_factory() as session:
+            identity_repo = IdentityRepository(session)
+            preserved_identity = await identity_repo.get_by_id(identity_id)
+            assert preserved_identity is not None, (
+                f"Expected identity {identity_id} to be preserved when other users remain"
+            )
 
     @given(
         username=username_strategy,
@@ -1181,6 +1132,7 @@ class TestIdentityCascade:
     @pytest.mark.asyncio
     async def test_cascade_only_after_successful_external_deletion(
         self,
+        db: TestDB,
         username: str,
         external_user_id: str,
     ) -> None:
@@ -1192,59 +1144,54 @@ class TestIdentityCascade:
         deletion fails, neither the User nor the Identity should be deleted.
         This ensures atomicity of the cascade operation.
         """
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create test user (single user for identity)
-            user, _server, identity = await create_test_user_with_server(
-                session_factory,
-                username=username,
-                external_user_id=external_user_id,
-                initial_enabled=True,
+        # Create test user (single user for identity)
+        user, _server, identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=True,
+        )
+        user_id = user.id
+        identity_id = identity.id
+
+        # Create mock registry that returns failing delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_failure(
+                error_message="Jellyfin server unavailable"
             )
-            user_id = user.id
-            identity_id = identity.id
+        )
 
-            # Create mock registry that returns failing delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_failure(
-                    error_message="Jellyfin server unavailable"
-                )
+        # Execute delete operation - should raise ValidationError
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError) as exc_info:
+                    await user_service.delete(user_id)
+
+            # Verify exception contains relevant error info
+            assert "media server" in exc_info.value.message.lower()
+
+        # PROPERTY ASSERTION: User still exists (atomicity)
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None, (
+                f"Expected user {user_id} to still exist after failed external delete"
             )
 
-            # Execute delete operation - should raise ValidationError
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
-
-                with patch("zondarr.services.user.registry", mock_registry):
-                    with pytest.raises(ValidationError) as exc_info:
-                        await user_service.delete(user_id)
-
-                # Verify exception contains relevant error info
-                assert "media server" in exc_info.value.message.lower()
-
-            # PROPERTY ASSERTION: User still exists (atomicity)
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                persisted_user = await user_repo.get_by_id(user_id)
-                assert persisted_user is not None, (
-                    f"Expected user {user_id} to still exist after failed external delete"
-                )
-
-            # PROPERTY ASSERTION: Identity still exists (cascade didn't happen)
-            async with session_factory() as session:
-                identity_repo = IdentityRepository(session)
-                persisted_identity = await identity_repo.get_by_id(identity_id)
-                assert persisted_identity is not None, (
-                    f"Expected identity {identity_id} to still exist after failed delete"
-                )
-
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Identity still exists (cascade didn't happen)
+        async with db.session_factory() as session:
+            identity_repo = IdentityRepository(session)
+            persisted_identity = await identity_repo.get_by_id(identity_id)
+            assert persisted_identity is not None, (
+                f"Expected identity {identity_id} to still exist after failed delete"
+            )
 
     @given(
         username1=username_strategy,
@@ -1256,6 +1203,7 @@ class TestIdentityCascade:
     @pytest.mark.asyncio
     async def test_sequential_deletion_eventually_cascades(
         self,
+        db: TestDB,
         username1: str,
         username2: str,
         external_user_id1: str,
@@ -1275,79 +1223,74 @@ class TestIdentityCascade:
         if external_user_id1 == external_user_id2:
             external_user_id2 = external_user_id2 + "x"
 
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        await db.clean()
 
-            # Create identity with two users
-            identity, users, _server = await create_multiple_users_for_identity(
-                session_factory,
-                identity_display_name="TestIdentity",
-                users_data=[
-                    (username1, external_user_id1),
-                    (username2, external_user_id2),
-                ],
-            )
-            first_user_id = users[0].id
-            second_user_id = users[1].id
-            identity_id = identity.id
+        # Create identity with two users
+        identity, users, _server = await create_multiple_users_for_identity(
+            db.session_factory,
+            identity_display_name="TestIdentity",
+            users_data=[
+                (username1, external_user_id1),
+                (username2, external_user_id2),
+            ],
+        )
+        first_user_id = users[0].id
+        second_user_id = users[1].id
+        identity_id = identity.id
 
-            # Create mock registry that returns successful delete client
-            mock_registry = MagicMock(spec=ClientRegistry)
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_success()
-            )
+        # Create mock registry that returns successful delete client
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_success()
+        )
 
-            # Delete first user - Identity should remain
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Delete first user - Identity should remain
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(first_user_id)
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(first_user_id)
 
-                await session.commit()
+            await session.commit()
 
-            # Verify Identity still exists after first deletion
-            async with session_factory() as session:
-                identity_repo = IdentityRepository(session)
-                identity_after_first = await identity_repo.get_by_id(identity_id)
-                assert identity_after_first is not None, (
-                    "Identity should exist after deleting first of two users"
-                )
-
-            # Reset mock for second deletion
-            mock_registry.create_client = MagicMock(
-                return_value=create_mock_client_delete_success()
+        # Verify Identity still exists after first deletion
+        async with db.session_factory() as session:
+            identity_repo = IdentityRepository(session)
+            identity_after_first = await identity_repo.get_by_id(identity_id)
+            assert identity_after_first is not None, (
+                "Identity should exist after deleting first of two users"
             )
 
-            # Delete second (last) user - Identity should be deleted
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                identity_repo = IdentityRepository(session)
-                user_service = UserService(user_repo, identity_repo)
+        # Reset mock for second deletion
+        mock_registry.create_client = MagicMock(
+            return_value=create_mock_client_delete_success()
+        )
 
-                with patch("zondarr.services.user.registry", mock_registry):
-                    await user_service.delete(second_user_id)
+        # Delete second (last) user - Identity should be deleted
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
 
-                await session.commit()
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(second_user_id)
 
-            # PROPERTY ASSERTION: Both users are deleted
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                first_user = await user_repo.get_by_id(first_user_id)
-                second_user = await user_repo.get_by_id(second_user_id)
-                assert first_user is None, "First user should be deleted"
-                assert second_user is None, "Second user should be deleted"
+            await session.commit()
 
-            # PROPERTY ASSERTION: Identity is now deleted (cascade after last user)
-            async with session_factory() as session:
-                identity_repo = IdentityRepository(session)
-                final_identity = await identity_repo.get_by_id(identity_id)
-                assert final_identity is None, (
-                    f"Expected identity {identity_id} to be deleted after last user deleted"
-                )
+        # PROPERTY ASSERTION: Both users are deleted
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            first_user = await user_repo.get_by_id(first_user_id)
+            second_user = await user_repo.get_by_id(second_user_id)
+            assert first_user is None, "First user should be deleted"
+            assert second_user is None, "Second user should be deleted"
 
-        finally:
-            await engine.dispose()
+        # PROPERTY ASSERTION: Identity is now deleted (cascade after last user)
+        async with db.session_factory() as session:
+            identity_repo = IdentityRepository(session)
+            final_identity = await identity_repo.get_by_id(identity_id)
+            assert final_identity is None, (
+                f"Expected identity {identity_id} to be deleted after last user deleted"
+            )

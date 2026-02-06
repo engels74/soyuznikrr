@@ -14,7 +14,7 @@ from hypothesis import strategies as st
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from tests.conftest import create_test_engine
+from tests.conftest import TestDB
 from zondarr.models import InteractionType, Wizard, WizardStep
 
 
@@ -73,69 +73,62 @@ class TestCascadeDeleteIntegrity:
     @pytest.mark.asyncio
     async def test_cascade_delete_removes_all_steps(
         self,
+        db: TestDB,
         wizard_name: str,
         wizard_enabled: bool,
         num_steps: int,
     ) -> None:
         """Deleting a wizard cascades to delete all associated steps."""
-        # Create fresh engine for isolation
-        engine = await create_test_engine()
+        await db.clean()
 
-        try:
-            from sqlalchemy.ext.asyncio import async_sessionmaker
+        async with db.session_factory() as session:
+            # Create wizard
+            wizard = Wizard()
+            wizard.name = wizard_name
+            wizard.enabled = wizard_enabled
+            wizard.created_at = datetime.now(UTC)
+            session.add(wizard)
+            await session.flush()
 
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            wizard_id = wizard.id
 
-            async with session_factory() as session:
-                # Create wizard
-                wizard = Wizard()
-                wizard.name = wizard_name
-                wizard.enabled = wizard_enabled
-                wizard.created_at = datetime.now(UTC)
-                session.add(wizard)
-                await session.flush()
+            # Create N steps
+            for i in range(num_steps):
+                step = WizardStep()
+                step.wizard_id = wizard_id
+                step.step_order = i
+                step.interaction_type = InteractionType.CLICK
+                step.title = f"Step {i}"
+                step.content_markdown = f"Content for step {i}"
+                step.config = {}
+                step.created_at = datetime.now(UTC)
+                session.add(step)
 
-                wizard_id = wizard.id
+            await session.commit()
 
-                # Create N steps
-                for i in range(num_steps):
-                    step = WizardStep()
-                    step.wizard_id = wizard_id
-                    step.step_order = i
-                    step.interaction_type = InteractionType.CLICK
-                    step.title = f"Step {i}"
-                    step.content_markdown = f"Content for step {i}"
-                    step.config = {}
-                    step.created_at = datetime.now(UTC)
-                    session.add(step)
+            # Verify steps were created
+            steps_before = (
+                await session.scalars(
+                    select(WizardStep).where(WizardStep.wizard_id == wizard_id)
+                )
+            ).all()
+            assert len(steps_before) == num_steps
 
-                await session.commit()
+            # Delete wizard
+            await session.delete(wizard)
+            await session.commit()
 
-                # Verify steps were created
-                steps_before = (
-                    await session.scalars(
-                        select(WizardStep).where(WizardStep.wizard_id == wizard_id)
-                    )
-                ).all()
-                assert len(steps_before) == num_steps
+            # Verify all steps were cascade deleted
+            steps_after = (
+                await session.scalars(
+                    select(WizardStep).where(WizardStep.wizard_id == wizard_id)
+                )
+            ).all()
+            assert len(steps_after) == 0
 
-                # Delete wizard
-                await session.delete(wizard)
-                await session.commit()
-
-                # Verify all steps were cascade deleted
-                steps_after = (
-                    await session.scalars(
-                        select(WizardStep).where(WizardStep.wizard_id == wizard_id)
-                    )
-                ).all()
-                assert len(steps_after) == 0
-
-                # Verify wizard is gone
-                wizard_after = await session.get(Wizard, wizard_id)
-                assert wizard_after is None
-        finally:
-            await engine.dispose()
+            # Verify wizard is gone
+            wizard_after = await session.get(Wizard, wizard_id)
+            assert wizard_after is None
 
 
 class TestStepOrderUniqueness:
@@ -159,58 +152,51 @@ class TestStepOrderUniqueness:
     @pytest.mark.asyncio
     async def test_duplicate_step_order_raises_integrity_error(
         self,
+        db: TestDB,
         wizard_name: str,
         step_order: int,
         title1: str,
         title2: str,
     ) -> None:
         """Creating two steps with same step_order raises IntegrityError."""
-        # Create fresh engine for isolation
-        engine = await create_test_engine()
+        await db.clean()
 
-        try:
-            from sqlalchemy.ext.asyncio import async_sessionmaker
+        async with db.session_factory() as session:
+            # Create wizard
+            wizard = Wizard()
+            wizard.name = wizard_name
+            wizard.enabled = True
+            wizard.created_at = datetime.now(UTC)
+            session.add(wizard)
+            await session.flush()
 
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            wizard_id = wizard.id
 
-            async with session_factory() as session:
-                # Create wizard
-                wizard = Wizard()
-                wizard.name = wizard_name
-                wizard.enabled = True
-                wizard.created_at = datetime.now(UTC)
-                session.add(wizard)
+            # Create first step
+            step1 = WizardStep()
+            step1.wizard_id = wizard_id
+            step1.step_order = step_order
+            step1.interaction_type = InteractionType.CLICK
+            step1.title = title1
+            step1.content_markdown = "Content 1"
+            step1.config = {}
+            step1.created_at = datetime.now(UTC)
+            session.add(step1)
+            await session.flush()
+
+            # Create second step with same step_order - should fail
+            step2 = WizardStep()
+            step2.wizard_id = wizard_id
+            step2.step_order = step_order  # Same order!
+            step2.interaction_type = InteractionType.TIMER
+            step2.title = title2
+            step2.content_markdown = "Content 2"
+            step2.config = {}
+            step2.created_at = datetime.now(UTC)
+            session.add(step2)
+
+            with pytest.raises(IntegrityError):
                 await session.flush()
-
-                wizard_id = wizard.id
-
-                # Create first step
-                step1 = WizardStep()
-                step1.wizard_id = wizard_id
-                step1.step_order = step_order
-                step1.interaction_type = InteractionType.CLICK
-                step1.title = title1
-                step1.content_markdown = "Content 1"
-                step1.config = {}
-                step1.created_at = datetime.now(UTC)
-                session.add(step1)
-                await session.flush()
-
-                # Create second step with same step_order - should fail
-                step2 = WizardStep()
-                step2.wizard_id = wizard_id
-                step2.step_order = step_order  # Same order!
-                step2.interaction_type = InteractionType.TIMER
-                step2.title = title2
-                step2.content_markdown = "Content 2"
-                step2.config = {}
-                step2.created_at = datetime.now(UTC)
-                session.add(step2)
-
-                with pytest.raises(IntegrityError):
-                    await session.flush()
-        finally:
-            await engine.dispose()
 
     @settings(max_examples=10)
     @given(
@@ -221,6 +207,7 @@ class TestStepOrderUniqueness:
     @pytest.mark.asyncio
     async def test_different_step_orders_succeed(
         self,
+        db: TestDB,
         wizard_name: str,
         step_order1: int,
         step_order2: int,
@@ -230,59 +217,51 @@ class TestStepOrderUniqueness:
         if step_order1 == step_order2:
             return
 
-        # Create fresh engine for isolation
-        engine = await create_test_engine()
+        await db.clean()
 
-        try:
-            from sqlalchemy.ext.asyncio import async_sessionmaker
+        async with db.session_factory() as session:
+            # Create wizard
+            wizard = Wizard()
+            wizard.name = wizard_name
+            wizard.enabled = True
+            wizard.created_at = datetime.now(UTC)
+            session.add(wizard)
+            await session.flush()
 
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            wizard_id = wizard.id
 
-            async with session_factory() as session:
-                # Create wizard
-                wizard = Wizard()
-                wizard.name = wizard_name
-                wizard.enabled = True
-                wizard.created_at = datetime.now(UTC)
-                session.add(wizard)
-                await session.flush()
+            # Create first step
+            step1 = WizardStep()
+            step1.wizard_id = wizard_id
+            step1.step_order = step_order1
+            step1.interaction_type = InteractionType.CLICK
+            step1.title = "Step 1"
+            step1.content_markdown = "Content 1"
+            step1.config = {}
+            step1.created_at = datetime.now(UTC)
+            session.add(step1)
 
-                wizard_id = wizard.id
+            # Create second step with different step_order
+            step2 = WizardStep()
+            step2.wizard_id = wizard_id
+            step2.step_order = step_order2
+            step2.interaction_type = InteractionType.TIMER
+            step2.title = "Step 2"
+            step2.content_markdown = "Content 2"
+            step2.config = {}
+            step2.created_at = datetime.now(UTC)
+            session.add(step2)
 
-                # Create first step
-                step1 = WizardStep()
-                step1.wizard_id = wizard_id
-                step1.step_order = step_order1
-                step1.interaction_type = InteractionType.CLICK
-                step1.title = "Step 1"
-                step1.content_markdown = "Content 1"
-                step1.config = {}
-                step1.created_at = datetime.now(UTC)
-                session.add(step1)
+            # Should succeed
+            await session.commit()
 
-                # Create second step with different step_order
-                step2 = WizardStep()
-                step2.wizard_id = wizard_id
-                step2.step_order = step_order2
-                step2.interaction_type = InteractionType.TIMER
-                step2.title = "Step 2"
-                step2.content_markdown = "Content 2"
-                step2.config = {}
-                step2.created_at = datetime.now(UTC)
-                session.add(step2)
-
-                # Should succeed
-                await session.commit()
-
-                # Verify both steps exist
-                steps = (
-                    await session.scalars(
-                        select(WizardStep).where(WizardStep.wizard_id == wizard_id)
-                    )
-                ).all()
-                assert len(steps) == 2
-        finally:
-            await engine.dispose()
+            # Verify both steps exist
+            steps = (
+                await session.scalars(
+                    select(WizardStep).where(WizardStep.wizard_id == wizard_id)
+                )
+            ).all()
+            assert len(steps) == 2
 
 
 class TestInteractionTypeValidation:
@@ -370,6 +349,7 @@ class TestStepOrderContiguity:
     @pytest.mark.asyncio
     async def test_step_deletion_maintains_contiguity(
         self,
+        db: TestDB,
         wizard_name: str,
         num_steps: int,
         delete_index: int,
@@ -379,54 +359,46 @@ class TestStepOrderContiguity:
         if delete_index >= num_steps:
             return
 
-        # Create fresh engine for isolation
-        engine = await create_test_engine()
+        await db.clean()
 
-        try:
-            from sqlalchemy.ext.asyncio import async_sessionmaker
+        from zondarr.repositories.wizard import WizardRepository
+        from zondarr.repositories.wizard_step import WizardStepRepository
+        from zondarr.services.wizard import WizardService
 
-            from zondarr.repositories.wizard import WizardRepository
-            from zondarr.repositories.wizard_step import WizardStepRepository
-            from zondarr.services.wizard import WizardService
+        async with db.session_factory() as session:
+            wizard_repo = WizardRepository(session)
+            step_repo = WizardStepRepository(session)
+            service = WizardService(wizard_repo, step_repo)
 
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            # Create wizard
+            wizard = await service.create_wizard(name=wizard_name)
 
-            async with session_factory() as session:
-                wizard_repo = WizardRepository(session)
-                step_repo = WizardStepRepository(session)
-                service = WizardService(wizard_repo, step_repo)
+            # Create N steps
+            step_ids: list[str] = []
+            for i in range(num_steps):
+                step = await service.create_step(
+                    wizard.id,
+                    interaction_type="click",
+                    title=f"Step {i}",
+                    content_markdown=f"Content {i}",
+                )
+                step_ids.append(str(step.id))
 
-                # Create wizard
-                wizard = await service.create_wizard(name=wizard_name)
+            await session.commit()
 
-                # Create N steps
-                step_ids: list[str] = []
-                for i in range(num_steps):
-                    step = await service.create_step(
-                        wizard.id,
-                        interaction_type="click",
-                        title=f"Step {i}",
-                        content_markdown=f"Content {i}",
-                    )
-                    step_ids.append(str(step.id))
+            # Delete a step
+            from uuid import UUID
 
-                await session.commit()
+            await service.delete_step(wizard.id, UUID(step_ids[delete_index]))
+            await session.commit()
 
-                # Delete a step
-                from uuid import UUID
+            # Verify contiguity
+            steps = await step_repo.get_by_wizard_id(wizard.id)
+            orders = [s.step_order for s in steps]
 
-                await service.delete_step(wizard.id, UUID(step_ids[delete_index]))
-                await session.commit()
-
-                # Verify contiguity
-                steps = await step_repo.get_by_wizard_id(wizard.id)
-                orders = [s.step_order for s in steps]
-
-                # Should be contiguous starting from 0
-                expected = list(range(len(steps)))
-                assert orders == expected
-        finally:
-            await engine.dispose()
+            # Should be contiguous starting from 0
+            expected = list(range(len(steps)))
+            assert orders == expected
 
 
 class TestTimerDurationBounds:
