@@ -170,8 +170,8 @@ This plan implements production polish features: background tasks, error handlin
     - Test add/delete flows
     - _Requirements: 7.3_
 
-- [ ] 8. Documentation
-  - [ ] 8.1 Create README.md at repository root
+- [x] 8. Documentation
+  - [x] 8.1 Create README.md at repository root
     - Brief project overview (1-2 sentences)
     - Quick start commands for backend and frontend
     - Concise tech stack list
