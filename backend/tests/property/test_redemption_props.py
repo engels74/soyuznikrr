@@ -108,9 +108,6 @@ async def create_media_servers(
             sess.add(server)
             servers.append(server)
         await sess.commit()
-        # Refresh to get IDs
-        for server in servers:
-            await sess.refresh(server)
     return servers
 
 
@@ -136,7 +133,6 @@ async def create_invitation_with_servers(
         invitation.target_servers = servers
         sess.add(invitation)
         await sess.commit()
-        await sess.refresh(invitation)
     return invitation
 
 

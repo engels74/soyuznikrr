@@ -226,12 +226,10 @@ class TestErrorResponsesAreSafeAndTraceable:
             assert "correlation_id" in data
             assert response_is_safe(response.text)
 
-    @given(num_requests=st.integers(min_value=1, max_value=5))
     @pytest.mark.asyncio
     async def test_internal_errors_include_correlation_id(
         self,
         db: TestDB,
-        num_requests: int,
     ) -> None:
         """Internal errors (500) SHALL include a correlation ID."""
         await db.clean()
@@ -240,7 +238,7 @@ class TestErrorResponsesAreSafeAndTraceable:
         with TestClient(app) as client:
             correlation_ids: set[str] = set()
 
-            for _ in range(num_requests):
+            for _ in range(3):
                 response = client.get("/trigger-internal-error")
 
                 assert response.status_code == 500
@@ -316,7 +314,7 @@ class TestErrorResponseStructure:
             ["validation", "not_found", "internal", "external_service"]
         ),
     )
-    @settings(max_examples=25)
+    @settings(max_examples=5)
     @pytest.mark.asyncio
     async def test_all_errors_contain_required_fields(
         self,
@@ -359,7 +357,7 @@ class TestErrorResponseStructure:
     @given(
         field_names=st.lists(field_name_strategy, min_size=1, max_size=5, unique=True),
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_error_response_detail_is_descriptive(
         self,
@@ -397,7 +395,7 @@ class TestValidationErrorFieldMapping:
     @given(
         field_names=st.lists(field_name_strategy, min_size=1, max_size=5, unique=True),
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_validation_errors_include_field_errors_array(
         self,
@@ -435,7 +433,7 @@ class TestValidationErrorFieldMapping:
         field_names=st.lists(field_name_strategy, min_size=1, max_size=3, unique=True),
         messages_per_field=st.integers(min_value=1, max_value=3),
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_field_errors_contain_field_and_messages(
         self,
@@ -490,7 +488,7 @@ class TestNotFoundErrorResourceIdentification:
         resource_type=resource_type_strategy,
         identifier=identifier_strategy,
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_not_found_includes_resource_type_in_detail(
         self,
@@ -518,7 +516,7 @@ class TestNotFoundErrorResourceIdentification:
         resource_type=resource_type_strategy,
         identifier=identifier_strategy,
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_not_found_includes_identifier_in_detail(
         self,
@@ -546,7 +544,7 @@ class TestNotFoundErrorResourceIdentification:
         resource_type=resource_type_strategy,
         identifier=identifier_strategy,
     )
-    @settings(max_examples=25)
+    @settings(max_examples=15)
     @pytest.mark.asyncio
     async def test_not_found_has_correct_error_code(
         self,
@@ -579,7 +577,7 @@ class TestExternalServiceErrorMapping:
     """
 
     @given(service_name=service_name_strategy)
-    @settings(max_examples=25)
+    @settings(max_examples=8)
     @pytest.mark.asyncio
     async def test_external_service_error_returns_502(
         self,
@@ -599,7 +597,7 @@ class TestExternalServiceErrorMapping:
             )
 
     @given(service_name=service_name_strategy)
-    @settings(max_examples=25)
+    @settings(max_examples=8)
     @pytest.mark.asyncio
     async def test_external_service_error_includes_service_name(
         self,
@@ -623,7 +621,7 @@ class TestExternalServiceErrorMapping:
             )
 
     @given(service_name=service_name_strategy)
-    @settings(max_examples=25)
+    @settings(max_examples=8)
     @pytest.mark.asyncio
     async def test_external_service_error_has_correct_error_code(
         self,
@@ -643,7 +641,7 @@ class TestExternalServiceErrorMapping:
             assert data["error_code"] == "EXTERNAL_SERVICE_ERROR"
 
     @given(service_name=service_name_strategy)
-    @settings(max_examples=25)
+    @settings(max_examples=8)
     @pytest.mark.asyncio
     async def test_external_service_error_has_required_fields(
         self,

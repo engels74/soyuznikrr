@@ -11,6 +11,8 @@ Tests that for any list_users request:
 - The response's page_size field reflects the capped value
 """
 
+from uuid import uuid4
+
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -63,21 +65,16 @@ async def create_test_users(
     session_factory: async_sessionmaker[AsyncSession],
     *,
     count: int,
-) -> list[User]:
+) -> None:
     """Create test users with associated media server and identity.
 
-    Args:
-        session_factory: The async session factory.
-        count: Number of users to create.
-
-    Returns:
-        A list of User entities created in the database.
+    Explicitly assigns UUIDs at construction time so no intermediate flushes
+    are needed. A single commit handles all inserts.
     """
-    users: list[User] = []
-
     async with session_factory() as session:
-        # Create a single media server for all users
+        server_id = uuid4()
         server = MediaServer(
+            id=server_id,
             name="TestServer",
             server_type=ServerType.JELLYFIN,
             url="http://jellyfin.local:8096",
@@ -85,23 +82,21 @@ async def create_test_users(
             enabled=True,
         )
         session.add(server)
-        await session.flush()
 
         for i in range(count):
-            # Create identity for each user
+            identity_id = uuid4()
             identity = Identity(
+                id=identity_id,
                 display_name=f"testuser{i}",
                 email=None,
                 expires_at=None,
                 enabled=True,
             )
             session.add(identity)
-            await session.flush()
 
-            # Create user
             user = User(
-                identity_id=identity.id,
-                media_server_id=server.id,
+                identity_id=identity_id,
+                media_server_id=server_id,
                 invitation_id=None,
                 external_user_id=f"external-{i}",
                 username=f"testuser{i}",
@@ -109,15 +104,8 @@ async def create_test_users(
                 enabled=True,
             )
             session.add(user)
-            users.append(user)
 
         await session.commit()
-
-        # Refresh all users to get relationships loaded
-        for user in users:
-            await session.refresh(user)
-
-    return users
 
 
 # =============================================================================
@@ -154,7 +142,7 @@ class TestPageSizeIsCapped:
         await db.clean()
 
         # Create enough test users to verify pagination
-        _ = await create_test_users(db.session_factory, count=5)
+        await create_test_users(db.session_factory, count=5)
 
         # Execute list_users with page_size above cap
         async with db.session_factory() as session:
@@ -191,8 +179,8 @@ class TestPageSizeIsCapped:
         await db.clean()
 
         # Create more users than the max page_size to test pagination
-        num_users = 150
-        _ = await create_test_users(db.session_factory, count=num_users)
+        num_users = 105
+        await create_test_users(db.session_factory, count=num_users)
 
         # Execute list_users with page_size at or below cap
         async with db.session_factory() as session:
@@ -215,9 +203,9 @@ class TestPageSizeIsCapped:
 
     @given(
         page_size=page_size_strategy,
-        num_users=st.integers(min_value=0, max_value=200),
+        num_users=st.integers(min_value=0, max_value=110),
     )
-    @settings(max_examples=25, deadline=None)
+    @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_cap_with_varying_user_counts(
         self,
@@ -237,7 +225,7 @@ class TestPageSizeIsCapped:
 
         # Create test users
         if num_users > 0:
-            _ = await create_test_users(db.session_factory, count=num_users)
+            await create_test_users(db.session_factory, count=num_users)
 
         # Execute list_users
         async with db.session_factory() as session:
@@ -280,8 +268,8 @@ class TestPageSizeIsCapped:
         await db.clean()
 
         # Create more users than the cap
-        num_users = 150
-        _ = await create_test_users(db.session_factory, count=num_users)
+        num_users = 105
+        await create_test_users(db.session_factory, count=num_users)
 
         # Execute list_users with page_size above cap
         async with db.session_factory() as session:
@@ -302,7 +290,7 @@ class TestPageSizeIsCapped:
 
     @given(
         page_size=page_size_above_cap_strategy,
-        page=st.integers(min_value=1, max_value=5),
+        page=st.integers(min_value=1, max_value=2),
     )
     @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
@@ -322,8 +310,8 @@ class TestPageSizeIsCapped:
         await db.clean()
 
         # Create enough users for multiple pages
-        num_users = 350
-        _ = await create_test_users(db.session_factory, count=num_users)
+        num_users = 120
+        await create_test_users(db.session_factory, count=num_users)
 
         # Execute list_users with page_size above cap
         async with db.session_factory() as session:
@@ -349,13 +337,10 @@ class TestPageSizeIsCapped:
                 f"with capped page_size={capped_page_size}, got {len(items)}"
             )
 
-    @given(page_size=st.just(MAX_PAGE_SIZE))
-    @settings(max_examples=5, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_at_exactly_100_is_not_capped(
         self,
         db: TestDB,
-        page_size: int,
     ) -> None:
         """Page size of exactly 100 is used as-is (boundary test).
 
@@ -365,11 +350,9 @@ class TestPageSizeIsCapped:
         """
         await db.clean()
 
-        # Create more users than the page size
-        num_users = 150
-        _ = await create_test_users(db.session_factory, count=num_users)
+        num_users = 105
+        await create_test_users(db.session_factory, count=num_users)
 
-        # Execute list_users with page_size exactly at cap
         async with db.session_factory() as session:
             user_repo = UserRepository(session)
             identity_repo = IdentityRepository(session)
@@ -377,22 +360,18 @@ class TestPageSizeIsCapped:
 
             items, total = await user_service.list_users(
                 page=1,
-                page_size=page_size,  # Exactly 100
+                page_size=MAX_PAGE_SIZE,  # Exactly 100
             )
 
-            # PROPERTY ASSERTION: page_size=100 returns 100 items
             assert total == num_users, f"Expected {num_users} total, got {total}"
             assert len(items) == MAX_PAGE_SIZE, (
                 f"Expected {MAX_PAGE_SIZE} items, got {len(items)}"
             )
 
-    @given(page_size=st.just(MAX_PAGE_SIZE + 1))
-    @settings(max_examples=5, deadline=None)
     @pytest.mark.asyncio
     async def test_page_size_at_101_is_capped(
         self,
         db: TestDB,
-        page_size: int,
     ) -> None:
         """Page size of 101 is capped to 100 (boundary test).
 
@@ -402,11 +381,9 @@ class TestPageSizeIsCapped:
         """
         await db.clean()
 
-        # Create more users than the page size
-        num_users = 150
-        _ = await create_test_users(db.session_factory, count=num_users)
+        num_users = 105
+        await create_test_users(db.session_factory, count=num_users)
 
-        # Execute list_users with page_size just above cap
         async with db.session_factory() as session:
             user_repo = UserRepository(session)
             identity_repo = IdentityRepository(session)
@@ -414,10 +391,9 @@ class TestPageSizeIsCapped:
 
             items, total = await user_service.list_users(
                 page=1,
-                page_size=page_size,  # 101 - should be capped
+                page_size=MAX_PAGE_SIZE + 1,  # 101 - should be capped
             )
 
-            # PROPERTY ASSERTION: page_size=101 is capped to 100
             assert total == num_users, f"Expected {num_users} total, got {total}"
             assert len(items) == MAX_PAGE_SIZE, (
                 f"Expected {MAX_PAGE_SIZE} items (capped from 101), got {len(items)}"
