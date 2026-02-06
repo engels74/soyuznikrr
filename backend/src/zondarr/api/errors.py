@@ -20,6 +20,7 @@ from uuid import uuid4
 import structlog
 from litestar import Request, Response
 from litestar.datastructures import State
+from litestar.exceptions import HTTPException as LitestarHTTPException
 from litestar.status_codes import (
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
@@ -158,6 +159,42 @@ def internal_error_handler(
             correlation_id=correlation_id,
         ),
         status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
+def litestar_http_exception_handler(
+    request: Request[object, object, State],
+    exc: LitestarHTTPException,
+) -> Response[ErrorResponse]:
+    """Handle Litestar's built-in HTTP exceptions (404, 405, etc.).
+
+    Preserves the correct status code from the exception instead of
+    falling through to the generic 500 catch-all handler.
+
+    Args:
+        request: The incoming request.
+        exc: The Litestar HTTPException.
+
+    Returns:
+        Response with ErrorResponse body and the exception's status code.
+    """
+    correlation_id = _generate_correlation_id()
+
+    logger.debug(
+        "HTTP error",
+        correlation_id=correlation_id,
+        path=str(request.url.path),
+        status_code=exc.status_code,
+    )
+
+    return Response(
+        ErrorResponse(
+            detail=exc.detail,
+            error_code="HTTP_ERROR",
+            timestamp=datetime.now(UTC),
+            correlation_id=correlation_id,
+        ),
+        status_code=exc.status_code,
     )
 
 

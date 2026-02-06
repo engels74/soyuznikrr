@@ -7,9 +7,12 @@
  * @module $lib/api/client
  */
 
-import createClient from 'openapi-fetch';
+import createClient, { type Client } from 'openapi-fetch';
 import { showApiError, showNetworkError } from '$lib/utils/toast';
 import type { components, paths } from './types';
+
+/** Type alias for a typed openapi-fetch client instance. */
+export type ApiClient = Client<paths>;
 
 // Base URL from environment variable, defaults to empty string for same-origin
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
@@ -24,6 +27,20 @@ export const api = createClient<paths>({
 		'Content-Type': 'application/json'
 	}
 });
+
+/**
+ * Create a scoped API client that uses a custom fetch function.
+ * Use this in SvelteKit load functions to pass SvelteKit's provided fetch.
+ */
+export function createScopedClient(customFetch: typeof globalThis.fetch): ApiClient {
+	return createClient<paths>({
+		baseUrl: API_BASE_URL,
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		fetch: customFetch
+	});
+}
 
 // =============================================================================
 // Type Aliases for convenience
@@ -165,13 +182,13 @@ export interface ListInvitationsParams {
  * @param params - Query parameters for filtering and pagination
  * @returns Paginated list of invitations
  */
-export async function getInvitations(params: ListInvitationsParams = {}) {
+export async function getInvitations(params: ListInvitationsParams = {}, client: ApiClient = api) {
 	// Cap page_size at 100 as per requirements
 	const cappedParams = {
 		...params,
 		page_size: params.page_size ? Math.min(params.page_size, 100) : undefined
 	};
-	return api.GET('/api/v1/invitations', { params: { query: cappedParams } });
+	return client.GET('/api/v1/invitations', { params: { query: cappedParams } });
 }
 
 /**
@@ -180,8 +197,8 @@ export async function getInvitations(params: ListInvitationsParams = {}) {
  * @param invitationId - UUID of the invitation
  * @returns Invitation detail response
  */
-export async function getInvitation(invitationId: string) {
-	return api.GET('/api/v1/invitations/{invitation_id}', {
+export async function getInvitation(invitationId: string, client: ApiClient = api) {
+	return client.GET('/api/v1/invitations/{invitation_id}', {
 		params: { path: { invitation_id: invitationId } }
 	});
 }
@@ -192,8 +209,8 @@ export async function getInvitation(invitationId: string) {
  * @param data - Invitation creation data
  * @returns Created invitation detail response
  */
-export async function createInvitation(data: CreateInvitationRequest) {
-	return api.POST('/api/v1/invitations', { body: data });
+export async function createInvitation(data: CreateInvitationRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/invitations', { body: data });
 }
 
 /**
@@ -203,8 +220,12 @@ export async function createInvitation(data: CreateInvitationRequest) {
  * @param data - Fields to update
  * @returns Updated invitation detail response
  */
-export async function updateInvitation(invitationId: string, data: UpdateInvitationRequest) {
-	return api.PATCH('/api/v1/invitations/{invitation_id}', {
+export async function updateInvitation(
+	invitationId: string,
+	data: UpdateInvitationRequest,
+	client: ApiClient = api
+) {
+	return client.PATCH('/api/v1/invitations/{invitation_id}', {
 		params: { path: { invitation_id: invitationId } },
 		body: data
 	});
@@ -216,8 +237,8 @@ export async function updateInvitation(invitationId: string, data: UpdateInvitat
  * @param invitationId - UUID of the invitation to delete
  * @returns Empty response on success
  */
-export async function deleteInvitation(invitationId: string) {
-	return api.DELETE('/api/v1/invitations/{invitation_id}', {
+export async function deleteInvitation(invitationId: string, client: ApiClient = api) {
+	return client.DELETE('/api/v1/invitations/{invitation_id}', {
 		params: { path: { invitation_id: invitationId } }
 	});
 }
@@ -228,8 +249,8 @@ export async function deleteInvitation(invitationId: string) {
  * @param code - Invitation code to validate
  * @returns Validation response with target servers if valid
  */
-export async function validateInvitation(code: string) {
-	return api.GET('/api/v1/invitations/validate/{code}', {
+export async function validateInvitation(code: string, client: ApiClient = api) {
+	return client.GET('/api/v1/invitations/validate/{code}', {
 		params: { path: { code } }
 	});
 }
@@ -256,13 +277,13 @@ export interface ListUsersParams {
  * @param params - Query parameters for filtering and pagination
  * @returns Paginated list of users with relationships
  */
-export async function getUsers(params: ListUsersParams = {}) {
+export async function getUsers(params: ListUsersParams = {}, client: ApiClient = api) {
 	// Cap page_size at 100 as per requirements
 	const cappedParams = {
 		...params,
 		page_size: params.page_size ? Math.min(params.page_size, 100) : undefined
 	};
-	return api.GET('/api/v1/users', { params: { query: cappedParams } });
+	return client.GET('/api/v1/users', { params: { query: cappedParams } });
 }
 
 /**
@@ -271,8 +292,8 @@ export async function getUsers(params: ListUsersParams = {}) {
  * @param userId - UUID of the user
  * @returns User detail response with relationships
  */
-export async function getUser(userId: string) {
-	return api.GET('/api/v1/users/{user_id}', {
+export async function getUser(userId: string, client: ApiClient = api) {
+	return client.GET('/api/v1/users/{user_id}', {
 		params: { path: { user_id: userId } }
 	});
 }
@@ -283,8 +304,8 @@ export async function getUser(userId: string) {
  * @param userId - UUID of the user to enable
  * @returns Updated user detail response
  */
-export async function enableUser(userId: string) {
-	return api.POST('/api/v1/users/{user_id}/enable', {
+export async function enableUser(userId: string, client: ApiClient = api) {
+	return client.POST('/api/v1/users/{user_id}/enable', {
 		params: { path: { user_id: userId } }
 	});
 }
@@ -295,8 +316,8 @@ export async function enableUser(userId: string) {
  * @param userId - UUID of the user to disable
  * @returns Updated user detail response
  */
-export async function disableUser(userId: string) {
-	return api.POST('/api/v1/users/{user_id}/disable', {
+export async function disableUser(userId: string, client: ApiClient = api) {
+	return client.POST('/api/v1/users/{user_id}/disable', {
 		params: { path: { user_id: userId } }
 	});
 }
@@ -307,8 +328,8 @@ export async function disableUser(userId: string) {
  * @param userId - UUID of the user to delete
  * @returns Empty response on success
  */
-export async function deleteUser(userId: string) {
-	return api.DELETE('/api/v1/users/{user_id}', {
+export async function deleteUser(userId: string, client: ApiClient = api) {
+	return client.DELETE('/api/v1/users/{user_id}', {
 		params: { path: { user_id: userId } }
 	});
 }
@@ -328,8 +349,12 @@ export interface UpdateUserPermissions {
  * @param permissions - Permission values to update
  * @returns Updated user detail response
  */
-export async function updateUserPermissions(userId: string, permissions: UpdateUserPermissions) {
-	return api.PATCH('/api/v1/users/{user_id}/permissions', {
+export async function updateUserPermissions(
+	userId: string,
+	permissions: UpdateUserPermissions,
+	client: ApiClient = api
+) {
+	return client.PATCH('/api/v1/users/{user_id}/permissions', {
 		params: { path: { user_id: userId } },
 		body: permissions
 	});
@@ -345,8 +370,8 @@ export async function updateUserPermissions(userId: string, permissions: UpdateU
  * @param enabled - Optional filter for enabled servers only
  * @returns List of servers with libraries
  */
-export async function getServers(enabled?: boolean) {
-	return api.GET('/api/v1/servers', {
+export async function getServers(enabled?: boolean, client: ApiClient = api) {
+	return client.GET('/api/v1/servers', {
 		params: { query: enabled !== undefined ? { enabled } : {} }
 	});
 }
@@ -358,8 +383,8 @@ export async function getServers(enabled?: boolean) {
  * @param dryRun - If true, only report discrepancies without making changes
  * @returns Sync result with discrepancy report
  */
-export async function syncServer(serverId: string, dryRun = true) {
-	return api.POST('/api/v1/servers/{server_id}/sync', {
+export async function syncServer(serverId: string, dryRun = true, client: ApiClient = api) {
+	return client.POST('/api/v1/servers/{server_id}/sync', {
 		params: { path: { server_id: serverId } },
 		body: { dry_run: dryRun }
 	});
@@ -379,8 +404,8 @@ export interface CreateServerRequest {
  * @param data - Server creation data
  * @returns Created media server response
  */
-export async function createServer(data: CreateServerRequest) {
-	return api.POST('/api/v1/servers', { body: data });
+export async function createServer(data: CreateServerRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/servers', { body: data });
 }
 
 /**
@@ -389,8 +414,8 @@ export async function createServer(data: CreateServerRequest) {
  * @param serverId - UUID of the server
  * @returns Media server response
  */
-export async function getServer(serverId: string) {
-	return api.GET('/api/v1/servers/{server_id}', {
+export async function getServer(serverId: string, client: ApiClient = api) {
+	return client.GET('/api/v1/servers/{server_id}', {
 		params: { path: { server_id: serverId } }
 	});
 }
@@ -401,8 +426,8 @@ export async function getServer(serverId: string) {
  * @param serverId - UUID of the server to delete
  * @returns Empty response on success
  */
-export async function deleteServer(serverId: string) {
-	return api.DELETE('/api/v1/servers/{server_id}', {
+export async function deleteServer(serverId: string, client: ApiClient = api) {
+	return client.DELETE('/api/v1/servers/{server_id}', {
 		params: { path: { server_id: serverId } }
 	});
 }
@@ -418,8 +443,12 @@ export async function deleteServer(serverId: string) {
  * @param data - Registration data (username, password, optional email)
  * @returns Redemption response with created users
  */
-export async function redeemInvitation(code: string, data: RedeemInvitationRequest) {
-	return api.POST('/api/v1/join/{code}', {
+export async function redeemInvitation(
+	code: string,
+	data: RedeemInvitationRequest,
+	client: ApiClient = api
+) {
+	return client.POST('/api/v1/join/{code}', {
 		params: { path: { code } },
 		body: data
 	});
@@ -434,8 +463,8 @@ export async function redeemInvitation(code: string, data: RedeemInvitationReque
  *
  * @returns PIN response with auth URL
  */
-export async function createPlexPin() {
-	return api.POST('/api/v1/join/plex/oauth/pin');
+export async function createPlexPin(client: ApiClient = api) {
+	return client.POST('/api/v1/join/plex/oauth/pin');
 }
 
 /**
@@ -444,8 +473,8 @@ export async function createPlexPin() {
  * @param pinId - PIN ID to check
  * @returns Check response with authentication status
  */
-export async function checkPlexPin(pinId: number) {
-	return api.GET('/api/v1/join/plex/oauth/pin/{pin_id}', {
+export async function checkPlexPin(pinId: number, client: ApiClient = api) {
+	return client.GET('/api/v1/join/plex/oauth/pin/{pin_id}', {
 		params: { path: { pin_id: pinId } }
 	});
 }
@@ -460,9 +489,12 @@ export async function checkPlexPin(pinId: number) {
  *
  * @returns Health check response
  */
-export async function healthCheck() {
-	const response = await fetch(`${API_BASE_URL}/health`);
-	return response.json() as Promise<{ status: string; checks: Record<string, boolean> }>;
+export async function healthCheck(customFetch: typeof globalThis.fetch = fetch) {
+	const response = await customFetch(`${API_BASE_URL}/health`);
+	return response.json() as Promise<{
+		status: string;
+		checks: Record<string, boolean>;
+	}>;
 }
 
 // =============================================================================
@@ -575,7 +607,9 @@ export interface CreateWizardStepRequest {
 export interface UpdateWizardStepRequest {
 	title?: string | null;
 	content_markdown?: string | null;
-	config?: { [key: string]: string | number | boolean | string[] | null } | null;
+	config?: {
+		[key: string]: string | number | boolean | string[] | null;
+	} | null;
 }
 
 /** Step reorder request */
@@ -606,7 +640,10 @@ export interface ListWizardsParams {
  * @param params - Query parameters for pagination
  * @returns Paginated list of wizards
  */
-export async function getWizards(params: ListWizardsParams = {}) {
+export async function getWizards(
+	params: ListWizardsParams = {},
+	customFetch: typeof globalThis.fetch = fetch
+) {
 	const queryParams = new URLSearchParams();
 	if (params.page !== undefined) queryParams.set('page', String(params.page));
 	if (params.page_size !== undefined) queryParams.set('page_size', String(params.page_size));
@@ -614,7 +651,7 @@ export async function getWizards(params: ListWizardsParams = {}) {
 	const queryString = queryParams.toString();
 	const url = `${API_BASE_URL}/api/v1/wizards${queryString ? `?${queryString}` : ''}`;
 
-	const response = await fetch(url, {
+	const response = await customFetch(url, {
 		headers: { 'Content-Type': 'application/json' }
 	});
 
@@ -633,8 +670,8 @@ export async function getWizards(params: ListWizardsParams = {}) {
  * @param wizardId - UUID of the wizard
  * @returns Wizard detail response with steps
  */
-export async function getWizard(wizardId: string) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
+export async function getWizard(wizardId: string, customFetch: typeof globalThis.fetch = fetch) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
 		headers: { 'Content-Type': 'application/json' }
 	});
 
@@ -653,8 +690,11 @@ export async function getWizard(wizardId: string) {
  * @param data - Wizard creation data
  * @returns Created wizard response
  */
-export async function createWizard(data: CreateWizardRequest) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards`, {
+export async function createWizard(
+	data: CreateWizardRequest,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)
@@ -676,8 +716,12 @@ export async function createWizard(data: CreateWizardRequest) {
  * @param data - Fields to update
  * @returns Updated wizard response
  */
-export async function updateWizard(wizardId: string, data: UpdateWizardRequest) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
+export async function updateWizard(
+	wizardId: string,
+	data: UpdateWizardRequest,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)
@@ -698,8 +742,8 @@ export async function updateWizard(wizardId: string, data: UpdateWizardRequest) 
  * @param wizardId - UUID of the wizard to delete
  * @returns Empty response on success
  */
-export async function deleteWizard(wizardId: string) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
+export async function deleteWizard(wizardId: string, customFetch: typeof globalThis.fetch = fetch) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' }
 	});
@@ -719,8 +763,12 @@ export async function deleteWizard(wizardId: string) {
  * @param data - Step creation data
  * @returns Created step response
  */
-export async function createStep(wizardId: string, data: CreateWizardStepRequest) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps`, {
+export async function createStep(
+	wizardId: string,
+	data: CreateWizardStepRequest,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)
@@ -743,8 +791,13 @@ export async function createStep(wizardId: string, data: CreateWizardStepRequest
  * @param data - Fields to update
  * @returns Updated step response
  */
-export async function updateStep(wizardId: string, stepId: string, data: UpdateWizardStepRequest) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
+export async function updateStep(
+	wizardId: string,
+	stepId: string,
+	data: UpdateWizardStepRequest,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)
@@ -766,8 +819,12 @@ export async function updateStep(wizardId: string, stepId: string, data: UpdateW
  * @param stepId - UUID of the step to delete
  * @returns Empty response on success
  */
-export async function deleteStep(wizardId: string, stepId: string) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
+export async function deleteStep(
+	wizardId: string,
+	stepId: string,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' }
 	});
@@ -788,8 +845,13 @@ export async function deleteStep(wizardId: string, stepId: string) {
  * @param newOrder - New position for the step
  * @returns Updated step response
  */
-export async function reorderStep(wizardId: string, stepId: string, newOrder: number) {
-	const response = await fetch(
+export async function reorderStep(
+	wizardId: string,
+	stepId: string,
+	newOrder: number,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(
 		`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}/reorder`,
 		{
 			method: 'POST',
@@ -813,8 +875,11 @@ export async function reorderStep(wizardId: string, stepId: string, newOrder: nu
  * @param data - Step validation request
  * @returns Validation response with completion token if valid
  */
-export async function validateStep(data: StepValidationRequest) {
-	const response = await fetch(`${API_BASE_URL}/api/v1/wizards/validate-step`, {
+export async function validateStep(
+	data: StepValidationRequest,
+	customFetch: typeof globalThis.fetch = fetch
+) {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/validate-step`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data)

@@ -9,15 +9,20 @@
  * @module routes/(public)/join/[code]/+page
  */
 
-import { type InvitationValidationResponse, validateInvitation } from '$lib/api/client';
+import {
+	createScopedClient,
+	type InvitationValidationResponse,
+	validateInvitation
+} from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ fetch, params }) => {
+	const client = createScopedClient(fetch);
 	const { code } = params;
 
 	try {
-		const result = await validateInvitation(code);
+		const result = await validateInvitation(code, client);
 
 		// Check for successful response with data
 		if (result.data) {

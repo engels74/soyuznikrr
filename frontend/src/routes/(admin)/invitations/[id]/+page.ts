@@ -8,6 +8,7 @@
  */
 
 import {
+	createScopedClient,
 	getInvitation,
 	getServers,
 	getWizards,
@@ -18,15 +19,16 @@ import {
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ fetch, params }) => {
+	const client = createScopedClient(fetch);
 	const { id } = params;
 
 	try {
 		// Fetch invitation, servers, and wizards in parallel
 		const [invitationResult, serversResult, wizardsResult] = await Promise.all([
-			getInvitation(id),
-			getServers(true), // Only enabled servers
-			getWizards({ page_size: 100 }) // Fetch all wizards
+			getInvitation(id, client),
+			getServers(true, client),
+			getWizards({ page_size: 100 }, fetch)
 		]);
 
 		// Handle invitation fetch error

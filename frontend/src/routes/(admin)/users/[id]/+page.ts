@@ -10,16 +10,17 @@
  * @module routes/(admin)/users/[id]/+page
  */
 
-import { getUser, getUsers, type UserDetailResponse } from '$lib/api/client';
+import { createScopedClient, getUser, getUsers, type UserDetailResponse } from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ fetch, params }) => {
+	const client = createScopedClient(fetch);
 	const { id } = params;
 
 	try {
 		// Fetch user details
-		const userResult = await getUser(id);
+		const userResult = await getUser(id, client);
 
 		// Handle user fetch error
 		if (userResult.error) {
@@ -45,7 +46,7 @@ export const load: PageLoad = async ({ params }) => {
 			// We need to fetch users and filter by identity
 			// Since there's no direct endpoint for this, we fetch all users
 			// and filter client-side (in a real app, this would be a dedicated endpoint)
-			const linkedResult = await getUsers({ page_size: 100 });
+			const linkedResult = await getUsers({ page_size: 100 }, client);
 			if (linkedResult.data) {
 				linkedUsers = linkedResult.data.items.filter(
 					(u) => u.identity_id === user.identity_id && u.id !== user.id

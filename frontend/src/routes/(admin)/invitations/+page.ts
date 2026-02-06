@@ -8,6 +8,7 @@
  */
 
 import {
+	createScopedClient,
 	getInvitations,
 	type InvitationListResponse,
 	type ListInvitationsParams
@@ -15,7 +16,8 @@ import {
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ url }) => {
+export const load: PageLoad = async ({ fetch, url }) => {
+	const client = createScopedClient(fetch);
 	// Extract query parameters from URL
 	const page = Number(url.searchParams.get('page')) || 1;
 	const pageSize = Number(url.searchParams.get('page_size')) || 50;
@@ -49,7 +51,7 @@ export const load: PageLoad = async ({ url }) => {
 	}
 
 	try {
-		const result = await getInvitations(params);
+		const result = await getInvitations(params, client);
 
 		// Check for successful response with data
 		if (result.data) {

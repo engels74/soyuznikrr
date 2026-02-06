@@ -12,11 +12,11 @@ import { getWizard, type WizardDetailResponse } from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ fetch, params }) => {
 	const { id } = params;
 
 	try {
-		const result = await getWizard(id);
+		const result = await getWizard(id, fetch);
 
 		if (result.data) {
 			return {

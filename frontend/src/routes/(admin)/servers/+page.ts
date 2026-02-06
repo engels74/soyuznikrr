@@ -7,13 +7,18 @@
  * @module routes/(admin)/servers/+page
  */
 
-import { getServers, type MediaServerWithLibrariesResponse } from '$lib/api/client';
+import {
+	createScopedClient,
+	getServers,
+	type MediaServerWithLibrariesResponse
+} from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async () => {
+export const load: PageLoad = async ({ fetch }) => {
+	const client = createScopedClient(fetch);
 	try {
-		const result = await getServers();
+		const result = await getServers(undefined, client);
 
 		if (result.data) {
 			return {

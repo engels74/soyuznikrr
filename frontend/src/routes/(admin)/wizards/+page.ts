@@ -13,7 +13,7 @@ import { getWizards, type ListWizardsParams, type WizardListResponse } from '$li
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ url }) => {
+export const load: PageLoad = async ({ fetch, url }) => {
 	// Extract query parameters from URL
 	const page = Number(url.searchParams.get('page')) || 1;
 	const pageSize = Number(url.searchParams.get('page_size')) || 50;
@@ -24,7 +24,7 @@ export const load: PageLoad = async ({ url }) => {
 	};
 
 	try {
-		const result = await getWizards(params);
+		const result = await getWizards(params, fetch);
 
 		if (result.data) {
 			return {

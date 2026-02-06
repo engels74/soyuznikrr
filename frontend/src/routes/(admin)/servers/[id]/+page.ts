@@ -8,16 +8,21 @@
  * @module routes/(admin)/servers/[id]/+page
  */
 
-import { getServers, type MediaServerWithLibrariesResponse } from '$lib/api/client';
+import {
+	createScopedClient,
+	getServers,
+	type MediaServerWithLibrariesResponse
+} from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ fetch, params }) => {
+	const client = createScopedClient(fetch);
 	const { id } = params;
 
 	try {
 		// Fetch all servers and find the one with matching ID
-		const result = await getServers();
+		const result = await getServers(undefined, client);
 
 		if (result.data) {
 			const server = result.data.find((s) => s.id === id);

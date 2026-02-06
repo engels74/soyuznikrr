@@ -8,6 +8,7 @@
  */
 
 import {
+	createScopedClient,
 	getInvitations,
 	getServers,
 	getUsers,
@@ -18,7 +19,8 @@ import {
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ url }) => {
+export const load: PageLoad = async ({ fetch, url }) => {
+	const client = createScopedClient(fetch);
 	// Extract query parameters from URL
 	const page = Number(url.searchParams.get('page')) || 1;
 	const pageSize = Number(url.searchParams.get('page_size')) || 50;
@@ -62,9 +64,9 @@ export const load: PageLoad = async ({ url }) => {
 	try {
 		// Fetch users, servers, and invitations in parallel for filter dropdowns
 		const [usersResult, serversResult, invitationsResult] = await Promise.all([
-			getUsers(params),
-			getServers(),
-			getInvitations({ page_size: 100 }) // Get all invitations for filter dropdown
+			getUsers(params, client),
+			getServers(undefined, client),
+			getInvitations({ page_size: 100 }, client)
 		]);
 
 		// Check for successful users response

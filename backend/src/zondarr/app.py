@@ -33,6 +33,7 @@ from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.di import Provide
+from litestar.exceptions import HTTPException as LitestarHTTPException
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
@@ -41,6 +42,7 @@ from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from zondarr.api.errors import (
     external_service_error_handler,
     internal_error_handler,
+    litestar_http_exception_handler,
     not_found_handler,
     validation_error_handler,
 )
@@ -194,6 +196,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
             ValidationError: validation_error_handler,
             NotFoundError: not_found_handler,
             ExternalServiceError: external_service_error_handler,
+            LitestarHTTPException: litestar_http_exception_handler,
             Exception: internal_error_handler,
         },
         debug=settings.debug,
