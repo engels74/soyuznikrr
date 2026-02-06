@@ -14,6 +14,7 @@ Tests that for any list_users request:
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.conftest import TestDB
 from zondarr.models import ServerType
@@ -59,7 +60,7 @@ external_user_id_strategy = st.uuids().map(str)
 
 
 async def create_test_users(
-    session_factory,
+    session_factory: async_sessionmaker[AsyncSession],
     *,
     count: int,
 ) -> list[User]:

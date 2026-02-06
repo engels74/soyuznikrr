@@ -59,7 +59,7 @@ repos:
       # Backend tests (pre-push only)
       - id: tests-py
         name: Python Tests
-        entry: uv run --project backend pytest
+        entry: bash -c 'cd backend && uv run pytest'
         language: system
         files: ^backend/(src|tests)/.*\.py$
         pass_filenames: false

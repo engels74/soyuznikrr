@@ -135,7 +135,7 @@ class TestDB:
     example. Call ``await db.clean()`` at the start of each example.
     """
 
-    __test__ = False  # Tell pytest this is not a test class
+    __test__: bool = False  # Tell pytest this is not a test class
 
     _engine: AsyncEngine | None
     _session_factory: async_sessionmaker[AsyncSession] | None
@@ -158,7 +158,7 @@ class TestDB:
         else:
             async with self._engine.begin() as conn:
                 for table in _TRUNCATE_ORDER:
-                    await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608
+                    _ = await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608
 
     @property
     def engine(self) -> AsyncEngine:
