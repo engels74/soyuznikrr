@@ -1,65 +1,65 @@
-#!/usr/bin/env python3
-"""Zondarr development server launcher.
-
-Usage:
-    uv run dev-cli                          # Start both servers
-    uv run dev-cli --backend-only           # Backend only
-    uv run dev-cli --frontend-only          # Frontend only
-    uv run dev-cli --backend-port 9000      # Custom backend port
-    uv run dev-cli --skip-checks            # Skip pre-flight checks
-"""
+"""CLI entry point — argument parsing and main async loop."""
 
 import argparse
 import asyncio
-import sys
 from pathlib import Path
 
-from output import print_banner
-from preflight import run_checks
-from runner import DevRunner
+from .output import print_banner
+from .preflight import run_checks
+from .runner import DevRunner
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def parse_args() -> argparse.Namespace:
+class _Args(argparse.Namespace):
+    """Typed namespace for parsed CLI arguments."""
+
+    backend_port: int = 8000
+    frontend_port: int = 5173
+    skip_checks: bool = False
+    backend_only: bool = False
+    frontend_only: bool = False
+
+
+def _parse_args() -> _Args:
     parser = argparse.ArgumentParser(
         description="Start Zondarr dev servers",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--backend-port",
         type=int,
         default=8000,
         help="Backend port (default: 8000)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--frontend-port",
         type=int,
         default=5173,
         help="Frontend port (default: 5173)",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--skip-checks",
         action="store_true",
         help="Skip pre-flight checks",
     )
 
     exclusive = parser.add_mutually_exclusive_group()
-    exclusive.add_argument(
+    _ = exclusive.add_argument(
         "--backend-only",
         action="store_true",
         help="Run only the backend server",
     )
-    exclusive.add_argument(
+    _ = exclusive.add_argument(
         "--frontend-only",
         action="store_true",
         help="Run only the frontend server",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(namespace=_Args())
 
 
-async def main() -> int:
-    args = parse_args()
+async def _main() -> int:
+    args = _parse_args()
 
     if not args.skip_checks:
         if not run_checks(
@@ -89,9 +89,9 @@ async def main() -> int:
         return 0
 
 
-if __name__ == "__main__":
+def run() -> int:
+    """Sync entry point for __main__.py."""
     try:
-        code = asyncio.run(main())
+        return asyncio.run(_main())
     except KeyboardInterrupt:
-        code = 0
-    sys.exit(code)
+        return 0

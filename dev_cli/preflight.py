@@ -5,7 +5,7 @@ import secrets
 import shutil
 from pathlib import Path
 
-from output import print_error, print_info, print_warn
+from .output import print_error, print_info, print_warn
 
 
 def run_checks(
