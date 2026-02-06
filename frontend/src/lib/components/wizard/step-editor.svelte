@@ -38,9 +38,12 @@ interface Props {
 
 let { step, onSave, onCancel }: Props = $props();
 
-// Form state
+// Form state (local copies for editing — intentionally captures initial prop values)
+// svelte-ignore state_referenced_locally
 let title = $state(step.title);
+// svelte-ignore state_referenced_locally
 let contentMarkdown = $state(step.content_markdown);
+// svelte-ignore state_referenced_locally
 let config = $state<{ [key: string]: string | number | boolean | string[] | null }>({ ...step.config });
 let errors = $state<Record<string, string[]>>({});
 let isSaving = $state(false);

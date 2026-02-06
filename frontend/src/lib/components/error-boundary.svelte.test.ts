@@ -10,7 +10,7 @@
  * @module $lib/components/error-boundary.svelte.test
  */
 
-import { cleanup, render, waitFor } from '@testing-library/svelte';
+import { cleanup, render } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import * as fc from 'fast-check';
 import { tick } from 'svelte';

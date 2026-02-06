@@ -1,6 +1,6 @@
 import type { ClassValue } from 'clsx';
 import { clsx } from 'clsx';
-import type { Snippet } from 'svelte';
+
 import { cubicOut } from 'svelte/easing';
 import type { TransitionConfig } from 'svelte/transition';
 import { twMerge } from 'tailwind-merge';
@@ -69,7 +69,7 @@ export function flyAndScale(
 	const styleToString = (style: Record<string, number | string | undefined>): string => {
 		return Object.keys(style).reduce((str, key) => {
 			if (style[key] === undefined) return str;
-			return str + `${key}:${style[key]};`;
+			return `${str}${key}:${style[key]};`;
 		}, '');
 	};
 

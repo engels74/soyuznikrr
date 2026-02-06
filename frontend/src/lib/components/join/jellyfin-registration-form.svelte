@@ -66,7 +66,8 @@ function togglePasswordVisibility() {
 		</Label>
 		<Input
 			type="text"
-			bind:value={formData.username}
+			value={formData.username}
+			oninput={(e) => (formData.username = e.currentTarget.value)}
 			placeholder="e.g., johndoe"
 			class="border-cr-border bg-cr-surface text-cr-text placeholder:text-cr-text-muted"
 			autocomplete="username"
@@ -96,7 +97,8 @@ function togglePasswordVisibility() {
 		<div class="relative">
 			<Input
 				type={showPassword ? 'text' : 'password'}
-				bind:value={formData.password}
+				value={formData.password}
+				oninput={(e) => (formData.password = e.currentTarget.value)}
 				placeholder="Enter a secure password"
 				class="border-cr-border bg-cr-surface text-cr-text placeholder:text-cr-text-muted pr-10"
 				autocomplete="new-password"
@@ -136,7 +138,8 @@ function togglePasswordVisibility() {
 		</Label>
 		<Input
 			type="email"
-			bind:value={formData.email}
+			value={formData.email}
+			oninput={(e) => (formData.email = e.currentTarget.value)}
 			placeholder="you@example.com"
 			class="border-cr-border bg-cr-surface text-cr-text placeholder:text-cr-text-muted"
 			autocomplete="email"

@@ -60,7 +60,7 @@ describe('Property 30: Username Validation', () => {
 					.map((s) => s.toLowerCase().replace(/[^a-z0-9_]/g, 'a')),
 				(longUsername) => {
 					// Ensure it starts with a letter
-					const username = 'a' + longUsername.slice(1);
+					const username = `a${longUsername.slice(1)}`;
 					const result = jellyfinRegistrationSchema.safeParse({
 						username,
 						password: 'validpassword123'

@@ -47,10 +47,14 @@ interface Props {
 
 let { wizard, onSave, onCancel, onPreview }: Props = $props();
 
-// Form state
+// Form state (local copies for editing — intentionally captures initial prop values)
+// svelte-ignore state_referenced_locally
 let name = $state(wizard?.name ?? '');
+// svelte-ignore state_referenced_locally
 let description = $state(wizard?.description ?? '');
+// svelte-ignore state_referenced_locally
 let enabled = $state(wizard?.enabled ?? true);
+// svelte-ignore state_referenced_locally
 let steps = $state<WizardStepResponse[]>(wizard?.steps ?? []);
 let isSaving = $state(false);
 let errors = $state<Record<string, string[]>>({});

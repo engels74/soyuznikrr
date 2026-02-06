@@ -67,16 +67,6 @@ const invitationResponseArb: fc.Arbitrary<InvitationResponse> = fc.record({
 	remaining_uses: fc.oneof(fc.integer({ min: 0, max: 1000 }), fc.constant(null))
 });
 
-/**
- * Generate an invitation with specific remaining_uses value.
- */
-const invitationWithRemainingUsesArb = (remainingUses: number | null) =>
-	invitationResponseArb.map((inv) => ({
-		...inv,
-		remaining_uses: remainingUses,
-		max_uses: remainingUses !== null ? inv.use_count + remainingUses : null
-	}));
-
 // =============================================================================
 // Property 9: Invitation Field Display
 // Validates: Requirements 4.2

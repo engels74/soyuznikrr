@@ -141,7 +141,7 @@ function formatLink() {
 
 	if (selected) {
 		// Wrap selected text as link text
-		const newValue = value.slice(0, start) + '[' + selected + '](url)' + value.slice(end);
+		const newValue = `${value.slice(0, start)}[${selected}](url)${value.slice(end)}`;
 		value = newValue;
 		requestAnimationFrame(() => {
 			if (!textareaRef) return;
