@@ -45,9 +45,9 @@ bun run generate:api                 # Regenerate API types from OpenAPI (requir
 ### Dev CLI (from repo root)
 
 ```bash
-python -m dev_cli                    # Launch both backend + frontend dev servers
-python -m dev_cli --backend-only     # Backend only
-python -m dev_cli --frontend-only    # Frontend only
+uv run dev_cli                    # Launch both backend + frontend dev servers
+uv run dev_cli --backend-only     # Backend only
+uv run dev_cli --frontend-only    # Frontend only
 ```
 
 ## Architecture
