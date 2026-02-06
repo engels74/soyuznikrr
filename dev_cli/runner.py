@@ -5,10 +5,12 @@ import os
 import signal
 import sys
 from pathlib import Path
+from typing import final
 
-from output import BOLD, CYAN, DIM, MAGENTA, RESET, print_error, print_info
+from .output import BOLD, CYAN, DIM, MAGENTA, RESET, print_error, print_info
 
 
+@final
 class ServerProcess:
     """Wraps a single child process with colored output streaming."""
 
@@ -66,13 +68,14 @@ class ServerProcess:
         print_info(f"Stopping {self.name} (pid={self.process.pid})...")
         self.process.terminate()
         try:
-            await asyncio.wait_for(self.process.wait(), timeout=5.0)
+            _ = await asyncio.wait_for(self.process.wait(), timeout=5.0)
         except TimeoutError:
             print_error(f"{self.name} did not exit in 5s — sending SIGKILL")
             self.process.kill()
-            await self.process.wait()
+            _ = await self.process.wait()
 
 
+@final
 class DevRunner:
     """Orchestrates multiple ServerProcess instances."""
 
@@ -161,7 +164,7 @@ class DevRunner:
             await server.start()
 
         # Create stream tasks (stdout + stderr per server)
-        tasks: list[asyncio.Task] = []
+        tasks: list[asyncio.Task[None]] = []
         for server in self.servers:
             assert server.process is not None
             assert server.process.stdout is not None
@@ -187,7 +190,7 @@ class DevRunner:
         tasks.append(asyncio.create_task(self._watch_exits()))
 
         # Wait for shutdown signal or all streams to end
-        await asyncio.gather(*tasks, return_exceptions=True)
+        _ = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Stop any remaining servers
         for server in self.servers:
@@ -210,6 +213,6 @@ class DevRunner:
                     self.shutdown_event.set()
                     return
             try:
-                await asyncio.wait_for(self.shutdown_event.wait(), timeout=0.5)
+                _ = await asyncio.wait_for(self.shutdown_event.wait(), timeout=0.5)
             except TimeoutError:
                 continue
