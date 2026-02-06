@@ -42,4 +42,4 @@ cd frontend && bun run check          # Type check
 
 ## License
 
-MIT
+GNU Affero General Public License v3.0
