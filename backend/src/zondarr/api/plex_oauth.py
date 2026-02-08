@@ -148,6 +148,7 @@ class PlexOAuthController(Controller):
             result = await oauth_service.check_pin(pin_id)
             return PlexOAuthCheckResponse(
                 authenticated=result.authenticated,
+                auth_token=result.auth_token,
                 email=result.email,
                 error=result.error,
             )

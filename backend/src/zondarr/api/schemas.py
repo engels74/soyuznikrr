@@ -1179,5 +1179,6 @@ class PlexOAuthCheckResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     """
 
     authenticated: bool
+    auth_token: str | None = None
     email: str | None = None
     error: str | None = None

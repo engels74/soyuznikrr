@@ -12,7 +12,10 @@ from uuid import UUID
 import msgspec
 import structlog
 from litestar.connection import ASGIConnection
+from litestar.exceptions import NotAuthorizedException
+from litestar.middleware.authentication import AuthenticationResult
 from litestar.security.jwt import JWTCookieAuth, Token
+from litestar.security.jwt.middleware import JWTCookieAuthenticationMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.config import Settings
@@ -21,8 +24,14 @@ from zondarr.repositories.admin import AdminAccountRepository
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
 
 # Paths excluded from JWT auth
+# Note: /api/auth/me requires auth, so we list specific public sub-paths
+# rather than excluding the entire /api/auth/ prefix.
 AUTH_EXCLUDE_PATHS = [
-    "/api/auth/",
+    "/api/auth/methods",
+    "/api/auth/setup",
+    "/api/auth/login",
+    "/api/auth/refresh",
+    "/api/auth/logout",
     "/api/v1/join/",
     "/api/health",
     "/health",
@@ -92,8 +101,45 @@ async def retrieve_user_handler(
         return None
 
 
+class FixedJWTCookieMiddleware(JWTCookieAuthenticationMiddleware):
+    """Fixed JWT cookie middleware that correctly parses cookie tokens.
+
+    Litestar's default JWTCookieAuthenticationMiddleware uses
+    ``auth_header.partition(" ")[-1]`` to strip the "Bearer " prefix,
+    but cookie values don't have that prefix — ``partition`` returns
+    ``(token, "", "")`` and ``[-1]`` yields an empty string.
+
+    This subclass handles both cases correctly.
+    """
+
+    async def authenticate_request(  # pyright: ignore[reportImplicitOverride]
+        self, connection: ASGIConnection[Any, Any, Any, Any]
+    ) -> AuthenticationResult:
+        """Extract JWT from header or cookie and authenticate."""
+        auth_header = connection.headers.get(self.auth_header)
+        encoded_token: str | None = None
+
+        if auth_header:
+            # Authorization header: strip "Bearer " prefix
+            encoded_token = auth_header.partition(" ")[-1] or auth_header
+        else:
+            # Cookie: value is the raw JWT, no prefix
+            encoded_token = connection.cookies.get(self.auth_cookie_key)
+
+        if not encoded_token:
+            raise NotAuthorizedException(
+                "No JWT token found in request header or cookies"
+            )
+        return await self.authenticate_token(
+            encoded_token=encoded_token, connection=connection
+        )
+
+
 def create_jwt_auth(settings: Settings) -> JWTCookieAuth[AdminUser]:
     """Create a configured JWTCookieAuth instance.
+
+    Uses FixedJWTCookieMiddleware to work around a Litestar bug where
+    cookie token values are not parsed correctly.
 
     Args:
         settings: Application settings containing secret_key.
@@ -106,4 +152,5 @@ def create_jwt_auth(settings: Settings) -> JWTCookieAuth[AdminUser]:
         token_secret=settings.secret_key,
         key="zondarr_access_token",
         exclude=AUTH_EXCLUDE_PATHS,
+        authentication_middleware_class=FixedJWTCookieMiddleware,
     )
