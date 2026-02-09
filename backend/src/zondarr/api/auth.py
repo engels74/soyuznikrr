@@ -53,7 +53,7 @@ class AuthController(Controller):
         )
 
     def _create_access_token(
-        self, admin_id: str, secret_key: str
+        self, admin_id: str, secret_key: str, *, secure: bool = False
     ) -> tuple[str, Cookie]:
         """Create JWT access token and cookie."""
         token = Token(
@@ -66,7 +66,7 @@ class AuthController(Controller):
             key="zondarr_access_token",
             value=encoded,
             httponly=True,
-            secure=False,  # Set True in production via reverse proxy
+            secure=secure,
             samesite="lax",
             max_age=ACCESS_TOKEN_MINUTES * 60,
             path="/",
@@ -110,7 +110,10 @@ class AuthController(Controller):
 
         # Issue tokens
         secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        _, access_cookie = self._create_access_token(str(admin.id), secret_key)
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        _, access_cookie = self._create_access_token(
+            str(admin.id), secret_key, secure=secure
+        )
         refresh_token = await service.create_refresh_token(admin)
 
         response = Response(
@@ -137,7 +140,10 @@ class AuthController(Controller):
         admin = await service.authenticate_local(data.username, data.password)
 
         secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        _, access_cookie = self._create_access_token(str(admin.id), secret_key)
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        _, access_cookie = self._create_access_token(
+            str(admin.id), secret_key, secure=secure
+        )
         refresh_token = await service.create_refresh_token(admin)
 
         return Response(
@@ -160,10 +166,16 @@ class AuthController(Controller):
     ) -> Response[AuthTokenResponse]:
         """Authenticate with Plex OAuth token."""
         service = self._create_auth_service(session)
-        admin = await service.authenticate_plex(data.auth_token)
+        plex_token: str | None = state.settings.plex_token  # pyright: ignore[reportAny]
+        admin = await service.authenticate_plex(
+            data.auth_token, configured_plex_token=plex_token
+        )
 
         secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        _, access_cookie = self._create_access_token(str(admin.id), secret_key)
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        _, access_cookie = self._create_access_token(
+            str(admin.id), secret_key, secure=secure
+        )
         refresh_token = await service.create_refresh_token(admin)
 
         return Response(
@@ -191,7 +203,10 @@ class AuthController(Controller):
         )
 
         secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        _, access_cookie = self._create_access_token(str(admin.id), secret_key)
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        _, access_cookie = self._create_access_token(
+            str(admin.id), secret_key, secure=secure
+        )
         refresh_token = await service.create_refresh_token(admin)
 
         return Response(
@@ -220,7 +235,10 @@ class AuthController(Controller):
         await service.revoke_refresh_token(data.refresh_token)
 
         secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        _, access_cookie = self._create_access_token(str(admin.id), secret_key)
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        _, access_cookie = self._create_access_token(
+            str(admin.id), secret_key, secure=secure
+        )
         new_refresh_token = await service.create_refresh_token(admin)
 
         return Response(
@@ -238,6 +256,7 @@ class AuthController(Controller):
     async def logout(
         self,
         session: AsyncSession,
+        state: State,
         data: RefreshRequest | None = None,
     ) -> Response[dict[str, bool]]:
         """Revoke tokens and clear cookies."""
@@ -246,10 +265,12 @@ class AuthController(Controller):
             await service.revoke_refresh_token(data.refresh_token)
 
         # Clear access token cookie
+        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
         clear_cookie = Cookie(
             key="zondarr_access_token",
             value="",
             httponly=True,
+            secure=secure,
             samesite="lax",
             max_age=0,
             path="/",

@@ -41,6 +41,12 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
 
     # Security
     secret_key: Annotated[str, msgspec.Meta(min_length=32)]
+    secure_cookies: Annotated[
+        bool,
+        msgspec.Meta(
+            description="Set True when serving over HTTPS to enforce Secure flag on cookies"
+        ),
+    ] = False
 
     # Media server credentials (optional, override database values)
     plex_url: str | None = None
@@ -95,6 +101,8 @@ def load_settings() -> Settings:
             if origin.strip()
         ],
         "secret_key": secret_key,
+        "secure_cookies": os.environ.get("SECURE_COOKIES", "").lower()
+        in ("true", "1", "yes"),
         "expiration_check_interval_seconds": int(
             os.environ.get("EXPIRATION_CHECK_INTERVAL_SECONDS", "3600")
         ),

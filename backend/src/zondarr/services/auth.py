@@ -118,22 +118,35 @@ class AuthService:
         admin.last_login_at = datetime.now(UTC)
         return admin
 
-    async def authenticate_plex(self, auth_token: str) -> AdminAccount:
+    async def authenticate_plex(
+        self,
+        auth_token: str,
+        *,
+        configured_plex_token: str | None = None,
+    ) -> AdminAccount:
         """Authenticate via Plex OAuth token.
 
-        Verifies the token belongs to the Plex server owner.
-        Auto-creates an AdminAccount if the user is verified owner.
+        Verifies the token is valid and the account matches the configured
+        Plex server owner. Auto-creates an AdminAccount for verified owners.
 
         Args:
             auth_token: Plex auth token from OAuth flow.
+            configured_plex_token: The configured Plex server token (PLEX_TOKEN).
+                Required to verify server ownership.
 
         Returns:
             The authenticated AdminAccount.
 
         Raises:
-            AuthenticationError: If verification fails.
+            AuthenticationError: If Plex is not configured, verification fails,
+                or the account is not the server owner.
         """
         from plexapi.myplex import MyPlexAccount
+
+        if not configured_plex_token:
+            raise AuthenticationError(
+                "Plex authentication is not configured", "PLEX_NOT_CONFIGURED"
+            )
 
         try:
             account = MyPlexAccount(token=auth_token)
@@ -146,6 +159,21 @@ class AuthService:
                 "Failed to verify Plex account", "PLEX_AUTH_FAILED"
             ) from exc
 
+        # Verify the authenticating user is the configured Plex server owner
+        try:
+            owner_account = MyPlexAccount(token=configured_plex_token)
+            _raw_owner_email: object = owner_account.email  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            owner_email = str(_raw_owner_email)  # pyright: ignore[reportUnknownArgumentType]
+        except Exception as exc:
+            raise AuthenticationError(
+                "Failed to verify Plex server owner", "PLEX_AUTH_FAILED"
+            ) from exc
+
+        if plex_email.lower() != owner_email.lower():
+            raise AuthenticationError(
+                "Account is not the Plex server owner", "NOT_SERVER_OWNER"
+            )
+
         # Check for existing account with this external ID
         admin = await self.admin_repo.get_by_external_id(plex_email, AuthMethod.PLEX)
 
@@ -155,7 +183,7 @@ class AuthService:
             admin.last_login_at = datetime.now(UTC)
             return admin
 
-        # Auto-create admin account for Plex server owner
+        # Auto-create admin account for verified Plex server owner
         admin = AdminAccount(
             username=plex_username.lower().replace(" ", "_")[:32],
             email=plex_email,
