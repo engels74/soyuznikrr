@@ -135,8 +135,12 @@ export async function logout(
 ): Promise<void> {
 	await customFetch(`${API_BASE_URL}/api/auth/logout`, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: token ? JSON.stringify({ refresh_token: token }) : '{}',
+		...(token
+			? {
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ refresh_token: token })
+				}
+			: {}),
 		credentials: 'include'
 	});
 }
