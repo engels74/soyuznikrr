@@ -11,32 +11,32 @@
  * @module $lib/components/wizard/wizard-builder
  */
 
-import { GripVertical, Plus, Trash2, Wand2 } from '@lucide/svelte';
-import { toast } from 'svelte-sonner';
+import { GripVertical, Plus, Trash2, Wand2 } from "@lucide/svelte";
+import { toast } from "svelte-sonner";
 import type {
 	CreateWizardStepRequest,
 	WizardDetailResponse,
-	WizardStepResponse
-} from '$lib/api/client';
+	WizardStepResponse,
+} from "$lib/api/client";
 import {
 	createStep,
 	createWizard,
 	deleteStep,
 	reorderStep,
 	updateStep,
-	updateWizard
-} from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
+	updateWizard,
+} from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
 import {
 	getDefaultConfig,
 	type InteractionType,
 	interactionTypes,
-	wizardSchema
-} from '$lib/schemas/wizard';
-import StepEditor from './step-editor.svelte';
+	wizardSchema,
+} from "$lib/schemas/wizard";
+import StepEditor from "./step-editor.svelte";
 
 interface Props {
 	wizard?: WizardDetailResponse;
@@ -45,13 +45,13 @@ interface Props {
 	onPreview?: () => void;
 }
 
-let { wizard, onSave, onCancel, onPreview }: Props = $props();
+const { wizard, onSave, onCancel, onPreview }: Props = $props();
 
 // Form state (local copies for editing — intentionally captures initial prop values)
 // svelte-ignore state_referenced_locally
-let name = $state(wizard?.name ?? '');
+let name = $state(wizard?.name ?? "");
 // svelte-ignore state_referenced_locally
-let description = $state(wizard?.description ?? '');
+let description = $state(wizard?.description ?? "");
 // svelte-ignore state_referenced_locally
 let enabled = $state(wizard?.enabled ?? true);
 // svelte-ignore state_referenced_locally
@@ -62,7 +62,7 @@ let errors = $state<Record<string, string[]>>({});
 // Step editing state
 let editingStepId = $state<string | null>(null);
 let isAddingStep = $state(false);
-let newStepType = $state<InteractionType>('click');
+let newStepType = $state<InteractionType>("click");
 
 // Drag state for reordering
 let draggedStepId = $state<string | null>(null);
@@ -72,18 +72,18 @@ let dragOverStepId = $state<string | null>(null);
 const isEditing = $derived(!!wizard?.id);
 const editingStep = $derived(steps.find((s) => s.id === editingStepId));
 const hasChanges = $derived(
-	name !== (wizard?.name ?? '') ||
-		description !== (wizard?.description ?? '') ||
-		enabled !== (wizard?.enabled ?? true)
+	name !== (wizard?.name ?? "") ||
+		description !== (wizard?.description ?? "") ||
+		enabled !== (wizard?.enabled ?? true),
 );
 
 // Interaction type labels for display
 const interactionTypeLabels: Record<InteractionType, string> = {
-	click: 'Click Confirmation',
-	timer: 'Timed Wait',
-	tos: 'Terms of Service',
-	text_input: 'Text Input',
-	quiz: 'Quiz Question'
+	click: "Click Confirmation",
+	timer: "Timed Wait",
+	tos: "Terms of Service",
+	text_input: "Text Input",
+	quiz: "Quiz Question",
 };
 
 /**
@@ -94,7 +94,7 @@ function validateForm(): boolean {
 	if (!result.success) {
 		const fieldErrors: Record<string, string[]> = {};
 		for (const issue of result.error.issues) {
-			const path = issue.path.join('.');
+			const path = issue.path.join(".");
 			if (!fieldErrors[path]) {
 				fieldErrors[path] = [];
 			}
@@ -122,14 +122,14 @@ async function handleSave() {
 			const result = await updateWizard(wizard.id, {
 				name: name !== wizard.name ? name : null,
 				description: description !== wizard.description ? description : null,
-				enabled: enabled !== wizard.enabled ? enabled : null
+				enabled: enabled !== wizard.enabled ? enabled : null,
 			});
 
 			if (result.error) {
-				throw new Error(result.error.detail ?? 'Failed to update wizard');
+				throw new Error(result.error.detail ?? "Failed to update wizard");
 			}
 
-			toast.success('Wizard updated successfully');
+			toast.success("Wizard updated successfully");
 
 			// Notify parent with updated wizard
 			if (result.data) {
@@ -140,10 +140,10 @@ async function handleSave() {
 			const result = await createWizard({ name, description, enabled });
 
 			if (result.error) {
-				throw new Error(result.error.detail ?? 'Failed to create wizard');
+				throw new Error(result.error.detail ?? "Failed to create wizard");
 			}
 
-			toast.success('Wizard created successfully');
+			toast.success("Wizard created successfully");
 
 			// Notify parent with new wizard
 			if (result.data) {
@@ -151,7 +151,9 @@ async function handleSave() {
 			}
 		}
 	} catch (error) {
-		toast.error(error instanceof Error ? error.message : 'Failed to save wizard');
+		toast.error(
+			error instanceof Error ? error.message : "Failed to save wizard",
+		);
 	} finally {
 		isSaving = false;
 	}
@@ -162,32 +164,32 @@ async function handleSave() {
  */
 async function handleAddStep() {
 	if (!wizard?.id) {
-		toast.error('Please save the wizard first before adding steps');
+		toast.error("Please save the wizard first before adding steps");
 		return;
 	}
 
 	const stepData: CreateWizardStepRequest = {
 		interaction_type: newStepType,
 		title: `New ${interactionTypeLabels[newStepType]} Step`,
-		content_markdown: 'Enter your content here...',
-		config: getDefaultConfig(newStepType)
+		content_markdown: "Enter your content here...",
+		config: getDefaultConfig(newStepType),
 	};
 
 	try {
 		const result = await createStep(wizard.id, stepData);
 
 		if (result.error) {
-			throw new Error(result.error.detail ?? 'Failed to create step');
+			throw new Error(result.error.detail ?? "Failed to create step");
 		}
 
 		if (result.data) {
 			steps = [...steps, result.data];
 			editingStepId = result.data.id;
 			isAddingStep = false;
-			toast.success('Step added successfully');
+			toast.success("Step added successfully");
 		}
 	} catch (error) {
-		toast.error(error instanceof Error ? error.message : 'Failed to add step');
+		toast.error(error instanceof Error ? error.message : "Failed to add step");
 	}
 }
 
@@ -201,42 +203,49 @@ async function handleDeleteStep(stepId: string) {
 		const result = await deleteStep(wizard.id, stepId);
 
 		if (result.error) {
-			throw new Error(result.error.detail ?? 'Failed to delete step');
+			throw new Error(result.error.detail ?? "Failed to delete step");
 		}
 
 		steps = steps.filter((s) => s.id !== stepId);
 		if (editingStepId === stepId) {
 			editingStepId = null;
 		}
-		toast.success('Step deleted successfully');
+		toast.success("Step deleted successfully");
 	} catch (error) {
-		toast.error(error instanceof Error ? error.message : 'Failed to delete step');
+		toast.error(
+			error instanceof Error ? error.message : "Failed to delete step",
+		);
 	}
 }
 
 /**
  * Update a step.
  */
-async function handleUpdateStep(stepId: string, updates: Partial<WizardStepResponse>) {
+async function handleUpdateStep(
+	stepId: string,
+	updates: Partial<WizardStepResponse>,
+) {
 	if (!wizard?.id) return;
 
 	try {
 		const result = await updateStep(wizard.id, stepId, {
 			title: updates.title ?? null,
 			content_markdown: updates.content_markdown ?? null,
-			config: updates.config ?? null
+			config: updates.config ?? null,
 		});
 
 		if (result.error) {
-			throw new Error(result.error.detail ?? 'Failed to update step');
+			throw new Error(result.error.detail ?? "Failed to update step");
 		}
 
 		if (result.data) {
 			steps = steps.map((s) => (s.id === stepId ? result.data! : s));
-			toast.success('Step updated successfully');
+			toast.success("Step updated successfully");
 		}
 	} catch (error) {
-		toast.error(error instanceof Error ? error.message : 'Failed to update step');
+		toast.error(
+			error instanceof Error ? error.message : "Failed to update step",
+		);
 	}
 }
 
@@ -246,8 +255,8 @@ async function handleUpdateStep(stepId: string, updates: Partial<WizardStepRespo
 function handleDragStart(event: DragEvent, stepId: string) {
 	draggedStepId = stepId;
 	if (event.dataTransfer) {
-		event.dataTransfer.effectAllowed = 'move';
-		event.dataTransfer.setData('text/plain', stepId);
+		event.dataTransfer.effectAllowed = "move";
+		event.dataTransfer.setData("text/plain", stepId);
 	}
 }
 
@@ -292,10 +301,10 @@ async function handleDrop(event: DragEvent, targetStepId: string) {
 		const result = await reorderStep(wizard.id, draggedStepId, targetIndex);
 
 		if (result.error) {
-			throw new Error(result.error.detail ?? 'Failed to reorder step');
+			throw new Error(result.error.detail ?? "Failed to reorder step");
 		}
 
-	// Reorder locally
+		// Reorder locally
 		const newSteps = [...steps];
 		const [removed] = newSteps.splice(draggedIndex, 1);
 		if (removed) {
@@ -304,9 +313,11 @@ async function handleDrop(event: DragEvent, targetStepId: string) {
 
 		// Update step_order values
 		steps = newSteps.map((s, i) => ({ ...s, step_order: i }));
-		toast.success('Step reordered successfully');
+		toast.success("Step reordered successfully");
 	} catch (error) {
-		toast.error(error instanceof Error ? error.message : 'Failed to reorder step');
+		toast.error(
+			error instanceof Error ? error.message : "Failed to reorder step",
+		);
 	} finally {
 		draggedStepId = null;
 	}

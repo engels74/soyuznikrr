@@ -1,23 +1,23 @@
 <script lang="ts">
-	import { Inbox } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils.js';
+import { Inbox } from "@lucide/svelte";
+import type { Snippet } from "svelte";
+import { Button } from "$lib/components/ui/button";
+import { cn } from "$lib/utils.js";
 
-	interface Action {
-		label: string;
-		onClick: () => void;
-	}
+interface Action {
+	label: string;
+	onClick: () => void;
+}
 
-	interface Props {
-		title: string;
-		description?: string;
-		action?: Action;
-		icon?: Snippet;
-		class?: string;
-	}
+interface Props {
+	title: string;
+	description?: string;
+	action?: Action;
+	icon?: Snippet;
+	class?: string;
+}
 
-	let { title, description, action, icon, class: className }: Props = $props();
+const { title, description, action, icon, class: className }: Props = $props();
 </script>
 
 <div

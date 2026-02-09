@@ -1,91 +1,97 @@
 <script lang="ts">
-	/**
-	 * Timer Interaction Component
-	 *
-	 * Implements countdown with circular progress indicator.
-	 * Disables button until timer completes.
-	 * Adds pulse animation on final 5 seconds.
-	 * Tracks startedAt timestamp for validation.
-	 *
-	 * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 12.2
-	 */
-	import { onMount } from 'svelte';
-	import type { TimerConfig, WizardStepResponse } from '$lib/api/client';
+/**
+ * Timer Interaction Component
+ *
+ * Implements countdown with circular progress indicator.
+ * Disables button until timer completes.
+ * Adds pulse animation on final 5 seconds.
+ * Tracks startedAt timestamp for validation.
+ *
+ * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 12.2
+ */
+import { onMount } from "svelte";
+import type { TimerConfig, WizardStepResponse } from "$lib/api/client";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
-	}
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
 
-	interface Props {
-		step: WizardStepResponse;
-		onComplete: (response: StepResponse) => void;
-		disabled?: boolean;
-	}
+interface Props {
+	step: WizardStepResponse;
+	onComplete: (response: StepResponse) => void;
+	disabled?: boolean;
+}
 
-	let { step, onComplete, disabled = false }: Props = $props();
+const { step, onComplete, disabled = false }: Props = $props();
 
-	// Extract duration from config
-	const config = $derived(step.config as unknown as TimerConfig);
-	const durationSeconds = $derived(config?.duration_seconds ?? 10);
+// Extract duration from config
+const config = $derived(step.config as unknown as TimerConfig);
+const durationSeconds = $derived(config?.duration_seconds ?? 10);
 
-	// Timer state
-	let remainingSeconds = $state(0);
-	let startedAt = $state<string | null>(null);
-	let intervalId: ReturnType<typeof setInterval> | null = null;
+// Timer state
+let remainingSeconds = $state(0);
+let startedAt = $state<string | null>(null);
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
-	// Derived values
-	const isComplete = $derived(remainingSeconds <= 0);
-	const isFinalCountdown = $derived(remainingSeconds > 0 && remainingSeconds <= 5);
-	const progress = $derived(
-		durationSeconds > 0 ? ((durationSeconds - remainingSeconds) / durationSeconds) * 100 : 100
-	);
+// Derived values
+const isComplete = $derived(remainingSeconds <= 0);
+const isFinalCountdown = $derived(
+	remainingSeconds > 0 && remainingSeconds <= 5,
+);
+const progress = $derived(
+	durationSeconds > 0
+		? ((durationSeconds - remainingSeconds) / durationSeconds) * 100
+		: 100,
+);
 
-	// Format remaining time as MM:SS
-	const formattedTime = $derived.by(() => {
-		const mins = Math.floor(remainingSeconds / 60);
-		const secs = remainingSeconds % 60;
-		return `${mins}:${secs.toString().padStart(2, '0')}`;
+// Format remaining time as MM:SS
+const formattedTime = $derived.by(() => {
+	const mins = Math.floor(remainingSeconds / 60);
+	const secs = remainingSeconds % 60;
+	return `${mins}:${secs.toString().padStart(2, "0")}`;
+});
+
+// SVG circle calculations
+const radius = 70;
+const circumference = 2 * Math.PI * radius;
+const strokeDashoffset = $derived(
+	circumference - (progress / 100) * circumference,
+);
+
+onMount(() => {
+	// Initialize timer
+	remainingSeconds = durationSeconds;
+	startedAt = new Date().toISOString();
+
+	intervalId = setInterval(() => {
+		if (remainingSeconds > 0) {
+			remainingSeconds--;
+		} else if (intervalId) {
+			clearInterval(intervalId);
+			intervalId = null;
+		}
+	}, 1000);
+
+	return () => {
+		if (intervalId) {
+			clearInterval(intervalId);
+		}
+	};
+});
+
+function handleComplete() {
+	onComplete({
+		stepId: step.id,
+		interactionType: "timer",
+		data: { waited: true },
+		startedAt: startedAt ?? undefined,
+		completedAt: new Date().toISOString(),
 	});
-
-	// SVG circle calculations
-	const radius = 70;
-	const circumference = 2 * Math.PI * radius;
-	const strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
-
-	onMount(() => {
-		// Initialize timer
-		remainingSeconds = durationSeconds;
-		startedAt = new Date().toISOString();
-
-		intervalId = setInterval(() => {
-			if (remainingSeconds > 0) {
-				remainingSeconds--;
-			} else if (intervalId) {
-				clearInterval(intervalId);
-				intervalId = null;
-			}
-		}, 1000);
-
-		return () => {
-			if (intervalId) {
-				clearInterval(intervalId);
-			}
-		};
-	});
-
-	function handleComplete() {
-		onComplete({
-			stepId: step.id,
-			interactionType: 'timer',
-			data: { waited: true },
-			startedAt: startedAt ?? undefined,
-			completedAt: new Date().toISOString()
-		});
-	}
+}
 </script>
 
 <div class="timer-interaction">

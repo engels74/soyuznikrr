@@ -23,12 +23,18 @@ from litestar.datastructures import State
 from litestar.exceptions import HTTPException as LitestarHTTPException
 from litestar.status_codes import (
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_502_BAD_GATEWAY,
 )
 
-from ..core.exceptions import ExternalServiceError, NotFoundError, ValidationError
+from ..core.exceptions import (
+    AuthenticationError,
+    ExternalServiceError,
+    NotFoundError,
+    ValidationError,
+)
 from .schemas import ErrorResponse, FieldError, ValidationErrorResponse
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
@@ -195,6 +201,41 @@ def litestar_http_exception_handler(
             correlation_id=correlation_id,
         ),
         status_code=exc.status_code,
+    )
+
+
+def authentication_error_handler(
+    request: Request[object, object, State],
+    exc: AuthenticationError,
+) -> Response[ErrorResponse]:
+    """Handle AuthenticationError exceptions.
+
+    Returns HTTP 401 with error code.
+
+    Args:
+        request: The incoming request.
+        exc: The AuthenticationError exception.
+
+    Returns:
+        Response with ErrorResponse body and HTTP 401 status.
+    """
+    correlation_id = _generate_correlation_id()
+
+    logger.info(
+        "Authentication error",
+        correlation_id=correlation_id,
+        error_code=exc.error_code,
+        path=str(request.url.path),
+    )
+
+    return Response(
+        ErrorResponse(
+            detail=exc.message,
+            error_code=exc.error_code,
+            timestamp=datetime.now(UTC),
+            correlation_id=correlation_id,
+        ),
+        status_code=HTTP_401_UNAUTHORIZED,
     )
 
 

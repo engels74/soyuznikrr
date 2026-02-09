@@ -11,16 +11,16 @@
  * @module routes/(admin)/servers/+page
  */
 
-import { goto, invalidateAll } from '$app/navigation';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import EmptyState from '$lib/components/empty-state.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import CreateServerDialog from '$lib/components/servers/create-server-dialog.svelte';
-import ServerCard from '$lib/components/servers/server-card.svelte';
-import ServerListSkeleton from '$lib/components/servers/server-list-skeleton.svelte';
-import type { PageData } from './$types';
+import { goto, invalidateAll } from "$app/navigation";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import EmptyState from "$lib/components/empty-state.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import CreateServerDialog from "$lib/components/servers/create-server-dialog.svelte";
+import ServerCard from "$lib/components/servers/server-card.svelte";
+import ServerListSkeleton from "$lib/components/servers/server-list-skeleton.svelte";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);

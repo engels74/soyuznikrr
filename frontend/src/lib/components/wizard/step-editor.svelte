@@ -10,10 +10,10 @@
  * @module $lib/components/wizard/step-editor
  */
 
-import type { WizardStepResponse } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
+import type { WizardStepResponse } from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
 import {
 	type ClickConfig,
 	clickConfigSchema,
@@ -26,9 +26,9 @@ import {
 	textInputConfigSchema,
 	timerConfigSchema,
 	tosConfigSchema,
-	validateStepConfig
-} from '$lib/schemas/wizard';
-import MarkdownEditor from './markdown-editor.svelte';
+	validateStepConfig,
+} from "$lib/schemas/wizard";
+import MarkdownEditor from "./markdown-editor.svelte";
 
 interface Props {
 	step: WizardStepResponse;
@@ -36,7 +36,7 @@ interface Props {
 	onCancel: () => void;
 }
 
-let { step, onSave, onCancel }: Props = $props();
+const { step, onSave, onCancel }: Props = $props();
 
 // Form state (local copies for editing — intentionally captures initial prop values)
 // svelte-ignore state_referenced_locally
@@ -44,7 +44,9 @@ let title = $state(step.title);
 // svelte-ignore state_referenced_locally
 let contentMarkdown = $state(step.content_markdown);
 // svelte-ignore state_referenced_locally
-let config = $state<{ [key: string]: string | number | boolean | string[] | null }>({ ...step.config });
+let config = $state<{
+	[key: string]: string | number | boolean | string[] | null;
+}>({ ...step.config });
 let errors = $state<Record<string, string[]>>({});
 let isSaving = $state(false);
 
@@ -66,7 +68,7 @@ function validateConfig(): boolean {
 	if (!result.success) {
 		const fieldErrors: Record<string, string[]> = {};
 		for (const issue of result.error.issues) {
-			const path = issue.path.join('.');
+			const path = issue.path.join(".");
 			if (!fieldErrors[path]) {
 				fieldErrors[path] = [];
 			}
@@ -91,7 +93,7 @@ function handleSave() {
 	onSave({
 		title,
 		content_markdown: contentMarkdown,
-		config
+		config,
 	});
 	isSaving = false;
 }
@@ -99,7 +101,10 @@ function handleSave() {
 /**
  * Update config field.
  */
-function updateConfig(field: string, value: string | number | boolean | string[] | null) {
+function updateConfig(
+	field: string,
+	value: string | number | boolean | string[] | null,
+) {
 	config = { ...config, [field]: value };
 }
 
@@ -108,7 +113,7 @@ function updateConfig(field: string, value: string | number | boolean | string[]
  */
 function addQuizOption() {
 	const options = (config.options as string[]) ?? [];
-	config = { ...config, options: [...options, ''] };
+	config = { ...config, options: [...options, ""] };
 }
 
 /**
@@ -122,7 +127,11 @@ function removeQuizOption(index: number) {
 	if (correctIndex >= newOptions.length) {
 		correctIndex = Math.max(0, newOptions.length - 1);
 	}
-	config = { ...config, options: newOptions, correct_answer_index: correctIndex };
+	config = {
+		...config,
+		options: newOptions,
+		correct_answer_index: correctIndex,
+	};
 }
 
 /**

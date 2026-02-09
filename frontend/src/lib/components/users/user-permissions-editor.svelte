@@ -13,17 +13,20 @@
  * @module $lib/components/users/user-permissions-editor
  */
 
-import { toast } from 'svelte-sonner';
-import { type UpdateUserPermissions, updateUserPermissions } from '$lib/api/client';
-import { ApiError, getErrorMessage } from '$lib/api/errors';
-import { Label } from '$lib/components/ui/label';
+import { toast } from "svelte-sonner";
+import {
+	type UpdateUserPermissions,
+	updateUserPermissions,
+} from "$lib/api/client";
+import { ApiError, getErrorMessage } from "$lib/api/errors";
+import { Label } from "$lib/components/ui/label";
 
 interface Props {
 	userId: string;
 	disabled?: boolean;
 }
 
-let { userId, disabled = false }: Props = $props();
+const { userId, disabled = false }: Props = $props();
 
 // Permission states - start as undefined (unknown from server)
 let canStream = $state<boolean | undefined>(undefined);
@@ -45,7 +48,7 @@ async function handlePermissionChange(
 	newValue: boolean,
 	setLoading: (v: boolean) => void,
 	setValue: (v: boolean | undefined) => void,
-	currentValue: boolean | undefined
+	currentValue: boolean | undefined,
 ) {
 	if (disabled) return;
 
@@ -58,22 +61,25 @@ async function handlePermissionChange(
 
 		if (result.error) {
 			const status = result.response?.status ?? 500;
-			const errorBody = result.error as { error_code?: string; detail?: string };
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
 			throw new ApiError(
 				status,
-				errorBody?.error_code ?? 'UNKNOWN_ERROR',
-				errorBody?.detail ?? 'Failed to update permission'
+				errorBody?.error_code ?? "UNKNOWN_ERROR",
+				errorBody?.detail ?? "Failed to update permission",
 			);
 		}
 
 		toast.success(`Permission updated`, {
-			description: `${formatPermissionName(key)} is now ${newValue ? 'enabled' : 'disabled'}`
+			description: `${formatPermissionName(key)} is now ${newValue ? "enabled" : "disabled"}`,
 		});
 	} catch (error) {
 		// Rollback on error
 		setValue(currentValue);
-		toast.error('Failed to update permission', {
-			description: getErrorMessage(error)
+		toast.error("Failed to update permission", {
+			description: getErrorMessage(error),
 		});
 	} finally {
 		setLoading(false);
@@ -85,14 +91,14 @@ async function handlePermissionChange(
  */
 function formatPermissionName(key: string): string {
 	switch (key) {
-		case 'can_stream':
-			return 'Streaming';
-		case 'can_download':
-			return 'Downloads';
-		case 'can_sync':
-			return 'Sync';
-		case 'can_transcode':
-			return 'Transcoding';
+		case "can_stream":
+			return "Streaming";
+		case "can_download":
+			return "Downloads";
+		case "can_sync":
+			return "Sync";
+		case "can_transcode":
+			return "Transcoding";
 		default:
 			return key;
 	}
@@ -102,7 +108,7 @@ function formatPermissionName(key: string): string {
 function toggleStream() {
 	const newValue = !(canStream ?? true);
 	handlePermissionChange(
-		'can_stream',
+		"can_stream",
 		newValue,
 		(v) => {
 			loadingStream = v;
@@ -110,14 +116,14 @@ function toggleStream() {
 		(v) => {
 			canStream = v;
 		},
-		canStream
+		canStream,
 	);
 }
 
 function toggleDownload() {
 	const newValue = !(canDownload ?? true);
 	handlePermissionChange(
-		'can_download',
+		"can_download",
 		newValue,
 		(v) => {
 			loadingDownload = v;
@@ -125,14 +131,14 @@ function toggleDownload() {
 		(v) => {
 			canDownload = v;
 		},
-		canDownload
+		canDownload,
 	);
 }
 
 function toggleSync() {
 	const newValue = !(canSync ?? true);
 	handlePermissionChange(
-		'can_sync',
+		"can_sync",
 		newValue,
 		(v) => {
 			loadingSync = v;
@@ -140,14 +146,14 @@ function toggleSync() {
 		(v) => {
 			canSync = v;
 		},
-		canSync
+		canSync,
 	);
 }
 
 function toggleTranscode() {
 	const newValue = !(canTranscode ?? true);
 	handlePermissionChange(
-		'can_transcode',
+		"can_transcode",
 		newValue,
 		(v) => {
 			loadingTranscode = v;
@@ -155,14 +161,16 @@ function toggleTranscode() {
 		(v) => {
 			canTranscode = v;
 		},
-		canTranscode
+		canTranscode,
 	);
 }
 
 /**
  * Check if any permission is loading.
  */
-let anyLoading = $derived(loadingStream || loadingDownload || loadingSync || loadingTranscode);
+const anyLoading = $derived(
+	loadingStream || loadingDownload || loadingSync || loadingTranscode,
+);
 </script>
 
 <div class="space-y-4">

@@ -68,7 +68,10 @@ const libraryResponseArb: fc.Arbitrary<LibraryResponse> = fc.record({
 const validValidationResponseArb: fc.Arbitrary<InvitationValidationResponse> = fc.record({
 	valid: fc.constant(true),
 	failure_reason: fc.constant(null),
-	target_servers: fc.array(mediaServerResponseArb, { minLength: 1, maxLength: 5 }),
+	target_servers: fc.array(mediaServerResponseArb, {
+		minLength: 1,
+		maxLength: 5
+	}),
 	allowed_libraries: fc.option(fc.array(libraryResponseArb, { minLength: 0, maxLength: 10 }), {
 		nil: null
 	}),
@@ -292,7 +295,10 @@ describe('Property 28: Invalid Code Error Display', () => {
 		fc.assert(
 			fc.property(
 				invitationCodeArb,
-				invalidValidationResponseArb.map((v) => ({ ...v, failure_reason: 'not_found' })),
+				invalidValidationResponseArb.map((v) => ({
+					...v,
+					failure_reason: 'not_found'
+				})),
 				(code, validation) => {
 					const { container } = render(JoinPageTestWrapper, {
 						props: { code, validation, error: null }
@@ -319,7 +325,10 @@ describe('Property 28: Invalid Code Error Display', () => {
 		fc.assert(
 			fc.property(
 				invitationCodeArb,
-				invalidValidationResponseArb.map((v) => ({ ...v, failure_reason: 'disabled' })),
+				invalidValidationResponseArb.map((v) => ({
+					...v,
+					failure_reason: 'disabled'
+				})),
 				(code, validation) => {
 					const { container } = render(JoinPageTestWrapper, {
 						props: { code, validation, error: null }
@@ -346,7 +355,10 @@ describe('Property 28: Invalid Code Error Display', () => {
 		fc.assert(
 			fc.property(
 				invitationCodeArb,
-				invalidValidationResponseArb.map((v) => ({ ...v, failure_reason: 'expired' })),
+				invalidValidationResponseArb.map((v) => ({
+					...v,
+					failure_reason: 'expired'
+				})),
 				(code, validation) => {
 					const { container } = render(JoinPageTestWrapper, {
 						props: { code, validation, error: null }
@@ -373,7 +385,10 @@ describe('Property 28: Invalid Code Error Display', () => {
 		fc.assert(
 			fc.property(
 				invitationCodeArb,
-				invalidValidationResponseArb.map((v) => ({ ...v, failure_reason: 'max_uses_reached' })),
+				invalidValidationResponseArb.map((v) => ({
+					...v,
+					failure_reason: 'max_uses_reached'
+				})),
 				(code, validation) => {
 					const { container } = render(JoinPageTestWrapper, {
 						props: { code, validation, error: null }

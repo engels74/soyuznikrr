@@ -995,6 +995,117 @@ class ConnectionTestResponse(msgspec.Struct, kw_only=True):
 
 
 # =============================================================================
+# Authentication Schemas
+# =============================================================================
+
+# Admin username: 3-32 chars, lowercase, starts with letter
+AdminUsername = Annotated[
+    str, msgspec.Meta(min_length=3, max_length=32, pattern=r"^[a-z][a-z0-9_]*$")
+]
+
+# Admin password: 15+ chars for strong security
+AdminPassword = Annotated[str, msgspec.Meta(min_length=15, max_length=128)]
+
+
+class AuthMethodsResponse(msgspec.Struct, kw_only=True):
+    """Response listing available authentication methods.
+
+    Attributes:
+        methods: List of available auth methods (local, plex, jellyfin).
+        setup_required: True if no admin accounts exist yet.
+    """
+
+    methods: list[str]
+    setup_required: bool
+
+
+class AdminSetupRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to create the first admin account.
+
+    Attributes:
+        username: Admin username (3-32 chars, lowercase).
+        password: Admin password (15+ chars).
+        email: Optional email address.
+    """
+
+    username: AdminUsername
+    password: AdminPassword
+    email: EmailStr | None = None
+
+
+class LoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Local username/password login request.
+
+    Attributes:
+        username: Admin username.
+        password: Admin password.
+    """
+
+    username: str
+    password: str
+
+
+class PlexLoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Plex OAuth token login request.
+
+    Attributes:
+        auth_token: Plex auth token from OAuth flow.
+    """
+
+    auth_token: str
+
+
+class JellyfinLoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Jellyfin credential login request.
+
+    Attributes:
+        server_url: Jellyfin server URL.
+        username: Jellyfin username.
+        password: Jellyfin password.
+    """
+
+    server_url: UrlStr
+    username: str
+    password: str
+
+
+class RefreshRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Refresh token request.
+
+    Attributes:
+        refresh_token: The refresh token string.
+    """
+
+    refresh_token: str
+
+
+class AdminMeResponse(msgspec.Struct, kw_only=True):
+    """Current admin info response.
+
+    Attributes:
+        id: Admin account UUID.
+        username: Admin username.
+        email: Optional email address.
+        auth_method: Authentication method used.
+    """
+
+    id: UUID
+    username: str
+    email: str | None = None
+    auth_method: str = "local"
+
+
+class AuthTokenResponse(msgspec.Struct, kw_only=True):
+    """Authentication token response.
+
+    Attributes:
+        refresh_token: Refresh token for obtaining new access tokens.
+    """
+
+    refresh_token: str
+
+
+# =============================================================================
 # Sync Schemas
 # =============================================================================
 
@@ -1068,5 +1179,6 @@ class PlexOAuthCheckResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     """
 
     authenticated: bool
+    auth_token: str | None = None
     email: str | None = None
     error: str | None = None

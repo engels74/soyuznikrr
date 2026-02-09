@@ -10,10 +10,10 @@
  * @module routes/(admin)/wizards/[id]/+page
  */
 
-import { goto, invalidateAll } from '$app/navigation';
-import type { WizardDetailResponse } from '$lib/api/client';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import ErrorState from '$lib/components/error-state.svelte';
+import { goto, invalidateAll } from "$app/navigation";
+import type { WizardDetailResponse } from "$lib/api/client";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import ErrorState from "$lib/components/error-state.svelte";
 import {
 	ClickInteraction,
 	QuizInteraction,
@@ -21,11 +21,11 @@ import {
 	TimerInteraction,
 	TosInteraction,
 	WizardBuilder,
-	WizardShell
-} from '$lib/components/wizard';
-import type { PageData } from './$types';
+	WizardShell,
+} from "$lib/components/wizard";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Preview mode state
 let isPreviewMode = $state(false);
@@ -41,7 +41,7 @@ async function handleSave(_wizard: WizardDetailResponse) {
  * Handle cancel - go back to wizard list.
  */
 function handleCancel() {
-	goto('/wizards');
+	goto("/wizards");
 }
 
 /**

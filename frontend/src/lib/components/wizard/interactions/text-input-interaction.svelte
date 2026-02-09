@@ -1,100 +1,102 @@
 <script lang="ts">
-	/**
-	 * Text Input Interaction Component
-	 *
-	 * Renders labeled input with placeholder.
-	 * Implements client-side validation for required, min_length, max_length.
-	 * Displays validation errors inline.
-	 *
-	 * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.4
-	 */
-	import type { TextInputConfig, WizardStepResponse } from '$lib/api/client';
+/**
+ * Text Input Interaction Component
+ *
+ * Renders labeled input with placeholder.
+ * Implements client-side validation for required, min_length, max_length.
+ * Displays validation errors inline.
+ *
+ * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.4
+ */
+import type { TextInputConfig, WizardStepResponse } from "$lib/api/client";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
+
+interface Props {
+	step: WizardStepResponse;
+	onComplete: (response: StepResponse) => void;
+	disabled?: boolean;
+}
+
+const { step, onComplete, disabled = false }: Props = $props();
+
+// Extract config with defaults
+const config = $derived(step.config as unknown as TextInputConfig);
+const label = $derived(config?.label ?? "Your response");
+const placeholder = $derived(config?.placeholder ?? "");
+const isRequired = $derived(config?.required ?? true);
+const minLength = $derived(config?.min_length);
+const maxLength = $derived(config?.max_length);
+
+// Input state
+let inputValue = $state("");
+let touched = $state(false);
+
+// Validation
+const validationError = $derived.by(() => {
+	if (!touched) return null;
+
+	const value = inputValue.trim();
+
+	if (isRequired && value.length === 0) {
+		return "This field is required";
 	}
 
-	interface Props {
-		step: WizardStepResponse;
-		onComplete: (response: StepResponse) => void;
-		disabled?: boolean;
+	if (minLength !== undefined && value.length < minLength) {
+		return `Must be at least ${minLength} characters`;
 	}
 
-	let { step, onComplete, disabled = false }: Props = $props();
+	if (maxLength !== undefined && value.length > maxLength) {
+		return `Must be at most ${maxLength} characters`;
+	}
 
-	// Extract config with defaults
-	const config = $derived(step.config as unknown as TextInputConfig);
-	const label = $derived(config?.label ?? 'Your response');
-	const placeholder = $derived(config?.placeholder ?? '');
-	const isRequired = $derived(config?.required ?? true);
-	const minLength = $derived(config?.min_length);
-	const maxLength = $derived(config?.max_length);
+	return null;
+});
 
-	// Input state
-	let inputValue = $state('');
-	let touched = $state(false);
+const isValid = $derived.by(() => {
+	const value = inputValue.trim();
 
-	// Validation
-	const validationError = $derived.by(() => {
-		if (!touched) return null;
+	if (isRequired && value.length === 0) return false;
+	if (minLength !== undefined && value.length < minLength) return false;
+	if (maxLength !== undefined && value.length > maxLength) return false;
 
-		const value = inputValue.trim();
+	return true;
+});
 
-		if (isRequired && value.length === 0) {
-			return 'This field is required';
-		}
+// Character count display
+const charCount = $derived(inputValue.length);
+const showCharCount = $derived(
+	minLength !== undefined || maxLength !== undefined,
+);
 
-		if (minLength !== undefined && value.length < minLength) {
-			return `Must be at least ${minLength} characters`;
-		}
+function handleBlur() {
+	touched = true;
+}
 
-		if (maxLength !== undefined && value.length > maxLength) {
-			return `Must be at most ${maxLength} characters`;
-		}
+function handleSubmit() {
+	touched = true;
+	if (!isValid) return;
 
-		return null;
+	onComplete({
+		stepId: step.id,
+		interactionType: "text_input",
+		data: { text: inputValue.trim() },
+		completedAt: new Date().toISOString(),
 	});
+}
 
-	const isValid = $derived.by(() => {
-		const value = inputValue.trim();
-
-		if (isRequired && value.length === 0) return false;
-		if (minLength !== undefined && value.length < minLength) return false;
-		if (maxLength !== undefined && value.length > maxLength) return false;
-
-		return true;
-	});
-
-	// Character count display
-	const charCount = $derived(inputValue.length);
-	const showCharCount = $derived(minLength !== undefined || maxLength !== undefined);
-
-	function handleBlur() {
-		touched = true;
+function handleKeydown(event: KeyboardEvent) {
+	if (event.key === "Enter" && !event.shiftKey) {
+		event.preventDefault();
+		handleSubmit();
 	}
-
-	function handleSubmit() {
-		touched = true;
-		if (!isValid) return;
-
-		onComplete({
-			stepId: step.id,
-			interactionType: 'text_input',
-			data: { text: inputValue.trim() },
-			completedAt: new Date().toISOString()
-		});
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			handleSubmit();
-		}
-	}
+}
 </script>
 
 <div class="text-input-interaction">

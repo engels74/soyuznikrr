@@ -28,6 +28,16 @@ vi.mock('$app/state', () => ({
 	}
 }));
 
+// Mock $app/navigation
+vi.mock('$app/navigation', () => ({
+	goto: vi.fn()
+}));
+
+// Mock auth API
+vi.mock('$lib/api/auth', () => ({
+	logout: vi.fn(() => Promise.resolve())
+}));
+
 // Mock mode-watcher to avoid localStorage issues during module initialization
 vi.mock('mode-watcher', () => ({
 	ModeWatcher: vi.fn(),

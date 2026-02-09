@@ -109,6 +109,13 @@ class NotFoundError(ZondarrError):
         )
 
 
+class AuthenticationError(ZondarrError):
+    """Raised when authentication fails.
+
+    Covers invalid credentials, disabled accounts, and setup-required states.
+    """
+
+
 class ExternalServiceError(ZondarrError):
     """Raised when an external service (media server) fails.
 

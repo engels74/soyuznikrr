@@ -7,6 +7,7 @@ from zondarr.core.database import (
     provide_db_session,
 )
 from zondarr.core.exceptions import (
+    AuthenticationError,
     ConfigurationError,
     NotFoundError,
     RepositoryError,
@@ -30,6 +31,7 @@ from zondarr.core.types import (
 )
 
 __all__ = [
+    "AuthenticationError",
     "ConfigurationError",
     "Email",
     "EntityId",

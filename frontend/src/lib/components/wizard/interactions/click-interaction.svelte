@@ -1,42 +1,42 @@
 <script lang="ts">
-	/**
-	 * Click Interaction Component
-	 *
-	 * Renders a confirmation button with configurable text.
-	 * Calls onComplete with acknowledgment data when clicked.
-	 *
-	 * Requirements: 4.1, 4.2, 4.3, 12.1
-	 */
-	import type { ClickConfig, WizardStepResponse } from '$lib/api/client';
+/**
+ * Click Interaction Component
+ *
+ * Renders a confirmation button with configurable text.
+ * Calls onComplete with acknowledgment data when clicked.
+ *
+ * Requirements: 4.1, 4.2, 4.3, 12.1
+ */
+import type { ClickConfig, WizardStepResponse } from "$lib/api/client";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
-	}
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
 
-	interface Props {
-		step: WizardStepResponse;
-		onComplete: (response: StepResponse) => void;
-		disabled?: boolean;
-	}
+interface Props {
+	step: WizardStepResponse;
+	onComplete: (response: StepResponse) => void;
+	disabled?: boolean;
+}
 
-	let { step, onComplete, disabled = false }: Props = $props();
+const { step, onComplete, disabled = false }: Props = $props();
 
-	// Extract button text from config with default
-	const config = $derived(step.config as unknown as ClickConfig);
-	const buttonText = $derived(config?.button_text ?? 'I Understand');
+// Extract button text from config with default
+const config = $derived(step.config as unknown as ClickConfig);
+const buttonText = $derived(config?.button_text ?? "I Understand");
 
-	function handleClick() {
-		onComplete({
-			stepId: step.id,
-			interactionType: 'click',
-			data: { acknowledged: true },
-			completedAt: new Date().toISOString()
-		});
-	}
+function handleClick() {
+	onComplete({
+		stepId: step.id,
+		interactionType: "click",
+		data: { acknowledged: true },
+		completedAt: new Date().toISOString(),
+	});
+}
 </script>
 
 <div class="click-interaction">

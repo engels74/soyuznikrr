@@ -3,6 +3,7 @@
 import os
 import secrets
 import shutil
+import subprocess
 from pathlib import Path
 
 from .output import print_error, print_info, print_warn
@@ -28,6 +29,11 @@ def run_checks(
         ok = False
     if not backend_only and not _check_dir(repo_root / "frontend"):
         ok = False
+
+    # Database migrations
+    if not frontend_only:
+        if not _run_migrations(repo_root / "backend"):
+            ok = False
 
     # Advisory checks (non-fatal)
     if not frontend_only:
@@ -57,6 +63,20 @@ def _check_dir(path: Path, /) -> bool:
     if not path.is_dir():
         print_error(f"Directory not found: {path}")
         return False
+    return True
+
+
+def _run_migrations(backend_dir: Path, /) -> bool:
+    result = subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print_error(f"Alembic migrations failed:\n{result.stderr.strip()}")
+        return False
+    print_info("Database migrations up to date")
     return True
 
 

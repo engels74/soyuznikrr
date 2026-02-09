@@ -14,13 +14,15 @@
  * @module $lib/components/users/user-row
  */
 
-import { Eye, MoreHorizontal, Power, PowerOff, Trash2 } from '@lucide/svelte';
-import { toast } from 'svelte-sonner';
-import { goto } from '$app/navigation';
-import type { UserDetailResponse } from '$lib/api/client';
-import StatusBadge, { type StatusBadgeStatus } from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Table from '$lib/components/ui/table';
+import { Eye, MoreHorizontal, Power, PowerOff, Trash2 } from "@lucide/svelte";
+import { toast } from "svelte-sonner";
+import { goto } from "$app/navigation";
+import type { UserDetailResponse } from "$lib/api/client";
+import StatusBadge, {
+	type StatusBadgeStatus,
+} from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Table from "$lib/components/ui/table";
 
 interface Props {
 	user: UserDetailResponse;
@@ -29,12 +31,12 @@ interface Props {
 	onDelete?: (id: string) => void;
 }
 
-let { user, onEnable, onDisable, onDelete }: Props = $props();
+const { user, onEnable, onDisable, onDelete }: Props = $props();
 
 /**
  * Check if user is expired based on expires_at.
  */
-let isExpired = $derived.by(() => {
+const isExpired = $derived.by(() => {
 	if (!user.expires_at) return false;
 	return new Date(user.expires_at) < new Date();
 });
@@ -42,7 +44,7 @@ let isExpired = $derived.by(() => {
 /**
  * Check if user is expiring soon (within 7 days).
  */
-let isExpiringSoon = $derived.by(() => {
+const isExpiringSoon = $derived.by(() => {
 	if (!user.expires_at) return false;
 	const expiresAt = new Date(user.expires_at);
 	const now = new Date();
@@ -53,45 +55,45 @@ let isExpiringSoon = $derived.by(() => {
 /**
  * Derive the status for the badge based on user state.
  */
-let status = $derived.by((): StatusBadgeStatus => {
-	if (!user.enabled) return 'disabled';
-	if (isExpired) return 'expired';
-	if (isExpiringSoon) return 'pending';
-	return 'active';
+const status = $derived.by((): StatusBadgeStatus => {
+	if (!user.enabled) return "disabled";
+	if (isExpired) return "expired";
+	if (isExpiringSoon) return "pending";
+	return "active";
 });
 
 /**
  * Derive the status label.
  */
-let statusLabel = $derived.by(() => {
-	if (!user.enabled) return 'Disabled';
-	if (isExpired) return 'Expired';
-	if (isExpiringSoon) return 'Expiring Soon';
-	return 'Active';
+const statusLabel = $derived.by(() => {
+	if (!user.enabled) return "Disabled";
+	if (isExpired) return "Expired";
+	if (isExpiringSoon) return "Expiring Soon";
+	return "Active";
 });
 
 /**
  * Format date for display.
  */
 function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return '—';
+	if (!dateString) return "—";
 	try {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
 		});
 	} catch {
-		return '—';
+		return "—";
 	}
 }
 
 /**
  * Format expiration date with relative indicator.
  */
-let expiresDisplay = $derived.by(() => {
-	if (!user.expires_at) return 'Never';
+const expiresDisplay = $derived.by(() => {
+	if (!user.expires_at) return "Never";
 	const formatted = formatDate(user.expires_at);
 	if (isExpired) return `${formatted} (expired)`;
 	if (isExpiringSoon) return `${formatted} (soon)`;
@@ -101,10 +103,10 @@ let expiresDisplay = $derived.by(() => {
 /**
  * Get server type badge class.
  */
-let serverTypeClass = $derived.by(() => {
-	return user.media_server.server_type === 'plex'
-		? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-		: 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+const serverTypeClass = $derived.by(() => {
+	return user.media_server.server_type === "plex"
+		? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+		: "bg-purple-500/15 text-purple-400 border-purple-500/30";
 });
 
 /**
@@ -121,7 +123,7 @@ function handleEnable() {
 	if (onEnable) {
 		onEnable(user.id);
 	} else {
-		toast.info('Enable functionality will be implemented in Task 10');
+		toast.info("Enable functionality will be implemented in Task 10");
 	}
 }
 
@@ -132,7 +134,7 @@ function handleDisable() {
 	if (onDisable) {
 		onDisable(user.id);
 	} else {
-		toast.info('Disable functionality will be implemented in Task 10');
+		toast.info("Disable functionality will be implemented in Task 10");
 	}
 }
 
@@ -143,7 +145,7 @@ function handleDelete() {
 	if (onDelete) {
 		onDelete(user.id);
 	} else {
-		toast.info('Delete functionality will be implemented in Task 10');
+		toast.info("Delete functionality will be implemented in Task 10");
 	}
 }
 </script>

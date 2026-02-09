@@ -1,16 +1,21 @@
 <script lang="ts">
-	import { AlertTriangle, RefreshCw } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils.js';
+import { AlertTriangle, RefreshCw } from "@lucide/svelte";
+import { Button } from "$lib/components/ui/button";
+import { cn } from "$lib/utils.js";
 
-	interface Props {
-		message: string;
-		title?: string;
-		onRetry?: () => void;
-		class?: string;
-	}
+interface Props {
+	message: string;
+	title?: string;
+	onRetry?: () => void;
+	class?: string;
+}
 
-	let { message, title = 'Something went wrong', onRetry, class: className }: Props = $props();
+const {
+	message,
+	title = "Something went wrong",
+	onRetry,
+	class: className,
+}: Props = $props();
 </script>
 
 <div

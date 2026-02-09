@@ -1,65 +1,65 @@
 <script lang="ts">
-	/**
-	 * Quiz Interaction Component
-	 *
-	 * Renders question and selectable options.
-	 * Applies border glow on hover, checkmark animation on selection.
-	 * Calls onComplete with selected answer_index.
-	 *
-	 * Requirements: 8.1, 8.2, 8.3, 12.5
-	 */
-	import { Check } from '@lucide/svelte';
-	import type { QuizConfig, WizardStepResponse } from '$lib/api/client';
+/**
+ * Quiz Interaction Component
+ *
+ * Renders question and selectable options.
+ * Applies border glow on hover, checkmark animation on selection.
+ * Calls onComplete with selected answer_index.
+ *
+ * Requirements: 8.1, 8.2, 8.3, 12.5
+ */
+import { Check } from "@lucide/svelte";
+import type { QuizConfig, WizardStepResponse } from "$lib/api/client";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
+
+interface Props {
+	step: WizardStepResponse;
+	onComplete: (response: StepResponse) => void;
+	disabled?: boolean;
+}
+
+const { step, onComplete, disabled = false }: Props = $props();
+
+// Extract config
+const config = $derived(step.config as unknown as QuizConfig);
+const question = $derived(config?.question ?? "");
+const options = $derived(config?.options ?? []);
+
+// Selection state
+let selectedIndex = $state<number | null>(null);
+
+// Derived - has selection
+const hasSelection = $derived(selectedIndex !== null);
+
+function selectOption(index: number) {
+	if (disabled) return;
+	selectedIndex = index;
+}
+
+function handleSubmit() {
+	if (selectedIndex === null) return;
+
+	onComplete({
+		stepId: step.id,
+		interactionType: "quiz",
+		data: { answer_index: selectedIndex },
+		completedAt: new Date().toISOString(),
+	});
+}
+
+function handleKeydown(event: KeyboardEvent, index: number) {
+	if (event.key === "Enter" || event.key === " ") {
+		event.preventDefault();
+		selectOption(index);
 	}
-
-	interface Props {
-		step: WizardStepResponse;
-		onComplete: (response: StepResponse) => void;
-		disabled?: boolean;
-	}
-
-	let { step, onComplete, disabled = false }: Props = $props();
-
-	// Extract config
-	const config = $derived(step.config as unknown as QuizConfig);
-	const question = $derived(config?.question ?? '');
-	const options = $derived(config?.options ?? []);
-
-	// Selection state
-	let selectedIndex = $state<number | null>(null);
-
-	// Derived - has selection
-	const hasSelection = $derived(selectedIndex !== null);
-
-	function selectOption(index: number) {
-		if (disabled) return;
-		selectedIndex = index;
-	}
-
-	function handleSubmit() {
-		if (selectedIndex === null) return;
-
-		onComplete({
-			stepId: step.id,
-			interactionType: 'quiz',
-			data: { answer_index: selectedIndex },
-			completedAt: new Date().toISOString()
-		});
-	}
-
-	function handleKeydown(event: KeyboardEvent, index: number) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			selectOption(index);
-		}
-	}
+}
 </script>
 
 <div class="quiz-interaction">

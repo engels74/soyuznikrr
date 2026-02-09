@@ -13,20 +13,20 @@
  * @module routes/(admin)/wizards/+page
  */
 
-import { Plus, Wand2 } from '@lucide/svelte';
-import { goto, invalidateAll } from '$app/navigation';
-import { page } from '$app/state';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import EmptyState from '$lib/components/empty-state.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import Pagination from '$lib/components/pagination.svelte';
-import { Badge } from '$lib/components/ui/badge';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
-import { Skeleton } from '$lib/components/ui/skeleton';
-import type { PageData } from './$types';
+import { Plus, Wand2 } from "@lucide/svelte";
+import { goto, invalidateAll } from "$app/navigation";
+import { page } from "$app/state";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import EmptyState from "$lib/components/empty-state.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import Pagination from "$lib/components/pagination.svelte";
+import { Badge } from "$lib/components/ui/badge";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import { Skeleton } from "$lib/components/ui/skeleton";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);
@@ -54,7 +54,7 @@ function handleEditWizard(wizardId: string) {
  * Navigate to create wizard page.
  */
 function handleCreateWizard() {
-	goto('/wizards/new');
+	goto("/wizards/new");
 }
 
 /**
@@ -62,7 +62,7 @@ function handleCreateWizard() {
  */
 function handlePageChange(newPage: number) {
 	const url = new URL(page.url);
-	url.searchParams.set('page', String(newPage));
+	url.searchParams.set("page", String(newPage));
 	goto(url.toString(), { keepFocus: true, noScroll: true });
 }
 </script>

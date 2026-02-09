@@ -1,24 +1,27 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from 'tailwind-variants';
+import { tv, type VariantProps } from "tailwind-variants";
 
-	export const statusBadgeVariants = tv({
-		base: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
-		variants: {
-			status: {
-				active: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-				enabled: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-				pending: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-				limited: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-				disabled: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
-				expired: 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-			}
+export const statusBadgeVariants = tv({
+	base: "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+	variants: {
+		status: {
+			active: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+			enabled:
+				"bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+			pending: "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+			limited: "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+			disabled: "bg-rose-500/15 text-rose-400 border border-rose-500/30",
+			expired: "bg-rose-500/15 text-rose-400 border border-rose-500/30",
 		},
-		defaultVariants: {
-			status: 'pending'
-		}
-	});
+	},
+	defaultVariants: {
+		status: "pending",
+	},
+});
 
-	export type StatusBadgeStatus = VariantProps<typeof statusBadgeVariants>['status'];
+export type StatusBadgeStatus = VariantProps<
+	typeof statusBadgeVariants
+>["status"];
 </script>
 
 <script lang="ts">

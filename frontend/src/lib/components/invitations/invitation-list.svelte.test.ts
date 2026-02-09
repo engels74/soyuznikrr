@@ -150,7 +150,9 @@ describe('Property 9: Invitation Field Display', () => {
 			fc.property(
 				invitationResponseArb.filter((inv) => inv.max_uses !== null && inv.max_uses !== undefined),
 				(invitation) => {
-					const { container } = render(InvitationRow, { props: { invitation } });
+					const { container } = render(InvitationRow, {
+						props: { invitation }
+					});
 					const usesEl = container.querySelector('[data-invitation-uses]');
 
 					expect(usesEl).not.toBeNull();
@@ -176,7 +178,9 @@ describe('Property 9: Invitation Field Display', () => {
 			fc.property(
 				invitationResponseArb.filter((inv) => inv.max_uses === null || inv.max_uses === undefined),
 				(invitation) => {
-					const { container } = render(InvitationRow, { props: { invitation } });
+					const { container } = render(InvitationRow, {
+						props: { invitation }
+					});
 					const usesEl = container.querySelector('[data-invitation-uses]');
 
 					expect(usesEl).not.toBeNull();
@@ -432,7 +436,9 @@ describe('Property 13: Remaining Uses Display', () => {
 					(inv) => inv.remaining_uses === null || inv.remaining_uses === undefined
 				),
 				(invitation) => {
-					const { container } = render(InvitationRow, { props: { invitation } });
+					const { container } = render(InvitationRow, {
+						props: { invitation }
+					});
 					const remainingEl = container.querySelector('[data-invitation-remaining]');
 
 					// Should not have remaining uses element or it should be empty

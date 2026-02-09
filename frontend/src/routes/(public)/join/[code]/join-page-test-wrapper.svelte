@@ -7,10 +7,22 @@
  * @module routes/(public)/join/[code]/join-page-test-wrapper
  */
 
-import { AlertTriangle, Calendar, CheckCircle, Library, Server } from '@lucide/svelte';
-import type { InvitationValidationResponse } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+import {
+	AlertTriangle,
+	Calendar,
+	CheckCircle,
+	Library,
+	Server,
+} from "@lucide/svelte";
+import type { InvitationValidationResponse } from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "$lib/components/ui/card";
 
 interface Props {
 	code: string;
@@ -18,23 +30,23 @@ interface Props {
 	error: Error | null;
 }
 
-let { code, validation, error }: Props = $props();
+const { code, validation, error }: Props = $props();
 
 /**
  * Map failure reasons to user-friendly messages.
  */
 function getFailureMessage(reason: string | null | undefined): string {
 	switch (reason) {
-		case 'not_found':
-			return 'This invitation code does not exist. Please check the code and try again.';
-		case 'disabled':
-			return 'This invitation has been disabled by the administrator.';
-		case 'expired':
-			return 'This invitation has expired and is no longer valid.';
-		case 'max_uses_reached':
-			return 'This invitation has reached its maximum number of uses.';
+		case "not_found":
+			return "This invitation code does not exist. Please check the code and try again.";
+		case "disabled":
+			return "This invitation has been disabled by the administrator.";
+		case "expired":
+			return "This invitation has expired and is no longer valid.";
+		case "max_uses_reached":
+			return "This invitation has reached its maximum number of uses.";
 		default:
-			return 'This invitation code is not valid.';
+			return "This invitation code is not valid.";
 	}
 }
 </script>

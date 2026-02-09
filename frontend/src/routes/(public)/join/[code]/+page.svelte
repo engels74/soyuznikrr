@@ -18,22 +18,40 @@
  * @module routes/(public)/join/[code]/+page
  */
 
-import { AlertTriangle, ArrowLeft, Calendar, CheckCircle, Library, Server } from '@lucide/svelte';
-import { toast } from 'svelte-sonner';
-import { browser } from '$app/environment';
-import { invalidateAll } from '$app/navigation';
+import {
+	AlertTriangle,
+	ArrowLeft,
+	Calendar,
+	CheckCircle,
+	Library,
+	Server,
+} from "@lucide/svelte";
+import { toast } from "svelte-sonner";
+import { browser } from "$app/environment";
+import { invalidateAll } from "$app/navigation";
 import {
 	type RedemptionErrorResponse,
 	type RedemptionResponse,
 	redeemInvitation,
-	type WizardDetailResponse
-} from '$lib/api/client';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import ErrorState from '$lib/components/error-state.svelte';
-import { JellyfinRegistrationForm, PlexOAuthFlow, RegistrationError, SuccessPage } from '$lib/components/join';
-import { Button } from '$lib/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-import { Skeleton } from '$lib/components/ui/skeleton';
+	type WizardDetailResponse,
+} from "$lib/api/client";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import ErrorState from "$lib/components/error-state.svelte";
+import {
+	JellyfinRegistrationForm,
+	PlexOAuthFlow,
+	RegistrationError,
+	SuccessPage,
+} from "$lib/components/join";
+import { Button } from "$lib/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "$lib/components/ui/card";
+import { Skeleton } from "$lib/components/ui/skeleton";
 import {
 	ClickInteraction,
 	QuizInteraction,
@@ -41,28 +59,28 @@ import {
 	TextInputInteraction,
 	TimerInteraction,
 	TosInteraction,
-	WizardShell
-} from '$lib/components/wizard';
+	WizardShell,
+} from "$lib/components/wizard";
 import {
 	type JellyfinRegistrationInput,
 	jellyfinRegistrationSchema,
-	transformRegistrationFormData
-} from '$lib/schemas/join';
-import type { PageData } from './$types';
+	transformRegistrationFormData,
+} from "$lib/schemas/join";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Flow state - extended to include wizard steps
 type FlowStep =
-	| 'validation'
-	| 'pre_wizard'
-	| 'registration'
-	| 'plex_oauth'
-	| 'plex_redeeming'
-	| 'post_wizard'
-	| 'success'
-	| 'error';
-let currentStep = $state<FlowStep>('validation');
+	| "validation"
+	| "pre_wizard"
+	| "registration"
+	| "plex_oauth"
+	| "plex_redeeming"
+	| "post_wizard"
+	| "success"
+	| "error";
+let currentStep = $state<FlowStep>("validation");
 
 // Loading states
 let isRetrying = $state(false);
@@ -70,9 +88,9 @@ let isSubmitting = $state(false);
 
 // Form data
 let formData = $state<JellyfinRegistrationInput>({
-	username: '',
-	password: '',
-	email: ''
+	username: "",
+	password: "",
+	email: "",
 });
 let formErrors = $state<Record<string, string[]>>({});
 
@@ -88,7 +106,7 @@ let preWizardCompleted = $state(false);
 let postWizardCompleted = $state(false);
 
 // Derive server URLs for success page
-let serverUrls = $derived.by(() => {
+const serverUrls = $derived.by(() => {
 	const urls: Record<string, string> = {};
 	if (data.validation?.target_servers) {
 		for (const server of data.validation.target_servers) {
@@ -99,25 +117,27 @@ let serverUrls = $derived.by(() => {
 });
 
 // Check if any target server is Jellyfin
-let hasJellyfinServer = $derived(
-	data.validation?.target_servers?.some((s) => s.server_type === 'jellyfin') ?? false
+const hasJellyfinServer = $derived(
+	data.validation?.target_servers?.some((s) => s.server_type === "jellyfin") ??
+		false,
 );
 
 // Check if any target server is Plex
-let hasPlexServer = $derived(
-	data.validation?.target_servers?.some((s) => s.server_type === 'plex') ?? false
+const hasPlexServer = $derived(
+	data.validation?.target_servers?.some((s) => s.server_type === "plex") ??
+		false,
 );
 
 // Check if invitation has pre-wizard
-let hasPreWizard = $derived(
+const hasPreWizard = $derived(
 	data.validation?.valid === true &&
-		(data.validation?.pre_wizard?.steps?.length ?? 0) > 0
+		(data.validation?.pre_wizard?.steps?.length ?? 0) > 0,
 );
 
 // Check if invitation has post-wizard
-let hasPostWizard = $derived(
+const hasPostWizard = $derived(
 	data.validation?.valid === true &&
-		(data.validation?.post_wizard?.steps?.length ?? 0) > 0
+		(data.validation?.post_wizard?.steps?.length ?? 0) > 0,
 );
 
 // Session storage key for wizard progress
@@ -152,8 +172,8 @@ $effect(() => {
 			JSON.stringify({
 				preWizardCompleted,
 				postWizardCompleted,
-				redemptionResponse: redemptionResponse
-			})
+				redemptionResponse: redemptionResponse,
+			}),
 		);
 	}
 });
@@ -163,16 +183,16 @@ $effect(() => {
  */
 function getFailureMessage(reason: string | null | undefined): string {
 	switch (reason) {
-		case 'not_found':
-			return 'This invitation code does not exist. Please check the code and try again.';
-		case 'disabled':
-			return 'This invitation has been disabled by the administrator.';
-		case 'expired':
-			return 'This invitation has expired and is no longer valid.';
-		case 'max_uses_reached':
-			return 'This invitation has reached its maximum number of uses.';
+		case "not_found":
+			return "This invitation code does not exist. Please check the code and try again.";
+		case "disabled":
+			return "This invitation has been disabled by the administrator.";
+		case "expired":
+			return "This invitation has expired and is no longer valid.";
+		case "max_uses_reached":
+			return "This invitation has reached its maximum number of uses.";
 		default:
-			return 'This invitation code is not valid.';
+			return "This invitation code is not valid.";
 	}
 }
 
@@ -194,15 +214,15 @@ async function handleRetry() {
 function handleContinue() {
 	// Check if pre-wizard needs to be completed first
 	if (hasPreWizard && !preWizardCompleted) {
-		currentStep = 'pre_wizard';
+		currentStep = "pre_wizard";
 		return;
 	}
 
 	// Determine which registration flow to use based on server types
 	if (hasPlexServer && !hasJellyfinServer) {
-		currentStep = 'plex_oauth';
+		currentStep = "plex_oauth";
 	} else {
-		currentStep = 'registration';
+		currentStep = "registration";
 	}
 }
 
@@ -210,7 +230,7 @@ function handleContinue() {
  * Go back to validation step.
  */
 function handleBack() {
-	currentStep = 'validation';
+	currentStep = "validation";
 	formErrors = {};
 	plexEmail = null;
 }
@@ -222,9 +242,9 @@ function handlePreWizardComplete() {
 	preWizardCompleted = true;
 	// Proceed to registration
 	if (hasPlexServer && !hasJellyfinServer) {
-		currentStep = 'plex_oauth';
+		currentStep = "plex_oauth";
 	} else {
-		currentStep = 'registration';
+		currentStep = "registration";
 	}
 }
 
@@ -235,7 +255,9 @@ function handlePreWizardComplete() {
 function handlePreWizardCancel() {
 	// Clear wizard progress from session storage
 	if (browser && data.validation?.pre_wizard?.id) {
-		sessionStorage.removeItem(getWizardStorageKey(data.validation.pre_wizard.id));
+		sessionStorage.removeItem(
+			getWizardStorageKey(data.validation.pre_wizard.id),
+		);
 	}
 	// Clear join flow state
 	if (browser && data.code) {
@@ -243,7 +265,7 @@ function handlePreWizardCancel() {
 	}
 	// Reset state
 	preWizardCompleted = false;
-	currentStep = 'validation';
+	currentStep = "validation";
 }
 
 /**
@@ -255,7 +277,7 @@ function handlePostWizardComplete() {
 	if (browser && data.code) {
 		sessionStorage.removeItem(getJoinFlowStorageKey(data.code));
 	}
-	currentStep = 'success';
+	currentStep = "success";
 }
 
 /**
@@ -265,10 +287,12 @@ function handlePostWizardComplete() {
 function handlePostWizardCancel() {
 	// Clear wizard progress from session storage
 	if (browser && data.validation?.post_wizard?.id) {
-		sessionStorage.removeItem(getWizardStorageKey(data.validation.post_wizard.id));
+		sessionStorage.removeItem(
+			getWizardStorageKey(data.validation.post_wizard.id),
+		);
 	}
 	postWizardCompleted = true;
-	currentStep = 'success';
+	currentStep = "success";
 }
 
 /**
@@ -304,33 +328,35 @@ async function handleRegistrationSubmit() {
 			const errorBody = response.error as unknown as RedemptionErrorResponse;
 			if (errorBody.error_code) {
 				redemptionError = errorBody;
-				currentStep = 'error';
-				toast.error(errorBody.message || 'Registration failed');
+				currentStep = "error";
+				toast.error(errorBody.message || "Registration failed");
 			} else {
-				toast.error('An unexpected error occurred');
+				toast.error("An unexpected error occurred");
 			}
 			return;
 		}
 
 		if (response.data) {
 			// Check if it's an error response (has error_code)
-			const responseData = response.data as RedemptionResponse | RedemptionErrorResponse;
-			if ('error_code' in responseData) {
+			const responseData = response.data as
+				| RedemptionResponse
+				| RedemptionErrorResponse;
+			if ("error_code" in responseData) {
 				redemptionError = responseData as RedemptionErrorResponse;
-				currentStep = 'error';
-				toast.error(redemptionError.message || 'Registration failed');
+				currentStep = "error";
+				toast.error(redemptionError.message || "Registration failed");
 			} else if (responseData.success) {
 				redemptionResponse = responseData as RedemptionResponse;
 				// Check if post-wizard needs to be shown
 				if (hasPostWizard && !postWizardCompleted) {
-					currentStep = 'post_wizard';
-					toast.success('Account created! Please complete the final steps.');
+					currentStep = "post_wizard";
+					toast.success("Account created! Please complete the final steps.");
 				} else {
-					currentStep = 'success';
-					toast.success('Account created successfully!');
+					currentStep = "success";
+					toast.success("Account created successfully!");
 				}
 			} else {
-				toast.error('Registration failed');
+				toast.error("Registration failed");
 			}
 		}
 	} catch (err) {
@@ -345,7 +371,7 @@ async function handleRegistrationSubmit() {
  */
 async function handlePlexAuthenticated(email: string) {
 	plexEmail = email;
-	currentStep = 'plex_redeeming';
+	currentStep = "plex_redeeming";
 
 	// Proceed to redeem the invitation with Plex credentials
 	// For Plex, we use the email as username and a placeholder password
@@ -353,8 +379,8 @@ async function handlePlexAuthenticated(email: string) {
 	try {
 		const response = await redeemInvitation(data.code, {
 			username: email,
-			password: 'plex_oauth', // Placeholder - backend handles Plex auth differently
-			email: email
+			password: "plex_oauth", // Placeholder - backend handles Plex auth differently
+			email: email,
 		});
 
 		if (response.error) {
@@ -362,41 +388,43 @@ async function handlePlexAuthenticated(email: string) {
 			const errorBody = response.error as unknown as RedemptionErrorResponse;
 			if (errorBody.error_code) {
 				redemptionError = errorBody;
-				currentStep = 'error';
-				toast.error(errorBody.message || 'Registration failed');
+				currentStep = "error";
+				toast.error(errorBody.message || "Registration failed");
 			} else {
-				toast.error('An unexpected error occurred');
+				toast.error("An unexpected error occurred");
 			}
 			return;
 		}
 
 		if (response.data) {
-			const responseData = response.data as RedemptionResponse | RedemptionErrorResponse;
-			if ('error_code' in responseData) {
+			const responseData = response.data as
+				| RedemptionResponse
+				| RedemptionErrorResponse;
+			if ("error_code" in responseData) {
 				redemptionError = responseData as RedemptionErrorResponse;
-				currentStep = 'error';
-				toast.error(redemptionError.message || 'Registration failed');
+				currentStep = "error";
+				toast.error(redemptionError.message || "Registration failed");
 			} else if (responseData.success) {
 				redemptionResponse = responseData as RedemptionResponse;
 				// Check if post-wizard needs to be shown
 				if (hasPostWizard && !postWizardCompleted) {
-					currentStep = 'post_wizard';
-					toast.success('Added to server! Please complete the final steps.');
+					currentStep = "post_wizard";
+					toast.success("Added to server! Please complete the final steps.");
 				} else {
-					currentStep = 'success';
-					toast.success('Successfully added to Plex server!');
+					currentStep = "success";
+					toast.success("Successfully added to Plex server!");
 				}
 			} else {
-				toast.error('Registration failed');
+				toast.error("Registration failed");
 			}
 		}
 	} catch (err) {
 		redemptionError = {
 			success: false,
-			error_code: 'NETWORK_ERROR',
-			message: getErrorMessage(err)
+			error_code: "NETWORK_ERROR",
+			message: getErrorMessage(err),
 		};
-		currentStep = 'error';
+		currentStep = "error";
 		toast.error(getErrorMessage(err));
 	}
 }
@@ -405,7 +433,7 @@ async function handlePlexAuthenticated(email: string) {
  * Handle Plex OAuth cancellation.
  */
 function handlePlexCancel() {
-	currentStep = 'validation';
+	currentStep = "validation";
 	plexEmail = null;
 }
 
@@ -417,9 +445,9 @@ function handleRegistrationRetry() {
 	plexEmail = null;
 	// Go back to appropriate registration step
 	if (hasPlexServer && !hasJellyfinServer) {
-		currentStep = 'plex_oauth';
+		currentStep = "plex_oauth";
 	} else {
-		currentStep = 'registration';
+		currentStep = "registration";
 	}
 }
 
@@ -427,9 +455,13 @@ function handleRegistrationRetry() {
  * Render the appropriate interaction component for a wizard step.
  */
 function renderInteraction(
-	step: { interaction_type: string; id: string; config: Record<string, unknown> },
+	step: {
+		interaction_type: string;
+		id: string;
+		config: Record<string, unknown>;
+	},
 	onStepComplete: (response: StepResponse) => void,
-	disabled: boolean
+	disabled: boolean,
 ) {
 	return { step, onStepComplete, disabled };
 }

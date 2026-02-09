@@ -16,18 +16,30 @@
  * @module $lib/components/join/plex-oauth-flow
  */
 
-import { AlertTriangle, CheckCircle, ExternalLink, Loader2, RefreshCw } from '@lucide/svelte';
-import { onDestroy } from 'svelte';
-import { toast } from 'svelte-sonner';
+import {
+	AlertTriangle,
+	CheckCircle,
+	ExternalLink,
+	Loader2,
+	RefreshCw,
+} from "@lucide/svelte";
+import { onDestroy } from "svelte";
+import { toast } from "svelte-sonner";
 import {
 	checkPlexPin,
 	createPlexPin,
 	type PlexOAuthCheckResponse,
-	type PlexOAuthPinResponse
-} from '$lib/api/client';
-import { getErrorMessage } from '$lib/api/errors';
-import { Button } from '$lib/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	type PlexOAuthPinResponse,
+} from "$lib/api/client";
+import { getErrorMessage } from "$lib/api/errors";
+import { Button } from "$lib/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "$lib/components/ui/card";
 
 interface Props {
 	/** Callback when authentication is successful */
@@ -36,11 +48,17 @@ interface Props {
 	onCancel?: () => void;
 }
 
-let { onAuthenticated, onCancel }: Props = $props();
+const { onAuthenticated, onCancel }: Props = $props();
 
 // Flow state
-type FlowStep = 'idle' | 'creating_pin' | 'waiting' | 'authenticated' | 'expired' | 'error';
-let currentStep = $state<FlowStep>('idle');
+type FlowStep =
+	| "idle"
+	| "creating_pin"
+	| "waiting"
+	| "authenticated"
+	| "expired"
+	| "error";
+let currentStep = $state<FlowStep>("idle");
 
 // PIN data
 let pinData = $state<PlexOAuthPinResponse | null>(null);
@@ -77,7 +95,7 @@ function isPinExpired(expiresAt: string): boolean {
  * Start the Plex OAuth flow.
  */
 async function startOAuthFlow() {
-	currentStep = 'creating_pin';
+	currentStep = "creating_pin";
 	errorMessage = null;
 
 	try {
@@ -88,21 +106,21 @@ async function startOAuthFlow() {
 		}
 
 		if (!data) {
-			throw new Error('Failed to create PIN');
+			throw new Error("Failed to create PIN");
 		}
 
 		pinData = data;
-		currentStep = 'waiting';
+		currentStep = "waiting";
 
 		// Open Plex auth URL in new window/tab
-		window.open(pinData.auth_url, '_blank', 'noopener,noreferrer');
+		window.open(pinData.auth_url, "_blank", "noopener,noreferrer");
 
 		// Start polling for PIN status
 		startPolling();
 	} catch (err) {
 		errorMessage = getErrorMessage(err);
-		currentStep = 'error';
-		toast.error('Failed to start Plex authentication');
+		currentStep = "error";
+		toast.error("Failed to start Plex authentication");
 	}
 }
 
@@ -121,7 +139,7 @@ function startPolling() {
 		// Check if PIN has expired
 		if (isPinExpired(pinData.expires_at)) {
 			stopPolling();
-			currentStep = 'expired';
+			currentStep = "expired";
 			return;
 		}
 
@@ -130,7 +148,7 @@ function startPolling() {
 
 			if (error) {
 				// Don't stop polling on transient errors
-				console.error('PIN check error:', error);
+				console.error("PIN check error:", error);
 				return;
 			}
 
@@ -141,16 +159,16 @@ function startPolling() {
 			if (checkResponse.authenticated && checkResponse.email) {
 				stopPolling();
 				authenticatedEmail = checkResponse.email;
-				currentStep = 'authenticated';
+				currentStep = "authenticated";
 				onAuthenticated(checkResponse.email);
 			} else if (checkResponse.error) {
 				stopPolling();
 				errorMessage = checkResponse.error;
-				currentStep = 'error';
+				currentStep = "error";
 			}
 		} catch (err) {
 			// Don't stop polling on network errors, just log
-			console.error('PIN polling error:', err);
+			console.error("PIN polling error:", err);
 		}
 	}, POLL_INTERVAL_MS);
 }
@@ -172,7 +190,7 @@ function handleRetry() {
 function handleCancel() {
 	stopPolling();
 	pinData = null;
-	currentStep = 'idle';
+	currentStep = "idle";
 	onCancel?.();
 }
 
@@ -181,7 +199,7 @@ function handleCancel() {
  */
 function openAuthUrl() {
 	if (pinData?.auth_url) {
-		window.open(pinData.auth_url, '_blank', 'noopener,noreferrer');
+		window.open(pinData.auth_url, "_blank", "noopener,noreferrer");
 	}
 }
 </script>

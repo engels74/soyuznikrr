@@ -11,25 +11,25 @@
  * @module routes/(admin)/users/+page
  */
 
-import { goto, invalidateAll } from '$app/navigation';
-import { page } from '$app/state';
-import type { ListUsersParams } from '$lib/api/client';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import EmptyState from '$lib/components/empty-state.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import Pagination from '$lib/components/pagination.svelte';
-import UserFilters from '$lib/components/users/user-filters.svelte';
-import UserListSkeleton from '$lib/components/users/user-list-skeleton.svelte';
-import UserTable from '$lib/components/users/user-table.svelte';
-import type { PageData } from './$types';
+import { goto, invalidateAll } from "$app/navigation";
+import { page } from "$app/state";
+import type { ListUsersParams } from "$lib/api/client";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import EmptyState from "$lib/components/empty-state.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import Pagination from "$lib/components/pagination.svelte";
+import UserFilters from "$lib/components/users/user-filters.svelte";
+import UserListSkeleton from "$lib/components/users/user-list-skeleton.svelte";
+import UserTable from "$lib/components/users/user-table.svelte";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);
 
 // Derive current filter state from URL params
-let currentParams = $derived(data.params);
+const currentParams = $derived(data.params);
 
 /**
  * Handle retry after error.
@@ -59,8 +59,8 @@ function handleFilterChange(newParams: Partial<ListUsersParams>) {
 	}
 
 	// Reset to page 1 when filters change (except for page changes)
-	if (!('page' in newParams)) {
-		url.searchParams.set('page', '1');
+	if (!("page" in newParams)) {
+		url.searchParams.set("page", "1");
 	}
 
 	goto(url.toString(), { keepFocus: true, noScroll: true });

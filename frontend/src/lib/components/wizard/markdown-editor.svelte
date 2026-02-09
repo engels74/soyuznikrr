@@ -10,8 +10,8 @@
  * @module $lib/components/wizard/markdown-editor
  */
 
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import DOMPurify from "dompurify";
+import { marked } from "marked";
 
 interface Props {
 	value: string;
@@ -19,10 +19,14 @@ interface Props {
 	rows?: number;
 }
 
-let { value = $bindable(''), placeholder = 'Enter markdown content...', rows = 8 }: Props = $props();
+let {
+	value = $bindable(""),
+	placeholder = "Enter markdown content...",
+	rows = 8,
+}: Props = $props();
 
 // Tab state for switching between edit and preview
-let activeTab = $state<'edit' | 'preview'>('edit');
+let activeTab = $state<"edit" | "preview">("edit");
 let textareaRef = $state<HTMLTextAreaElement | null>(null);
 
 // Render markdown with sanitization
@@ -31,26 +35,26 @@ const renderedHtml = $derived.by(() => {
 	const rawHtml = marked.parse(value, { async: false }) as string;
 	return DOMPurify.sanitize(rawHtml, {
 		ALLOWED_TAGS: [
-			'h1',
-			'h2',
-			'h3',
-			'h4',
-			'h5',
-			'h6',
-			'p',
-			'br',
-			'strong',
-			'em',
-			'u',
-			'a',
-			'ul',
-			'ol',
-			'li',
-			'blockquote',
-			'code',
-			'pre'
+			"h1",
+			"h2",
+			"h3",
+			"h4",
+			"h5",
+			"h6",
+			"p",
+			"br",
+			"strong",
+			"em",
+			"u",
+			"a",
+			"ul",
+			"ol",
+			"li",
+			"blockquote",
+			"code",
+			"pre",
 		],
-		ALLOWED_ATTR: ['href', 'target', 'rel']
+		ALLOWED_ATTR: ["href", "target", "rel"],
 	});
 });
 
@@ -65,7 +69,8 @@ function insertFormatting(before: string, after: string, defaultText: string) {
 	const selected = value.slice(start, end);
 	const text = selected || defaultText;
 
-	const newValue = value.slice(0, start) + before + text + after + value.slice(end);
+	const newValue =
+		value.slice(0, start) + before + text + after + value.slice(end);
 	value = newValue;
 
 	// Restore cursor position after the inserted text
@@ -96,14 +101,15 @@ function insertLineFormatting(prefix: string, defaultText: string) {
 	const text = selected || defaultText;
 
 	// Find the start of the current line
-	const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+	const lineStart = value.lastIndexOf("\n", start - 1) + 1;
 	const beforeLine = value.slice(0, lineStart);
 	const afterCursor = value.slice(end);
 
 	// Check if we need a newline before the prefix
-	const needsNewline = lineStart > 0 && value[lineStart - 1] !== '\n';
+	const needsNewline = lineStart > 0 && value[lineStart - 1] !== "\n";
 
-	const newValue = beforeLine + (needsNewline ? '\n' : '') + prefix + text + afterCursor;
+	const newValue =
+		beforeLine + (needsNewline ? "\n" : "") + prefix + text + afterCursor;
 	value = newValue;
 
 	const offset = (needsNewline ? 1 : 0) + prefix.length;
@@ -121,15 +127,15 @@ function insertLineFormatting(prefix: string, defaultText: string) {
 }
 
 function formatBold() {
-	insertFormatting('**', '**', 'bold text');
+	insertFormatting("**", "**", "bold text");
 }
 
 function formatItalic() {
-	insertFormatting('*', '*', 'italic text');
+	insertFormatting("*", "*", "italic text");
 }
 
 function formatHeading() {
-	insertLineFormatting('## ', 'Heading');
+	insertLineFormatting("## ", "Heading");
 }
 
 function formatLink() {
@@ -151,24 +157,24 @@ function formatLink() {
 			textareaRef.selectionEnd = start + selected.length + 5;
 		});
 	} else {
-		insertFormatting('[', '](url)', 'link text');
+		insertFormatting("[", "](url)", "link text");
 	}
 }
 
 function formatBulletList() {
-	insertLineFormatting('- ', 'list item');
+	insertLineFormatting("- ", "list item");
 }
 
 function formatNumberedList() {
-	insertLineFormatting('1. ', 'list item');
+	insertLineFormatting("1. ", "list item");
 }
 
 function formatBlockquote() {
-	insertLineFormatting('> ', 'quote');
+	insertLineFormatting("> ", "quote");
 }
 
 function formatCode() {
-	insertFormatting('`', '`', 'code');
+	insertFormatting("`", "`", "code");
 }
 </script>
 

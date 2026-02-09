@@ -14,9 +14,9 @@
  * @module $lib/components/users/user-table
  */
 
-import type { UserDetailResponse } from '$lib/api/client';
-import * as Table from '$lib/components/ui/table';
-import UserRow from './user-row.svelte';
+import type { UserDetailResponse } from "$lib/api/client";
+import * as Table from "$lib/components/ui/table";
+import UserRow from "./user-row.svelte";
 
 interface Props {
 	users: UserDetailResponse[];
@@ -25,7 +25,7 @@ interface Props {
 	onDelete?: (id: string) => void;
 }
 
-let { users, onEnable, onDisable, onDelete }: Props = $props();
+const { users, onEnable, onDisable, onDelete }: Props = $props();
 </script>
 
 <div class="rounded-lg border border-cr-border bg-cr-surface" data-user-table>

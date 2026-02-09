@@ -11,39 +11,41 @@
  * @module $lib/components/servers/server-card
  */
 
-import { Database, ExternalLink, Server } from '@lucide/svelte';
-import type { MediaServerWithLibrariesResponse } from '$lib/api/client';
-import StatusBadge from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
+import { Database, ExternalLink, Server } from "@lucide/svelte";
+import type { MediaServerWithLibrariesResponse } from "$lib/api/client";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
 
 interface Props {
 	server: MediaServerWithLibrariesResponse;
 	onViewDetails: (id: string) => void;
 }
 
-let { server, onViewDetails }: Props = $props();
+const { server, onViewDetails }: Props = $props();
 
 /**
  * Get server type badge class based on server type.
  */
-let serverTypeClass = $derived.by(() => {
-	return server.server_type === 'plex'
-		? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-		: 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+const serverTypeClass = $derived.by(() => {
+	return server.server_type === "plex"
+		? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+		: "bg-purple-500/15 text-purple-400 border-purple-500/30";
 });
 
 /**
  * Get server type display name.
  */
-let serverTypeLabel = $derived(server.server_type === 'plex' ? 'Plex' : 'Jellyfin');
+const serverTypeLabel = $derived(
+	server.server_type === "plex" ? "Plex" : "Jellyfin",
+);
 
 /**
  * Get library count text.
  */
-let libraryCountText = $derived.by(() => {
+const libraryCountText = $derived.by(() => {
 	const count = server.libraries.length;
-	return count === 1 ? '1 library' : `${count} libraries`;
+	return count === 1 ? "1 library" : `${count} libraries`;
 });
 </script>
 

@@ -15,11 +15,11 @@
  * @module $lib/components/join/jellyfin-registration-form
  */
 
-import { Eye, EyeOff, Lock, Mail, User } from '@lucide/svelte';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
-import type { JellyfinRegistrationInput } from '$lib/schemas/join';
+import { Eye, EyeOff, Lock, Mail, User } from "@lucide/svelte";
+import { Button } from "$lib/components/ui/button";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
+import type { JellyfinRegistrationInput } from "$lib/schemas/join";
 
 interface Props {
 	formData: JellyfinRegistrationInput;
@@ -28,7 +28,12 @@ interface Props {
 	onSubmit: () => void;
 }
 
-let { formData = $bindable(), errors, submitting = false, onSubmit }: Props = $props();
+let {
+	formData = $bindable(),
+	errors,
+	submitting = false,
+	onSubmit,
+}: Props = $props();
 
 // Password visibility toggle
 let showPassword = $state(false);

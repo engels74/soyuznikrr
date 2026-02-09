@@ -213,7 +213,10 @@ describe('Property 25: Server Field Display', () => {
 	it('should display purple styling for Jellyfin servers', () => {
 		fc.assert(
 			fc.property(
-				serverResponseArb.map((s) => ({ ...s, server_type: 'jellyfin' as const })),
+				serverResponseArb.map((s) => ({
+					...s,
+					server_type: 'jellyfin' as const
+				})),
 				(server) => {
 					const mockOnViewDetails = vi.fn();
 					const { container } = render(ServerCard, {

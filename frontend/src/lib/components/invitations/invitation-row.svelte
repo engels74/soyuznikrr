@@ -1,5 +1,4 @@
 <script lang="ts">
-
 /**
  * Invitation table row component.
  *
@@ -14,13 +13,15 @@
  * @module $lib/components/invitations/invitation-row
  */
 
-import { Eye, MoreHorizontal, Pencil, Trash2 } from '@lucide/svelte';
-import { toast } from 'svelte-sonner';
-import { goto } from '$app/navigation';
-import type { InvitationResponse } from '$lib/api/client';
-import StatusBadge, { type StatusBadgeStatus } from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Table from '$lib/components/ui/table';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
+import { toast } from "svelte-sonner";
+import { goto } from "$app/navigation";
+import type { InvitationResponse } from "$lib/api/client";
+import StatusBadge, {
+	type StatusBadgeStatus,
+} from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Table from "$lib/components/ui/table";
 
 interface Props {
 	invitation: InvitationResponse;
@@ -28,39 +29,45 @@ interface Props {
 	onDelete?: (id: string) => void;
 }
 
-let { invitation, onEdit, onDelete }: Props = $props();
+const { invitation, onEdit, onDelete }: Props = $props();
 
 /**
  * Derive the status for the badge based on invitation state.
  */
-let status = $derived.by((): StatusBadgeStatus => {
-	if (!invitation.enabled) return 'disabled';
-	if (!invitation.is_active) return 'expired';
+const status = $derived.by((): StatusBadgeStatus => {
+	if (!invitation.enabled) return "disabled";
+	if (!invitation.is_active) return "expired";
 	// Check if limited (has max_uses and getting close)
-	if (invitation.remaining_uses !== null && invitation.remaining_uses !== undefined) {
-		if (invitation.remaining_uses <= 0) return 'expired';
-		if (invitation.remaining_uses <= 3) return 'limited';
+	if (
+		invitation.remaining_uses !== null &&
+		invitation.remaining_uses !== undefined
+	) {
+		if (invitation.remaining_uses <= 0) return "expired";
+		if (invitation.remaining_uses <= 3) return "limited";
 	}
-	return 'active';
+	return "active";
 });
 
 /**
  * Derive the status label.
  */
-let statusLabel = $derived.by(() => {
-	if (!invitation.enabled) return 'Disabled';
-	if (!invitation.is_active) return 'Expired';
-	if (invitation.remaining_uses !== null && invitation.remaining_uses !== undefined) {
-		if (invitation.remaining_uses <= 0) return 'Exhausted';
-		if (invitation.remaining_uses <= 3) return 'Limited';
+const statusLabel = $derived.by(() => {
+	if (!invitation.enabled) return "Disabled";
+	if (!invitation.is_active) return "Expired";
+	if (
+		invitation.remaining_uses !== null &&
+		invitation.remaining_uses !== undefined
+	) {
+		if (invitation.remaining_uses <= 0) return "Exhausted";
+		if (invitation.remaining_uses <= 3) return "Limited";
 	}
-	return 'Active';
+	return "Active";
 });
 
 /**
  * Format use count display.
  */
-let useCountDisplay = $derived.by(() => {
+const useCountDisplay = $derived.by(() => {
 	if (invitation.max_uses !== null && invitation.max_uses !== undefined) {
 		return `${invitation.use_count} / ${invitation.max_uses}`;
 	}
@@ -70,35 +77,38 @@ let useCountDisplay = $derived.by(() => {
 /**
  * Format remaining uses display.
  */
-let remainingDisplay = $derived.by(() => {
-	if (invitation.remaining_uses !== null && invitation.remaining_uses !== undefined) {
+const remainingDisplay = $derived.by(() => {
+	if (
+		invitation.remaining_uses !== null &&
+		invitation.remaining_uses !== undefined
+	) {
 		return `(${invitation.remaining_uses} left)`;
 	}
-	return '';
+	return "";
 });
 
 /**
  * Format date for display.
  */
 function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return '—';
+	if (!dateString) return "—";
 	try {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
 		});
 	} catch {
-		return '—';
+		return "—";
 	}
 }
 
 /**
  * Format expiration date with relative indicator.
  */
-let expiresDisplay = $derived.by(() => {
-	if (!invitation.expires_at) return 'Never';
+const expiresDisplay = $derived.by(() => {
+	if (!invitation.expires_at) return "Never";
 	const date = new Date(invitation.expires_at);
 	const now = new Date();
 	const isExpired = date < now;
@@ -131,7 +141,7 @@ function handleDelete() {
 	if (onDelete) {
 		onDelete(invitation.id);
 	} else {
-		toast.info('Delete functionality will be implemented in Task 7');
+		toast.info("Delete functionality will be implemented in Task 7");
 	}
 }
 </script>

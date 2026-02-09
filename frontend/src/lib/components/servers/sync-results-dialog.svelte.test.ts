@@ -294,7 +294,11 @@ describe('Property 26: Sync Result Display', () => {
 	it('should display success indicator when no discrepancies', async () => {
 		await fc.assert(
 			fc.asyncProperty(
-				syncResultArb.map((r) => ({ ...r, orphaned_users: [], stale_users: [] })),
+				syncResultArb.map((r) => ({
+					...r,
+					orphaned_users: [],
+					stale_users: []
+				})),
 				async (result) => {
 					const mockOnClose = vi.fn();
 					render(SyncResultsDialog, {

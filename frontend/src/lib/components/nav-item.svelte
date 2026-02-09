@@ -1,7 +1,7 @@
 <script lang="ts">
-import type { Snippet } from 'svelte';
-import { page } from '$app/state';
-import { cn } from '$lib/utils.js';
+import type { Snippet } from "svelte";
+import { page } from "$app/state";
+import { cn } from "$lib/utils.js";
 
 interface Props {
 	href: string;
@@ -9,9 +9,9 @@ interface Props {
 	children: Snippet;
 }
 
-let { href, icon, children }: Props = $props();
+const { href, icon, children }: Props = $props();
 
-let isActive = $derived(page.url.pathname.startsWith(href));
+const isActive = $derived(page.url.pathname.startsWith(href));
 </script>
 
 <a

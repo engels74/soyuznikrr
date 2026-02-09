@@ -12,24 +12,24 @@
  * @module $lib/components/servers/create-server-dialog
  */
 
-import { Eye, EyeOff, Plus, Server } from '@lucide/svelte';
-import { createServer, withErrorHandling } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import * as Dialog from '$lib/components/ui/dialog';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
+import { Eye, EyeOff, Plus, Server } from "@lucide/svelte";
+import { createServer, withErrorHandling } from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import * as Dialog from "$lib/components/ui/dialog";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
 import {
 	type CreateServerInput,
 	createServerSchema,
-	transformCreateServerData
-} from '$lib/schemas/server';
-import { showError, showSuccess } from '$lib/utils/toast';
+	transformCreateServerData,
+} from "$lib/schemas/server";
+import { showError, showSuccess } from "$lib/utils/toast";
 
 interface Props {
 	onSuccess?: () => void;
 }
 
-let { onSuccess }: Props = $props();
+const { onSuccess }: Props = $props();
 
 // Dialog open state
 let open = $state(false);
@@ -42,10 +42,10 @@ let showApiKey = $state(false);
 
 // Form data state
 let formData = $state<CreateServerInput>({
-	name: '',
-	server_type: 'jellyfin',
-	url: '',
-	api_key: ''
+	name: "",
+	server_type: "jellyfin",
+	url: "",
+	api_key: "",
 });
 
 // Validation errors
@@ -56,10 +56,10 @@ let errors = $state<Record<string, string[]>>({});
  */
 function resetForm() {
 	formData = {
-		name: '',
-		server_type: 'jellyfin',
-		url: '',
-		api_key: ''
+		name: "",
+		server_type: "jellyfin",
+		url: "",
+		api_key: "",
 	};
 	errors = {};
 	showApiKey = false;
@@ -73,7 +73,7 @@ function validateForm(): boolean {
 	if (!result.success) {
 		const fieldErrors: Record<string, string[]> = {};
 		for (const issue of result.error.issues) {
-			const path = issue.path.join('.');
+			const path = issue.path.join(".");
 			if (!fieldErrors[path]) {
 				fieldErrors[path] = [];
 			}
@@ -106,19 +106,27 @@ async function handleSubmit(event: Event) {
 	submitting = true;
 	try {
 		const data = transformCreateServerData(formData);
-		const result = await withErrorHandling(
-			() => createServer(data),
-			{ showErrorToast: false }
-		);
+		const result = await withErrorHandling(() => createServer(data), {
+			showErrorToast: false,
+		});
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to add server', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to add server",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
 		// Success
-		showSuccess('Server added successfully', `${result.data?.name} has been configured`);
+		showSuccess(
+			"Server added successfully",
+			`${result.data?.name} has been configured`,
+		);
 
 		// Close dialog and reset form
 		open = false;

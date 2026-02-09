@@ -23,22 +23,29 @@ import {
 	Settings,
 	Trash2,
 	User,
-	Users
-} from '@lucide/svelte';
-import { goto, invalidateAll } from '$app/navigation';
-import { deleteUser, disableUser, enableUser, withErrorHandling } from '$lib/api/client';
-import { getErrorMessage } from '$lib/api/errors';
-import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import StatusBadge, { type StatusBadgeStatus } from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
-import { Label } from '$lib/components/ui/label';
-import UserPermissionsEditor from '$lib/components/users/user-permissions-editor.svelte';
-import { showError, showSuccess } from '$lib/utils/toast';
-import type { PageData } from './$types';
+	Users,
+} from "@lucide/svelte";
+import { goto, invalidateAll } from "$app/navigation";
+import {
+	deleteUser,
+	disableUser,
+	enableUser,
+	withErrorHandling,
+} from "$lib/api/client";
+import { getErrorMessage } from "$lib/api/errors";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import StatusBadge, {
+	type StatusBadgeStatus,
+} from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import { Label } from "$lib/components/ui/label";
+import UserPermissionsEditor from "$lib/components/users/user-permissions-editor.svelte";
+import { showError, showSuccess } from "$lib/utils/toast";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Loading states
 let enabling = $state(false);
@@ -51,7 +58,7 @@ let showDeleteDialog = $state(false);
 /**
  * Check if user is expired based on expires_at.
  */
-let isExpired = $derived.by(() => {
+const isExpired = $derived.by(() => {
 	if (!data.user?.expires_at) return false;
 	return new Date(data.user.expires_at) < new Date();
 });
@@ -59,7 +66,7 @@ let isExpired = $derived.by(() => {
 /**
  * Check if user is expiring soon (within 7 days).
  */
-let isExpiringSoon = $derived.by(() => {
+const isExpiringSoon = $derived.by(() => {
 	if (!data.user?.expires_at) return false;
 	const expiresAt = new Date(data.user.expires_at);
 	const now = new Date();
@@ -70,59 +77,59 @@ let isExpiringSoon = $derived.by(() => {
 /**
  * Derive the status for the badge based on user state.
  */
-let status = $derived.by((): StatusBadgeStatus => {
-	if (!data.user) return 'disabled';
-	if (!data.user.enabled) return 'disabled';
-	if (isExpired) return 'expired';
-	if (isExpiringSoon) return 'pending';
-	return 'active';
+const status = $derived.by((): StatusBadgeStatus => {
+	if (!data.user) return "disabled";
+	if (!data.user.enabled) return "disabled";
+	if (isExpired) return "expired";
+	if (isExpiringSoon) return "pending";
+	return "active";
 });
 
 /**
  * Derive the status label.
  */
-let statusLabel = $derived.by(() => {
-	if (!data.user) return 'Unknown';
-	if (!data.user.enabled) return 'Disabled';
-	if (isExpired) return 'Expired';
-	if (isExpiringSoon) return 'Expiring Soon';
-	return 'Active';
+const statusLabel = $derived.by(() => {
+	if (!data.user) return "Unknown";
+	if (!data.user.enabled) return "Disabled";
+	if (isExpired) return "Expired";
+	if (isExpiringSoon) return "Expiring Soon";
+	return "Active";
 });
 
 /**
  * Get server type badge class.
  */
-let serverTypeClass = $derived.by(() => {
-	if (!data.user) return '';
-	return data.user.media_server.server_type === 'plex'
-		? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-		: 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+const serverTypeClass = $derived.by(() => {
+	if (!data.user) return "";
+	return data.user.media_server.server_type === "plex"
+		? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+		: "bg-purple-500/15 text-purple-400 border-purple-500/30";
 });
 
 /**
  * Format date for display.
  */
 function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return '—';
+	if (!dateString) return "—";
 	try {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	} catch {
-		return '—';
+		return "—";
 	}
 }
 
 /**
  * Format expiration date with relative indicator.
  */
-let expiresDisplay = $derived.by(() => {
-	if (!data.user?.expires_at) return 'Never';
+const expiresDisplay = $derived.by(() => {
+	if (!data.user?.expires_at) return "Never";
 	const formatted = formatDate(data.user.expires_at);
 	if (isExpired) return `${formatted} (expired)`;
 	if (isExpiringSoon) return `${formatted} (soon)`;
@@ -137,18 +144,23 @@ async function handleEnable() {
 
 	enabling = true;
 	try {
-		const result = await withErrorHandling(
-			() => enableUser(data.user!.id),
-			{ showErrorToast: false }
-		);
+		const result = await withErrorHandling(() => enableUser(data.user!.id), {
+			showErrorToast: false,
+		});
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to enable user', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to enable user",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('User enabled successfully');
+		showSuccess("User enabled successfully");
 		await invalidateAll();
 	} finally {
 		enabling = false;
@@ -163,18 +175,23 @@ async function handleDisable() {
 
 	disabling = true;
 	try {
-		const result = await withErrorHandling(
-			() => disableUser(data.user!.id),
-			{ showErrorToast: false }
-		);
+		const result = await withErrorHandling(() => disableUser(data.user!.id), {
+			showErrorToast: false,
+		});
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to disable user', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to disable user",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('User disabled successfully');
+		showSuccess("User disabled successfully");
 		await invalidateAll();
 	} finally {
 		disabling = false;
@@ -189,19 +206,24 @@ async function handleDelete() {
 
 	deleting = true;
 	try {
-		const result = await withErrorHandling(
-			() => deleteUser(data.user!.id),
-			{ showErrorToast: false }
-		);
+		const result = await withErrorHandling(() => deleteUser(data.user!.id), {
+			showErrorToast: false,
+		});
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to delete user', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to delete user",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('User deleted successfully');
-		goto('/users');
+		showSuccess("User deleted successfully");
+		goto("/users");
 	} finally {
 		deleting = false;
 		showDeleteDialog = false;

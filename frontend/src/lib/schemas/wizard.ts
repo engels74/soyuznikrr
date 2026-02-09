@@ -177,7 +177,9 @@ export type QuizConfig = z.infer<typeof quizConfigSchema>;
  * Requirements: 3.1, 3.2
  */
 export const wizardStepSchema = z.object({
-	interaction_type: z.enum(interactionTypes, { message: 'Invalid interaction type' }),
+	interaction_type: z.enum(interactionTypes, {
+		message: 'Invalid interaction type'
+	}),
 	title: z.string().min(1, 'Title is required').max(255, 'Title must be at most 255 characters'),
 	content_markdown: z.string().min(1, 'Content is required'),
 	config: z.record(z.string(), z.unknown()).default({}),

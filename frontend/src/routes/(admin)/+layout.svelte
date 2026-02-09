@@ -1,40 +1,64 @@
 <script lang="ts">
-import { LayoutDashboard, Menu, Server, Ticket, Users, Wand2, X } from '@lucide/svelte';
-import type { Snippet } from 'svelte';
-import { page } from '$app/state';
-import NavItem from '$lib/components/nav-item.svelte';
-import PageTitle from '$lib/components/page-title.svelte';
-import ThemeToggle from '$lib/components/theme-toggle.svelte';
-import { Button } from '$lib/components/ui/button';
-import { Separator } from '$lib/components/ui/separator';
+import {
+	LayoutDashboard,
+	LogOut,
+	Menu,
+	Server,
+	Ticket,
+	Users,
+	Wand2,
+	X,
+} from "@lucide/svelte";
+import type { Snippet } from "svelte";
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { logout } from "$lib/api/auth";
+import NavItem from "$lib/components/nav-item.svelte";
+import PageTitle from "$lib/components/page-title.svelte";
+import ThemeToggle from "$lib/components/theme-toggle.svelte";
+import { Button } from "$lib/components/ui/button";
+import { Separator } from "$lib/components/ui/separator";
 
 interface Props {
 	children: Snippet;
+	data: {
+		user: {
+			id: string;
+			username: string;
+			email: string | null;
+			auth_method: string;
+		} | null;
+	};
 }
 
-let { children }: Props = $props();
+const { children, data }: Props = $props();
+
+async function handleLogout() {
+	await logout();
+	await goto("/login");
+}
 
 // Mobile menu state
 let mobileMenuOpen = $state(false);
 
 // Derive current section title from route
-let currentTitle = $derived.by(() => {
+const currentTitle = $derived.by(() => {
 	const pathname = page.url.pathname;
-	if (pathname.startsWith('/dashboard')) return 'Dashboard';
-	if (pathname.startsWith('/invitations')) return 'Invitations';
-	if (pathname.startsWith('/users')) return 'Users';
-	if (pathname.startsWith('/servers')) return 'Servers';
-	if (pathname.startsWith('/wizards')) return 'Wizards';
-	return 'Admin';
+	if (pathname.startsWith("/dashboard")) return "Dashboard";
+	if (pathname.startsWith("/invitations")) return "Invitations";
+	if (pathname.startsWith("/users")) return "Users";
+	if (pathname.startsWith("/servers")) return "Servers";
+	if (pathname.startsWith("/wizards")) return "Wizards";
+	return "Admin";
 });
 
 // Navigation items configuration
 const navItems = [
-	{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-	{ href: '/invitations', label: 'Invitations', icon: Ticket },
-	{ href: '/users', label: 'Users', icon: Users },
-	{ href: '/servers', label: 'Servers', icon: Server },
-	{ href: '/wizards', label: 'Wizards', icon: Wand2 }
+	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+	{ href: "/invitations", label: "Invitations", icon: Ticket },
+	{ href: "/users", label: "Users", icon: Users },
+	{ href: "/servers", label: "Servers", icon: Server },
+	{ href: "/wizards", label: "Wizards", icon: Wand2 },
 ] as const;
 
 // Close mobile menu when route changes
@@ -88,7 +112,7 @@ $effect(() => {
 			<span class="font-display text-lg font-bold text-cr-accent">Zondarr</span>
 		</div>
 		<Separator class="bg-cr-border" />
-		<nav class="flex flex-col gap-1 p-4" aria-label="Main navigation">
+		<nav class="flex flex-1 flex-col gap-1 p-4" aria-label="Main navigation">
 			{#each navItems as item}
 				<NavItem href={item.href}>
 					{#snippet icon()}
@@ -98,6 +122,22 @@ $effect(() => {
 				</NavItem>
 			{/each}
 		</nav>
+		{#if data.user}
+			<div class="border-t border-cr-border p-4">
+				<div class="flex items-center justify-between">
+					<span class="truncate text-sm text-cr-text-muted font-mono">{data.user.username}</span>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={handleLogout}
+						aria-label="Log out"
+						class="text-cr-text-muted hover:text-cr-accent"
+					>
+						<LogOut class="size-4" />
+					</Button>
+				</div>
+			</div>
+		{/if}
 	</aside>
 
 	<div class="flex">
@@ -117,6 +157,22 @@ $effect(() => {
 					</NavItem>
 				{/each}
 			</nav>
+			{#if data.user}
+				<div class="border-t border-cr-border p-4">
+					<div class="flex items-center justify-between">
+						<span class="truncate text-sm text-cr-text-muted font-mono">{data.user.username}</span>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							onclick={handleLogout}
+							aria-label="Log out"
+							class="text-cr-text-muted hover:text-cr-accent"
+						>
+							<LogOut class="size-4" />
+						</Button>
+					</div>
+				</div>
+			{/if}
 		</aside>
 
 		<!-- Main Content Area -->

@@ -1,59 +1,61 @@
 <script lang="ts">
-	/**
-	 * Terms of Service Interaction Component
-	 *
-	 * Renders terms content and acceptance checkbox.
-	 * Requires checkbox before enabling proceed.
-	 * Records acceptance timestamp.
-	 *
-	 * Requirements: 6.1, 6.2, 6.3, 6.4, 12.3
-	 */
-	import { Check } from '@lucide/svelte';
-	import type { TosConfig, WizardStepResponse } from '$lib/api/client';
+/**
+ * Terms of Service Interaction Component
+ *
+ * Renders terms content and acceptance checkbox.
+ * Requires checkbox before enabling proceed.
+ * Records acceptance timestamp.
+ *
+ * Requirements: 6.1, 6.2, 6.3, 6.4, 12.3
+ */
+import { Check } from "@lucide/svelte";
+import type { TosConfig, WizardStepResponse } from "$lib/api/client";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
-	}
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
 
-	interface Props {
-		step: WizardStepResponse;
-		onComplete: (response: StepResponse) => void;
-		disabled?: boolean;
-	}
+interface Props {
+	step: WizardStepResponse;
+	onComplete: (response: StepResponse) => void;
+	disabled?: boolean;
+}
 
-	let { step, onComplete, disabled = false }: Props = $props();
+const { step, onComplete, disabled = false }: Props = $props();
 
-	// Extract checkbox label from config with default
-	const config = $derived(step.config as unknown as TosConfig);
-	const checkboxLabel = $derived(config?.checkbox_label ?? 'I accept the terms of service');
+// Extract checkbox label from config with default
+const config = $derived(step.config as unknown as TosConfig);
+const checkboxLabel = $derived(
+	config?.checkbox_label ?? "I accept the terms of service",
+);
 
-	// Checkbox state
-	let accepted = $state(false);
+// Checkbox state
+let accepted = $state(false);
 
-	// Derived - can proceed only when accepted
-	const canProceed = $derived(accepted);
+// Derived - can proceed only when accepted
+const canProceed = $derived(accepted);
 
-	function handleAccept() {
-		if (!accepted) return;
+function handleAccept() {
+	if (!accepted) return;
 
-		onComplete({
-			stepId: step.id,
-			interactionType: 'tos',
-			data: {
-				accepted: true,
-				accepted_at: new Date().toISOString()
-			},
-			completedAt: new Date().toISOString()
-		});
-	}
+	onComplete({
+		stepId: step.id,
+		interactionType: "tos",
+		data: {
+			accepted: true,
+			accepted_at: new Date().toISOString(),
+		},
+		completedAt: new Date().toISOString(),
+	});
+}
 
-	function toggleAccepted() {
-		accepted = !accepted;
-	}
+function toggleAccepted() {
+	accepted = !accepted;
+}
 </script>
 
 <div class="tos-interaction">

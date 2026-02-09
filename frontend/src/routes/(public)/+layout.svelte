@@ -8,14 +8,14 @@
  * @module routes/(public)/+layout
  */
 
-import type { Snippet } from 'svelte';
-import ThemeToggle from '$lib/components/theme-toggle.svelte';
+import type { Snippet } from "svelte";
+import ThemeToggle from "$lib/components/theme-toggle.svelte";
 
 interface Props {
 	children: Snippet;
 }
 
-let { children }: Props = $props();
+const { children }: Props = $props();
 </script>
 
 <div class="min-h-screen bg-cr-bg">

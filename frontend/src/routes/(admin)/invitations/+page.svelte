@@ -1,5 +1,4 @@
 <script lang="ts">
-
 /**
  * Invitation list page.
  *
@@ -12,28 +11,28 @@
  * @module routes/(admin)/invitations/+page
  */
 
-import { Plus } from '@lucide/svelte';
-import { toast } from 'svelte-sonner';
-import { goto, invalidateAll } from '$app/navigation';
-import { page } from '$app/state';
-import type { ListInvitationsParams } from '$lib/api/client';
-import { getErrorMessage, isNetworkError } from '$lib/api/errors';
-import EmptyState from '$lib/components/empty-state.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import InvitationFilters from '$lib/components/invitations/invitation-filters.svelte';
-import InvitationListSkeleton from '$lib/components/invitations/invitation-list-skeleton.svelte';
-import InvitationTable from '$lib/components/invitations/invitation-table.svelte';
-import Pagination from '$lib/components/pagination.svelte';
-import { Button } from '$lib/components/ui/button';
-import type { PageData } from './$types';
+import { Plus } from "@lucide/svelte";
+import { toast } from "svelte-sonner";
+import { goto, invalidateAll } from "$app/navigation";
+import { page } from "$app/state";
+import type { ListInvitationsParams } from "$lib/api/client";
+import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import EmptyState from "$lib/components/empty-state.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import InvitationFilters from "$lib/components/invitations/invitation-filters.svelte";
+import InvitationListSkeleton from "$lib/components/invitations/invitation-list-skeleton.svelte";
+import InvitationTable from "$lib/components/invitations/invitation-table.svelte";
+import Pagination from "$lib/components/pagination.svelte";
+import { Button } from "$lib/components/ui/button";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);
 
 // Derive current filter state from URL params
-let currentParams = $derived(data.params);
+const currentParams = $derived(data.params);
 
 /**
  * Handle retry after error.
@@ -63,8 +62,8 @@ function handleFilterChange(newParams: Partial<ListInvitationsParams>) {
 	}
 
 	// Reset to page 1 when filters change (except for page changes)
-	if (!('page' in newParams)) {
-		url.searchParams.set('page', '1');
+	if (!("page" in newParams)) {
+		url.searchParams.set("page", "1");
 	}
 
 	goto(url.toString(), { keepFocus: true, noScroll: true });
@@ -82,7 +81,7 @@ function handlePageChange(newPage: number) {
  * TODO: Implement in Task 7
  */
 function openCreateDialog() {
-	toast.info('Create invitation dialog will be implemented in Task 7');
+	toast.info("Create invitation dialog will be implemented in Task 7");
 }
 </script>
 

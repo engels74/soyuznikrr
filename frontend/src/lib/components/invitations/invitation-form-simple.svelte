@@ -14,12 +14,19 @@
  * @module $lib/components/invitations/invitation-form-simple
  */
 
-import { Calendar, Hash, Server, Timer, Users, Wand2 } from '@lucide/svelte';
-import type { LibraryResponse, MediaServerWithLibrariesResponse, WizardResponse } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
-import type { CreateInvitationInput, UpdateInvitationInput } from '$lib/schemas/invitation';
+import { Calendar, Hash, Server, Timer, Users, Wand2 } from "@lucide/svelte";
+import type {
+	LibraryResponse,
+	MediaServerWithLibrariesResponse,
+	WizardResponse,
+} from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
+import type {
+	CreateInvitationInput,
+	UpdateInvitationInput,
+} from "$lib/schemas/invitation";
 
 type FormData = CreateInvitationInput | UpdateInvitationInput;
 
@@ -29,16 +36,26 @@ interface Props {
 	servers: MediaServerWithLibrariesResponse[];
 	wizards?: WizardResponse[];
 	loadingWizards?: boolean;
-	mode: 'create' | 'edit';
+	mode: "create" | "edit";
 	submitting?: boolean;
 	onSubmit: () => void;
 	onCancel?: () => void;
 }
 
-let { formData = $bindable(), errors, servers, wizards = [], loadingWizards = false, mode, submitting = false, onSubmit, onCancel }: Props = $props();
+let {
+	formData = $bindable(),
+	errors,
+	servers,
+	wizards = [],
+	loadingWizards = false,
+	mode,
+	submitting = false,
+	onSubmit,
+	onCancel,
+}: Props = $props();
 
 // Derive available libraries based on selected servers
-let availableLibraries = $derived.by(() => {
+const availableLibraries = $derived.by(() => {
 	const selectedServerIds = formData.server_ids ?? [];
 	if (selectedServerIds.length === 0) return [];
 
@@ -59,8 +76,11 @@ function toggleServer(serverId: string) {
 	if (current.includes(serverId)) {
 		formData.server_ids = current.filter((id: string) => id !== serverId);
 		// Also remove libraries from this server
-		const serverLibraryIds = servers.find((s) => s.id === serverId)?.libraries.map((l) => l.id) ?? [];
-		formData.library_ids = (formData.library_ids ?? []).filter((id: string) => !serverLibraryIds.includes(id));
+		const serverLibraryIds =
+			servers.find((s) => s.id === serverId)?.libraries.map((l) => l.id) ?? [];
+		formData.library_ids = (formData.library_ids ?? []).filter(
+			(id: string) => !serverLibraryIds.includes(id),
+		);
 	} else {
 		formData.server_ids = [...current, serverId];
 	}
@@ -96,13 +116,13 @@ function isLibrarySelected(libraryId: string): boolean {
  * Format datetime-local input value from ISO string.
  */
 function formatDateTimeLocal(isoString: string | undefined | null): string {
-	if (!isoString) return '';
+	if (!isoString) return "";
 	try {
 		const date = new Date(isoString);
 		// Format as YYYY-MM-DDTHH:mm for datetime-local input
 		return date.toISOString().slice(0, 16);
 	} catch {
-		return '';
+		return "";
 	}
 }
 
@@ -110,23 +130,26 @@ function formatDateTimeLocal(isoString: string | undefined | null): string {
  * Convert datetime-local value to ISO string.
  */
 function toISOString(dateTimeLocal: string): string {
-	if (!dateTimeLocal) return '';
+	if (!dateTimeLocal) return "";
 	try {
 		return new Date(dateTimeLocal).toISOString();
 	} catch {
-		return '';
+		return "";
 	}
 }
 
 // Local state for datetime-local input
-let expiresAtLocal = $state(formatDateTimeLocal(formData.expires_at as string | undefined));
+let expiresAtLocal = $state(
+	formatDateTimeLocal(formData.expires_at as string | undefined),
+);
 
 // Sync local datetime to form data
 $effect(() => {
 	if (expiresAtLocal) {
-		(formData as CreateInvitationInput).expires_at = toISOString(expiresAtLocal);
+		(formData as CreateInvitationInput).expires_at =
+			toISOString(expiresAtLocal);
 	} else {
-		(formData as CreateInvitationInput).expires_at = '';
+		(formData as CreateInvitationInput).expires_at = "";
 	}
 });
 

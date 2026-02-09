@@ -202,7 +202,9 @@ describe('TosInteraction', () => {
 	});
 
 	it('should render checkbox with custom label', () => {
-		const step = createMockStep('tos', { checkbox_label: 'I agree to the rules' });
+		const step = createMockStep('tos', {
+			checkbox_label: 'I agree to the rules'
+		});
 		const onComplete = vi.fn();
 
 		render(TosInteraction, { props: { step, onComplete } });
@@ -216,7 +218,9 @@ describe('TosInteraction', () => {
 
 		render(TosInteraction, { props: { step, onComplete } });
 
-		const acceptButton = screen.getByRole('button', { name: 'Accept & Continue' });
+		const acceptButton = screen.getByRole('button', {
+			name: 'Accept & Continue'
+		});
 		expect(acceptButton).toBeDisabled();
 	});
 
@@ -229,7 +233,9 @@ describe('TosInteraction', () => {
 		const checkbox = screen.getByRole('checkbox');
 		await fireEvent.click(checkbox);
 
-		const acceptButton = screen.getByRole('button', { name: 'Accept & Continue' });
+		const acceptButton = screen.getByRole('button', {
+			name: 'Accept & Continue'
+		});
 		expect(acceptButton).not.toBeDisabled();
 	});
 
@@ -242,7 +248,9 @@ describe('TosInteraction', () => {
 		const checkbox = screen.getByRole('checkbox');
 		await fireEvent.click(checkbox);
 
-		const acceptButton = screen.getByRole('button', { name: 'Accept & Continue' });
+		const acceptButton = screen.getByRole('button', {
+			name: 'Accept & Continue'
+		});
 		await fireEvent.click(acceptButton);
 
 		expect(onComplete).toHaveBeenCalledTimes(1);
@@ -297,7 +305,10 @@ describe('TextInputInteraction', () => {
 	});
 
 	it('should have disabled submit button when required field is empty', () => {
-		const step = createMockStep('text_input', { label: 'Name', required: true });
+		const step = createMockStep('text_input', {
+			label: 'Name',
+			required: true
+		});
 		const onComplete = vi.fn();
 
 		render(TextInputInteraction, { props: { step, onComplete } });
@@ -307,7 +318,10 @@ describe('TextInputInteraction', () => {
 	});
 
 	it('should enable submit button when required field has value', async () => {
-		const step = createMockStep('text_input', { label: 'Name', required: true });
+		const step = createMockStep('text_input', {
+			label: 'Name',
+			required: true
+		});
 		const onComplete = vi.fn();
 
 		render(TextInputInteraction, { props: { step, onComplete } });

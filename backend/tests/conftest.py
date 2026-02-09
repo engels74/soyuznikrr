@@ -116,6 +116,8 @@ async def create_test_engine() -> AsyncEngine:
 
 # Tables in deletion order (children before parents) to respect FK constraints.
 _TRUNCATE_ORDER: list[str] = [
+    "refresh_tokens",
+    "admin_accounts",
     "wizard_steps",
     "wizards",
     "users",

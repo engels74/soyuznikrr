@@ -39,7 +39,9 @@ from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 
+from zondarr.api.auth import AuthController
 from zondarr.api.errors import (
+    authentication_error_handler,
     external_service_error_handler,
     internal_error_handler,
     litestar_http_exception_handler,
@@ -54,8 +56,14 @@ from zondarr.api.servers import ServerController
 from zondarr.api.users import UserController
 from zondarr.api.wizards import WizardController
 from zondarr.config import Settings, load_settings
+from zondarr.core.auth import create_jwt_auth
 from zondarr.core.database import db_lifespan, provide_db_session
-from zondarr.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
+from zondarr.core.exceptions import (
+    AuthenticationError,
+    ExternalServiceError,
+    NotFoundError,
+    ValidationError,
+)
 from zondarr.core.tasks import background_tasks_lifespan
 from zondarr.media.clients.jellyfin import JellyfinClient
 from zondarr.media.clients.plex import PlexClient
@@ -85,6 +93,7 @@ def _create_openapi_config() -> OpenAPIConfig:
         description="Unified invitation and user management for media servers",
         path="/docs",
         tags=[
+            Tag(name="Authentication", description="Admin authentication"),
             Tag(name="Health", description="Health check endpoints"),
             Tag(name="Media Servers", description="Media server management"),
             Tag(name="Invitations", description="Invitation management"),
@@ -173,8 +182,12 @@ def create_app(settings: Settings | None = None) -> Litestar:
     _register_media_clients()
     registry.set_settings(settings)
 
+    # Create JWT cookie auth
+    jwt_auth = create_jwt_auth(settings)
+
     return Litestar(
         route_handlers=[
+            AuthController,
             HealthController,
             InvitationController,
             JoinController,
@@ -188,12 +201,14 @@ def create_app(settings: Settings | None = None) -> Litestar:
         dependencies={
             "session": Provide(provide_db_session),
         },
+        on_app_init=[jwt_auth.on_app_init],
         cors_config=_create_cors_config(settings),
         openapi_config=_create_openapi_config(),
         plugins=[
             StructlogPlugin(config=_create_structlog_config()),
         ],
         exception_handlers={
+            AuthenticationError: authentication_error_handler,
             ValidationError: validation_error_handler,
             NotFoundError: not_found_handler,
             ExternalServiceError: external_service_error_handler,

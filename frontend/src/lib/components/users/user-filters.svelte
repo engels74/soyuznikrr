@@ -15,24 +15,28 @@
  * @module $lib/components/users/user-filters
  */
 
-import { ArrowDownAZ, ArrowUpAZ, Filter } from '@lucide/svelte';
-import type { InvitationResponse, ListUsersParams, MediaServerWithLibrariesResponse } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import * as Select from '$lib/components/ui/select';
+import { ArrowDownAZ, ArrowUpAZ, Filter } from "@lucide/svelte";
+import type {
+	InvitationResponse,
+	ListUsersParams,
+	MediaServerWithLibrariesResponse,
+} from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import * as Select from "$lib/components/ui/select";
 
 interface Props {
 	serverId?: string;
 	invitationId?: string;
 	enabled?: boolean;
 	expired?: boolean;
-	sortBy: 'created_at' | 'username' | 'expires_at';
-	sortOrder: 'asc' | 'desc';
+	sortBy: "created_at" | "username" | "expires_at";
+	sortOrder: "asc" | "desc";
 	servers: MediaServerWithLibrariesResponse[];
 	invitations: InvitationResponse[];
 	onFilterChange: (params: Partial<ListUsersParams>) => void;
 }
 
-let {
+const {
 	serverId,
 	invitationId,
 	enabled,
@@ -41,39 +45,39 @@ let {
 	sortOrder,
 	servers,
 	invitations,
-	onFilterChange
+	onFilterChange,
 }: Props = $props();
 
 // Convert boolean to select value
-let enabledValue = $derived.by(() => {
-	if (enabled === undefined) return 'all';
-	return enabled ? 'enabled' : 'disabled';
+const enabledValue = $derived.by(() => {
+	if (enabled === undefined) return "all";
+	return enabled ? "enabled" : "disabled";
 });
 
-let expiredValue = $derived.by(() => {
-	if (expired === undefined) return 'all';
-	return expired ? 'expired' : 'active';
+const expiredValue = $derived.by(() => {
+	if (expired === undefined) return "all";
+	return expired ? "expired" : "active";
 });
 
 // Get selected server name for display
-let selectedServerName = $derived.by(() => {
-	if (!serverId) return 'All Servers';
+const selectedServerName = $derived.by(() => {
+	if (!serverId) return "All Servers";
 	const server = servers.find((s) => s.id === serverId);
-	return server?.name ?? 'All Servers';
+	return server?.name ?? "All Servers";
 });
 
 // Get selected invitation code for display
-let selectedInvitationCode = $derived.by(() => {
-	if (!invitationId) return 'All Invitations';
+const selectedInvitationCode = $derived.by(() => {
+	if (!invitationId) return "All Invitations";
 	const invitation = invitations.find((i) => i.id === invitationId);
-	return invitation?.code ?? 'All Invitations';
+	return invitation?.code ?? "All Invitations";
 });
 
 /**
  * Handle server filter change.
  */
 function handleServerChange(value: string | undefined) {
-	if (value === 'all' || value === undefined) {
+	if (value === "all" || value === undefined) {
 		onFilterChange({ server_id: undefined });
 	} else {
 		onFilterChange({ server_id: value });
@@ -84,7 +88,7 @@ function handleServerChange(value: string | undefined) {
  * Handle invitation filter change.
  */
 function handleInvitationChange(value: string | undefined) {
-	if (value === 'all' || value === undefined) {
+	if (value === "all" || value === undefined) {
 		onFilterChange({ invitation_id: undefined });
 	} else {
 		onFilterChange({ invitation_id: value });
@@ -95,10 +99,10 @@ function handleInvitationChange(value: string | undefined) {
  * Handle enabled filter change.
  */
 function handleEnabledChange(value: string | undefined) {
-	if (value === 'all' || value === undefined) {
+	if (value === "all" || value === undefined) {
 		onFilterChange({ enabled: undefined });
 	} else {
-		onFilterChange({ enabled: value === 'enabled' });
+		onFilterChange({ enabled: value === "enabled" });
 	}
 }
 
@@ -106,10 +110,10 @@ function handleEnabledChange(value: string | undefined) {
  * Handle expired filter change.
  */
 function handleExpiredChange(value: string | undefined) {
-	if (value === 'all' || value === undefined) {
+	if (value === "all" || value === undefined) {
 		onFilterChange({ expired: undefined });
 	} else {
-		onFilterChange({ expired: value === 'expired' });
+		onFilterChange({ expired: value === "expired" });
 	}
 }
 
@@ -118,7 +122,7 @@ function handleExpiredChange(value: string | undefined) {
  */
 function handleSortByChange(value: string | undefined) {
 	if (value) {
-		onFilterChange({ sort_by: value as ListUsersParams['sort_by'] });
+		onFilterChange({ sort_by: value as ListUsersParams["sort_by"] });
 	}
 }
 
@@ -126,14 +130,14 @@ function handleSortByChange(value: string | undefined) {
  * Toggle sort order.
  */
 function toggleSortOrder() {
-	onFilterChange({ sort_order: sortOrder === 'asc' ? 'desc' : 'asc' });
+	onFilterChange({ sort_order: sortOrder === "asc" ? "desc" : "asc" });
 }
 
 // Sort by options
 const sortByOptions = [
-	{ value: 'created_at', label: 'Created Date' },
-	{ value: 'username', label: 'Username' },
-	{ value: 'expires_at', label: 'Expiration Date' }
+	{ value: "created_at", label: "Created Date" },
+	{ value: "username", label: "Username" },
+	{ value: "expires_at", label: "Expiration Date" },
 ] as const;
 </script>
 

@@ -167,7 +167,9 @@ describe('Toast Utilities', () => {
 				fc.property(
 					fc.record({
 						detail: unsafeMessageArb,
-						error_code: fc.option(fc.string({ minLength: 1 }), { nil: undefined })
+						error_code: fc.option(fc.string({ minLength: 1 }), {
+							nil: undefined
+						})
 					}),
 					(apiError) => {
 						vi.clearAllMocks();
@@ -250,7 +252,9 @@ describe('Toast Utilities', () => {
 						showSuccess(message, description);
 
 						expect(toast.success).toHaveBeenCalledTimes(1);
-						expect(toast.success).toHaveBeenCalledWith(message, { description });
+						expect(toast.success).toHaveBeenCalledWith(message, {
+							description
+						});
 					}
 				),
 				{ numRuns: 100 }
@@ -326,7 +330,9 @@ describe('Toast Utilities', () => {
 						showWarning(message, description);
 
 						expect(toast.warning).toHaveBeenCalledTimes(1);
-						expect(toast.warning).toHaveBeenCalledWith(message, { description });
+						expect(toast.warning).toHaveBeenCalledWith(message, {
+							description
+						});
 					}
 				),
 				{ numRuns: 100 }

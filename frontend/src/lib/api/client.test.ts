@@ -234,7 +234,9 @@ describe('Property 4: Pagination Parameter Passing', () => {
 		fc.assert(
 			fc.property(
 				fc.record({
-					page: fc.option(fc.integer({ min: 1, max: 1000 }), { nil: undefined }),
+					page: fc.option(fc.integer({ min: 1, max: 1000 }), {
+						nil: undefined
+					}),
 					page_size: fc.option(fc.integer({ min: 1, max: 500 }), {
 						nil: undefined
 					})
@@ -269,7 +271,9 @@ describe('Property 4: Pagination Parameter Passing', () => {
 		fc.assert(
 			fc.property(
 				fc.record({
-					page: fc.option(fc.integer({ min: 1, max: 1000 }), { nil: undefined }),
+					page: fc.option(fc.integer({ min: 1, max: 1000 }), {
+						nil: undefined
+					}),
 					page_size: fc.option(fc.integer({ min: 1, max: 500 }), {
 						nil: undefined
 					})

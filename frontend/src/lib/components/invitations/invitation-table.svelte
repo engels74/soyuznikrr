@@ -1,5 +1,4 @@
 <script lang="ts">
-
 /**
  * Invitation table component.
  *
@@ -14,9 +13,9 @@
  * @module $lib/components/invitations/invitation-table
  */
 
-import type { InvitationResponse } from '$lib/api/client';
-import * as Table from '$lib/components/ui/table';
-import InvitationRow from './invitation-row.svelte';
+import type { InvitationResponse } from "$lib/api/client";
+import * as Table from "$lib/components/ui/table";
+import InvitationRow from "./invitation-row.svelte";
 
 interface Props {
 	invitations: InvitationResponse[];
@@ -24,7 +23,7 @@ interface Props {
 	onDelete?: (id: string) => void;
 }
 
-let { invitations, onEdit, onDelete }: Props = $props();
+const { invitations, onEdit, onDelete }: Props = $props();
 </script>
 
 <div class="rounded-lg border border-cr-border bg-cr-surface" data-invitation-table>

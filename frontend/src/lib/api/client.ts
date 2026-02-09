@@ -23,6 +23,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
  */
 export const api = createClient<paths>({
 	baseUrl: API_BASE_URL,
+	credentials: 'include',
 	headers: {
 		'Content-Type': 'application/json'
 	}
@@ -35,6 +36,7 @@ export const api = createClient<paths>({
 export function createScopedClient(customFetch: typeof globalThis.fetch): ApiClient {
 	return createClient<paths>({
 		baseUrl: API_BASE_URL,
+		credentials: 'include',
 		headers: {
 			'Content-Type': 'application/json'
 		},

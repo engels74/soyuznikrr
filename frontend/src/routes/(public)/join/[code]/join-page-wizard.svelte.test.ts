@@ -26,9 +26,9 @@ vi.mock('$lib/api/client', async () => {
 	const actual = await vi.importActual('$lib/api/client');
 	return {
 		...actual,
-		validateStep: vi
-			.fn()
-			.mockResolvedValue({ data: { valid: true, completion_token: 'test-token' } }),
+		validateStep: vi.fn().mockResolvedValue({
+			data: { valid: true, completion_token: 'test-token' }
+		}),
 		redeemInvitation: vi.fn().mockResolvedValue({
 			data: {
 				success: true,
@@ -123,7 +123,10 @@ const wizardDetailResponseArb: fc.Arbitrary<WizardDetailResponse> = fc.record({
 const validationWithPreWizardArb: fc.Arbitrary<InvitationValidationResponse> = fc.record({
 	valid: fc.constant(true),
 	failure_reason: fc.constant(null),
-	target_servers: fc.array(mediaServerResponseArb, { minLength: 1, maxLength: 2 }),
+	target_servers: fc.array(mediaServerResponseArb, {
+		minLength: 1,
+		maxLength: 2
+	}),
 	allowed_libraries: fc.constant(null),
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: wizardDetailResponseArb,
@@ -136,7 +139,10 @@ const validationWithPreWizardArb: fc.Arbitrary<InvitationValidationResponse> = f
 const validationWithPostWizardArb: fc.Arbitrary<InvitationValidationResponse> = fc.record({
 	valid: fc.constant(true),
 	failure_reason: fc.constant(null),
-	target_servers: fc.array(mediaServerResponseArb, { minLength: 1, maxLength: 2 }),
+	target_servers: fc.array(mediaServerResponseArb, {
+		minLength: 1,
+		maxLength: 2
+	}),
 	allowed_libraries: fc.constant(null),
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: fc.constant(null),
@@ -149,7 +155,10 @@ const validationWithPostWizardArb: fc.Arbitrary<InvitationValidationResponse> = 
 const validationWithBothWizardsArb: fc.Arbitrary<InvitationValidationResponse> = fc.record({
 	valid: fc.constant(true),
 	failure_reason: fc.constant(null),
-	target_servers: fc.array(mediaServerResponseArb, { minLength: 1, maxLength: 2 }),
+	target_servers: fc.array(mediaServerResponseArb, {
+		minLength: 1,
+		maxLength: 2
+	}),
 	allowed_libraries: fc.constant(null),
 	duration_days: fc.option(fc.integer({ min: 1, max: 365 }), { nil: null }),
 	pre_wizard: wizardDetailResponseArb,

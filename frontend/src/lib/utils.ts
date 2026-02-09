@@ -34,7 +34,10 @@ export type WithoutChild<T> = T extends { child?: unknown } ? Omit<T, 'child'> :
  * A type helper that removes both `children` and `child` properties from a given type.
  * Used for components that use snippets instead of children props.
  */
-export type WithoutChildrenOrChild<T> = T extends { children?: unknown; child?: unknown }
+export type WithoutChildrenOrChild<T> = T extends {
+	children?: unknown;
+	child?: unknown;
+}
 	? Omit<T, 'children' | 'child'>
 	: T extends { children?: unknown }
 		? Omit<T, 'children'>

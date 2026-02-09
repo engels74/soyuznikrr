@@ -117,7 +117,11 @@ describe('Property 32: Plex OAuth Polling', () => {
 				};
 			}
 			return {
-				data: { authenticated: false, email: null, error: null } as PlexOAuthCheckResponse,
+				data: {
+					authenticated: false,
+					email: null,
+					error: null
+				} as PlexOAuthCheckResponse,
 				error: undefined,
 				response: new Response()
 			};
@@ -181,7 +185,11 @@ describe('Property 32: Plex OAuth Polling', () => {
 
 		// Always return pending
 		vi.mocked(apiClient.checkPlexPin).mockResolvedValue({
-			data: { authenticated: false, email: null, error: null } as PlexOAuthCheckResponse,
+			data: {
+				authenticated: false,
+				email: null,
+				error: null
+			} as PlexOAuthCheckResponse,
 			error: undefined,
 			response: new Response()
 		});
@@ -239,7 +247,11 @@ describe('Property 32: Plex OAuth Polling', () => {
 
 		// Always return pending
 		vi.mocked(apiClient.checkPlexPin).mockResolvedValue({
-			data: { authenticated: false, email: null, error: null } as PlexOAuthCheckResponse,
+			data: {
+				authenticated: false,
+				email: null,
+				error: null
+			} as PlexOAuthCheckResponse,
 			error: undefined,
 			response: new Response()
 		});
@@ -308,7 +320,11 @@ describe('Plex OAuth Flow Component', () => {
 				});
 
 				vi.mocked(apiClient.checkPlexPin).mockResolvedValue({
-					data: { authenticated: false, email: null, error: null } as PlexOAuthCheckResponse,
+					data: {
+						authenticated: false,
+						email: null,
+						error: null
+					} as PlexOAuthCheckResponse,
 					error: undefined,
 					response: new Response()
 				});

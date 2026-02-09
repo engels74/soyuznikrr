@@ -12,17 +12,23 @@
  * @module $lib/components/join/success-page
  */
 
-import { CheckCircle, ExternalLink, Server, User } from '@lucide/svelte';
-import type { RedemptionResponse, UserResponse } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+import { CheckCircle, ExternalLink, Server, User } from "@lucide/svelte";
+import type { RedemptionResponse, UserResponse } from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "$lib/components/ui/card";
 
 interface Props {
 	response: RedemptionResponse;
 	serverUrls?: Record<string, string>;
 }
 
-let { response, serverUrls = {} }: Props = $props();
+const { response, serverUrls = {} }: Props = $props();
 
 /**
  * Get server URL for a user.

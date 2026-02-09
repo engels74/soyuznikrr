@@ -1,13 +1,13 @@
 <script lang="ts">
-	import ErrorBoundary from './error-boundary.svelte';
+import ErrorBoundary from "./error-boundary.svelte";
 
-	let errorBoundaryRef: ReturnType<typeof ErrorBoundary> | undefined = $state();
+let errorBoundaryRef: ReturnType<typeof ErrorBoundary> | undefined = $state();
 
-	export function triggerError(error: Error) {
-		if (errorBoundaryRef) {
-			errorBoundaryRef.handleError(error);
-		}
+export function triggerError(error: Error) {
+	if (errorBoundaryRef) {
+		errorBoundaryRef.handleError(error);
 	}
+}
 </script>
 
 <ErrorBoundary bind:this={errorBoundaryRef}>

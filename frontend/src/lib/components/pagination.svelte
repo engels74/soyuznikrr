@@ -1,52 +1,64 @@
 <script lang="ts">
-	import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils.js';
+import {
+	ChevronLeft,
+	ChevronRight,
+	ChevronsLeft,
+	ChevronsRight,
+} from "@lucide/svelte";
+import { Button } from "$lib/components/ui/button";
+import { cn } from "$lib/utils.js";
 
-	interface Props {
-		page: number;
-		pageSize: number;
-		total: number;
-		hasNext: boolean;
-		onPageChange: (page: number) => void;
-		class?: string;
+interface Props {
+	page: number;
+	pageSize: number;
+	total: number;
+	hasNext: boolean;
+	onPageChange: (page: number) => void;
+	class?: string;
+}
+
+const {
+	page,
+	pageSize,
+	total,
+	hasNext,
+	onPageChange,
+	class: className,
+}: Props = $props();
+
+// Calculate total pages
+const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
+
+// Calculate the range of items being displayed
+const startItem = $derived(total === 0 ? 0 : (page - 1) * pageSize + 1);
+const endItem = $derived(Math.min(page * pageSize, total));
+
+// Navigation helpers
+const hasPrevious = $derived(page > 1);
+const canGoFirst = $derived(page > 1);
+const canGoLast = $derived(page < totalPages);
+
+function goToPage(newPage: number) {
+	if (newPage >= 1 && newPage <= totalPages && newPage !== page) {
+		onPageChange(newPage);
 	}
+}
 
-	let { page, pageSize, total, hasNext, onPageChange, class: className }: Props = $props();
+function goFirst() {
+	goToPage(1);
+}
 
-	// Calculate total pages
-	let totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
+function goPrevious() {
+	goToPage(page - 1);
+}
 
-	// Calculate the range of items being displayed
-	let startItem = $derived(total === 0 ? 0 : (page - 1) * pageSize + 1);
-	let endItem = $derived(Math.min(page * pageSize, total));
+function goNext() {
+	goToPage(page + 1);
+}
 
-	// Navigation helpers
-	let hasPrevious = $derived(page > 1);
-	let canGoFirst = $derived(page > 1);
-	let canGoLast = $derived(page < totalPages);
-
-	function goToPage(newPage: number) {
-		if (newPage >= 1 && newPage <= totalPages && newPage !== page) {
-			onPageChange(newPage);
-		}
-	}
-
-	function goFirst() {
-		goToPage(1);
-	}
-
-	function goPrevious() {
-		goToPage(page - 1);
-	}
-
-	function goNext() {
-		goToPage(page + 1);
-	}
-
-	function goLast() {
-		goToPage(totalPages);
-	}
+function goLast() {
+	goToPage(totalPages);
+}
 </script>
 
 <nav

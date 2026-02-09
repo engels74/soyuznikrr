@@ -1,167 +1,169 @@
 <script lang="ts">
-	import DOMPurify from 'dompurify';
-	import { marked } from 'marked';
-	import type { Snippet } from 'svelte';
-	/**
-	 * Wizard Shell Component
-	 *
-	 * Main orchestrator for wizard flows. Manages step sequencing, progress tracking,
-	 * and session persistence. Renders markdown content with XSS sanitization.
-	 *
-	 * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 14.6, 15.1, 15.3
-	 */
-	import { browser } from '$app/environment';
-	import type { WizardDetailResponse, WizardStepResponse } from '$lib/api/client';
-	import { validateStep } from '$lib/api/client';
-	import WizardNavigation from './wizard-navigation.svelte';
-	import WizardProgress from './wizard-progress.svelte';
+import DOMPurify from "dompurify";
+import { marked } from "marked";
+import type { Snippet } from "svelte";
+/**
+ * Wizard Shell Component
+ *
+ * Main orchestrator for wizard flows. Manages step sequencing, progress tracking,
+ * and session persistence. Renders markdown content with XSS sanitization.
+ *
+ * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 14.6, 15.1, 15.3
+ */
+import { browser } from "$app/environment";
+import type { WizardDetailResponse, WizardStepResponse } from "$lib/api/client";
+import { validateStep } from "$lib/api/client";
+import WizardNavigation from "./wizard-navigation.svelte";
+import WizardProgress from "./wizard-progress.svelte";
 
-	export interface StepResponse {
-		stepId: string;
-		interactionType: string;
-		data: { [key: string]: string | number | boolean | null };
-		startedAt?: string;
-		completedAt: string;
+export interface StepResponse {
+	stepId: string;
+	interactionType: string;
+	data: { [key: string]: string | number | boolean | null };
+	startedAt?: string;
+	completedAt: string;
+}
+
+interface Props {
+	wizard: WizardDetailResponse;
+	onComplete: () => void;
+	onCancel?: () => void;
+	interaction?: Snippet<
+		[
+			{
+				step: WizardStepResponse;
+				onStepComplete: (response: StepResponse) => void;
+				disabled: boolean;
+			},
+		]
+	>;
+}
+
+const { wizard, onComplete, onCancel, interaction }: Props = $props();
+
+// Reactive state with $state
+let currentStepIndex = $state(0);
+let stepResponses = $state<Map<string, StepResponse>>(new Map());
+let isValidating = $state(false);
+let validationError = $state<string | null>(null);
+
+// Derived values with $derived
+const currentStep = $derived(wizard.steps[currentStepIndex]);
+const isFirstStep = $derived(currentStepIndex === 0);
+const isLastStep = $derived(currentStepIndex === wizard.steps.length - 1);
+const progress = $derived(((currentStepIndex + 1) / wizard.steps.length) * 100);
+const canProceed = $derived(stepResponses.has(currentStep?.id ?? ""));
+
+// Render markdown content with sanitization
+const renderedMarkdown = $derived.by(() => {
+	if (!currentStep?.content_markdown) return "";
+	const rawHtml = marked.parse(currentStep.content_markdown, {
+		async: false,
+	}) as string;
+	return DOMPurify.sanitize(rawHtml, {
+		ALLOWED_TAGS: [
+			"h1",
+			"h2",
+			"h3",
+			"h4",
+			"h5",
+			"h6",
+			"p",
+			"br",
+			"strong",
+			"em",
+			"u",
+			"a",
+			"ul",
+			"ol",
+			"li",
+			"blockquote",
+			"code",
+			"pre",
+		],
+		ALLOWED_ATTR: ["href", "target", "rel"],
+	});
+});
+
+// Restore progress from sessionStorage on mount
+$effect(() => {
+	if (browser) {
+		const saved = sessionStorage.getItem(`wizard-${wizard.id}-progress`);
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				currentStepIndex = parsed.stepIndex ?? 0;
+				stepResponses = new Map(parsed.responses ?? []);
+			} catch {
+				// Invalid saved state, start fresh
+			}
+		}
 	}
+});
 
-	interface Props {
-		wizard: WizardDetailResponse;
-		onComplete: () => void;
-		onCancel?: () => void;
-		interaction?: Snippet<
-			[
-				{
-					step: WizardStepResponse;
-					onStepComplete: (response: StepResponse) => void;
-					disabled: boolean;
-				}
-			]
-		>;
+// Persist progress to sessionStorage
+$effect(() => {
+	if (browser && wizard.id) {
+		sessionStorage.setItem(
+			`wizard-${wizard.id}-progress`,
+			JSON.stringify({
+				stepIndex: currentStepIndex,
+				responses: Array.from(stepResponses.entries()),
+			}),
+		);
 	}
+});
 
-	let { wizard, onComplete, onCancel, interaction }: Props = $props();
+async function handleNext() {
+	const step = currentStep;
+	if (!step || !canProceed || isValidating) return;
 
-	// Reactive state with $state
-	let currentStepIndex = $state(0);
-	let stepResponses = $state<Map<string, StepResponse>>(new Map());
-	let isValidating = $state(false);
-	let validationError = $state<string | null>(null);
+	const response = stepResponses.get(step.id);
+	if (!response) return;
 
-	// Derived values with $derived
-	const currentStep = $derived(wizard.steps[currentStepIndex]);
-	const isFirstStep = $derived(currentStepIndex === 0);
-	const isLastStep = $derived(currentStepIndex === wizard.steps.length - 1);
-	const progress = $derived(((currentStepIndex + 1) / wizard.steps.length) * 100);
-	const canProceed = $derived(stepResponses.has(currentStep?.id ?? ''));
+	isValidating = true;
+	validationError = null;
 
-	// Render markdown content with sanitization
-	const renderedMarkdown = $derived.by(() => {
-		if (!currentStep?.content_markdown) return '';
-		const rawHtml = marked.parse(currentStep.content_markdown, { async: false }) as string;
-		return DOMPurify.sanitize(rawHtml, {
-			ALLOWED_TAGS: [
-				'h1',
-				'h2',
-				'h3',
-				'h4',
-				'h5',
-				'h6',
-				'p',
-				'br',
-				'strong',
-				'em',
-				'u',
-				'a',
-				'ul',
-				'ol',
-				'li',
-				'blockquote',
-				'code',
-				'pre'
-			],
-			ALLOWED_ATTR: ['href', 'target', 'rel']
+	try {
+		const result = await validateStep({
+			step_id: step.id,
+			response: response.data,
+			started_at: response.startedAt ?? null,
 		});
-	});
 
-	// Restore progress from sessionStorage on mount
-	$effect(() => {
-		if (browser) {
-			const saved = sessionStorage.getItem(`wizard-${wizard.id}-progress`);
-			if (saved) {
-				try {
-					const parsed = JSON.parse(saved);
-					currentStepIndex = parsed.stepIndex ?? 0;
-					stepResponses = new Map(parsed.responses ?? []);
-				} catch {
-					// Invalid saved state, start fresh
-				}
+		if (!result.data?.valid) {
+			validationError = result.data?.error ?? "Validation failed";
+			return;
+		}
+
+		if (isLastStep) {
+			// Clear session storage on completion
+			if (browser) {
+				sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
 			}
+			onComplete();
+		} else {
+			currentStepIndex++;
 		}
-	});
+	} finally {
+		isValidating = false;
+	}
+}
 
-	// Persist progress to sessionStorage
-	$effect(() => {
-		if (browser && wizard.id) {
-			sessionStorage.setItem(
-				`wizard-${wizard.id}-progress`,
-				JSON.stringify({
-					stepIndex: currentStepIndex,
-					responses: Array.from(stepResponses.entries())
-				})
-			);
-		}
-	});
-
-	async function handleNext() {
-		const step = currentStep;
-		if (!step || !canProceed || isValidating) return;
-
-		const response = stepResponses.get(step.id);
-		if (!response) return;
-
-		isValidating = true;
+function handleBack() {
+	if (!isFirstStep) {
+		currentStepIndex--;
 		validationError = null;
-
-		try {
-			const result = await validateStep({
-				step_id: step.id,
-				response: response.data,
-				started_at: response.startedAt ?? null
-			});
-
-			if (!result.data?.valid) {
-				validationError = result.data?.error ?? 'Validation failed';
-				return;
-			}
-
-			if (isLastStep) {
-				// Clear session storage on completion
-				if (browser) {
-					sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-				}
-				onComplete();
-			} else {
-				currentStepIndex++;
-			}
-		} finally {
-			isValidating = false;
-		}
 	}
+}
 
-	function handleBack() {
-		if (!isFirstStep) {
-			currentStepIndex--;
-			validationError = null;
-		}
-	}
-
-	function handleStepComplete(response: StepResponse) {
-		const step = currentStep;
-		if (!step) return;
-		stepResponses.set(step.id, response);
-		// Trigger reactivity by reassigning
-		stepResponses = new Map(stepResponses);
-	}
+function handleStepComplete(response: StepResponse) {
+	const step = currentStep;
+	if (!step) return;
+	stepResponses.set(step.id, response);
+	// Trigger reactivity by reassigning
+	stepResponses = new Map(stepResponses);
+}
 </script>
 
 <div class="wizard-shell">

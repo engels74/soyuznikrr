@@ -22,6 +22,7 @@ from litestar.datastructures import State
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.config import Settings
+from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
@@ -75,6 +76,12 @@ class BackgroundTaskManager:
             asyncio.create_task(
                 self._run_sync_task(state),
                 name="media-server-sync",
+            )
+        )
+        self._tasks.append(
+            asyncio.create_task(
+                self._run_token_cleanup_task(state),
+                name="token-cleanup",
             )
         )
 
@@ -237,6 +244,36 @@ class BackgroundTaskManager:
                         server_name=server.name,
                         error=str(exc),
                     )
+
+    async def _run_token_cleanup_task(self, state: State, /) -> None:
+        """Periodically clean up expired refresh tokens.
+
+        Runs at the same interval as expiration checks.
+        """
+        interval = self.settings.expiration_check_interval_seconds
+
+        while self._running:
+            try:
+                await self._cleanup_expired_tokens(state)
+            except Exception as exc:
+                logger.exception("Token cleanup task error", exc_info=exc)
+
+            await asyncio.sleep(interval)
+
+    async def _cleanup_expired_tokens(self, state: State, /) -> None:
+        """Delete expired refresh tokens from the database."""
+        session_factory = cast(
+            async_sessionmaker[AsyncSession],
+            state.session_factory,
+        )
+
+        async with session_factory() as session:
+            repo = RefreshTokenRepository(session)
+            now = datetime.now(UTC)
+            deleted = await repo.delete_expired(now)
+            if deleted > 0:
+                await session.commit()
+                logger.info("Cleaned up expired refresh tokens", count=deleted)
 
 
 @asynccontextmanager

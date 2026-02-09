@@ -10,10 +10,16 @@
  * @module $lib/components/servers/sync-results-dialog
  */
 
-import { AlertTriangle, CheckCircle, UserMinus, UserPlus, Users } from '@lucide/svelte';
-import type { SyncResult } from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import * as Dialog from '$lib/components/ui/dialog';
+import {
+	AlertTriangle,
+	CheckCircle,
+	UserMinus,
+	UserPlus,
+	Users,
+} from "@lucide/svelte";
+import type { SyncResult } from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import * as Dialog from "$lib/components/ui/dialog";
 
 interface Props {
 	open: boolean;
@@ -26,7 +32,7 @@ let { open = $bindable(), result, onClose }: Props = $props();
 /**
  * Check if there are any discrepancies.
  */
-let hasDiscrepancies = $derived.by(() => {
+const hasDiscrepancies = $derived.by(() => {
 	if (!result) return false;
 	return result.orphaned_users.length > 0 || result.stale_users.length > 0;
 });
@@ -34,16 +40,16 @@ let hasDiscrepancies = $derived.by(() => {
 /**
  * Format the sync timestamp.
  */
-let syncedAtFormatted = $derived.by(() => {
-	if (!result?.synced_at) return '';
+const syncedAtFormatted = $derived.by(() => {
+	if (!result?.synced_at) return "";
 	try {
 		const date = new Date(result.synced_at);
-		return date.toLocaleString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
+		return date.toLocaleString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	} catch {
 		return result.synced_at;

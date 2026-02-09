@@ -11,30 +11,30 @@
  * @module $lib/components/invitations/create-invitation-dialog
  */
 
-import { Plus } from '@lucide/svelte';
+import { Plus } from "@lucide/svelte";
 import {
 	createInvitation,
 	getWizards,
 	type MediaServerWithLibrariesResponse,
 	type WizardResponse,
-	withErrorHandling
-} from '$lib/api/client';
-import { Button } from '$lib/components/ui/button';
-import * as Dialog from '$lib/components/ui/dialog';
+	withErrorHandling,
+} from "$lib/api/client";
+import { Button } from "$lib/components/ui/button";
+import * as Dialog from "$lib/components/ui/dialog";
 import {
 	type CreateInvitationInput,
 	createInvitationSchema,
-	transformCreateFormData
-} from '$lib/schemas/invitation';
-import { showError, showSuccess } from '$lib/utils/toast';
-import InvitationFormSimple from './invitation-form-simple.svelte';
+	transformCreateFormData,
+} from "$lib/schemas/invitation";
+import { showError, showSuccess } from "$lib/utils/toast";
+import InvitationFormSimple from "./invitation-form-simple.svelte";
 
 interface Props {
 	servers: MediaServerWithLibrariesResponse[];
 	onSuccess?: () => void;
 }
 
-let { servers, onSuccess }: Props = $props();
+const { servers, onSuccess }: Props = $props();
 
 // Dialog open state
 let open = $state(false);
@@ -49,13 +49,13 @@ let loadingWizards = $state(false);
 // Form data state
 let formData = $state<CreateInvitationInput>({
 	server_ids: [],
-	code: '',
-	expires_at: '',
+	code: "",
+	expires_at: "",
 	max_uses: undefined,
 	duration_days: undefined,
 	library_ids: [],
-	pre_wizard_id: '',
-	post_wizard_id: ''
+	pre_wizard_id: "",
+	post_wizard_id: "",
 });
 
 // Validation errors
@@ -73,7 +73,7 @@ async function fetchWizards() {
 			wizards = result.data.items.filter((w) => w.enabled);
 		}
 	} catch (error) {
-		console.error('Failed to fetch wizards:', error);
+		console.error("Failed to fetch wizards:", error);
 	} finally {
 		loadingWizards = false;
 	}
@@ -85,13 +85,13 @@ async function fetchWizards() {
 function resetForm() {
 	formData = {
 		server_ids: [],
-		code: '',
-		expires_at: '',
+		code: "",
+		expires_at: "",
 		max_uses: undefined,
 		duration_days: undefined,
 		library_ids: [],
-		pre_wizard_id: '',
-		post_wizard_id: ''
+		pre_wizard_id: "",
+		post_wizard_id: "",
 	};
 	errors = {};
 }
@@ -104,7 +104,7 @@ function validateForm(): boolean {
 	if (!result.success) {
 		const fieldErrors: Record<string, string[]> = {};
 		for (const issue of result.error.issues) {
-			const path = issue.path.join('.');
+			const path = issue.path.join(".");
 			if (!fieldErrors[path]) {
 				fieldErrors[path] = [];
 			}
@@ -128,19 +128,27 @@ async function handleSubmit() {
 	submitting = true;
 	try {
 		const data = transformCreateFormData(formData);
-		const result = await withErrorHandling(
-			() => createInvitation(data),
-			{ showErrorToast: false }
-		);
+		const result = await withErrorHandling(() => createInvitation(data), {
+			showErrorToast: false,
+		});
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to create invitation', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to create invitation",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
 		// Success
-		showSuccess('Invitation created successfully', `Code: ${result.data?.code}`);
+		showSuccess(
+			"Invitation created successfully",
+			`Code: ${result.data?.code}`,
+		);
 
 		// Close dialog and reset form
 		open = false;

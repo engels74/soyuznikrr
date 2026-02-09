@@ -1,22 +1,22 @@
 <script lang="ts">
-	/**
-	 * Wizard Progress Component
-	 *
-	 * Displays current step / total steps with a progress bar.
-	 * Applies gold accent glow on completion.
-	 *
-	 * Requirements: 11.2
-	 */
+/**
+ * Wizard Progress Component
+ *
+ * Displays current step / total steps with a progress bar.
+ * Applies gold accent glow on completion.
+ *
+ * Requirements: 11.2
+ */
 
-	interface Props {
-		current: number;
-		total: number;
-		progress: number;
-	}
+interface Props {
+	current: number;
+	total: number;
+	progress: number;
+}
 
-	let { current, total, progress }: Props = $props();
+const { current, total, progress }: Props = $props();
 
-	const isComplete = $derived(current === total && progress >= 100);
+const isComplete = $derived(current === total && progress >= 100);
 </script>
 
 <div class="wizard-progress" class:complete={isComplete}>

@@ -17,22 +17,27 @@ import {
 	ExternalLink,
 	RefreshCw,
 	Server,
-	Trash2
-} from '@lucide/svelte';
-import { goto, invalidateAll } from '$app/navigation';
-import { deleteServer, type SyncResult, syncServer, withErrorHandling } from '$lib/api/client';
-import { getErrorMessage } from '$lib/api/errors';
-import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import SyncResultsDialog from '$lib/components/servers/sync-results-dialog.svelte';
-import StatusBadge from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
-import { Label } from '$lib/components/ui/label';
-import { showError, showSuccess } from '$lib/utils/toast';
-import type { PageData } from './$types';
+	Trash2,
+} from "@lucide/svelte";
+import { goto, invalidateAll } from "$app/navigation";
+import {
+	deleteServer,
+	type SyncResult,
+	syncServer,
+	withErrorHandling,
+} from "$lib/api/client";
+import { getErrorMessage } from "$lib/api/errors";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import SyncResultsDialog from "$lib/components/servers/sync-results-dialog.svelte";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import { Label } from "$lib/components/ui/label";
+import { showError, showSuccess } from "$lib/utils/toast";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Sync state
 let syncing = $state(false);
@@ -46,37 +51,37 @@ let showDeleteDialog = $state(false);
 /**
  * Get server type badge class based on server type.
  */
-let serverTypeClass = $derived.by(() => {
-	if (!data.server) return '';
-	return data.server.server_type === 'plex'
-		? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-		: 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+const serverTypeClass = $derived.by(() => {
+	if (!data.server) return "";
+	return data.server.server_type === "plex"
+		? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+		: "bg-purple-500/15 text-purple-400 border-purple-500/30";
 });
 
 /**
  * Get server type display name.
  */
-let serverTypeLabel = $derived.by(() => {
-	if (!data.server) return '';
-	return data.server.server_type === 'plex' ? 'Plex' : 'Jellyfin';
+const serverTypeLabel = $derived.by(() => {
+	if (!data.server) return "";
+	return data.server.server_type === "plex" ? "Plex" : "Jellyfin";
 });
 
 /**
  * Format date for display.
  */
 function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return '—';
+	if (!dateString) return "—";
 	try {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	} catch {
-		return '—';
+		return "—";
 	}
 }
 
@@ -90,19 +95,22 @@ async function handleSync() {
 	try {
 		const result = await withErrorHandling(
 			() => syncServer(data.server!.id, true),
-			{ showErrorToast: false }
+			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Sync failed', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError("Sync failed", errorBody?.detail ?? "An error occurred");
 			return;
 		}
 
 		if (result.data) {
 			syncResult = result.data as SyncResult;
 			showSyncDialog = true;
-			showSuccess('Sync completed successfully');
+			showSuccess("Sync completed successfully");
 		}
 	} finally {
 		syncing = false;
@@ -133,17 +141,23 @@ async function handleDelete() {
 	try {
 		const result = await withErrorHandling(
 			() => deleteServer(data.server!.id),
-			{ showErrorToast: false }
+			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to delete server', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to delete server",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('Server deleted successfully');
-		goto('/servers');
+		showSuccess("Server deleted successfully");
+		goto("/servers");
 	} finally {
 		deleting = false;
 		showDeleteDialog = false;

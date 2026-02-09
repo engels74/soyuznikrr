@@ -25,7 +25,10 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		// Handle user fetch error
 		if (userResult.error) {
 			const status = userResult.response?.status ?? 500;
-			const errorBody = userResult.error as { error_code?: string; detail?: string };
+			const errorBody = userResult.error as {
+				error_code?: string;
+				detail?: string;
+			};
 			return {
 				user: null as UserDetailResponse | null,
 				linkedUsers: [] as UserDetailResponse[],

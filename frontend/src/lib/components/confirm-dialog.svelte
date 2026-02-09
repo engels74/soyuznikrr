@@ -1,71 +1,71 @@
 <script lang="ts">
-	import { AlertTriangle } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { cn } from '$lib/utils.js';
+import { AlertTriangle } from "@lucide/svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Dialog from "$lib/components/ui/dialog";
+import { cn } from "$lib/utils.js";
 
-	interface Props {
-		open: boolean;
-		title: string;
-		description: string;
-		confirmLabel?: string;
-		cancelLabel?: string;
-		variant?: 'destructive' | 'warning' | 'default';
-		onConfirm: () => void;
-		onCancel: () => void;
-		loading?: boolean;
+interface Props {
+	open: boolean;
+	title: string;
+	description: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	variant?: "destructive" | "warning" | "default";
+	onConfirm: () => void;
+	onCancel: () => void;
+	loading?: boolean;
+}
+
+let {
+	open = $bindable(false),
+	title,
+	description,
+	confirmLabel = "Confirm",
+	cancelLabel = "Cancel",
+	variant = "destructive",
+	onConfirm,
+	onCancel,
+	loading = false,
+}: Props = $props();
+
+// Derive icon and button styles based on variant
+const iconClass = $derived.by(() => {
+	switch (variant) {
+		case "destructive":
+			return "bg-rose-500/15 text-rose-400";
+		case "warning":
+			return "bg-amber-500/15 text-amber-400";
+		default:
+			return "bg-cr-accent/15 text-cr-accent";
 	}
+});
 
-	let {
-		open = $bindable(false),
-		title,
-		description,
-		confirmLabel = 'Confirm',
-		cancelLabel = 'Cancel',
-		variant = 'destructive',
-		onConfirm,
-		onCancel,
-		loading = false
-	}: Props = $props();
-
-	// Derive icon and button styles based on variant
-	let iconClass = $derived.by(() => {
-		switch (variant) {
-			case 'destructive':
-				return 'bg-rose-500/15 text-rose-400';
-			case 'warning':
-				return 'bg-amber-500/15 text-amber-400';
-			default:
-				return 'bg-cr-accent/15 text-cr-accent';
-		}
-	});
-
-	let confirmButtonClass = $derived.by(() => {
-		switch (variant) {
-			case 'destructive':
-				return 'bg-rose-500 hover:bg-rose-600 text-white';
-			case 'warning':
-				return 'bg-amber-500 hover:bg-amber-600 text-white';
-			default:
-				return 'bg-cr-accent hover:bg-cr-accent-hover text-cr-bg';
-		}
-	});
-
-	function handleConfirm() {
-		onConfirm();
+const confirmButtonClass = $derived.by(() => {
+	switch (variant) {
+		case "destructive":
+			return "bg-rose-500 hover:bg-rose-600 text-white";
+		case "warning":
+			return "bg-amber-500 hover:bg-amber-600 text-white";
+		default:
+			return "bg-cr-accent hover:bg-cr-accent-hover text-cr-bg";
 	}
+});
 
-	function handleCancel() {
-		open = false;
+function handleConfirm() {
+	onConfirm();
+}
+
+function handleCancel() {
+	open = false;
+	onCancel();
+}
+
+function handleOpenChange(isOpen: boolean) {
+	if (!isOpen && !loading) {
 		onCancel();
 	}
-
-	function handleOpenChange(isOpen: boolean) {
-		if (!isOpen && !loading) {
-			onCancel();
-		}
-		open = isOpen;
-	}
+	open = isOpen;
+}
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>

@@ -12,56 +12,69 @@
  * @module routes/(admin)/invitations/[id]/+page
  */
 
-import { ArrowLeft, Calendar, ExternalLink, Hash, Save, Server, Timer, Trash2, Users, Wand2 } from '@lucide/svelte';
-import { goto, invalidateAll } from '$app/navigation';
+import {
+	ArrowLeft,
+	Calendar,
+	ExternalLink,
+	Hash,
+	Save,
+	Server,
+	Timer,
+	Trash2,
+	Users,
+	Wand2,
+} from "@lucide/svelte";
+import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteInvitation,
 	type InvitationDetailResponse,
 	type MediaServerWithLibrariesResponse,
 	updateInvitation,
 	type WizardResponse,
-	withErrorHandling
-} from '$lib/api/client';
-import { ApiError, getErrorMessage } from '$lib/api/errors';
-import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
-import ErrorState from '$lib/components/error-state.svelte';
-import StatusBadge, { type StatusBadgeStatus } from '$lib/components/status-badge.svelte';
-import { Button } from '$lib/components/ui/button';
-import * as Card from '$lib/components/ui/card';
-import { Input } from '$lib/components/ui/input';
-import { Label } from '$lib/components/ui/label';
+	withErrorHandling,
+} from "$lib/api/client";
+import { ApiError, getErrorMessage } from "$lib/api/errors";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
+import ErrorState from "$lib/components/error-state.svelte";
+import StatusBadge, {
+	type StatusBadgeStatus,
+} from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button";
+import * as Card from "$lib/components/ui/card";
+import { Input } from "$lib/components/ui/input";
+import { Label } from "$lib/components/ui/label";
 import {
 	transformUpdateFormData,
 	type UpdateInvitationInput,
-	updateInvitationSchema
-} from '$lib/schemas/invitation';
-import { showError, showSuccess } from '$lib/utils/toast';
-import type { PageData } from './$types';
+	updateInvitationSchema,
+} from "$lib/schemas/invitation";
+import { showError, showSuccess } from "$lib/utils/toast";
+import type { PageData } from "./$types";
 
-let { data }: { data: PageData } = $props();
+const { data }: { data: PageData } = $props();
 
 // Derive initial form values from data (reactive to data changes)
-let initialFormData = $derived<UpdateInvitationInput>({
-	expires_at: data.invitation?.expires_at ?? '',
+const initialFormData = $derived<UpdateInvitationInput>({
+	expires_at: data.invitation?.expires_at ?? "",
 	max_uses: data.invitation?.max_uses ?? undefined,
 	duration_days: data.invitation?.duration_days ?? undefined,
 	enabled: data.invitation?.enabled ?? true,
 	server_ids: data.invitation?.target_servers.map((s) => s.id) ?? [],
 	library_ids: data.invitation?.allowed_libraries.map((l) => l.id) ?? [],
-	pre_wizard_id: data.invitation?.pre_wizard?.id ?? '',
-	post_wizard_id: data.invitation?.post_wizard?.id ?? ''
+	pre_wizard_id: data.invitation?.pre_wizard?.id ?? "",
+	post_wizard_id: data.invitation?.post_wizard?.id ?? "",
 });
 
 // Form state for mutable fields (user-editable copy)
-let formData = $state<UpdateInvitationInput>({
-	expires_at: '',
+const formData = $state<UpdateInvitationInput>({
+	expires_at: "",
 	max_uses: undefined,
 	duration_days: undefined,
 	enabled: true,
 	server_ids: [],
 	library_ids: [],
-	pre_wizard_id: '',
-	post_wizard_id: ''
+	pre_wizard_id: "",
+	post_wizard_id: "",
 });
 
 // Sync form data when initial data changes (e.g., after invalidateAll)
@@ -87,10 +100,12 @@ let deleting = $state(false);
 let showDeleteDialog = $state(false);
 
 // Derive local datetime value from initial data
-let initialExpiresAtLocal = $derived(formatDateTimeLocal(data.invitation?.expires_at));
+const initialExpiresAtLocal = $derived(
+	formatDateTimeLocal(data.invitation?.expires_at),
+);
 
 // Local state for datetime-local input
-let expiresAtLocal = $state('');
+let expiresAtLocal = $state("");
 
 // Sync expiresAtLocal when initial data changes
 $effect(() => {
@@ -98,33 +113,33 @@ $effect(() => {
 });
 
 // Derive status for badge
-let status = $derived.by((): StatusBadgeStatus => {
+const status = $derived.by((): StatusBadgeStatus => {
 	const inv = data.invitation;
-	if (!inv) return 'disabled';
-	if (!inv.enabled) return 'disabled';
-	if (!inv.is_active) return 'expired';
+	if (!inv) return "disabled";
+	if (!inv.enabled) return "disabled";
+	if (!inv.is_active) return "expired";
 	if (inv.remaining_uses !== null && inv.remaining_uses !== undefined) {
-		if (inv.remaining_uses <= 0) return 'expired';
-		if (inv.remaining_uses <= 3) return 'limited';
+		if (inv.remaining_uses <= 0) return "expired";
+		if (inv.remaining_uses <= 3) return "limited";
 	}
-	return 'active';
+	return "active";
 });
 
 // Derive status label
-let statusLabel = $derived.by(() => {
+const statusLabel = $derived.by(() => {
 	const inv = data.invitation;
-	if (!inv) return 'Unknown';
-	if (!inv.enabled) return 'Disabled';
-	if (!inv.is_active) return 'Expired';
+	if (!inv) return "Unknown";
+	if (!inv.enabled) return "Disabled";
+	if (!inv.is_active) return "Expired";
 	if (inv.remaining_uses !== null && inv.remaining_uses !== undefined) {
-		if (inv.remaining_uses <= 0) return 'Exhausted';
-		if (inv.remaining_uses <= 3) return 'Limited';
+		if (inv.remaining_uses <= 0) return "Exhausted";
+		if (inv.remaining_uses <= 3) return "Limited";
 	}
-	return 'Active';
+	return "Active";
 });
 
 // Derive available libraries based on selected servers
-let availableLibraries = $derived.by(() => {
+const availableLibraries = $derived.by(() => {
 	const selectedServerIds = formData.server_ids ?? [];
 	if (selectedServerIds.length === 0) return [];
 
@@ -141,12 +156,12 @@ let availableLibraries = $derived.by(() => {
  * Format datetime-local input value from ISO string.
  */
 function formatDateTimeLocal(isoString: string | undefined | null): string {
-	if (!isoString) return '';
+	if (!isoString) return "";
 	try {
 		const date = new Date(isoString);
 		return date.toISOString().slice(0, 16);
 	} catch {
-		return '';
+		return "";
 	}
 }
 
@@ -154,11 +169,11 @@ function formatDateTimeLocal(isoString: string | undefined | null): string {
  * Convert datetime-local value to ISO string.
  */
 function toISOString(dateTimeLocal: string): string {
-	if (!dateTimeLocal) return '';
+	if (!dateTimeLocal) return "";
 	try {
 		return new Date(dateTimeLocal).toISOString();
 	} catch {
-		return '';
+		return "";
 	}
 }
 
@@ -166,18 +181,18 @@ function toISOString(dateTimeLocal: string): string {
  * Format date for display.
  */
 function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return '—';
+	if (!dateString) return "—";
 	try {
 		const date = new Date(dateString);
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
+		return date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	} catch {
-		return '—';
+		return "—";
 	}
 }
 
@@ -186,7 +201,7 @@ $effect(() => {
 	if (expiresAtLocal) {
 		formData.expires_at = toISOString(expiresAtLocal);
 	} else {
-		formData.expires_at = '';
+		formData.expires_at = "";
 	}
 });
 
@@ -198,8 +213,12 @@ function toggleServer(serverId: string) {
 	if (current.includes(serverId)) {
 		formData.server_ids = current.filter((id: string) => id !== serverId);
 		// Also remove libraries from this server
-		const serverLibraryIds = data.servers.find((s) => s.id === serverId)?.libraries.map((l) => l.id) ?? [];
-		formData.library_ids = (formData.library_ids ?? []).filter((id: string) => !serverLibraryIds.includes(id));
+		const serverLibraryIds =
+			data.servers.find((s) => s.id === serverId)?.libraries.map((l) => l.id) ??
+			[];
+		formData.library_ids = (formData.library_ids ?? []).filter(
+			(id: string) => !serverLibraryIds.includes(id),
+		);
 	} else {
 		formData.server_ids = [...current, serverId];
 	}
@@ -239,7 +258,7 @@ function validateForm(): boolean {
 	if (!result.success) {
 		const fieldErrors: Record<string, string[]> = {};
 		for (const issue of result.error.issues) {
-			const path = issue.path.join('.');
+			const path = issue.path.join(".");
 			if (!fieldErrors[path]) {
 				fieldErrors[path] = [];
 			}
@@ -263,16 +282,22 @@ async function handleSave() {
 		const updateData = transformUpdateFormData(formData);
 		const result = await withErrorHandling(
 			() => updateInvitation(data.invitation!.id, updateData),
-			{ showErrorToast: false }
+			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to update invitation', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to update invitation",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('Invitation updated successfully');
+		showSuccess("Invitation updated successfully");
 		await invalidateAll();
 	} finally {
 		saving = false;
@@ -289,17 +314,23 @@ async function handleDelete() {
 	try {
 		const result = await withErrorHandling(
 			() => deleteInvitation(data.invitation!.id),
-			{ showErrorToast: false }
+			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as { error_code?: string; detail?: string };
-			showError('Failed to delete invitation', errorBody?.detail ?? 'An error occurred');
+			const errorBody = result.error as {
+				error_code?: string;
+				detail?: string;
+			};
+			showError(
+				"Failed to delete invitation",
+				errorBody?.detail ?? "An error occurred",
+			);
 			return;
 		}
 
-		showSuccess('Invitation deleted successfully');
-		goto('/invitations');
+		showSuccess("Invitation deleted successfully");
+		goto("/invitations");
 	} finally {
 		deleting = false;
 		showDeleteDialog = false;
