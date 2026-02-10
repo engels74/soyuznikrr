@@ -36,7 +36,7 @@ uv run alembic downgrade -1
 bun install                          # Install dependencies
 bun run dev                          # Vite dev server (port 5173)
 bun run build                        # Production build
-bun test                             # Run Vitest tests
+bun run test                         # Run Vitest tests
 bun run check                        # svelte-check + TypeScript
 bunx biome check --write .           # Lint + format
 bun run generate:api                 # Regenerate API types from OpenAPI (requires backend running)
