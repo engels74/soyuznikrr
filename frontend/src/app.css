@@ -49,8 +49,14 @@
 	--cr-bg: #fafafa;
 	--cr-surface: #ffffff;
 	--cr-border: #e4e4e7;
+	--cr-accent: #0891b2;
+	--cr-accent-hover: #0e7490;
 	--cr-text: #09090b;
 	--cr-text-muted: #71717a;
+	--cr-text-dim: #a1a1aa;
+	--cr-active: #059669;
+	--cr-pending: #d97706;
+	--cr-disabled: #e11d48;
 }
 
 /* Base styles */

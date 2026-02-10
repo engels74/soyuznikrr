@@ -24,17 +24,19 @@ export default defineConfig({
 			display: ['JetBrains Mono', 'IBM Plex Mono', 'ui-monospace', 'monospace']
 		},
 		colors: {
-			// Control Room palette
-			'cr-bg': '#0a0a0b',
-			'cr-surface': '#141416',
-			'cr-border': '#27272a',
-			'cr-accent': '#22d3ee',
-			'cr-text': '#fafafa',
-			'cr-text-muted': '#a1a1aa',
+			// Control Room palette — reference CSS variables for dark/light switching
+			'cr-bg': 'var(--cr-bg)',
+			'cr-surface': 'var(--cr-surface)',
+			'cr-border': 'var(--cr-border)',
+			'cr-accent': 'var(--cr-accent)',
+			'cr-accent-hover': 'var(--cr-accent-hover)',
+			'cr-text': 'var(--cr-text)',
+			'cr-text-muted': 'var(--cr-text-muted)',
+			'cr-text-dim': 'var(--cr-text-dim)',
 			// Status colors
-			'cr-active': '#10b981',
-			'cr-pending': '#f59e0b',
-			'cr-disabled': '#f43f5e'
+			'cr-active': 'var(--cr-active)',
+			'cr-pending': 'var(--cr-pending)',
+			'cr-disabled': 'var(--cr-disabled)'
 		}
 	}
 });
