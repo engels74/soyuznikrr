@@ -28,7 +28,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		const [invitationResult, serversResult, wizardsResult] = await Promise.all([
 			getInvitation(id, client),
 			getServers(true, client),
-			getWizards({ page_size: 100 }, fetch)
+			getWizards({ page_size: 100 }, client)
 		]);
 
 		// Handle invitation fetch error

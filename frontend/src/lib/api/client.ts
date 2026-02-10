@@ -49,17 +49,9 @@ export function createScopedClient(customFetch: typeof globalThis.fetch): ApiCli
 // =============================================================================
 
 export type InvitationResponse = components['schemas']['InvitationResponse'];
-// Extended InvitationDetailResponse to include wizard fields (until OpenAPI types are regenerated)
-export type InvitationDetailResponse = components['schemas']['InvitationDetailResponse'] & {
-	pre_wizard?: WizardResponse | null;
-	post_wizard?: WizardResponse | null;
-};
+export type InvitationDetailResponse = components['schemas']['InvitationDetailResponse'];
 export type InvitationListResponse = components['schemas']['InvitationListResponse'];
-// Extended InvitationValidationResponse to include wizard fields (until OpenAPI types are regenerated)
-export type InvitationValidationResponse = components['schemas']['InvitationValidationResponse'] & {
-	pre_wizard?: WizardDetailResponse | null;
-	post_wizard?: WizardDetailResponse | null;
-};
+export type InvitationValidationResponse = components['schemas']['InvitationValidationResponse'];
 export type CreateInvitationRequest = components['schemas']['CreateInvitationRequest'];
 export type UpdateInvitationRequest = components['schemas']['UpdateInvitationRequest'];
 
@@ -500,10 +492,10 @@ export async function healthCheck(customFetch: typeof globalThis.fetch = fetch) 
 }
 
 // =============================================================================
-// Wizard Types (manually defined until OpenAPI regeneration)
+// Wizard Types
 // =============================================================================
 
-/** Wizard step configuration types */
+/** Wizard step configuration types (not in OpenAPI spec) */
 export interface ClickConfig {
 	button_text?: string;
 }
@@ -532,99 +524,17 @@ export interface QuizConfig {
 
 export type StepConfig = ClickConfig | TimerConfig | TosConfig | TextInputConfig | QuizConfig;
 
-/** Wizard step response */
-export interface WizardStepResponse {
-	id: string;
-	wizard_id: string;
-	step_order: number;
-	interaction_type: 'click' | 'timer' | 'tos' | 'text_input' | 'quiz';
-	title: string;
-	content_markdown: string;
-	config: { [key: string]: string | number | boolean | string[] | null };
-	created_at: string;
-	updated_at?: string | null;
-}
-
-/** Wizard response (without steps) */
-export interface WizardResponse {
-	id: string;
-	name: string;
-	enabled: boolean;
-	created_at: string;
-	description?: string | null;
-	updated_at?: string | null;
-}
-
-/** Wizard detail response (with steps) */
-export interface WizardDetailResponse {
-	id: string;
-	name: string;
-	enabled: boolean;
-	created_at: string;
-	steps: WizardStepResponse[];
-	description?: string | null;
-	updated_at?: string | null;
-}
-
-/** Wizard list response */
-export interface WizardListResponse {
-	items: WizardResponse[];
-	total: number;
-	page: number;
-	page_size: number;
-	has_next: boolean;
-}
-
-/** Step validation response */
-export interface StepValidationResponse {
-	valid: boolean;
-	completion_token?: string | null;
-	error?: string | null;
-}
-
-/** Create wizard request */
-export interface CreateWizardRequest {
-	name: string;
-	description?: string | null;
-	enabled?: boolean;
-}
-
-/** Update wizard request */
-export interface UpdateWizardRequest {
-	name?: string | null;
-	description?: string | null;
-	enabled?: boolean | null;
-}
-
-/** Create wizard step request */
-export interface CreateWizardStepRequest {
-	interaction_type: 'click' | 'timer' | 'tos' | 'text_input' | 'quiz';
-	title: string;
-	content_markdown: string;
-	config?: { [key: string]: string | number | boolean | string[] | null };
-	step_order?: number | null;
-}
-
-/** Update wizard step request */
-export interface UpdateWizardStepRequest {
-	title?: string | null;
-	content_markdown?: string | null;
-	config?: {
-		[key: string]: string | number | boolean | string[] | null;
-	} | null;
-}
-
-/** Step reorder request */
-export interface StepReorderRequest {
-	new_order: number;
-}
-
-/** Step validation request */
-export interface StepValidationRequest {
-	step_id: string;
-	response: { [key: string]: string | number | boolean | null };
-	started_at?: string | null;
-}
+export type WizardStepResponse = components['schemas']['WizardStepResponse'];
+export type WizardResponse = components['schemas']['WizardResponse'];
+export type WizardDetailResponse = components['schemas']['WizardDetailResponse'];
+export type WizardListResponse = components['schemas']['WizardListResponse'];
+export type StepValidationResponse = components['schemas']['StepValidationResponse'];
+export type StepValidationRequest = components['schemas']['StepValidationRequest'];
+export type StepReorderRequest = components['schemas']['StepReorderRequest'];
+export type CreateWizardRequest = components['schemas']['WizardCreate'];
+export type UpdateWizardRequest = components['schemas']['WizardUpdate'];
+export type CreateWizardStepRequest = components['schemas']['WizardStepCreate'];
+export type UpdateWizardStepRequest = components['schemas']['WizardStepUpdate'];
 
 // =============================================================================
 // Wizard API Wrappers
@@ -642,28 +552,13 @@ export interface ListWizardsParams {
  * @param params - Query parameters for pagination
  * @returns Paginated list of wizards
  */
-export async function getWizards(
-	params: ListWizardsParams = {},
-	customFetch: typeof globalThis.fetch = fetch
-) {
-	const queryParams = new URLSearchParams();
-	if (params.page !== undefined) queryParams.set('page', String(params.page));
-	if (params.page_size !== undefined) queryParams.set('page_size', String(params.page_size));
-
-	const queryString = queryParams.toString();
-	const url = `${API_BASE_URL}/api/v1/wizards${queryString ? `?${queryString}` : ''}`;
-
-	const response = await customFetch(url, {
-		headers: { 'Content-Type': 'application/json' }
-	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const data = (await response.json()) as WizardListResponse;
-	return { data, error: undefined };
+export async function getWizards(params: ListWizardsParams = {}, client: ApiClient = api) {
+	// Cap page_size at 100 as per requirements
+	const cappedParams = {
+		...params,
+		page_size: params.page_size ? Math.min(params.page_size, 100) : undefined
+	};
+	return client.GET('/api/v1/wizards', { params: { query: cappedParams } });
 }
 
 /**
@@ -672,18 +567,10 @@ export async function getWizards(
  * @param wizardId - UUID of the wizard
  * @returns Wizard detail response with steps
  */
-export async function getWizard(wizardId: string, customFetch: typeof globalThis.fetch = fetch) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
-		headers: { 'Content-Type': 'application/json' }
+export async function getWizard(wizardId: string, client: ApiClient = api) {
+	return client.GET('/api/v1/wizards/{wizard_id}', {
+		params: { path: { wizard_id: wizardId } }
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const data = (await response.json()) as WizardDetailResponse;
-	return { data, error: undefined };
 }
 
 /**
@@ -692,23 +579,8 @@ export async function getWizard(wizardId: string, customFetch: typeof globalThis
  * @param data - Wizard creation data
  * @returns Created wizard response
  */
-export async function createWizard(
-	data: CreateWizardRequest,
-	customFetch: typeof globalThis.fetch = fetch
-) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
-	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as WizardResponse;
-	return { data: result, error: undefined };
+export async function createWizard(data: CreateWizardRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/wizards', { body: data });
 }
 
 /**
@@ -721,21 +593,12 @@ export async function createWizard(
 export async function updateWizard(
 	wizardId: string,
 	data: UpdateWizardRequest,
-	customFetch: typeof globalThis.fetch = fetch
+	client: ApiClient = api
 ) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
+	return client.PATCH('/api/v1/wizards/{wizard_id}', {
+		params: { path: { wizard_id: wizardId } },
+		body: data
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as WizardResponse;
-	return { data: result, error: undefined };
 }
 
 /**
@@ -744,18 +607,10 @@ export async function updateWizard(
  * @param wizardId - UUID of the wizard to delete
  * @returns Empty response on success
  */
-export async function deleteWizard(wizardId: string, customFetch: typeof globalThis.fetch = fetch) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}`, {
-		method: 'DELETE',
-		headers: { 'Content-Type': 'application/json' }
+export async function deleteWizard(wizardId: string, client: ApiClient = api) {
+	return client.DELETE('/api/v1/wizards/{wizard_id}', {
+		params: { path: { wizard_id: wizardId } }
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	return { data: null, error: undefined };
 }
 
 /**
@@ -768,21 +623,12 @@ export async function deleteWizard(wizardId: string, customFetch: typeof globalT
 export async function createStep(
 	wizardId: string,
 	data: CreateWizardStepRequest,
-	customFetch: typeof globalThis.fetch = fetch
+	client: ApiClient = api
 ) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
+	return client.POST('/api/v1/wizards/{wizard_id}/steps', {
+		params: { path: { wizard_id: wizardId } },
+		body: data
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as WizardStepResponse;
-	return { data: result, error: undefined };
 }
 
 /**
@@ -797,21 +643,12 @@ export async function updateStep(
 	wizardId: string,
 	stepId: string,
 	data: UpdateWizardStepRequest,
-	customFetch: typeof globalThis.fetch = fetch
+	client: ApiClient = api
 ) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
+	return client.PATCH('/api/v1/wizards/{wizard_id}/steps/{step_id}', {
+		params: { path: { wizard_id: wizardId, step_id: stepId } },
+		body: data
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as WizardStepResponse;
-	return { data: result, error: undefined };
 }
 
 /**
@@ -821,22 +658,10 @@ export async function updateStep(
  * @param stepId - UUID of the step to delete
  * @returns Empty response on success
  */
-export async function deleteStep(
-	wizardId: string,
-	stepId: string,
-	customFetch: typeof globalThis.fetch = fetch
-) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}`, {
-		method: 'DELETE',
-		headers: { 'Content-Type': 'application/json' }
+export async function deleteStep(wizardId: string, stepId: string, client: ApiClient = api) {
+	return client.DELETE('/api/v1/wizards/{wizard_id}/steps/{step_id}', {
+		params: { path: { wizard_id: wizardId, step_id: stepId } }
 	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	return { data: null, error: undefined };
 }
 
 /**
@@ -851,24 +676,12 @@ export async function reorderStep(
 	wizardId: string,
 	stepId: string,
 	newOrder: number,
-	customFetch: typeof globalThis.fetch = fetch
+	client: ApiClient = api
 ) {
-	const response = await customFetch(
-		`${API_BASE_URL}/api/v1/wizards/${wizardId}/steps/${stepId}/reorder`,
-		{
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ new_order: newOrder })
-		}
-	);
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as WizardStepResponse;
-	return { data: result, error: undefined };
+	return client.POST('/api/v1/wizards/{wizard_id}/steps/{step_id}/reorder', {
+		params: { path: { wizard_id: wizardId, step_id: stepId } },
+		body: { new_order: newOrder }
+	});
 }
 
 /**
@@ -877,21 +690,6 @@ export async function reorderStep(
  * @param data - Step validation request
  * @returns Validation response with completion token if valid
  */
-export async function validateStep(
-	data: StepValidationRequest,
-	customFetch: typeof globalThis.fetch = fetch
-) {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/wizards/validate-step`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
-	});
-
-	if (!response.ok) {
-		const error = await response.json();
-		return { data: undefined, error };
-	}
-
-	const result = (await response.json()) as StepValidationResponse;
-	return { data: result, error: undefined };
+export async function validateStep(data: StepValidationRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/wizards/validate-step', { body: data });
 }

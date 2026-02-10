@@ -9,11 +9,18 @@
  * @module routes/(admin)/wizards/+page
  */
 
-import { getWizards, type ListWizardsParams, type WizardListResponse } from '$lib/api/client';
+import {
+	createScopedClient,
+	getWizards,
+	type ListWizardsParams,
+	type WizardListResponse
+} from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, url }) => {
+	const client = createScopedClient(fetch);
+
 	// Extract query parameters from URL
 	const page = Number(url.searchParams.get('page')) || 1;
 	const pageSize = Number(url.searchParams.get('page_size')) || 50;
@@ -24,7 +31,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 	};
 
 	try {
-		const result = await getWizards(params, fetch);
+		const result = await getWizards(params, client);
 
 		if (result.data) {
 			return {
@@ -35,11 +42,12 @@ export const load: PageLoad = async ({ fetch, url }) => {
 		}
 
 		// Handle error response
+		const status = result.response?.status ?? 500;
 		const errorBody = result.error as { error_code?: string; detail?: string } | undefined;
 		return {
 			wizards: null as WizardListResponse | null,
 			error: new ApiError(
-				500,
+				status,
 				errorBody?.error_code ?? 'UNKNOWN_ERROR',
 				errorBody?.detail ?? 'An error occurred'
 			),

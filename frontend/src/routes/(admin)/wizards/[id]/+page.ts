@@ -8,15 +8,16 @@
  * @module routes/(admin)/wizards/[id]/+page
  */
 
-import { getWizard, type WizardDetailResponse } from '$lib/api/client';
+import { createScopedClient, getWizard, type WizardDetailResponse } from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params }) => {
+	const client = createScopedClient(fetch);
 	const { id } = params;
 
 	try {
-		const result = await getWizard(id, fetch);
+		const result = await getWizard(id, client);
 
 		if (result.data) {
 			return {
@@ -26,13 +27,14 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		}
 
 		// Handle error response
+		const status = result.response?.status ?? 500;
 		const errorBody = result.error as { error_code?: string; detail?: string } | undefined;
 		return {
 			wizard: null as WizardDetailResponse | null,
 			error: new ApiError(
-				404,
-				errorBody?.error_code ?? 'NOT_FOUND',
-				errorBody?.detail ?? 'Wizard not found'
+				status,
+				errorBody?.error_code ?? 'UNKNOWN_ERROR',
+				errorBody?.detail ?? 'An error occurred'
 			)
 		};
 	} catch (err) {
