@@ -494,7 +494,7 @@ function handleDragEnd() {
 									</div>
 									<div class="step-info">
 										<span class="step-order">{index + 1}</span>
-										<span class="step-type">{interactionTypeLabels[step.interaction_type]}</span>
+										<span class="step-type">{interactionTypeLabels[step.interaction_type as InteractionType]}</span>
 										<span class="step-title">{step.title}</span>
 									</div>
 									<div class="step-actions">
