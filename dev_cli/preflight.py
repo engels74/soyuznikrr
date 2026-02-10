@@ -3,6 +3,7 @@
 import os
 import secrets
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 
@@ -12,16 +13,27 @@ from .output import print_error, print_info, print_warn
 def run_checks(
     *,
     repo_root: Path,
+    backend_port: int,
+    frontend_port: int,
     backend_only: bool,
     frontend_only: bool,
 ) -> bool:
     """Run all pre-flight checks. Returns True if all critical checks pass."""
     ok = True
 
+    # Load .env first so all subsequent steps have env vars available
+    _load_dotenv(repo_root)
+
     # Tool checks
     if not frontend_only and not _check_tool("uv", hint="https://docs.astral.sh/uv/"):
         ok = False
     if not backend_only and not _check_tool("bun", hint="https://bun.sh/"):
+        ok = False
+
+    # Port availability checks
+    if not frontend_only and not _check_port(backend_port, "backend"):
+        ok = False
+    if not backend_only and not _check_port(frontend_port, "frontend"):
         ok = False
 
     # Directory checks
@@ -86,3 +98,51 @@ def _ensure_secret_key() -> None:
     generated = secrets.token_hex(32)
     os.environ["SECRET_KEY"] = generated
     print_info(f"SECRET_KEY not set — generated ephemeral key: {generated[:8]}...")
+
+
+def _load_dotenv(repo_root: Path, /) -> None:
+    """Load variables from .env into os.environ (setdefault — no overrides)."""
+    env_file = repo_root / ".env"
+    if not env_file.is_file():
+        print_warn(".env file not found — using environment variables only")
+        return
+
+    count = 0
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        value = value.strip().strip("\"'")
+        _ = os.environ.setdefault(key, value)
+        count += 1
+
+    print_info(f"Loaded {count} variables from .env")
+
+
+def _check_port(port: int, name: str, /) -> bool:
+    """Return True if the port is available, False if in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        if sock.connect_ex(("127.0.0.1", port)) != 0:
+            return True
+
+    # Port is in use — try to find the PID
+    pid_info = ""
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.stdout.strip():
+            pids = result.stdout.strip()
+            pid_info = f" (pid={pids}). Kill it with: kill {pids}"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    print_error(f"Port {port} ({name}) is already in use{pid_info}")
+    return False

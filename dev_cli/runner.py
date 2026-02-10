@@ -150,6 +150,8 @@ class DevRunner:
                 )
             )
 
+    _STARTUP_TIMEOUT: float = 30.0
+
     async def run(self) -> int:
         self._build_servers()
 
@@ -163,35 +165,38 @@ class DevRunner:
             for sig in (signal.SIGINT, signal.SIGTERM):
                 loop.add_signal_handler(sig, self.shutdown_event.set)
 
-        # Start all servers
-        for server in self.servers:
-            await server.start()
-
-        # Create stream tasks (stdout + stderr per server)
         tasks: list[asyncio.Task[None]] = []
-        for server in self.servers:
-            assert server.process is not None
-            assert server.process.stdout is not None
-            assert server.process.stderr is not None
-            tasks.append(
-                asyncio.create_task(
-                    server.stream_output(
-                        server.process.stdout,
-                        shutdown_event=self.shutdown_event,
-                    )
-                )
-            )
-            tasks.append(
-                asyncio.create_task(
-                    server.stream_output(
-                        server.process.stderr,
-                        shutdown_event=self.shutdown_event,
-                    )
-                )
-            )
 
-        # Also watch for unexpected exits
+        # Separate backend and frontend servers for sequenced startup
+        backend = next((s for s in self.servers if s.name == "backend"), None)
+        frontend = next((s for s in self.servers if s.name == "frontend"), None)
+
+        # Start backend first (if present) and wait for it to be ready
+        if backend is not None:
+            await backend.start()
+            assert backend.process is not None
+            assert backend.process.stdout is not None
+            assert backend.process.stderr is not None
+            tasks.extend(self._stream_tasks(backend))
+
+            # Wait for backend readiness before starting frontend
+            if frontend is not None:
+                ready = await self._await_ready(backend)
+                if not ready:
+                    await backend.stop()
+                    return 1
+
+        # Start frontend (if present)
+        if frontend is not None:
+            await frontend.start()
+            assert frontend.process is not None
+            assert frontend.process.stdout is not None
+            assert frontend.process.stderr is not None
+            tasks.extend(self._stream_tasks(frontend))
+
+        # Watch for unexpected exits and startup timeout
         tasks.append(asyncio.create_task(self._watch_exits()))
+        tasks.append(asyncio.create_task(self._check_startup()))
 
         # Wait for shutdown signal or all streams to end
         _ = await asyncio.gather(*tasks, return_exceptions=True)
@@ -201,6 +206,58 @@ class DevRunner:
             await server.stop()
 
         return 0
+
+    def _stream_tasks(self, server: ServerProcess) -> list[asyncio.Task[None]]:
+        """Create stdout + stderr stream tasks for a server."""
+        assert server.process is not None
+        assert server.process.stdout is not None
+        assert server.process.stderr is not None
+        return [
+            asyncio.create_task(
+                server.stream_output(
+                    server.process.stdout,
+                    shutdown_event=self.shutdown_event,
+                )
+            ),
+            asyncio.create_task(
+                server.stream_output(
+                    server.process.stderr,
+                    shutdown_event=self.shutdown_event,
+                )
+            ),
+        ]
+
+    async def _await_ready(self, server: ServerProcess) -> bool:
+        """Wait for a server's ready event with timeout. Returns True if ready."""
+        try:
+            _ = await asyncio.wait_for(
+                server.ready.wait(), timeout=self._STARTUP_TIMEOUT
+            )
+            return True
+        except TimeoutError:
+            print_error(
+                f"{server.name} did not start within {self._STARTUP_TIMEOUT:.0f}s"
+            )
+            return False
+
+    async def _check_startup(self) -> None:
+        """Wait for all servers to become ready, trigger shutdown on timeout."""
+        for server in self.servers:
+            if server.ready.is_set():
+                continue
+            try:
+                _ = await asyncio.wait_for(
+                    server.ready.wait(), timeout=self._STARTUP_TIMEOUT
+                )
+            except TimeoutError:
+                if not self.shutdown_event.is_set():
+                    msg = (
+                        f"{server.name} did not become ready within"
+                        f" {self._STARTUP_TIMEOUT:.0f}s — shutting down"
+                    )
+                    print_error(msg)
+                    self.shutdown_event.set()
+                return
 
     async def _watch_exits(self) -> None:
         """Monitor server processes and cascade shutdown on unexpected exit."""

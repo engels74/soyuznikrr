@@ -64,6 +64,8 @@ async def _main() -> int:
     if not args.skip_checks:
         if not run_checks(
             repo_root=REPO_ROOT,
+            backend_port=args.backend_port,
+            frontend_port=args.frontend_port,
             backend_only=args.backend_only,
             frontend_only=args.frontend_only,
         ):
