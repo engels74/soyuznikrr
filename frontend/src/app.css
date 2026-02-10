@@ -1,5 +1,5 @@
 /* UnoCSS is imported via +layout.svelte */
-@import "@unocss/reset/tailwind.css";
+/* Reset is handled by presetWind4({ preflights: { reset: true } }) in uno.config.ts */
 
 /* Control Room Design Tokens */
 :root {
