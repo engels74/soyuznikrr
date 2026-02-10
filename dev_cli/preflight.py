@@ -42,21 +42,24 @@ def run_checks(
     if not backend_only and not _check_dir(repo_root / "frontend"):
         ok = False
 
+    # Auto-install backend dependencies if missing
+    if not frontend_only:
+        if not _install_backend_deps(repo_root / "backend"):
+            ok = False
+
     # Database migrations
     if not frontend_only:
         if not _run_migrations(repo_root / "backend"):
             ok = False
 
-    # Advisory checks (non-fatal)
-    if not frontend_only:
-        venv = repo_root / "backend" / ".venv"
-        if not venv.exists():
-            print_warn(f"{venv} not found — uv will auto-sync on first run")
-
+    # Auto-install frontend dependencies if missing
     if not backend_only:
-        node_modules = repo_root / "frontend" / "node_modules"
-        if not node_modules.exists():
-            print_warn(f"{node_modules} not found — bun will install on first run")
+        if not _install_frontend_deps(repo_root / "frontend"):
+            ok = False
+
+    # Advisory: warn if backend is unreachable in frontend-only mode
+    if frontend_only:
+        _check_backend_reachable(backend_port)
 
     # SECRET_KEY
     _ensure_secret_key()
@@ -90,6 +93,56 @@ def _run_migrations(backend_dir: Path, /) -> bool:
         return False
     print_info("Database migrations up to date")
     return True
+
+
+def _install_backend_deps(backend_dir: Path, /) -> bool:
+    """Run ``uv sync`` if the backend .venv is missing."""
+    venv = backend_dir / ".venv"
+    if venv.exists():
+        return True
+
+    print_info("Backend .venv not found — running uv sync...")
+    result = subprocess.run(
+        ["uv", "sync"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print_error(f"uv sync failed:\n{result.stderr.strip()}")
+        return False
+    print_info("Backend dependencies installed")
+    return True
+
+
+def _install_frontend_deps(frontend_dir: Path, /) -> bool:
+    """Run ``bun install`` if node_modules is missing."""
+    node_modules = frontend_dir / "node_modules"
+    if node_modules.exists():
+        return True
+
+    print_info("node_modules not found — running bun install...")
+    result = subprocess.run(
+        ["bun", "install"],
+        cwd=frontend_dir,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print_error(f"bun install failed:\n{result.stderr.strip()}")
+        return False
+    print_info("Frontend dependencies installed")
+    return True
+
+
+def _check_backend_reachable(port: int, /) -> None:
+    """Advisory check: warn if backend port is unreachable in frontend-only mode."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        if sock.connect_ex(("127.0.0.1", port)) != 0:
+            print_warn(
+                f"Backend is not running on port {port}"
+                " — API calls from the frontend will fail"
+            )
 
 
 def _ensure_secret_key() -> None:

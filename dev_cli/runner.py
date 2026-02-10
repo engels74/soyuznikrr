@@ -4,6 +4,7 @@ import asyncio
 import os
 import signal
 import sys
+import webbrowser
 from pathlib import Path
 from typing import final
 
@@ -40,6 +41,7 @@ class ServerProcess:
             env=self.env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            start_new_session=sys.platform != "win32",
         )
         print_info(f"Started {self.name} (pid={self.process.pid})")
 
@@ -65,14 +67,30 @@ class ServerProcess:
     async def stop(self) -> None:
         if self.process is None or self.process.returncode is not None:
             return
-        print_info(f"Stopping {self.name} (pid={self.process.pid})...")
-        self.process.terminate()
+        pid = self.process.pid
+        print_info(f"Stopping {self.name} (pid={pid})...")
+
+        # Signal the entire process group on Unix to catch worker processes
+        if sys.platform != "win32":
+            try:
+                os.killpg(pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                self.process.terminate()
+        else:
+            self.process.terminate()
+
         try:
-            _ = await asyncio.wait_for(self.process.wait(), timeout=5.0)
+            await asyncio.wait_for(self.process.wait(), timeout=5.0)
         except TimeoutError:
             print_error(f"{self.name} did not exit in 5s — sending SIGKILL")
-            self.process.kill()
-            _ = await self.process.wait()
+            if sys.platform != "win32":
+                try:
+                    os.killpg(pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    self.process.kill()
+            else:
+                self.process.kill()
+            await self.process.wait()
 
 
 @final
@@ -87,12 +105,14 @@ class DevRunner:
         frontend_port: int,
         backend_only: bool,
         frontend_only: bool,
+        open_browser: bool = False,
     ) -> None:
         self.repo_root = repo_root
         self.backend_port = backend_port
         self.frontend_port = frontend_port
         self.backend_only = backend_only
         self.frontend_only = frontend_only
+        self.open_browser = open_browser
         self.shutdown_event = asyncio.Event()
         self.servers: list[ServerProcess] = []
 
@@ -179,14 +199,23 @@ class DevRunner:
             assert backend.process.stderr is not None
             tasks.extend(self._stream_tasks(backend))
 
-            # Wait for backend readiness before starting frontend
+            ready = await self._await_ready(backend)
+            if not ready:
+                self.shutdown_event.set()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                await backend.stop()
+                return 1
+
+            # Verify lifespans are initialized before starting frontend
             if frontend is not None:
-                ready = await self._await_ready(backend)
-                if not ready:
+                healthy = await self._verify_health(self.backend_port)
+                if not healthy:
+                    self.shutdown_event.set()
+                    await asyncio.gather(*tasks, return_exceptions=True)
                     await backend.stop()
                     return 1
 
-        # Start frontend (if present)
+        # Start frontend (if present) and wait for it to be ready
         if frontend is not None:
             await frontend.start()
             assert frontend.process is not None
@@ -194,12 +223,28 @@ class DevRunner:
             assert frontend.process.stderr is not None
             tasks.extend(self._stream_tasks(frontend))
 
-        # Watch for unexpected exits and startup timeout
+            ready = await self._await_ready(frontend)
+            if not ready:
+                self.shutdown_event.set()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                for server in self.servers:
+                    await server.stop()
+                return 1
+
+        # All servers confirmed ready — open browser if requested
+        if self.open_browser:
+            url = (
+                f"http://localhost:{self.frontend_port}"
+                if frontend is not None
+                else f"http://localhost:{self.backend_port}"
+            )
+            webbrowser.open(url)
+
+        # Watch for unexpected exits (event-driven, no polling)
         tasks.append(asyncio.create_task(self._watch_exits()))
-        tasks.append(asyncio.create_task(self._check_startup()))
 
         # Wait for shutdown signal or all streams to end
-        _ = await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
         # Stop any remaining servers
         for server in self.servers:
@@ -245,7 +290,7 @@ class DevRunner:
         )
 
         for task in pending:
-            _ = task.cancel()
+            task.cancel()
 
         if ready_task in done:
             return True
@@ -259,40 +304,64 @@ class DevRunner:
         print_error(f"{server.name} did not start within {self._STARTUP_TIMEOUT:.0f}s")
         return False
 
-    async def _check_startup(self) -> None:
-        """Wait for all servers to become ready, trigger shutdown on timeout."""
-        for server in self.servers:
-            if server.ready.is_set():
-                continue
+    async def _verify_health(self, port: int) -> bool:
+        """Poll GET /health/ready to confirm Litestar lifespans have initialized."""
+        import urllib.error
+        import urllib.request
+
+        url = f"http://localhost:{port}/health/ready"
+        print_info("Verifying backend health...")
+
+        for _ in range(10):
+            if self.shutdown_event.is_set():
+                return False
             try:
-                _ = await asyncio.wait_for(
-                    server.ready.wait(), timeout=self._STARTUP_TIMEOUT
+                response = await asyncio.to_thread(
+                    urllib.request.urlopen, url, timeout=2
                 )
-            except TimeoutError:
-                if not self.shutdown_event.is_set():
-                    msg = (
-                        f"{server.name} did not become ready within"
-                        f" {self._STARTUP_TIMEOUT:.0f}s — shutting down"
-                    )
-                    print_error(msg)
-                    self.shutdown_event.set()
-                return
+                if response.status == 200:
+                    print_info("Backend health check passed")
+                    return True
+            except (urllib.error.URLError, OSError, TimeoutError):
+                pass
+
+            await asyncio.sleep(0.5)
+
+        print_error("Backend health check failed after 10 attempts")
+        return False
 
     async def _watch_exits(self) -> None:
         """Monitor server processes and cascade shutdown on unexpected exit."""
-        while not self.shutdown_event.is_set():
-            for server in self.servers:
-                if (
-                    server.process is not None
-                    and server.process.returncode is not None
-                    and server.process.returncode != 0
-                ):
-                    print_error(
-                        f"{server.name} exited with code {server.process.returncode}"
-                    )
-                    self.shutdown_event.set()
+        process_tasks: dict[asyncio.Task, ServerProcess] = {}
+        for server in self.servers:
+            if server.process is not None:
+                task = asyncio.create_task(server.process.wait())
+                process_tasks[task] = server
+
+        if not process_tasks:
+            await self.shutdown_event.wait()
+            return
+
+        shutdown_task = asyncio.create_task(self.shutdown_event.wait())
+        pending = {shutdown_task, *process_tasks}
+
+        try:
+            while pending - {shutdown_task}:
+                done, pending = await asyncio.wait(
+                    pending,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                if shutdown_task in done:
                     return
-            try:
-                _ = await asyncio.wait_for(self.shutdown_event.wait(), timeout=0.5)
-            except TimeoutError:
-                continue
+
+                for task in done:
+                    server = process_tasks[task]
+                    code = task.result()
+                    if code != 0:
+                        print_error(f"{server.name} exited with code {code}")
+                        self.shutdown_event.set()
+                        return
+        finally:
+            for task in pending:
+                task.cancel()
