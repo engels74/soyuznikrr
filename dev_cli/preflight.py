@@ -1,9 +1,11 @@
 """Pre-flight checks for dev environment."""
 
 import os
+import re
 import secrets
 import shutil
 import socket
+import sqlite3
 import subprocess
 from pathlib import Path
 
@@ -86,6 +88,10 @@ def _check_dir(path: Path, /) -> bool:
 
 
 def _run_migrations(backend_dir: Path, /) -> bool:
+    # Fast path: check if DB is already at head without spawning a subprocess
+    if _is_db_at_head(backend_dir):
+        return True
+
     result = subprocess.run(
         ["uv", "run", "alembic", "upgrade", "head"],
         cwd=backend_dir,
@@ -97,6 +103,92 @@ def _run_migrations(backend_dir: Path, /) -> bool:
         return False
     print_info("Database migrations up to date")
     return True
+
+
+def _is_db_at_head(backend_dir: Path, /) -> bool:
+    """Check if the SQLite DB is already at head revision (no subprocess needed).
+
+    Returns True only when we can confidently determine the DB is current.
+    Any failure falls through to running Alembic normally.
+    """
+    try:
+        head = _get_head_revision(backend_dir / "migrations" / "versions")
+        if head is None:
+            return False
+        current = _get_current_db_revision(backend_dir)
+        if current is None:
+            return False
+        if current == head:
+            print_info(f"Database already at head ({head[:12]})")
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _get_head_revision(versions_dir: Path, /) -> str | None:
+    """Parse migration files to find the head revision (via set subtraction).
+
+    Head = any revision that is not referenced as another file's down_revision.
+    Returns None if there are zero or multiple heads.
+    """
+    revision_re = re.compile(r'^revision\b.*?["\'](.+?)["\']', re.MULTILINE)
+    down_re = re.compile(r'^down_revision\b.*?["\'](.+?)["\']', re.MULTILINE)
+
+    revisions: set[str] = set()
+    down_revisions: set[str] = set()
+
+    for path in versions_dir.glob("*.py"):
+        text = path.read_text()
+        rev_match = revision_re.search(text)
+        if rev_match is None:
+            continue
+        revisions.add(rev_match.group(1))
+        down_match = down_re.search(text)
+        if down_match is not None:
+            down_revisions.add(down_match.group(1))
+
+    heads = revisions - down_revisions
+    if len(heads) == 1:
+        return heads.pop()
+    return None
+
+
+def _get_current_db_revision(backend_dir: Path, /) -> str | None:
+    """Read the current revision from the SQLite alembic_version table."""
+    db_path = _resolve_sqlite_path(backend_dir)
+    if db_path is None or not db_path.is_file():
+        return None
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cursor = conn.execute("SELECT version_num FROM alembic_version LIMIT 1")
+        row: tuple[str, ...] | None = cursor.fetchone()  # pyright: ignore[reportAny]  # sqlite3 returns Any
+        if row is None:
+            return None
+        return str(row[0])
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+
+
+def _resolve_sqlite_path(backend_dir: Path, /) -> Path | None:
+    """Resolve the SQLite database path from DATABASE_URL or default.
+
+    Returns None for non-SQLite URLs (e.g. PostgreSQL), causing the fast-path
+    to fall through to running Alembic normally.
+    """
+    url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./zondarr.db")
+    if not url.startswith("sqlite"):
+        return None
+    # Strip the scheme: sqlite:/// or sqlite+aiosqlite:///
+    _, _, path_part = url.partition("///")
+    if not path_part:
+        return None
+    db_path = Path(path_part)
+    if not db_path.is_absolute():
+        db_path = backend_dir / db_path
+    return db_path
 
 
 def _install_backend_deps(backend_dir: Path, /) -> bool:
@@ -144,8 +236,7 @@ def _check_backend_reachable(port: int, /) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         if sock.connect_ex(("127.0.0.1", port)) != 0:
             print_warn(
-                f"Backend is not running on port {port}"
-                " — API calls from the frontend will fail"
+                f"Backend is not running on port {port} — API calls from the frontend will fail"
             )
 
 
