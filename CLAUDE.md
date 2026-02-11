@@ -48,6 +48,9 @@ bun run generate:api                 # Regenerate API types from OpenAPI (requir
 uv run dev_cli                    # Launch both backend + frontend dev servers
 uv run dev_cli --backend-only     # Backend only
 uv run dev_cli --frontend-only    # Frontend only
+uv run dev_cli stop               # Stop all running dev servers
+uv run dev_cli stop --backend-only  # Stop backend only
+uv run dev_cli stop --force       # Send SIGKILL immediately
 ```
 
 ## Architecture

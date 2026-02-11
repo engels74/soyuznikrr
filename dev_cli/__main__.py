@@ -7,6 +7,10 @@ Usage:
     uv run dev_cli --frontend-only          # Frontend only
     uv run dev_cli --backend-port 9000      # Custom backend port
     uv run dev_cli --skip-checks            # Skip pre-flight checks
+
+    uv run dev_cli stop                     # Stop all running servers
+    uv run dev_cli stop --backend-only      # Stop backend only
+    uv run dev_cli stop --force             # Send SIGKILL immediately
 """
 
 import sys

@@ -250,5 +250,8 @@ vite.config.ts.timestamp-*
 # prek (pre-commit)
 .prek_cache/
 
+# dev_cli PID files
+.dev_cli/
+
 # Root package manager artifacts
 /bun.lock

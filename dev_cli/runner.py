@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import final
 
 from .output import BOLD, CYAN, DIM, MAGENTA, RESET, print_error, print_info
+from .pidfile import remove_pid, write_pid
 
 
 @final
@@ -24,6 +25,7 @@ class ServerProcess:
         env: dict[str, str],
         color: str,
         ready_pattern: str,
+        repo_root: Path,
     ) -> None:
         self.name = name
         self.cmd = cmd
@@ -31,6 +33,7 @@ class ServerProcess:
         self.env = env
         self.color = color
         self.ready_pattern = ready_pattern
+        self.repo_root = repo_root
         self.process: asyncio.subprocess.Process | None = None
         self.ready = asyncio.Event()
 
@@ -43,6 +46,8 @@ class ServerProcess:
             stderr=asyncio.subprocess.PIPE,
             start_new_session=sys.platform != "win32",
         )
+        assert self.process.pid is not None
+        write_pid(self.repo_root, self.name, self.process.pid)
         print_info(f"Started {self.name} (pid={self.process.pid})")
 
     async def stream_output(
@@ -66,6 +71,7 @@ class ServerProcess:
 
     async def stop(self) -> None:
         if self.process is None or self.process.returncode is not None:
+            remove_pid(self.repo_root, self.name)
             return
         pid = self.process.pid
         assert pid is not None, "Process started but has no PID"
@@ -92,6 +98,8 @@ class ServerProcess:
             else:
                 self.process.kill()
             _ = await self.process.wait()
+
+        remove_pid(self.repo_root, self.name)
 
 
 @final
@@ -150,6 +158,7 @@ class DevRunner:
                     env=backend_env,
                     color=CYAN,
                     ready_pattern="Listening at:",
+                    repo_root=self.repo_root,
                 )
             )
 
@@ -173,6 +182,7 @@ class DevRunner:
                     env=frontend_env,
                     color=MAGENTA,
                     ready_pattern="Local:",
+                    repo_root=self.repo_root,
                 )
             )
 
