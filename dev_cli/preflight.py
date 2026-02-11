@@ -162,10 +162,10 @@ def _get_current_db_revision(backend_dir: Path, /) -> str | None:
     conn = sqlite3.connect(str(db_path))
     try:
         cursor = conn.execute("SELECT version_num FROM alembic_version LIMIT 1")
-        row = cursor.fetchone()
+        row: tuple[str, ...] | None = cursor.fetchone()  # pyright: ignore[reportAny]  # sqlite3 returns Any
         if row is None:
             return None
-        return row[0]
+        return str(row[0])
     except sqlite3.OperationalError:
         return None
     finally:
@@ -236,8 +236,7 @@ def _check_backend_reachable(port: int, /) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         if sock.connect_ex(("127.0.0.1", port)) != 0:
             print_warn(
-                f"Backend is not running on port {port}"
-                " — API calls from the frontend will fail"
+                f"Backend is not running on port {port} — API calls from the frontend will fail"
             )
 
 
