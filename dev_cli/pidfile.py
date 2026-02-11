@@ -31,7 +31,7 @@ def read_pid(repo_root: Path, name: str) -> int | None:
     try:
         text = path.read_text().strip()
         return int(text)
-    except (FileNotFoundError, ValueError):
+    except FileNotFoundError, ValueError:
         return None
 
 
