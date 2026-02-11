@@ -18,17 +18,6 @@ Usage:
     app = create_app(settings=test_settings)
 """
 
-# Suppress Pydantic v1 compatibility warning on Python 3.14+.
-# Pydantic is a transitive dep of jellyfin-sdk, not used by Zondarr.
-# See also: pyproject.toml [tool.pytest.ini_options] filterwarnings.
-import warnings
-
-warnings.filterwarnings(
-    "ignore",
-    message="Core Pydantic V1 functionality isn't compatible with Python 3.14",
-    category=UserWarning,
-)
-
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
@@ -65,8 +54,6 @@ from zondarr.core.exceptions import (
     ValidationError,
 )
 from zondarr.core.tasks import background_tasks_lifespan
-from zondarr.media.clients.jellyfin import JellyfinClient
-from zondarr.media.clients.plex import PlexClient
 from zondarr.media.registry import registry
 from zondarr.models.media_server import ServerType
 
@@ -77,6 +64,19 @@ def _register_media_clients() -> None:
     Called during application startup to ensure all supported server types
     have their client implementations available.
     """
+    # Suppress Pydantic v1 compatibility warning on Python 3.14+.
+    # Pydantic is a transitive dep of jellyfin-sdk, not used by Zondarr.
+    import warnings
+
+    warnings.filterwarnings(
+        "ignore",
+        message="Core Pydantic V1 functionality isn't compatible with Python 3.14",
+        category=UserWarning,
+    )
+
+    from zondarr.media.clients.jellyfin import JellyfinClient
+    from zondarr.media.clients.plex import PlexClient
+
     registry.register(ServerType.JELLYFIN, JellyfinClient)
     registry.register(ServerType.PLEX, PlexClient)
 
