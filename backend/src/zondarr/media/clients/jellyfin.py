@@ -12,9 +12,10 @@ Uses Python 3.14 features:
 """
 
 from collections.abc import Sequence
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
-import jellyfin
+if TYPE_CHECKING:
+    import jellyfin
 
 from zondarr.core.exceptions import ExternalServiceError
 from zondarr.media.exceptions import MediaClientError
@@ -147,6 +148,8 @@ class JellyfinClient:
             ExternalServiceError: If connection to the Jellyfin server fails.
         """
         try:
+            import jellyfin
+
             self._api = jellyfin.api(self.url, self.api_key)
         except Exception as exc:
             raise _create_external_service_error(

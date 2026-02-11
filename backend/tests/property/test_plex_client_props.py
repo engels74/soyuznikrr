@@ -117,7 +117,7 @@ class TestContextManagerRoundTrip:
         # Create mock server that will be returned by PlexServer constructor
         mock_server = MockPlexServer(url, api_key, friendly_name=server_name)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             # Before entering context, _server and _account should be None
@@ -150,7 +150,7 @@ class TestContextManagerRoundTrip:
 
         mock_server = MockPlexServer(url, api_key)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client as entered_client:
@@ -172,7 +172,7 @@ class TestContextManagerRoundTrip:
 
         mock_server = MockPlexServer(url, api_key)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             with pytest.raises(ValueError, match="test exception"):
@@ -293,7 +293,7 @@ class TestConnectionTestReturnValues:
 
         mock_server = MockPlexServer(url, api_key, friendly_name=server_name)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -341,7 +341,7 @@ class TestConnectionTestReturnValues:
             url, api_key, error=ConnectionError(error_message)
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -368,7 +368,7 @@ class TestConnectionTestReturnValues:
             url, api_key, error=RuntimeError("Server error")
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -440,7 +440,7 @@ class TestLibraryRetrievalProducesValidStructs:
             for key, title, lib_type in sections
         ]
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -481,7 +481,7 @@ class TestLibraryRetrievalProducesValidStructs:
             MockLibrarySection(key=key, title=title, section_type=lib_type)
         ]
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -510,7 +510,7 @@ class TestLibraryRetrievalProducesValidStructs:
         mock_server = MockPlexServer(url, api_key)
         mock_server.library._sections = []  # pyright: ignore[reportPrivateUsage]
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -657,7 +657,7 @@ class TestFriendCreationReturnsValidExternalUser:
         mock_account = MockMyPlexAccountWithInvite(invite_result=mock_user)
         mock_server = MockPlexServerWithAccount(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -695,7 +695,7 @@ class TestFriendCreationReturnsValidExternalUser:
         mock_account = MockMyPlexAccountWithInvite(invite_result=mock_user)
         mock_server = MockPlexServerWithAccount(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -729,7 +729,7 @@ class TestFriendCreationReturnsValidExternalUser:
         )
         mock_server = MockPlexServerWithAccount(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -857,7 +857,7 @@ class TestHomeUserCreationReturnsValidExternalUser:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -897,7 +897,7 @@ class TestHomeUserCreationReturnsValidExternalUser:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -931,7 +931,7 @@ class TestHomeUserCreationReturnsValidExternalUser:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1086,7 +1086,7 @@ class TestUserTypeRoutingCorrectness:
         mock_account = MockMyPlexAccountWithBothMethods(invite_result=mock_user)
         mock_server = MockPlexServerWithBothMethods(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1127,7 +1127,7 @@ class TestUserTypeRoutingCorrectness:
         mock_account = MockMyPlexAccountWithBothMethods(create_result=mock_user)
         mock_server = MockPlexServerWithBothMethods(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1165,7 +1165,7 @@ class TestUserTypeRoutingCorrectness:
         mock_account = MockMyPlexAccountWithBothMethods()
         mock_server = MockPlexServerWithBothMethods(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1204,7 +1204,7 @@ class TestUserTypeRoutingCorrectness:
         mock_account = MockMyPlexAccountWithBothMethods(invite_result=mock_user)
         mock_server = MockPlexServerWithBothMethods(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1340,7 +1340,7 @@ class TestDeleteUserReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1376,7 +1376,7 @@ class TestDeleteUserReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1407,7 +1407,7 @@ class TestDeleteUserReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1475,7 +1475,7 @@ class TestDeleteUserReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1616,7 +1616,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
             url, api_key, account=mock_account, library_sections=sections
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1667,7 +1667,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
             url, api_key, account=mock_account, library_sections=sections
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1700,7 +1700,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1735,7 +1735,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1875,7 +1875,7 @@ class TestPermissionUpdateMappingAndReturnValue:
         mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
         mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1912,7 +1912,7 @@ class TestPermissionUpdateMappingAndReturnValue:
         mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
         mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -1942,7 +1942,7 @@ class TestPermissionUpdateMappingAndReturnValue:
         mock_account = MockMyPlexAccountWithPermissions(users=[])
         mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2005,7 +2005,7 @@ class TestPermissionUpdateMappingAndReturnValue:
         mock_account = MockMyPlexAccountWithPermissions(users=[mock_user])
         mock_server = MockPlexServerWithPermissions(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2114,7 +2114,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
         mock_account = MockMyPlexAccountWithUserList(users=mock_users)
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2155,7 +2155,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
         mock_account = MockMyPlexAccountWithUserList(users=[mock_user])
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2184,7 +2184,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
         mock_account = MockMyPlexAccountWithUserList(users=[])
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2237,7 +2237,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
         )
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2327,7 +2327,7 @@ class TestErrorStructureContainsRequiredFields:
 
         mock_server = MockPlexServer(url, api_key)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2375,7 +2375,7 @@ class TestErrorStructureContainsRequiredFields:
         )
         mock_server = MockPlexServerWithAccount(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2411,7 +2411,7 @@ class TestErrorStructureContainsRequiredFields:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2445,7 +2445,7 @@ class TestErrorStructureContainsRequiredFields:
         )
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2516,7 +2516,7 @@ class TestErrorStructureContainsRequiredFields:
         )
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2552,7 +2552,7 @@ class TestErrorStructureContainsRequiredFields:
         )
         mock_server = MockPlexServerWithUserList(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2588,7 +2588,7 @@ class TestErrorStructureContainsRequiredFields:
         )
         mock_server = MockPlexServerWithAccount(url, api_key, account=mock_account)
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:
@@ -2631,7 +2631,7 @@ class TestErrorStructureContainsRequiredFields:
             url, api_key, account=mock_account
         )
 
-        with patch("zondarr.media.clients.plex.PlexServer", return_value=mock_server):
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
             client = PlexClient(url=url, api_key=api_key)
 
             async with client:

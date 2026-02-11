@@ -14,11 +14,13 @@ Uses Python 3.14 features:
 
 import asyncio
 from collections.abc import Sequence
-from typing import Self, final
+from typing import TYPE_CHECKING, Self, final
 
 import structlog
-from plexapi.myplex import MyPlexAccount
-from plexapi.server import PlexServer
+
+if TYPE_CHECKING:
+    from plexapi.myplex import MyPlexAccount
+    from plexapi.server import PlexServer
 
 from zondarr.core.exceptions import ExternalServiceError
 from zondarr.media.exceptions import MediaClientError
@@ -256,6 +258,8 @@ class PlexClient:
         Raises:
             ExternalServiceError: If connection to the Plex server fails.
         """
+
+        from plexapi.server import PlexServer
 
         def _connect() -> tuple[PlexServer, MyPlexAccount]:
             server = PlexServer(self.url, self.api_key)

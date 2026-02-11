@@ -5,6 +5,19 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [UnoCSS(), sveltekit(), svelteTesting()],
+	optimizeDeps: {
+		include: ['clsx', 'tailwind-merge', 'tailwind-variants', 'openapi-fetch', 'dompurify', 'marked']
+	},
+	server: {
+		warmup: {
+			clientFiles: [
+				'src/routes/+layout.svelte',
+				'src/routes/+page.svelte',
+				'src/lib/api/client.ts',
+				'src/app.css'
+			]
+		}
+	},
 	test: {
 		environment: 'jsdom',
 		setupFiles: ['./vitest-setup.ts'],
