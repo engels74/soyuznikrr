@@ -156,8 +156,8 @@ def _get_head_revision(versions_dir: Path, /) -> str | None:
 
 def _get_current_db_revision(backend_dir: Path, /) -> str | None:
     """Read the current revision from the SQLite alembic_version table."""
-    db_path = backend_dir / "zondarr.db"
-    if not db_path.is_file():
+    db_path = _resolve_sqlite_path(backend_dir)
+    if db_path is None or not db_path.is_file():
         return None
     conn = sqlite3.connect(str(db_path))
     try:
@@ -170,6 +170,25 @@ def _get_current_db_revision(backend_dir: Path, /) -> str | None:
         return None
     finally:
         conn.close()
+
+
+def _resolve_sqlite_path(backend_dir: Path, /) -> Path | None:
+    """Resolve the SQLite database path from DATABASE_URL or default.
+
+    Returns None for non-SQLite URLs (e.g. PostgreSQL), causing the fast-path
+    to fall through to running Alembic normally.
+    """
+    url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./zondarr.db")
+    if not url.startswith("sqlite"):
+        return None
+    # Strip the scheme: sqlite:/// or sqlite+aiosqlite:///
+    _, _, path_part = url.partition("///")
+    if not path_part:
+        return None
+    db_path = Path(path_part)
+    if not db_path.is_absolute():
+        db_path = backend_dir / db_path
+    return db_path
 
 
 def _install_backend_deps(backend_dir: Path, /) -> bool:

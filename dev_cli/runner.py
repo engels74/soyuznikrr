@@ -313,8 +313,9 @@ class DevRunner:
         url = f"http://127.0.0.1:{port}/health/ready"
         print_info("Verifying backend health...")
 
+        max_attempts = 15
         delay = 0.1
-        for _ in range(15):
+        for attempt in range(max_attempts):
             if self.shutdown_event.is_set():
                 return False
             try:
@@ -330,10 +331,11 @@ class DevRunner:
             except (urllib.error.URLError, OSError, TimeoutError):
                 pass
 
-            await asyncio.sleep(delay)
-            delay = min(delay * 1.5, 0.5)
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(delay)
+                delay = min(delay * 1.5, 0.5)
 
-        print_error("Backend health check failed after 15 attempts")
+        print_error(f"Backend health check failed after {max_attempts} attempts")
         return False
 
     async def _watch_exits(self) -> None:
