@@ -24,9 +24,22 @@ import { Label } from "$lib/components/ui/label";
 interface Props {
 	userId: string;
 	disabled?: boolean;
+	serverType?: string;
 }
 
-const { userId, disabled = false }: Props = $props();
+const { userId, disabled = false, serverType }: Props = $props();
+
+/** Permission keys supported by each server type. */
+const SUPPORTED_PERMISSIONS: Record<string, readonly string[]> = {
+	plex: ["can_download"],
+	jellyfin: ["can_download", "can_stream", "can_sync", "can_transcode"],
+};
+
+function isPermissionSupported(key: string): boolean {
+	if (!serverType) return true;
+	const supported = SUPPORTED_PERMISSIONS[serverType];
+	return supported ? supported.includes(key) : true;
+}
 
 // Permission states - start as undefined (unknown from server)
 let canStream = $state<boolean | undefined>(undefined);
@@ -169,7 +182,10 @@ function toggleTranscode() {
  * Check if any permission is loading.
  */
 const anyLoading = $derived(
-	loadingStream || loadingDownload || loadingSync || loadingTranscode,
+	(isPermissionSupported("can_stream") && loadingStream) ||
+		(isPermissionSupported("can_download") && loadingDownload) ||
+		(isPermissionSupported("can_sync") && loadingSync) ||
+		(isPermissionSupported("can_transcode") && loadingTranscode),
 );
 </script>
 
@@ -181,6 +197,7 @@ const anyLoading = $derived(
 
 	<div class="grid gap-4 sm:grid-cols-2">
 		<!-- Streaming Permission -->
+		{#if isPermissionSupported("can_stream")}
 		<div class="flex items-center justify-between gap-3 rounded-lg border border-cr-border bg-cr-bg p-3">
 			<div class="space-y-0.5">
 				<Label class="text-cr-text text-sm font-medium">Streaming</Label>
@@ -211,8 +228,10 @@ const anyLoading = $derived(
 				{/if}
 			</button>
 		</div>
+		{/if}
 
 		<!-- Download Permission -->
+		{#if isPermissionSupported("can_download")}
 		<div class="flex items-center justify-between gap-3 rounded-lg border border-cr-border bg-cr-bg p-3">
 			<div class="space-y-0.5">
 				<Label class="text-cr-text text-sm font-medium">Downloads</Label>
@@ -243,8 +262,10 @@ const anyLoading = $derived(
 				{/if}
 			</button>
 		</div>
+		{/if}
 
 		<!-- Sync Permission -->
+		{#if isPermissionSupported("can_sync")}
 		<div class="flex items-center justify-between gap-3 rounded-lg border border-cr-border bg-cr-bg p-3">
 			<div class="space-y-0.5">
 				<Label class="text-cr-text text-sm font-medium">Sync</Label>
@@ -275,8 +296,10 @@ const anyLoading = $derived(
 				{/if}
 			</button>
 		</div>
+		{/if}
 
 		<!-- Transcode Permission -->
+		{#if isPermissionSupported("can_transcode")}
 		<div class="flex items-center justify-between gap-3 rounded-lg border border-cr-border bg-cr-bg p-3">
 			<div class="space-y-0.5">
 				<Label class="text-cr-text text-sm font-medium">Transcoding</Label>
@@ -307,5 +330,6 @@ const anyLoading = $derived(
 				{/if}
 			</button>
 		</div>
+		{/if}
 	</div>
 </div>
