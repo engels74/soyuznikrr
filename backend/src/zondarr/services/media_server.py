@@ -98,8 +98,7 @@ class MediaServerService:
                 f"Unknown server type: {server_type}",
                 field_errors={
                     "server_type": [
-                        f"Unsupported server type '{server_type}'. "
-                        f"Supported types: {', '.join(sorted(self.registry.registered_types()))}"
+                        f"Unsupported server type '{server_type}'. Supported types: {', '.join(sorted(self.registry.registered_types()))}"
                     ],
                 },
             )

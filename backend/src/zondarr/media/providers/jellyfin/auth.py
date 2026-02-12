@@ -45,6 +45,8 @@ class JellyfinAdminAuth:
         Raises:
             AuthenticationError: If verification fails.
         """
+        _ = settings  # required by AdminAuthProvider protocol
+
         import httpx
 
         server_url = str(credentials.get("server_url", ""))

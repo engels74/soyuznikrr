@@ -14,7 +14,8 @@ Provides:
 
 from .exceptions import MediaClientError, UnknownServerTypeError
 from .protocol import MediaClient
-from .registry import ClientRegistry, MediaClientClass, registry
+from .provider import MediaClientClass
+from .registry import ClientRegistry, registry
 from .types import Capability, ExternalUser, LibraryInfo
 
 __all__ = [

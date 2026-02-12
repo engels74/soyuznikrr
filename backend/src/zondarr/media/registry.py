@@ -27,45 +27,24 @@ Example usage:
     client = registry.create_client("plex", url="http://...", api_key="...")
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, ClassVar, Protocol
+import os
+from typing import TYPE_CHECKING, ClassVar
 
 from .exceptions import UnknownServerTypeError
-from .protocol import MediaClient
-from .types import Capability
 
 if TYPE_CHECKING:
     from zondarr.config import Settings
     from zondarr.models.media_server import MediaServer
 
+    from .protocol import MediaClient
     from .provider import (
         AdminAuthDescriptor,
         AdminAuthProvider,
+        MediaClientClass,
         ProviderDescriptor,
         ProviderMetadata,
     )
-
-
-class MediaClientClass(Protocol):
-    """Protocol for media client classes that can be instantiated.
-
-    Defines the expected constructor signature for media client implementations.
-    """
-
-    def __call__(self, *, url: str, api_key: str) -> MediaClient:
-        """Create a new client instance."""
-        ...
-
-    @classmethod
-    def capabilities(cls) -> set[Capability]:
-        """Return the set of capabilities this client supports."""
-        ...
-
-    @classmethod
-    def supported_permissions(cls) -> frozenset[str]:
-        """Return the set of universal permission keys this client supports."""
-        ...
+    from .types import Capability
 
 
 class ClientRegistry:
@@ -229,14 +208,56 @@ class ClientRegistry:
         """Inject application settings for env var credential overrides.
 
         If provider_credentials is not already populated, populate it
-        from legacy fields for backwards compatibility.
+        from env vars using registry metadata + legacy fields.
         """
-        from zondarr.config import _populate_provider_credentials
-
         if not settings.provider_credentials:
-            _populate_provider_credentials(settings)
+            self._populate_provider_credentials(settings)
 
         self._settings = settings
+
+    def _populate_provider_credentials(self, settings: Settings) -> None:
+        """Populate provider_credentials from env vars using registry metadata.
+
+        Reads each registered provider's declared env var names and populates
+        the provider_credentials dict. Falls back to legacy fields for
+        backwards compatibility.
+        """
+        provider_creds: dict[str, dict[str, str]] = {}
+
+        for meta in self.get_all_metadata():
+            creds: dict[str, str] = {}
+
+            url_val = os.environ.get(meta.env_url_var) or None
+            if url_val:
+                creds["url"] = url_val
+
+            api_key_val = os.environ.get(meta.env_api_key_var) or None
+            if api_key_val:
+                creds["api_key"] = api_key_val
+
+            if creds:
+                provider_creds[meta.server_type] = creds
+
+        # Backwards compatibility: also check legacy fields
+        # Only use legacy values when the provider doesn't already have that key
+        if settings.plex_url:
+            _ = provider_creds.setdefault("plex", {}).setdefault(
+                "url", settings.plex_url
+            )
+        if settings.plex_token:
+            _ = provider_creds.setdefault("plex", {}).setdefault(
+                "api_key", settings.plex_token
+            )
+        if settings.jellyfin_url:
+            _ = provider_creds.setdefault("jellyfin", {}).setdefault(
+                "url", settings.jellyfin_url
+            )
+        if settings.jellyfin_api_key:
+            _ = provider_creds.setdefault("jellyfin", {}).setdefault(
+                "api_key", settings.jellyfin_api_key
+            )
+
+        settings.provider_credentials = provider_creds
 
     def _get_effective_credentials(
         self,

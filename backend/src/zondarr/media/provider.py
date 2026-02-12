@@ -18,7 +18,8 @@ if TYPE_CHECKING:
     from zondarr.models.admin import AdminAccount
     from zondarr.repositories.admin import AdminAccountRepository
 
-    from .registry import MediaClientClass
+    from .protocol import MediaClient
+    from .types import Capability
 
 
 class AuthFlowType(StrEnum):
@@ -137,6 +138,27 @@ class AdminAuthProvider(Protocol):
         Returns:
             True if the provider has the required configuration.
         """
+        ...
+
+
+class MediaClientClass(Protocol):
+    """Protocol for media client classes that can be instantiated.
+
+    Defines the expected constructor signature for media client implementations.
+    """
+
+    def __call__(self, *, url: str, api_key: str) -> MediaClient:
+        """Create a new client instance."""
+        ...
+
+    @classmethod
+    def capabilities(cls) -> set[Capability]:
+        """Return the set of capabilities this client supports."""
+        ...
+
+    @classmethod
+    def supported_permissions(cls) -> frozenset[str]:
+        """Return the set of universal permission keys this client supports."""
         ...
 
 

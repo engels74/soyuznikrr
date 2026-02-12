@@ -9,6 +9,7 @@ from zondarr.media.provider import (
     AuthFlowType,
     JoinFlowDescriptor,
     JoinFlowType,
+    MediaClientClass,
     ProviderMetadata,
 )
 
@@ -40,7 +41,7 @@ class PlexProvider:
         )
 
     @property
-    def client_class(self) -> type:
+    def client_class(self) -> MediaClientClass:
         return PlexClient
 
     @property

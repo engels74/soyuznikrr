@@ -19,6 +19,7 @@ from litestar.security.jwt import Token
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.config import Settings
 from zondarr.core.auth import AdminUser
 from zondarr.core.exceptions import AuthenticationError
 from zondarr.media.registry import registry
@@ -85,7 +86,7 @@ class AuthController(Controller):
     ) -> AuthMethodsResponse:
         """Return available auth methods and whether setup is required."""
         service = self._create_auth_service(session)
-        settings = state.settings  # pyright: ignore[reportAny]
+        settings: Settings = state.settings  # pyright: ignore[reportAny]
         methods = await service.get_available_auth_methods(settings=settings)
         setup = await service.setup_required()
 
@@ -203,7 +204,7 @@ class AuthController(Controller):
         - jellyfin: {"server_url": "...", "username": "...", "password": "..."}
         """
         service = self._create_auth_service(session)
-        settings = state.settings  # pyright: ignore[reportAny]
+        settings: Settings = state.settings  # pyright: ignore[reportAny]
         admin = await service.authenticate_external(
             method,
             data.credentials,
