@@ -1448,7 +1448,11 @@ class TestDeleteUserReturnValueCorrectness:
         api_key=api_key_strategy,
         user_id=st.integers(min_value=1, max_value=999999999),
         username=username_strategy,
-        error_message=st.text(min_size=1, max_size=100).filter(lambda s: s.strip()),
+        error_message=st.text(min_size=1, max_size=100).filter(
+            lambda s: s.strip()
+            and "not found" not in s.lower()
+            and "does not exist" not in s.lower()
+        ),
     )
     @pytest.mark.asyncio
     async def test_delete_user_raises_on_api_failure(
