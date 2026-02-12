@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.media.exceptions import MediaClientError
 from zondarr.models.media_server import ServerType
+from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
@@ -71,15 +72,31 @@ async def provide_user_repository(
     return UserRepository(session)
 
 
+async def provide_identity_repository(
+    session: AsyncSession,
+) -> IdentityRepository:
+    """Provide IdentityRepository instance.
+
+    Args:
+        session: Database session from DI.
+
+    Returns:
+        Configured IdentityRepository instance.
+    """
+    return IdentityRepository(session)
+
+
 async def provide_sync_service(
     server_repository: MediaServerRepository,
     user_repository: UserRepository,
+    identity_repository: IdentityRepository,
 ) -> SyncService:
     """Provide SyncService instance.
 
     Args:
         server_repository: MediaServerRepository from DI.
         user_repository: UserRepository from DI.
+        identity_repository: IdentityRepository from DI.
 
     Returns:
         Configured SyncService instance.
@@ -87,6 +104,7 @@ async def provide_sync_service(
     return SyncService(
         server_repository,
         user_repository,
+        identity_repository,
     )
 
 
@@ -117,6 +135,7 @@ class ServerController(Controller):
     dependencies: Mapping[str, Provide | AnyCallable] | None = {
         "server_repository": Provide(provide_media_server_repository),
         "user_repository": Provide(provide_user_repository),
+        "identity_repository": Provide(provide_identity_repository),
         "sync_service": Provide(provide_sync_service),
         "media_server_service": Provide(provide_media_server_service),
     }

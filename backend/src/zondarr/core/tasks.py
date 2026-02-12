@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.config import Settings
 from zondarr.repositories.admin import RefreshTokenRepository
+from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
@@ -246,12 +247,13 @@ class BackgroundTaskManager:
 
             await session.commit()
 
-            # Sync users for each server
-            sync_service = SyncService(server_repo, user_repo)
+            # Sync users for each server (import orphaned users)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             for server in servers:
                 try:
-                    result = await sync_service.sync_server(server.id)
+                    result = await sync_service.sync_server(server.id, dry_run=False)
                     logger.info(
                         "Server sync completed",
                         server_id=str(server.id),
@@ -259,6 +261,7 @@ class BackgroundTaskManager:
                         orphaned=len(result.orphaned_users),
                         stale=len(result.stale_users),
                         matched=result.matched_users,
+                        imported=result.imported_users,
                     )
                 except Exception as exc:
                     logger.warning(
@@ -267,6 +270,8 @@ class BackgroundTaskManager:
                         server_name=server.name,
                         error=str(exc),
                     )
+
+            await session.commit()
 
     async def _run_token_cleanup_task(self, state: State, /) -> None:
         """Periodically clean up expired refresh tokens.

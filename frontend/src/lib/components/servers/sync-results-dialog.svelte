@@ -3,7 +3,7 @@
  * Sync results dialog component.
  *
  * Displays the results of a server sync operation including:
- * - Orphaned users (on server but not local)
+ * - Imported users (orphaned users imported from server)
  * - Stale users (local but not on server)
  * - Matched users count
  *
@@ -30,11 +30,11 @@ interface Props {
 let { open = $bindable(), result, onClose }: Props = $props();
 
 /**
- * Check if there are any discrepancies.
+ * Check if there are any discrepancies (only stale users count as discrepancies).
  */
 const hasDiscrepancies = $derived.by(() => {
 	if (!result) return false;
-	return result.orphaned_users.length > 0 || result.stale_users.length > 0;
+	return result.stale_users.length > 0;
 });
 
 /**
@@ -97,24 +97,24 @@ const syncedAtFormatted = $derived.by(() => {
 					</div>
 				</div>
 
-				<!-- Orphaned Users -->
+				<!-- Imported Users -->
 				<div
-					class="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"
+					class="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3"
 					data-sync-orphaned
 				>
-					<div class="rounded-full bg-amber-500/15 p-2">
-						<UserPlus class="size-4 text-amber-400" />
+					<div class="rounded-full bg-emerald-500/15 p-2">
+						<UserPlus class="size-4 text-emerald-400" />
 					</div>
 					<div class="flex-1">
-						<div class="font-medium text-cr-text">Orphaned Users</div>
+						<div class="font-medium text-cr-text">Imported Users</div>
 						<div class="text-sm text-cr-text-muted">
-							Users on server but not in local database
+							Users imported from server into local database
 						</div>
 						{#if result.orphaned_users.length > 0}
 							<div class="mt-2 space-y-1" data-field="orphaned_users">
 								{#each result.orphaned_users as username, index (index)}
 									<div
-										class="inline-flex items-center rounded bg-amber-500/10 px-2 py-0.5 text-xs font-mono text-amber-400 mr-1"
+										class="inline-flex items-center rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-mono text-emerald-400 mr-1"
 									>
 										{username}
 									</div>
@@ -122,7 +122,7 @@ const syncedAtFormatted = $derived.by(() => {
 							</div>
 						{/if}
 					</div>
-					<div class="text-2xl font-bold text-amber-400">
+					<div class="text-2xl font-bold text-emerald-400">
 						{result.orphaned_users.length}
 					</div>
 				</div>

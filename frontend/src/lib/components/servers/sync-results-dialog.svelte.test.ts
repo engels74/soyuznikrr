@@ -49,7 +49,8 @@ const syncResultArb: fc.Arbitrary<SyncResult> = fc.record({
 	synced_at: isoDateArb,
 	orphaned_users: uniqueUsernamesArb,
 	stale_users: uniqueUsernamesArb,
-	matched_users: fc.nat({ max: 1000 })
+	matched_users: fc.nat({ max: 1000 }),
+	imported_users: fc.nat({ max: 1000 })
 });
 
 // =============================================================================
@@ -91,7 +92,7 @@ describe('Property 26: Sync Result Display', () => {
 				expect(matchedCount).not.toBeNull();
 				expect(matchedCount?.textContent?.trim()).toBe(String(result.matched_users));
 
-				// Verify orphaned users section is displayed
+				// Verify imported users section is displayed (data-sync-orphaned attribute kept for compatibility)
 				const orphanedSection = document.querySelector('[data-sync-orphaned]');
 				expect(orphanedSection).not.toBeNull();
 
@@ -106,12 +107,12 @@ describe('Property 26: Sync Result Display', () => {
 	});
 
 	/**
-	 * For any sync result with orphaned users, the orphaned users list SHALL
+	 * For any sync result with orphaned/imported users, the imported users list SHALL
 	 * display all usernames.
 	 *
 	 * **Validates: Requirements 9.6**
 	 */
-	it('should display all orphaned usernames when present', async () => {
+	it('should display all imported usernames when present', async () => {
 		await fc.assert(
 			fc.asyncProperty(
 				syncResultArb.filter((r) => r.orphaned_users.length > 0),
@@ -132,7 +133,7 @@ describe('Property 26: Sync Result Display', () => {
 					const orphanedList = orphanedSection?.querySelector('[data-field="orphaned_users"]');
 					expect(orphanedList).not.toBeNull();
 
-					// Verify each orphaned username is displayed
+					// Verify each imported username is displayed
 					for (const username of result.orphaned_users) {
 						expect(orphanedList?.textContent).toContain(username);
 					}
@@ -184,12 +185,12 @@ describe('Property 26: Sync Result Display', () => {
 	});
 
 	/**
-	 * For any sync result with no orphaned users, the orphaned users list
+	 * For any sync result with no imported users, the imported users list
 	 * SHALL NOT be displayed.
 	 *
 	 * **Validates: Requirements 9.6**
 	 */
-	it('should not display orphaned users list when empty', async () => {
+	it('should not display imported users list when empty', async () => {
 		await fc.assert(
 			fc.asyncProperty(
 				syncResultArb.map((r) => ({ ...r, orphaned_users: [] })),
@@ -254,15 +255,15 @@ describe('Property 26: Sync Result Display', () => {
 	});
 
 	/**
-	 * For any sync result with discrepancies (orphaned or stale users),
-	 * the dialog SHALL display a warning indicator.
+	 * For any sync result with discrepancies (stale users only — orphaned users
+	 * are now imported, not a discrepancy), the dialog SHALL display a warning indicator.
 	 *
 	 * **Validates: Requirements 9.6**
 	 */
 	it('should display warning indicator when discrepancies exist', async () => {
 		await fc.assert(
 			fc.asyncProperty(
-				syncResultArb.filter((r) => r.orphaned_users.length > 0 || r.stale_users.length > 0),
+				syncResultArb.filter((r) => r.stale_users.length > 0),
 				async (result) => {
 					const mockOnClose = vi.fn();
 					render(SyncResultsDialog, {
@@ -286,7 +287,7 @@ describe('Property 26: Sync Result Display', () => {
 	});
 
 	/**
-	 * For any sync result with no discrepancies (no orphaned or stale users),
+	 * For any sync result with no discrepancies (no stale users),
 	 * the dialog SHALL display a success indicator.
 	 *
 	 * **Validates: Requirements 9.6**
@@ -296,7 +297,6 @@ describe('Property 26: Sync Result Display', () => {
 			fc.asyncProperty(
 				syncResultArb.map((r) => ({
 					...r,
-					orphaned_users: [],
 					stale_users: []
 				})),
 				async (result) => {
@@ -353,11 +353,11 @@ describe('Property 26: Sync Result Display', () => {
 	});
 
 	/**
-	 * For any sync result, the orphaned users section SHALL have amber styling.
+	 * For any sync result, the imported users section SHALL have emerald styling.
 	 *
 	 * **Validates: Requirements 9.6**
 	 */
-	it('should display orphaned users with amber styling', async () => {
+	it('should display imported users with emerald styling', async () => {
 		await fc.assert(
 			fc.asyncProperty(syncResultArb, async (result) => {
 				const mockOnClose = vi.fn();
@@ -373,9 +373,9 @@ describe('Property 26: Sync Result Display', () => {
 				const orphanedSection = document.querySelector('[data-sync-orphaned]');
 				expect(orphanedSection).not.toBeNull();
 
-				// Verify amber styling
-				expect(orphanedSection?.className).toContain('border-amber-500/30');
-				expect(orphanedSection?.className).toContain('bg-amber-500/5');
+				// Verify emerald styling (imported users are now green, not amber)
+				expect(orphanedSection?.className).toContain('border-emerald-500/30');
+				expect(orphanedSection?.className).toContain('bg-emerald-500/5');
 
 				cleanup();
 			}),

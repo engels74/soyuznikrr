@@ -76,6 +76,7 @@ export interface SyncResult {
 	orphaned_users: string[];
 	stale_users: string[];
 	matched_users: number;
+	imported_users: number;
 }
 
 export type RedeemInvitationRequest = components['schemas']['RedeemInvitationRequest'];
@@ -377,7 +378,7 @@ export async function getServers(enabled?: boolean, client: ApiClient = api) {
  * @param dryRun - If true, only report discrepancies without making changes
  * @returns Sync result with discrepancy report
  */
-export async function syncServer(serverId: string, dryRun = true, client: ApiClient = api) {
+export async function syncServer(serverId: string, dryRun = false, client: ApiClient = api) {
 	return client.POST('/api/v1/servers/{server_id}/sync', {
 		params: { path: { server_id: serverId } },
 		body: { dry_run: dryRun }

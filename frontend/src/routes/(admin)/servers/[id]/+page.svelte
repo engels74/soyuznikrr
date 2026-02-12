@@ -94,7 +94,7 @@ async function handleSync() {
 	syncing = true;
 	try {
 		const result = await withErrorHandling(
-			() => syncServer(data.server!.id, true),
+			() => syncServer(data.server!.id, false),
 			{ showErrorToast: false },
 		);
 

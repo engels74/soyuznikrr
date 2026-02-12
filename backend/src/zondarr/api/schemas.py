@@ -1134,6 +1134,7 @@ class SyncResult(msgspec.Struct, kw_only=True):
         orphaned_users: Usernames that exist on the server but not locally.
         stale_users: Usernames that exist locally but not on the server.
         matched_users: Count of users that match between local and server.
+        imported_users: Count of orphaned users imported into local DB.
     """
 
     server_id: UUID
@@ -1142,6 +1143,7 @@ class SyncResult(msgspec.Struct, kw_only=True):
     orphaned_users: list[str]
     stale_users: list[str]
     matched_users: int
+    imported_users: int = 0
 
 
 # =============================================================================

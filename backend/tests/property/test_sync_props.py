@@ -16,6 +16,7 @@ from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ExternalUser
 from zondarr.models import MediaServer, ServerType
 from zondarr.models.identity import Identity, User
+from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.sync import SyncService
@@ -167,7 +168,8 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
             user_repo = UserRepository(session)
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             with patch("zondarr.services.sync.registry", mock_registry):
                 result = await sync_service.sync_server(server.id)
@@ -234,7 +236,8 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
             user_repo = UserRepository(session)
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             with patch("zondarr.services.sync.registry", mock_registry):
                 result = await sync_service.sync_server(server.id)
@@ -301,7 +304,8 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
             user_repo = UserRepository(session)
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             with patch("zondarr.services.sync.registry", mock_registry):
                 result = await sync_service.sync_server(server.id)
@@ -385,7 +389,8 @@ class TestSyncIsIdempotent:
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
             user_repo = UserRepository(session)
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             # Run sync multiple times and collect results
             from zondarr.api.schemas import SyncResult
@@ -489,7 +494,8 @@ class TestSyncDoesNotModifyUsers:
             mock_registry = MagicMock(spec=ClientRegistry)
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             with patch("zondarr.services.sync.registry", mock_registry):
                 _ = await sync_service.sync_server(server.id)
@@ -568,7 +574,8 @@ class TestSyncDoesNotModifyUsers:
             mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
 
             user_repo = UserRepository(session)
-            sync_service = SyncService(server_repo, user_repo)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
 
             with patch("zondarr.services.sync.registry", mock_registry):
                 _ = await sync_service.sync_server(server.id)
@@ -732,3 +739,239 @@ class TestSyncTaskErrorResilience:
 
         # Should complete without error even with no enabled servers
         await manager.sync_all_servers(state)
+
+
+# =============================================================================
+# Tests for Import Behavior (dry_run=False)
+# =============================================================================
+
+
+class TestSyncImportsOrphanedUsers:
+    """Tests for sync import behavior when dry_run=False.
+
+    Verifies that orphaned users are imported into the local DB
+    when sync is run with dry_run=False.
+    """
+
+    @given(user_sets=user_sets_strategy())
+    @pytest.mark.asyncio
+    async def test_sync_imports_orphaned_users(
+        self,
+        db: TestDB,
+        user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
+    ) -> None:
+        """When dry_run=False, orphaned users are imported as Identity+User records.
+
+        For each orphaned user, a new Identity and User record should be created.
+        """
+        orphaned_users, stale_users, matched_users = user_sets
+
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
+
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
+
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
+
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
+
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
+
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result = await sync_service.sync_server(server.id, dry_run=False)
+            await session.commit()
+
+            # Verify imported_users count matches orphaned count
+            assert result.imported_users == len(orphaned_users), (
+                f"Expected {len(orphaned_users)} imported, got {result.imported_users}"
+            )
+
+            # Verify all orphaned users now exist in the DB
+            all_users = await user_repo.get_by_server(server.id)
+            all_external_ids = {u.external_user_id for u in all_users}
+            for orphaned in orphaned_users:
+                assert orphaned.external_user_id in all_external_ids, (
+                    f"Orphaned user {orphaned.username} was not imported"
+                )
+
+    @given(user_sets=user_sets_strategy())
+    @pytest.mark.asyncio
+    async def test_sync_import_idempotent(
+        self,
+        db: TestDB,
+        user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
+    ) -> None:
+        """Running sync with dry_run=False twice imports on first run, zero on second.
+
+        First run should import N users. Second run should import 0
+        because all orphaned users are now matched.
+        """
+        orphaned_users, stale_users, matched_users = user_sets
+
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
+
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
+
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
+
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
+
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
+
+            # First run: imports orphaned users
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result1 = await sync_service.sync_server(server.id, dry_run=False)
+            await session.commit()
+
+            assert result1.imported_users == len(orphaned_users)
+
+            # Second run: no imports (all previously orphaned are now matched)
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result2 = await sync_service.sync_server(server.id, dry_run=False)
+
+            assert result2.imported_users == 0, (
+                f"Expected 0 imports on second run, got {result2.imported_users}"
+            )
+            # Matched should now include the previously orphaned users
+            assert result2.matched_users == len(matched_users) + len(orphaned_users), (
+                f"Expected {len(matched_users) + len(orphaned_users)} matched, "
+                f"got {result2.matched_users}"
+            )
+
+    @given(user_sets=user_sets_strategy())
+    @pytest.mark.asyncio
+    async def test_sync_dry_run_does_not_import(
+        self,
+        db: TestDB,
+        user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
+    ) -> None:
+        """With dry_run=True, no Identity/User records are created for orphaned users."""
+        orphaned_users, stale_users, matched_users = user_sets
+
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create a media server
+            server_repo = MediaServerRepository(session)
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = ServerType.JELLYFIN
+            server.url = "http://localhost:8096"
+            server.api_key = "test-api-key"
+            server.enabled = True
+            server = await server_repo.create(server)
+            await session.commit()
+
+            # Create an identity for local users
+            identity = Identity()
+            identity.display_name = "Test Identity"
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
+
+            # Create local users for stale and matched categories
+            for ext_user in stale_users + matched_users:
+                local_user = User()
+                local_user.identity_id = identity.id
+                local_user.media_server_id = server.id
+                local_user.external_user_id = ext_user.external_user_id
+                local_user.username = ext_user.username
+                local_user.enabled = True
+                session.add(local_user)
+            await session.commit()
+
+            # Count local users before sync
+            user_repo = UserRepository(session)
+            users_before = await user_repo.get_by_server(server.id)
+            count_before = len(users_before)
+
+            # Mock the client to return orphaned + matched users (server users)
+            server_users = orphaned_users + matched_users
+            mock_client = AsyncMock()
+            mock_client.list_users = AsyncMock(return_value=server_users)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+
+            mock_registry = MagicMock(spec=ClientRegistry)
+            mock_registry.create_client_for_server = MagicMock(return_value=mock_client)
+
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(server_repo, user_repo, identity_repo)
+
+            with patch("zondarr.services.sync.registry", mock_registry):
+                result = await sync_service.sync_server(server.id, dry_run=True)
+
+            # Verify no users were imported
+            assert result.imported_users == 0
+            users_after = await user_repo.get_by_server(server.id)
+            assert len(users_after) == count_before, (
+                f"User count changed from {count_before} to {len(users_after)} during dry run"
+            )
