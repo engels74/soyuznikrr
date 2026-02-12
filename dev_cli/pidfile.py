@@ -22,7 +22,7 @@ def pid_file_path(repo_root: Path, name: str) -> Path:
 
 def write_pid(repo_root: Path, name: str, pid: int) -> None:
     """Write a PID to its file."""
-    pid_file_path(repo_root, name).write_text(str(pid))
+    _ = pid_file_path(repo_root, name).write_text(str(pid))
 
 
 def read_pid(repo_root: Path, name: str) -> int | None:
@@ -31,7 +31,7 @@ def read_pid(repo_root: Path, name: str) -> int | None:
     try:
         text = path.read_text().strip()
         return int(text)
-    except FileNotFoundError, ValueError:
+    except (FileNotFoundError, ValueError):
         return None
 
 

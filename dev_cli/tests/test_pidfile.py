@@ -31,7 +31,7 @@ def test_read_malformed_file(tmp_path: object) -> None:
 
     root = Path(str(tmp_path))
     path = pid_file_path(root, "backend")
-    path.write_text("not-a-number")
+    _ = path.write_text("not-a-number")
     assert read_pid(root, "backend") is None
 
 

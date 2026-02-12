@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 _SUBCOMMANDS = frozenset({"start", "stop"})
 
 
-class _StartArgs(argparse.Namespace):
+class StartArgs(argparse.Namespace):
     """Typed namespace for ``start`` subcommand arguments."""
 
     command: str = "start"
@@ -28,7 +28,7 @@ class _StartArgs(argparse.Namespace):
     no_reload: bool = False
 
 
-class _StopArgs(argparse.Namespace):
+class StopArgs(argparse.Namespace):
     """Typed namespace for ``stop`` subcommand arguments."""
 
     command: str = "stop"
@@ -107,7 +107,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _parse_args(argv: list[str] | None = None) -> _StartArgs | _StopArgs:
+def parse_args(argv: list[str] | None = None) -> StartArgs | StopArgs:
     raw = sys.argv[1:] if argv is None else argv
 
     # Backward compat: if the first arg is not a known subcommand, insert "start".
@@ -117,14 +117,14 @@ def _parse_args(argv: list[str] | None = None) -> _StartArgs | _StopArgs:
     parser = _build_parser()
 
     if raw[0] == "stop":
-        return parser.parse_args(raw, namespace=_StopArgs())
-    return parser.parse_args(raw, namespace=_StartArgs())
+        return parser.parse_args(raw, namespace=StopArgs())
+    return parser.parse_args(raw, namespace=StartArgs())
 
 
 # ── stop (sync) ─────────────────────────────────────────────────────
 
 
-def _main_stop(args: _StopArgs) -> int:
+def _main_stop(args: StopArgs) -> int:
     return stop_servers(
         REPO_ROOT,
         force=args.force,
@@ -136,7 +136,7 @@ def _main_stop(args: _StopArgs) -> int:
 # ── start (async) ───────────────────────────────────────────────────
 
 
-async def _main_start(args: _StartArgs) -> int:
+async def _main_start(args: StartArgs) -> int:
     if not args.skip_checks:
         if not run_checks(
             repo_root=REPO_ROOT,
@@ -175,9 +175,9 @@ async def _main_start(args: _StartArgs) -> int:
 
 def run() -> int:
     """Sync entry point for __main__.py."""
-    args = _parse_args()
+    args = parse_args()
 
-    if isinstance(args, _StopArgs):
+    if isinstance(args, StopArgs):
         return _main_stop(args)
 
     try:
