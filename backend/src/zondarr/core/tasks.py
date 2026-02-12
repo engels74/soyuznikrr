@@ -271,6 +271,8 @@ class BackgroundTaskManager:
                         error=str(exc),
                     )
 
+            await session.commit()
+
     async def _run_token_cleanup_task(self, state: State, /) -> None:
         """Periodically clean up expired refresh tokens.
 
