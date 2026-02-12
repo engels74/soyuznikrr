@@ -244,6 +244,8 @@ class BackgroundTaskManager:
                         error=str(exc),
                     )
 
+            await session.commit()
+
             # Sync users for each server
             sync_service = SyncService(server_repo, user_repo)
 
