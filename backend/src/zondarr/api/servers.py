@@ -24,6 +24,7 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.media.exceptions import MediaClientError
+from zondarr.media.registry import registry
 from zondarr.models.media_server import ServerType
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
@@ -194,6 +195,9 @@ class ServerController(Controller):
                     )
                     for lib in server.libraries
                 ],
+                supported_permissions=sorted(
+                    registry.get_supported_permissions(server.server_type)
+                ),
             )
             for server in servers
         ]
@@ -265,6 +269,9 @@ class ServerController(Controller):
             created_at=server.created_at,
             updated_at=server.updated_at,
             libraries=libraries,
+            supported_permissions=sorted(
+                registry.get_supported_permissions(server.server_type)
+            ),
         )
 
     @get(
@@ -302,6 +309,9 @@ class ServerController(Controller):
             enabled=server.enabled,
             created_at=server.created_at,
             updated_at=server.updated_at,
+            supported_permissions=sorted(
+                registry.get_supported_permissions(server.server_type)
+            ),
         )
 
     @delete(

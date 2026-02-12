@@ -135,6 +135,10 @@ class JellyfinClient:
             Capability.DOWNLOAD_PERMISSION,
         }
 
+    @classmethod
+    def supported_permissions(cls) -> frozenset[str]:
+        return frozenset({"can_download", "can_stream", "can_sync", "can_transcode"})
+
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 

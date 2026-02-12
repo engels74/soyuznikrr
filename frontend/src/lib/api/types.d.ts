@@ -561,6 +561,7 @@ export interface components {
 			/** Format: date-time */
 			created_at: string;
 			updated_at?: string | null;
+			supported_permissions?: string[] | null;
 		};
 		/** MediaServerWithLibrariesResponse */
 		MediaServerWithLibrariesResponse: {
@@ -574,6 +575,7 @@ export interface components {
 			created_at: string;
 			libraries: components['schemas']['LibraryResponse'][];
 			updated_at?: string | null;
+			supported_permissions?: string[] | null;
 		};
 		/** PlexOAuthCheckResponse */
 		PlexOAuthCheckResponse: {

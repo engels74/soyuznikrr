@@ -56,6 +56,20 @@ class MediaClient(Protocol):
         """
         ...
 
+    @classmethod
+    def supported_permissions(cls) -> frozenset[str]:
+        """Return the set of universal permission keys this client supports.
+
+        Used to inform the frontend which permission toggles to display
+        for a given server type, without hardcoding provider knowledge
+        in the UI.
+
+        Returns:
+            A frozenset of universal permission key strings
+            (e.g. "can_download", "can_stream").
+        """
+        ...
+
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 
