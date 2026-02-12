@@ -24,21 +24,14 @@ import { Label } from "$lib/components/ui/label";
 interface Props {
 	userId: string;
 	disabled?: boolean;
-	serverType?: string;
+	supportedPermissions?: string[];
 }
 
-const { userId, disabled = false, serverType }: Props = $props();
-
-/** Permission keys supported by each server type. */
-const SUPPORTED_PERMISSIONS: Record<string, readonly string[]> = {
-	plex: ["can_download"],
-	jellyfin: ["can_download", "can_stream", "can_sync", "can_transcode"],
-};
+const { userId, disabled = false, supportedPermissions }: Props = $props();
 
 function isPermissionSupported(key: string): boolean {
-	if (!serverType) return true;
-	const supported = SUPPORTED_PERMISSIONS[serverType];
-	return supported ? supported.includes(key) : true;
+	if (!supportedPermissions) return true;
+	return supportedPermissions.includes(key);
 }
 
 // Permission states - start as undefined (unknown from server)

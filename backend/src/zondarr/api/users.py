@@ -22,6 +22,7 @@ from litestar.params import Parameter
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.media.registry import registry
 from zondarr.models.identity import User
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.user import UserRepository
@@ -426,6 +427,9 @@ class UserController(Controller):
             enabled=user.media_server.enabled,
             created_at=user.media_server.created_at,
             updated_at=user.media_server.updated_at,
+            supported_permissions=sorted(
+                registry.get_supported_permissions(user.media_server.server_type)
+            ),
         )
 
         # Build invitation response if available (Requirement 17.3)

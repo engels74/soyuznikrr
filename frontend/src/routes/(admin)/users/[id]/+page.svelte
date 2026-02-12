@@ -352,7 +352,7 @@ function viewLinkedUser(userId: string) {
 					<UserPermissionsEditor
 						userId={data.user.id}
 						disabled={!data.user.enabled || enabling || disabling || deleting}
-						serverType={data.user.media_server.server_type}
+						supportedPermissions={data.user.media_server.supported_permissions ?? undefined}
 					/>
 				</Card.Content>
 			</Card.Root>

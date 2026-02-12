@@ -176,6 +176,7 @@ class MediaServerResponse(msgspec.Struct, omit_defaults=True):
     enabled: bool
     created_at: datetime
     updated_at: datetime | None = None
+    supported_permissions: list[str] | None = None
 
 
 # =============================================================================
@@ -225,6 +226,7 @@ class MediaServerWithLibrariesResponse(msgspec.Struct, omit_defaults=True):
     created_at: datetime
     libraries: list[LibraryResponse]
     updated_at: datetime | None = None
+    supported_permissions: list[str] | None = None
 
 
 # =============================================================================

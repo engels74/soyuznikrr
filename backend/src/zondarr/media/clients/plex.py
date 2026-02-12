@@ -246,6 +246,10 @@ class PlexClient:
             Capability.LIBRARY_ACCESS,
         }
 
+    @classmethod
+    def supported_permissions(cls) -> frozenset[str]:
+        return frozenset({"can_download"})
+
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 

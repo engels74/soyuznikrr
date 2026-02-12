@@ -23,6 +23,7 @@ from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.media.registry import registry
 from zondarr.models.invitation import Invitation
 from zondarr.models.wizard import Wizard, WizardStep
 from zondarr.repositories.invitation import InvitationRepository
@@ -393,6 +394,9 @@ class InvitationController(Controller):
                 enabled=server.enabled,
                 created_at=server.created_at,
                 updated_at=server.updated_at,
+                supported_permissions=sorted(
+                    registry.get_supported_permissions(server.server_type)
+                ),
             )
             for server in invitation.target_servers
         ]
@@ -476,6 +480,9 @@ class InvitationController(Controller):
                 enabled=server.enabled,
                 created_at=server.created_at,
                 updated_at=server.updated_at,
+                supported_permissions=sorted(
+                    registry.get_supported_permissions(server.server_type)
+                ),
             )
             for server in invitation.target_servers
         ]

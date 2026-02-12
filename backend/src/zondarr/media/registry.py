@@ -71,6 +71,11 @@ class MediaClientClass(Protocol):
         """Return the set of capabilities this client supports."""
         ...
 
+    @classmethod
+    def supported_permissions(cls) -> frozenset[str]:
+        """Return the set of universal permission keys this client supports."""
+        ...
+
 
 class ClientRegistry:
     """Singleton registry for media client implementations.
@@ -159,6 +164,23 @@ class ClientRegistry:
             UnknownServerTypeError: If no client is registered for the server type.
         """
         return self.get_client_class(server_type).capabilities()
+
+    def get_supported_permissions(self, server_type: ServerType, /) -> frozenset[str]:
+        """Get supported permissions for a server type.
+
+        Queries the registered client class for its declared
+        supported permission keys.
+
+        Args:
+            server_type: The server type to query (positional-only).
+
+        Returns:
+            A frozenset of permission key strings.
+
+        Raises:
+            UnknownServerTypeError: If no client is registered for the server type.
+        """
+        return self.get_client_class(server_type).supported_permissions()
 
     def create_client(
         self,
