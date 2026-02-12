@@ -26,6 +26,7 @@ from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
+from zondarr.services.media_server import MediaServerService
 from zondarr.services.sync import SyncService
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
@@ -224,6 +225,28 @@ class BackgroundTaskManager:
             user_repo = UserRepository(session)
 
             servers = await server_repo.get_enabled()
+
+            # Sync libraries for each server
+            media_server_service = MediaServerService(server_repo)
+            for server in servers:
+                try:
+                    _ = await media_server_service.sync_libraries(server.id)
+                    logger.info(
+                        "Library sync completed",
+                        server_id=str(server.id),
+                        server_name=server.name,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Library sync failed",
+                        server_id=str(server.id),
+                        server_name=server.name,
+                        error=str(exc),
+                    )
+
+            await session.commit()
+
+            # Sync users for each server
             sync_service = SyncService(server_repo, user_repo)
 
             for server in servers:

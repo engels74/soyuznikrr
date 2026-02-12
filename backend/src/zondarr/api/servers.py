@@ -189,7 +189,7 @@ class ServerController(Controller):
         self,
         data: MediaServerCreate,
         media_server_service: MediaServerService,
-    ) -> MediaServerResponse:
+    ) -> MediaServerWithLibrariesResponse:
         """Create a new media server.
 
         Validates the connection to the media server before persisting.
@@ -215,7 +215,29 @@ class ServerController(Controller):
             api_key=data.api_key,
         )
 
-        return MediaServerResponse(
+        # Sync libraries after creation (best-effort — don't fail server creation)
+        libraries: list[LibraryResponse] = []
+        try:
+            synced = await media_server_service.sync_libraries(server.id)
+            libraries = [
+                LibraryResponse(
+                    id=lib.id,
+                    name=lib.name,
+                    library_type=lib.library_type,
+                    external_id=lib.external_id,
+                    created_at=lib.created_at,
+                    updated_at=lib.updated_at,
+                )
+                for lib in synced
+            ]
+        except Exception as exc:
+            logger.warning(
+                "Failed to sync libraries after server creation",
+                server_id=str(server.id),
+                error=str(exc),
+            )
+
+        return MediaServerWithLibrariesResponse(
             id=server.id,
             name=server.name,
             server_type=server.server_type.value,
@@ -223,6 +245,7 @@ class ServerController(Controller):
             enabled=server.enabled,
             created_at=server.created_at,
             updated_at=server.updated_at,
+            libraries=libraries,
         )
 
     @get(
