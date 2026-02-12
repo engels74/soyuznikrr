@@ -369,7 +369,7 @@ function viewLinkedUser(userId: string) {
 				</Card.Header>
 				<Card.Content>
 					<div class="flex items-center gap-4 rounded-lg border border-cr-border bg-cr-bg p-4">
-						<div class="flex-1">
+						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1">
 								<span class="font-medium text-cr-text">{data.user.media_server.name}</span>
 								<span
@@ -378,7 +378,7 @@ function viewLinkedUser(userId: string) {
 									{data.user.media_server.server_type}
 								</span>
 							</div>
-							<div class="text-sm text-cr-text-muted font-mono">{data.user.media_server.url}</div>
+							<div class="text-sm text-cr-text-muted font-mono break-all">{data.user.media_server.url}</div>
 							<div class="mt-2">
 								<StatusBadge
 									status={data.user.media_server.enabled ? 'active' : 'disabled'}
