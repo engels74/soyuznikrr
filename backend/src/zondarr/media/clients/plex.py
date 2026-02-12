@@ -754,19 +754,12 @@ class PlexClient:
                 error_type=type(exc).__name__,
                 error_code=error_code,
             )
-            # Wrap external service errors appropriately
-            if _is_external_service_error(exc):
-                raise _create_external_service_error(
-                    f"Failed to delete user: {exc}",
-                    server_url=self.url,
-                    original_error=exc,
-                ) from exc
-            raise _create_media_client_error(
+            # Any non-"not found" failure during deletion is an external
+            # service error — the Plex API call itself failed.
+            raise _create_external_service_error(
                 f"Failed to delete user: {exc}",
-                operation="delete_user",
                 server_url=self.url,
-                cause=str(exc),
-                error_code=error_code,
+                original_error=exc,
             ) from exc
 
     async def set_user_enabled(
