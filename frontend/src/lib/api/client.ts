@@ -450,7 +450,13 @@ export async function testConnection(
 		body: JSON.stringify(data)
 	});
 
-	const body = await response.json();
+	let body: unknown;
+	try {
+		body = await response.json();
+	} catch {
+		const text = await response.text().catch(() => '');
+		return { error: { detail: text || `Unexpected response (HTTP ${response.status})` } };
+	}
 	if (!response.ok) {
 		return { error: body };
 	}

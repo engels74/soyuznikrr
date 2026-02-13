@@ -140,9 +140,10 @@ async function handleTestConnection() {
 		);
 
 		if (result.error || !result.data) {
+			const errorBody = result.error as { detail?: string; message?: string } | undefined;
 			testResult = {
 				success: false,
-				message: "Network error — could not reach the backend.",
+				message: errorBody?.detail ?? errorBody?.message ?? "Network error — could not reach the backend.",
 			};
 			return;
 		}
