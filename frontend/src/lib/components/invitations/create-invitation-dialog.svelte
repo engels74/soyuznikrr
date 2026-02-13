@@ -39,6 +39,15 @@ const { servers, onSuccess }: Props = $props();
 // Dialog open state
 let open = $state(false);
 
+// Fetch wizards when dialog opens, reset form when it closes
+$effect(() => {
+	if (open) {
+		fetchWizards();
+	} else {
+		resetForm();
+	}
+});
+
 // Submitting state
 let submitting = $state(false);
 
@@ -150,9 +159,8 @@ async function handleSubmit() {
 			`Code: ${result.data?.code}`,
 		);
 
-		// Close dialog and reset form
+		// Close dialog (form resets via $effect watching open)
 		open = false;
-		resetForm();
 
 		// Notify parent to refresh list
 		onSuccess?.();
@@ -162,27 +170,14 @@ async function handleSubmit() {
 }
 
 /**
- * Handle dialog close.
- */
-function handleOpenChange(isOpen: boolean) {
-	open = isOpen;
-	if (isOpen) {
-		fetchWizards();
-	} else {
-		resetForm();
-	}
-}
-
-/**
  * Handle cancel button.
  */
 function handleCancel() {
 	open = false;
-	resetForm();
 }
 </script>
 
-<Dialog.Root bind:open onOpenChange={handleOpenChange}>
+<Dialog.Root bind:open>
 	<Dialog.Trigger>
 		{#snippet child({ props })}
 			<Button

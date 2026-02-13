@@ -64,7 +64,6 @@ function handleOpenChange(isOpen: boolean) {
 	if (!isOpen && !loading) {
 		onCancel();
 	}
-	open = isOpen;
 }
 </script>
 
