@@ -11,6 +11,11 @@ from .plex import PlexProvider
 
 
 def register_all_providers() -> None:
-    """Register all media server provider implementations."""
+    """Register all media server provider implementations.
+
+    Idempotent: skips registration if providers are already registered.
+    """
+    if registry.registered_types():
+        return
     registry.register(PlexProvider())
     registry.register(JellyfinProvider())

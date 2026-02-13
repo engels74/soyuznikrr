@@ -105,9 +105,11 @@ export function getAllProviders(): ProviderMeta[] {
 // =============================================================================
 
 function hexToRgba(hex: string, alpha: number): string {
+	if (!hex || hex.length < 7 || hex[0] !== '#') return `rgba(107, 114, 128, ${alpha})`;
 	const r = parseInt(hex.slice(1, 3), 16);
 	const g = parseInt(hex.slice(3, 5), 16);
 	const b = parseInt(hex.slice(5, 7), 16);
+	if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return `rgba(107, 114, 128, ${alpha})`;
 	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
@@ -128,12 +130,4 @@ export function getProviderBadgeStyle(serverType: string): string {
 export function getProviderActiveToggleStyle(serverType: string): string {
 	const color = getProviderColor(serverType);
 	return `background: ${hexToRgba(color, 0.2)}; color: ${color}; border-color: ${hexToRgba(color, 0.3)}`;
-}
-
-/**
- * Get inline CSS style for hover effects on a provider element.
- */
-export function getProviderHoverVars(serverType: string): string {
-	const color = getProviderColor(serverType);
-	return `--provider-color: ${color}; --provider-bg: ${hexToRgba(color, 0.1)}; --provider-border: ${hexToRgba(color, 0.3)}`;
 }

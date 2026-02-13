@@ -11,7 +11,9 @@ import type { LayoutData } from "./$types";
 const { data, children }: { data: LayoutData; children: Snippet } = $props();
 
 $effect(() => {
-	setProviders(data.providers);
+	if (data.providers.length > 0) {
+		setProviders(data.providers);
+	}
 });
 </script>
 

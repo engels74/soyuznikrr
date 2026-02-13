@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zondarr.config import Settings
 from zondarr.core.auth import AdminUser
 from zondarr.core.exceptions import AuthenticationError
-from zondarr.media.registry import registry
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.services.auth import AuthService
 
@@ -86,30 +85,30 @@ class AuthController(Controller):
     ) -> AuthMethodsResponse:
         """Return available auth methods and whether setup is required."""
         service = self._create_auth_service(session)
-        methods = await service.get_available_auth_methods(settings=settings)
+        methods, descriptors = await service.get_auth_methods_with_providers(
+            settings=settings
+        )
         setup = await service.setup_required()
 
-        # Build provider auth metadata from registry
-        provider_auth: list[ProviderAuthInfo] = []
-        for desc in registry.get_admin_auth_descriptors():
-            if desc.method_name in methods:
-                provider_auth.append(
-                    ProviderAuthInfo(
-                        method_name=desc.method_name,
-                        display_name=desc.display_name,
-                        flow_type=desc.flow_type,
-                        fields=[
-                            AuthFieldInfo(
-                                name=f.name,
-                                label=f.label,
-                                field_type=f.field_type,
-                                placeholder=f.placeholder,
-                                required=f.required,
-                            )
-                            for f in desc.fields
-                        ],
+        # Map provider descriptors to response schema
+        provider_auth = [
+            ProviderAuthInfo(
+                method_name=desc.method_name,
+                display_name=desc.display_name,
+                flow_type=desc.flow_type,
+                fields=[
+                    AuthFieldInfo(
+                        name=f.name,
+                        label=f.label,
+                        field_type=f.field_type,
+                        placeholder=f.placeholder,
+                        required=f.required,
                     )
-                )
+                    for f in desc.fields
+                ],
+            )
+            for desc in descriptors
+        ]
 
         return AuthMethodsResponse(
             methods=methods,

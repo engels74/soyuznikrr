@@ -1,35 +1,34 @@
 /**
  * Auth API wrappers for /api/auth/* endpoints.
  *
- * Uses raw fetch since these endpoints are not in the OpenAPI spec.
+ * Uses raw fetch for auth endpoints that use cookie-based auth.
+ * Types are imported from the auto-generated OpenAPI types.
  */
+
+import type { components } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 // =============================================================================
-// Types
+// Types — re-export from generated OpenAPI types
 // =============================================================================
 
-export interface AuthFieldInfo {
-	name: string;
-	label: string;
-	field_type: string;
-	placeholder: string;
-	required: boolean;
-}
-
-export interface ProviderAuthInfo {
-	method_name: string;
-	display_name: string;
+export type AuthFieldInfo = components['schemas']['AuthFieldInfo'];
+export type ProviderAuthInfo = Omit<
+	components['schemas']['ProviderAuthInfo'],
+	'flow_type' | 'fields'
+> & {
+	/** Narrowed from the generated `string` to known flow types. */
 	flow_type: 'oauth' | 'credentials';
+	/** Always present (defaults to [] on backend). */
 	fields: AuthFieldInfo[];
-}
-
-export interface AuthMethodsResponse {
-	methods: string[];
-	setup_required: boolean;
+};
+export type AuthMethodsResponse = Omit<
+	components['schemas']['AuthMethodsResponse'],
+	'provider_auth'
+> & {
 	provider_auth: ProviderAuthInfo[];
-}
+};
 
 export interface AdminMeResponse {
 	id: string;

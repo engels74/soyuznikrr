@@ -4,7 +4,7 @@
  *
  * Provides a modal dialog for adding new media servers with:
  * - Form validation via Zod
- * - Server type toggle (Jellyfin/Plex)
+ * - Server type toggle (dynamically populated from provider registry)
  * - API submission with connection validation
  * - Success/error toast notifications
  * - Auto-close on successful creation

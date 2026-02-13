@@ -27,7 +27,7 @@ class JellyfinAdminAuth:
 
     async def authenticate(
         self,
-        credentials: Mapping[str, object],
+        credentials: Mapping[str, str],
         *,
         settings: Settings,
         admin_repo: AdminAccountRepository,

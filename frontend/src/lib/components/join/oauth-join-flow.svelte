@@ -26,7 +26,6 @@ import { toast } from "svelte-sonner";
 import {
 	checkOAuthPin,
 	createOAuthPin,
-	type OAuthCheckResponse,
 	type OAuthPinResponse,
 } from "$lib/api/client";
 import { getErrorMessage } from "$lib/api/errors";
@@ -117,7 +116,7 @@ async function startOAuthFlow() {
 		pinData = data;
 		currentStep = "waiting";
 
-		// Open Plex auth URL in new window/tab
+		// Open auth URL in new window/tab
 		window.open(pinData.auth_url, "_blank", "noopener,noreferrer");
 
 		// Start polling for PIN status
@@ -159,16 +158,14 @@ function startPolling() {
 
 			if (!data) return;
 
-			const checkResponse = data as OAuthCheckResponse;
-
-			if (checkResponse.authenticated && checkResponse.email) {
+			if (data.authenticated && data.email) {
 				stopPolling();
-				authenticatedEmail = checkResponse.email;
+				authenticatedEmail = data.email;
 				currentStep = "authenticated";
-				onAuthenticated(checkResponse.email);
-			} else if (checkResponse.error) {
+				onAuthenticated(data.email);
+			} else if (data.error) {
 				stopPolling();
-				errorMessage = checkResponse.error;
+				errorMessage = data.error;
 				currentStep = "error";
 			}
 		} catch (err) {
@@ -200,7 +197,7 @@ function handleCancel() {
 }
 
 /**
- * Open the Plex auth URL again.
+ * Open the auth URL again.
  */
 function openAuthUrl() {
 	if (pinData?.auth_url) {

@@ -20,6 +20,7 @@ from zondarr.services.password import hash_password, needs_rehash, verify_passwo
 
 if TYPE_CHECKING:
     from zondarr.config import Settings
+    from zondarr.media.provider import AdminAuthDescriptor
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
 
@@ -127,7 +128,7 @@ class AuthService:
     async def authenticate_external(
         self,
         method: str,
-        credentials: Mapping[str, object],
+        credentials: Mapping[str, str],
         *,
         settings: Settings,
     ) -> AdminAccount:
@@ -264,3 +265,27 @@ class AuthService:
                 methods.append(desc.method_name)
 
         return methods
+
+    async def get_auth_methods_with_providers(
+        self,
+        *,
+        settings: Settings,
+    ) -> tuple[list[str], list[AdminAuthDescriptor]]:
+        """Get available auth methods and their provider descriptors.
+
+        Combines method availability checking with descriptor filtering
+        so the controller doesn't need to re-query the registry.
+
+        Args:
+            settings: Application settings for checking provider configuration.
+
+        Returns:
+            A tuple of (method names, filtered admin auth descriptors).
+        """
+        methods = await self.get_available_auth_methods(settings=settings)
+        descriptors = [
+            desc
+            for desc in registry.get_admin_auth_descriptors()
+            if desc.method_name in methods
+        ]
+        return methods, descriptors

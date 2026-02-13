@@ -35,10 +35,9 @@ async function handleSubmit(e: SubmitEvent) {
 		if (field.required && (!val || val.trim() === '')) {
 			errors[field.name] = `${field.label} is required`;
 			hasErrors = true;
-		}
-		if (field.field_type === 'url' && fieldValues[field.name]) {
+		} else if (field.field_type === 'url' && val && val.trim() !== '') {
 			try {
-				new URL(fieldValues[field.name] as string);
+				new URL(val);
 			} catch {
 				errors[field.name] = 'Must be a valid URL';
 				hasErrors = true;
@@ -117,8 +116,8 @@ function getInputType(fieldType: string): string {
 				type="submit"
 				disabled={loading}
 				size="sm"
-				class="w-full text-white"
-				style="background: {color}; hover:opacity-90"
+				class="w-full text-white provider-submit-btn"
+				style="background: {color}; --provider-submit-color: {color}"
 			>
 				{#if loading}
 					Connecting...
@@ -135,5 +134,9 @@ function getInputType(fieldType: string): string {
 		background: color-mix(in srgb, var(--provider-color) 10%, transparent) !important;
 		color: var(--provider-color) !important;
 		border-color: color-mix(in srgb, var(--provider-color) 30%, transparent) !important;
+	}
+
+	:global(.provider-submit-btn:hover) {
+		filter: brightness(0.9);
 	}
 </style>

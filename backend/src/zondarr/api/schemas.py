@@ -27,6 +27,8 @@ from uuid import UUID
 
 import msgspec
 
+from zondarr.media.provider import AuthFlowType
+
 # =============================================================================
 # Reusable Constrained Types
 # =============================================================================
@@ -1035,6 +1037,8 @@ class AuthFieldInfo(msgspec.Struct, kw_only=True):
 class ProviderAuthInfo(msgspec.Struct, kw_only=True):
     """Auth method metadata for a provider.
 
+    Mirrors ``AdminAuthDescriptor`` from ``media.provider`` for the HTTP layer.
+
     Attributes:
         method_name: Auth method identifier (e.g., "plex").
         display_name: Human-readable name (e.g., "Plex").
@@ -1044,7 +1048,7 @@ class ProviderAuthInfo(msgspec.Struct, kw_only=True):
 
     method_name: str
     display_name: str
-    flow_type: str
+    flow_type: AuthFlowType
     fields: list[AuthFieldInfo] = []
 
 
@@ -1230,6 +1234,11 @@ class OAuthPinResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
 
 class OAuthCheckResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     """Response from OAuth PIN status check.
+
+    Security note: ``auth_token`` is intentionally included in this public
+    endpoint response.  The join flow requires the token so the frontend can
+    pass it back as a credential when completing invitation redemption (the
+    token proves the user authenticated with the provider).
 
     Attributes:
         authenticated: Whether the PIN has been authenticated.

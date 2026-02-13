@@ -45,19 +45,6 @@ afterEach(() => {
 // =============================================================================
 
 /**
- * Generate a valid PIN response.
- * Note: We use a fixed date range to avoid issues with fake timers.
- */
-const pinResponseArb = fc.record({
-	pin_id: fc.integer({ min: 1, max: 999999 }),
-	code: fc.stringMatching(/^[A-Z0-9]{4}$/),
-	auth_url: fc.webUrl(),
-	expires_at: fc
-		.integer({ min: 60000, max: 300000 })
-		.map((offset) => new Date(Date.now() + offset).toISOString())
-});
-
-/**
  * Generate an authenticated check response.
  */
 const authenticatedCheckResponseArb = fc.record({
@@ -298,28 +285,43 @@ describe('OAuth Flow Component', () => {
 	 * For any valid PIN response, the component SHALL display the PIN code.
 	 */
 	it('should display PIN code after creation', async () => {
-		fc.assert(
-			fc.property(pinResponseArb, (pinResponse) => {
-				vi.clearAllMocks();
+		vi.clearAllMocks();
 
-				vi.mocked(apiClient.createOAuthPin).mockResolvedValue({
-					data: pinResponse as OAuthPinResponse,
-					error: undefined
-				});
+		const pinResponse: OAuthPinResponse = {
+			pin_id: 42,
+			code: 'XY9Z',
+			auth_url: 'https://auth.example.com/oauth',
+			expires_at: new Date(Date.now() + 60000).toISOString()
+		};
 
-				vi.mocked(apiClient.checkOAuthPin).mockResolvedValue({
-					data: {
-						authenticated: false
-					},
-					error: undefined
-				});
+		vi.mocked(apiClient.createOAuthPin).mockResolvedValue({
+			data: pinResponse,
+			error: undefined
+		});
 
-				// Verify the PIN code format is valid
-				expect(pinResponse.code).toMatch(/^[A-Z0-9]{4}$/);
-				expect(pinResponse.pin_id).toBeGreaterThan(0);
-			}),
-			{ numRuns: 50 }
-		);
+		vi.mocked(apiClient.checkOAuthPin).mockResolvedValue({
+			data: { authenticated: false },
+			error: undefined
+		});
+
+		const onAuthenticated = vi.fn();
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+		const { container } = render(OAuthJoinFlow, {
+			props: { serverType: TEST_SERVER_TYPE, onAuthenticated }
+		});
+
+		// Click sign in button to start the flow
+		const signInButton = container.querySelector('[data-oauth-signin-button]');
+		expect(signInButton).toBeTruthy();
+		await user.click(signInButton!);
+
+		// Wait for PIN creation and verify the code is displayed
+		await vi.waitFor(() => {
+			const pinCodeEl = container.querySelector('[data-pin-code]');
+			expect(pinCodeEl).toBeTruthy();
+			expect(pinCodeEl?.textContent?.trim()).toBe(pinResponse.code);
+		});
 	});
 
 	/**
