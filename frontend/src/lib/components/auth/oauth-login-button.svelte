@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onDestroy } from "svelte";
-import { loginExternal } from "$lib/api/auth";
+import { getErrorDetail, loginExternal } from "$lib/api/auth";
 import { checkOAuthPin, createOAuthPin } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import { getProviderColor, getProviderIconSvg } from "$lib/stores/providers.svelte";
@@ -68,9 +68,8 @@ async function handleOAuthLogin() {
 						auth_token: checkData.auth_token,
 					});
 					if (result.error) {
-						const err = result.error as { detail?: string };
 						loading = false;
-						onerror(err.detail ?? `${displayName} login failed`);
+						onerror(getErrorDetail(result.error, `${displayName} login failed`));
 					} else {
 						loading = false;
 						onsuccess();

@@ -39,10 +39,10 @@ class ProviderController(Controller):
         """
         result: list[ProviderMetadataResponse] = []
 
-        for meta in registry.get_all_metadata():
-            caps = registry.get_capabilities(meta.server_type)
-            perms = registry.get_supported_permissions(meta.server_type)
-            provider = registry.get_provider(meta.server_type)
+        for desc in registry.get_all_descriptors():
+            meta = desc.metadata
+            caps = desc.client_class.capabilities()
+            perms = desc.client_class.supported_permissions()
 
             result.append(
                 ProviderMetadataResponse(
@@ -54,7 +54,7 @@ class ProviderController(Controller):
                     capabilities=sorted(str(c) for c in caps),
                     supported_permissions=sorted(perms),
                     join_flow_type=(
-                        provider.join_flow.flow_type if provider.join_flow else None
+                        desc.join_flow.flow_type if desc.join_flow else None
                     ),
                 )
             )

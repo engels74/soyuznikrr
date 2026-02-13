@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { loginLocal } from "$lib/api/auth";
+import { getErrorDetail, loginLocal } from "$lib/api/auth";
 import CredentialLoginForm from "$lib/components/auth/credential-login-form.svelte";
 import LocalLoginForm from "$lib/components/auth/local-login-form.svelte";
 import OAuthLoginButton from "$lib/components/auth/oauth-login-button.svelte";
@@ -18,8 +18,7 @@ async function handleLocalLogin(username: string, password: string) {
 	error = "";
 	const result = await loginLocal({ username, password });
 	if (result.error) {
-		const err = result.error as { detail?: string };
-		error = err.detail ?? "Invalid credentials";
+		error = getErrorDetail(result.error, "Invalid credentials");
 		return;
 	}
 	await goto("/dashboard");

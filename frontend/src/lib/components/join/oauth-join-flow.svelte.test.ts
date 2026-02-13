@@ -119,7 +119,7 @@ describe('Property 32: OAuth Polling', () => {
 			return {
 				data: {
 					authenticated: false
-				} as OAuthCheckResponse,
+				},
 				error: undefined
 			};
 		});
@@ -183,7 +183,7 @@ describe('Property 32: OAuth Polling', () => {
 		vi.mocked(apiClient.checkOAuthPin).mockResolvedValue({
 			data: {
 				authenticated: false
-			} as OAuthCheckResponse,
+			},
 			error: undefined
 		});
 
@@ -241,7 +241,7 @@ describe('Property 32: OAuth Polling', () => {
 		vi.mocked(apiClient.checkOAuthPin).mockResolvedValue({
 			data: {
 				authenticated: false
-			} as OAuthCheckResponse,
+			},
 			error: undefined
 		});
 
@@ -310,7 +310,7 @@ describe('OAuth Flow Component', () => {
 				vi.mocked(apiClient.checkOAuthPin).mockResolvedValue({
 					data: {
 						authenticated: false
-					} as OAuthCheckResponse,
+					},
 					error: undefined
 				});
 

@@ -59,6 +59,11 @@ from zondarr.media.providers import register_all_providers
 from zondarr.media.registry import registry
 
 
+def provide_settings(state: State) -> Settings:
+    """Extract Settings from app state for DI injection."""
+    return state.settings  # pyright: ignore[reportAny]
+
+
 def _create_openapi_config() -> OpenAPIConfig:
     """Create OpenAPI configuration for the application.
 
@@ -194,6 +199,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
         state=State({"settings": settings}),
         dependencies={
             "session": Provide(provide_db_session),
+            "settings": Provide(provide_settings, sync_to_thread=False),
         },
         on_app_init=[jwt_auth.on_app_init],
         cors_config=_create_cors_config(settings),

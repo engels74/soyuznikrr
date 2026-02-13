@@ -40,20 +40,50 @@ _JELLYFIN_ICON_SVG = (
 )
 
 
+# Module-level cached instances (immutable msgspec Structs / stateless objects)
+_JELLYFIN_METADATA = ProviderMetadata(
+    server_type="jellyfin",
+    display_name="Jellyfin",
+    color="#00A4DC",
+    icon_svg=_JELLYFIN_ICON_SVG,
+    env_url_var="JELLYFIN_URL",
+    env_api_key_var="JELLYFIN_API_KEY",
+    api_key_help_text="Jellyfin API key (from Dashboard > API Keys)",
+)
+_JELLYFIN_ADMIN_AUTH = AdminAuthDescriptor(
+    method_name="jellyfin",
+    display_name="Jellyfin",
+    flow_type=AuthFlowType.CREDENTIALS,
+    fields=[
+        AuthFieldDescriptor(
+            name="server_url",
+            label="Server URL",
+            field_type="url",
+            placeholder="http://jellyfin.local:8096",
+        ),
+        AuthFieldDescriptor(
+            name="username",
+            label="Username",
+            field_type="text",
+            placeholder="admin",
+        ),
+        AuthFieldDescriptor(
+            name="password",
+            label="Password",
+            field_type="password",
+        ),
+    ],
+)
+_JELLYFIN_ADMIN_AUTH_PROVIDER = JellyfinAdminAuth()
+_JELLYFIN_JOIN_FLOW = JoinFlowDescriptor(flow_type=JoinFlowType.CREDENTIAL_CREATE)
+
+
 class JellyfinProvider:
     """Jellyfin ProviderDescriptor implementation."""
 
     @property
     def metadata(self) -> ProviderMetadata:
-        return ProviderMetadata(
-            server_type="jellyfin",
-            display_name="Jellyfin",
-            color="#00A4DC",
-            icon_svg=_JELLYFIN_ICON_SVG,
-            env_url_var="JELLYFIN_URL",
-            env_api_key_var="JELLYFIN_API_KEY",
-            api_key_help_text="Jellyfin API key (from Dashboard > API Keys)",
-        )
+        return _JELLYFIN_METADATA
 
     @property
     def client_class(self) -> MediaClientClass:
@@ -61,38 +91,15 @@ class JellyfinProvider:
 
     @property
     def admin_auth(self) -> AdminAuthDescriptor:
-        return AdminAuthDescriptor(
-            method_name="jellyfin",
-            display_name="Jellyfin",
-            flow_type=AuthFlowType.CREDENTIALS,
-            fields=[
-                AuthFieldDescriptor(
-                    name="server_url",
-                    label="Server URL",
-                    field_type="url",
-                    placeholder="http://jellyfin.local:8096",
-                ),
-                AuthFieldDescriptor(
-                    name="username",
-                    label="Username",
-                    field_type="text",
-                    placeholder="admin",
-                ),
-                AuthFieldDescriptor(
-                    name="password",
-                    label="Password",
-                    field_type="password",
-                ),
-            ],
-        )
+        return _JELLYFIN_ADMIN_AUTH
 
     @property
     def admin_auth_provider(self) -> JellyfinAdminAuth:
-        return JellyfinAdminAuth()
+        return _JELLYFIN_ADMIN_AUTH_PROVIDER
 
     @property
     def join_flow(self) -> JoinFlowDescriptor:
-        return JoinFlowDescriptor(flow_type=JoinFlowType.CREDENTIAL_CREATE)
+        return _JELLYFIN_JOIN_FLOW
 
     @property
     def route_handlers(self) -> list[type] | None:

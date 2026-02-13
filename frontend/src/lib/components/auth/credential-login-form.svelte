@@ -1,6 +1,6 @@
 <script lang="ts">
 import { ChevronDown, ChevronUp } from "@lucide/svelte";
-import { type AuthFieldInfo, loginExternal } from "$lib/api/auth";
+import { type AuthFieldInfo, getErrorDetail, loginExternal } from "$lib/api/auth";
 import { Button } from "$lib/components/ui/button";
 import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
@@ -52,8 +52,7 @@ async function handleSubmit(e: SubmitEvent) {
 	try {
 		const response = await loginExternal(method, fieldValues);
 		if (response.error) {
-			const err = response.error as { detail?: string };
-			onerror(err.detail ?? `${displayName} login failed`);
+			onerror(getErrorDetail(response.error, `${displayName} login failed`));
 		} else {
 			onsuccess();
 		}

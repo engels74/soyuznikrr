@@ -70,7 +70,7 @@ def create_mock_client_success(*, enabled: bool) -> AsyncMock:
     Returns:
         A mock client that returns True for set_user_enabled.
     """
-    del enabled  # Unused but documents the operation being mocked
+    del enabled
     mock_client = AsyncMock()
     mock_client.set_user_enabled = AsyncMock(return_value=True)
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)

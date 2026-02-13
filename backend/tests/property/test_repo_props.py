@@ -15,7 +15,7 @@ from hypothesis import strategies as st
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import TestDB
+from tests.conftest import KNOWN_SERVER_TYPES, TestDB
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models import Identity, Invitation, MediaServer, User
 from zondarr.repositories.identity import IdentityRepository
@@ -31,7 +31,7 @@ datetime_strategy = st.datetimes(
     timezones=st.just(UTC),
 )
 optional_datetime_strategy = st.one_of(st.none(), datetime_strategy)
-server_type_strategy = st.sampled_from(["jellyfin", "plex"])
+server_type_strategy = st.sampled_from(KNOWN_SERVER_TYPES)
 name_strategy = st.text(
     alphabet=st.characters(categories=("L", "N")),
     min_size=1,

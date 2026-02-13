@@ -13,7 +13,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from tests.conftest import TestDB, create_test_engine
+from tests.conftest import KNOWN_SERVER_TYPES, TestDB, create_test_engine
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.media.registry import ClientRegistry
 from zondarr.models import Invitation
@@ -32,7 +32,7 @@ name_strategy = st.text(
     max_size=50,
 ).filter(lambda x: x.strip())
 url_strategy = st.from_regex(r"https?://[a-z0-9]+\.[a-z]{2,}", fullmatch=True)
-server_type_strategy = st.sampled_from(["jellyfin", "plex"])
+server_type_strategy = st.sampled_from(KNOWN_SERVER_TYPES)
 # Use UUIDs for codes to ensure uniqueness across Hypothesis examples
 code_strategy = st.uuids().map(lambda u: str(u).replace("-", "")[:12].upper())
 

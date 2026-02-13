@@ -1,7 +1,7 @@
 <script lang="ts">
 import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
-import { setupAdmin } from "$lib/api/auth";
+import { getErrorDetail, setupAdmin } from "$lib/api/auth";
 import { Button } from "$lib/components/ui/button";
 import * as Card from "$lib/components/ui/card";
 import { Input } from "$lib/components/ui/input";
@@ -69,8 +69,7 @@ async function handleSubmit(e: SubmitEvent) {
 
 	if (response.error) {
 		loading = false;
-		const err = response.error as { detail?: string };
-		serverError = err.detail ?? "Failed to create admin account";
+		serverError = getErrorDetail(response.error, "Failed to create admin account");
 		return;
 	}
 

@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from tests.conftest import TestDB, create_test_engine
+from tests.conftest import KNOWN_SERVER_TYPES, TestDB, create_test_engine
 from zondarr.models import (
     Identity,
     Invitation,
@@ -24,7 +24,7 @@ from zondarr.models import (
 from zondarr.models.base import Base
 
 # Custom strategies for model fields
-server_type_strategy = st.sampled_from(["jellyfin", "plex"])
+server_type_strategy = st.sampled_from(KNOWN_SERVER_TYPES)
 name_strategy = st.text(
     alphabet=st.characters(categories=("L", "N")),
     min_size=1,

@@ -80,6 +80,14 @@ settings.load_profile("default")
 
 
 # =============================================================================
+# Shared Test Constants
+# =============================================================================
+
+KNOWN_SERVER_TYPES: list[str] = ["jellyfin", "plex"]
+"""Server types registered in the provider registry, used across test strategies."""
+
+
+# =============================================================================
 # Database Helper Functions
 # =============================================================================
 

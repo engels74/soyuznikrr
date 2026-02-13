@@ -82,11 +82,10 @@ class AuthController(Controller):
         exclude_from_auth=True,
     )
     async def get_methods(
-        self, session: AsyncSession, state: State
+        self, session: AsyncSession, settings: Settings
     ) -> AuthMethodsResponse:
         """Return available auth methods and whether setup is required."""
         service = self._create_auth_service(session)
-        settings: Settings = state.settings  # pyright: ignore[reportAny]
         methods = await service.get_available_auth_methods(settings=settings)
         setup = await service.setup_required()
 
@@ -128,7 +127,7 @@ class AuthController(Controller):
         self,
         data: AdminSetupRequest,
         session: AsyncSession,
-        state: State,
+        settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Create the first admin account (only when no admins exist)."""
         service = self._create_auth_service(session)
@@ -141,8 +140,8 @@ class AuthController(Controller):
         )
 
         # Issue tokens
-        secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        secret_key = settings.secret_key
+        secure = settings.secure_cookies
         _, access_cookie = self._create_access_token(
             str(admin.id), secret_key, secure=secure
         )
@@ -165,14 +164,14 @@ class AuthController(Controller):
         self,
         data: LoginRequest,
         session: AsyncSession,
-        state: State,
+        settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Authenticate with local username/password credentials."""
         service = self._create_auth_service(session)
         admin = await service.authenticate_local(data.username, data.password)
 
-        secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        secret_key = settings.secret_key
+        secure = settings.secure_cookies
         _, access_cookie = self._create_access_token(
             str(admin.id), secret_key, secure=secure
         )
@@ -195,7 +194,7 @@ class AuthController(Controller):
         method: str,
         data: ExternalLoginRequest,
         session: AsyncSession,
-        state: State,
+        settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Authenticate with an external provider.
 
@@ -203,15 +202,14 @@ class AuthController(Controller):
         provider declares its own required fields.
         """
         service = self._create_auth_service(session)
-        settings: Settings = state.settings  # pyright: ignore[reportAny]
         admin = await service.authenticate_external(
             method,
             data.credentials,
             settings=settings,
         )
 
-        secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        secret_key = settings.secret_key
+        secure = settings.secure_cookies
         _, access_cookie = self._create_access_token(
             str(admin.id), secret_key, secure=secure
         )
@@ -233,7 +231,7 @@ class AuthController(Controller):
         self,
         data: RefreshRequest,
         session: AsyncSession,
-        state: State,
+        settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Exchange a refresh token for a new access token."""
         service = self._create_auth_service(session)
@@ -242,8 +240,8 @@ class AuthController(Controller):
         # Revoke old refresh token and issue new ones (token rotation)
         await service.revoke_refresh_token(data.refresh_token)
 
-        secret_key: str = state.settings.secret_key  # pyright: ignore[reportAny]
-        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        secret_key = settings.secret_key
+        secure = settings.secure_cookies
         _, access_cookie = self._create_access_token(
             str(admin.id), secret_key, secure=secure
         )
@@ -264,7 +262,7 @@ class AuthController(Controller):
     async def logout(
         self,
         session: AsyncSession,
-        state: State,
+        settings: Settings,
         data: RefreshRequest | None = None,
     ) -> Response[dict[str, bool]]:
         """Revoke tokens and clear cookies."""
@@ -273,7 +271,7 @@ class AuthController(Controller):
             await service.revoke_refresh_token(data.refresh_token)
 
         # Clear access token cookie
-        secure: bool = state.settings.secure_cookies  # pyright: ignore[reportAny]
+        secure = settings.secure_cookies
         clear_cookie = Cookie(
             key="zondarr_access_token",
             value="",

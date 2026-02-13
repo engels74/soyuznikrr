@@ -11,6 +11,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from tests.conftest import KNOWN_SERVER_TYPES
 from zondarr.config import Settings
 from zondarr.media.exceptions import UnknownServerTypeError
 from zondarr.media.providers.jellyfin.client import JellyfinClient
@@ -48,7 +49,7 @@ valid_api_key = st.text(
 )
 
 # Strategy for server types
-server_type_strategy = st.sampled_from(["jellyfin", "plex"])
+server_type_strategy = st.sampled_from(KNOWN_SERVER_TYPES)
 
 
 @pytest.fixture(autouse=True)

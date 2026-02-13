@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from zondarr.core.exceptions import AuthenticationError
+from zondarr.media.registry import registry
 from zondarr.models.admin import AdminAccount, RefreshToken
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.services.password import hash_password, needs_rehash, verify_password
@@ -145,8 +146,6 @@ class AuthService:
         Raises:
             AuthenticationError: If the method is unknown or authentication fails.
         """
-        from zondarr.media.registry import registry
-
         provider = registry.get_admin_auth_provider(method)
         if provider is None:
             raise AuthenticationError(
@@ -257,8 +256,6 @@ class AuthService:
         Returns:
             List of available auth method strings.
         """
-        from zondarr.media.registry import registry
-
         methods: list[str] = ["local"]
 
         for desc in registry.get_admin_auth_descriptors():

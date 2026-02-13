@@ -70,20 +70,31 @@ class _PlexOAuthFlowAdapter:
         await self._service.close()
 
 
+# Module-level cached instances (immutable msgspec Structs / stateless objects)
+_PLEX_METADATA = ProviderMetadata(
+    server_type="plex",
+    display_name="Plex",
+    color="#E5A00D",
+    icon_svg=_PLEX_ICON_SVG,
+    env_url_var="PLEX_URL",
+    env_api_key_var="PLEX_TOKEN",
+    api_key_help_text="Plex authentication token (X-Plex-Token)",
+)
+_PLEX_ADMIN_AUTH = AdminAuthDescriptor(
+    method_name="plex",
+    display_name="Plex",
+    flow_type=AuthFlowType.OAUTH,
+)
+_PLEX_ADMIN_AUTH_PROVIDER = PlexAdminAuth()
+_PLEX_JOIN_FLOW = JoinFlowDescriptor(flow_type=JoinFlowType.OAUTH_LINK)
+
+
 class PlexProvider:
     """Plex ProviderDescriptor implementation."""
 
     @property
     def metadata(self) -> ProviderMetadata:
-        return ProviderMetadata(
-            server_type="plex",
-            display_name="Plex",
-            color="#E5A00D",
-            icon_svg=_PLEX_ICON_SVG,
-            env_url_var="PLEX_URL",
-            env_api_key_var="PLEX_TOKEN",
-            api_key_help_text="Plex authentication token (X-Plex-Token)",
-        )
+        return _PLEX_METADATA
 
     @property
     def client_class(self) -> MediaClientClass:
@@ -91,19 +102,15 @@ class PlexProvider:
 
     @property
     def admin_auth(self) -> AdminAuthDescriptor:
-        return AdminAuthDescriptor(
-            method_name="plex",
-            display_name="Plex",
-            flow_type=AuthFlowType.OAUTH,
-        )
+        return _PLEX_ADMIN_AUTH
 
     @property
     def admin_auth_provider(self) -> PlexAdminAuth:
-        return PlexAdminAuth()
+        return _PLEX_ADMIN_AUTH_PROVIDER
 
     @property
     def join_flow(self) -> JoinFlowDescriptor:
-        return JoinFlowDescriptor(flow_type=JoinFlowType.OAUTH_LINK)
+        return _PLEX_JOIN_FLOW
 
     @property
     def route_handlers(self) -> list[type] | None:

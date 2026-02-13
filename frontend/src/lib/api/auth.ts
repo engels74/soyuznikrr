@@ -43,6 +43,24 @@ export interface AuthTokenResponse {
 }
 
 // =============================================================================
+// Helpers
+// =============================================================================
+
+/**
+ * Extract `detail` string from an unknown error response body.
+ *
+ * Backend error responses are `{ detail: string }`, but the raw-fetch
+ * wrappers type errors as `unknown`. This helper narrows safely.
+ */
+export function getErrorDetail(error: unknown, fallback: string = 'Unknown error'): string {
+	if (error != null && typeof error === 'object' && 'detail' in error) {
+		const detail = (error as Record<string, unknown>).detail;
+		if (typeof detail === 'string') return detail;
+	}
+	return fallback;
+}
+
+// =============================================================================
 // API Functions
 // =============================================================================
 

@@ -13,7 +13,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated
 
 from litestar import Controller, get, post
-from litestar.datastructures import State
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_200_OK
 
@@ -27,12 +26,12 @@ if TYPE_CHECKING:
     from zondarr.media.provider import OAuthFlowProvider
 
 
-def _resolve_flow(provider: str, state: State) -> OAuthFlowProvider:
+def _resolve_flow(provider: str, settings: Settings) -> OAuthFlowProvider:
     """Resolve an OAuth flow provider or raise NotFoundError.
 
     Args:
         provider: The provider name.
-        state: Application state containing settings.
+        settings: Application settings.
 
     Returns:
         An OAuthFlowProvider instance.
@@ -40,8 +39,6 @@ def _resolve_flow(provider: str, state: State) -> OAuthFlowProvider:
     Raises:
         NotFoundError: If the provider is unknown or doesn't support OAuth.
     """
-    settings: Settings = state.settings  # pyright: ignore[reportAny]
-
     try:
         flow = registry.create_oauth_flow_provider(provider, settings)
     except UnknownServerTypeError:
@@ -75,19 +72,19 @@ class OAuthController(Controller):
     )
     async def create_pin(
         self,
-        state: State,
+        settings: Settings,
         provider: Annotated[str, Parameter(description="Provider name")],
     ) -> OAuthPinResponse:
         """Generate OAuth PIN and return auth URL.
 
         Args:
-            state: Application state.
+            settings: Application settings (injected via DI).
             provider: Provider name from URL path.
 
         Returns:
             OAuthPinResponse with pin_id, code, auth_url, and expires_at.
         """
-        flow = _resolve_flow(provider, state)
+        flow = _resolve_flow(provider, settings)
         try:
             pin = await flow.create_pin()
             return OAuthPinResponse(
@@ -111,21 +108,21 @@ class OAuthController(Controller):
     )
     async def check_pin(
         self,
-        state: State,
+        settings: Settings,
         provider: Annotated[str, Parameter(description="Provider name")],
         pin_id: Annotated[int, Parameter(description="PIN ID to check")],
     ) -> OAuthCheckResponse:
         """Check if PIN has been authenticated.
 
         Args:
-            state: Application state.
+            settings: Application settings (injected via DI).
             provider: Provider name from URL path.
             pin_id: The PIN ID to check.
 
         Returns:
             OAuthCheckResponse with authenticated status and email if successful.
         """
-        flow = _resolve_flow(provider, state)
+        flow = _resolve_flow(provider, settings)
         try:
             result = await flow.check_pin(pin_id)
             return OAuthCheckResponse(

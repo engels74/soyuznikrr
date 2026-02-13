@@ -26,6 +26,7 @@ export interface ProviderMeta {
 // State
 // =============================================================================
 
+// SAFETY: Only mutated from $effect() in +layout.svelte (client-only)
 let providers = $state<Map<string, ProviderMeta>>(new Map());
 
 // =============================================================================
