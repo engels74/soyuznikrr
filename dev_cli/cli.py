@@ -22,6 +22,7 @@ class StartArgs(argparse.Namespace):
     backend_port: int = 8000
     frontend_port: int = 5173
     skip_checks: bool = False
+    skip_auth: bool = False
     backend_only: bool = False
     frontend_only: bool = False
     open_browser: bool = False
@@ -61,6 +62,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--skip-checks",
         action="store_true",
         help="Skip pre-flight checks",
+    )
+    _ = start_p.add_argument(
+        "--skip-auth",
+        action="store_true",
+        help="Skip authentication (inject mock admin user)",
     )
     _ = start_p.add_argument(
         "--open",
@@ -152,6 +158,7 @@ async def _main_start(args: StartArgs) -> int:
     print_banner(
         backend_port=backend_port,
         frontend_port=frontend_port,
+        skip_auth=args.skip_auth,
     )
 
     runner = DevRunner(
@@ -162,6 +169,7 @@ async def _main_start(args: StartArgs) -> int:
         frontend_only=args.frontend_only,
         open_browser=args.open_browser,
         reload=not args.no_reload,
+        skip_auth=args.skip_auth,
     )
 
     try:

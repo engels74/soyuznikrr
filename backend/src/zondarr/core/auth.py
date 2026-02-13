@@ -13,7 +13,10 @@ import msgspec
 import structlog
 from litestar.connection import ASGIConnection
 from litestar.exceptions import NotAuthorizedException
-from litestar.middleware.authentication import AuthenticationResult
+from litestar.middleware.authentication import (
+    AbstractAuthenticationMiddleware,
+    AuthenticationResult,
+)
 from litestar.security.jwt import JWTCookieAuth, Token
 from litestar.security.jwt.middleware import JWTCookieAuthenticationMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -56,6 +59,23 @@ class AdminUser(msgspec.Struct):
     username: str
     email: str | None = None
     auth_method: str = "local"
+
+
+DEV_ADMIN = AdminUser(
+    id=UUID("00000000-0000-0000-0000-000000000000"),
+    username="dev-admin",
+    auth_method="dev-skip",
+)
+
+
+class DevSkipAuthMiddleware(AbstractAuthenticationMiddleware):
+    """Dev-only middleware that bypasses auth and injects a mock admin user."""
+
+    async def authenticate_request(  # pyright: ignore[reportImplicitOverride]
+        self,
+        connection: ASGIConnection[Any, Any, Any, Any],  # pyright: ignore[reportExplicitAny]
+    ) -> AuthenticationResult:
+        return AuthenticationResult(user=DEV_ADMIN, auth=None)
 
 
 async def retrieve_user_handler(

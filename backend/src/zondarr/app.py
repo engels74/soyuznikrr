@@ -18,11 +18,13 @@ Usage:
     app = create_app(settings=test_settings)
 """
 
+import structlog
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
 from litestar.datastructures import State
 from litestar.di import Provide
 from litestar.exceptions import HTTPException as LitestarHTTPException
+from litestar.middleware import DefineMiddleware
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
@@ -46,7 +48,7 @@ from zondarr.api.servers import ServerController
 from zondarr.api.users import UserController
 from zondarr.api.wizards import WizardController
 from zondarr.config import Settings, load_settings
-from zondarr.core.auth import create_jwt_auth
+from zondarr.core.auth import DevSkipAuthMiddleware, create_jwt_auth
 from zondarr.core.database import db_lifespan, provide_db_session
 from zondarr.core.exceptions import (
     AuthenticationError,
@@ -190,8 +192,16 @@ def create_app(settings: Settings | None = None) -> Litestar:
         if desc.route_handlers:
             route_handlers.extend(desc.route_handlers)
 
-    # Create JWT cookie auth
-    jwt_auth = create_jwt_auth(settings)
+    # Auth: skip-auth dev middleware or JWT cookie auth
+    app_logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
+    if settings.skip_auth:
+        app_logger.warning("Authentication disabled — DEV_SKIP_AUTH is active")
+        on_app_init = []
+        middleware = [DefineMiddleware(DevSkipAuthMiddleware)]
+    else:
+        jwt_auth = create_jwt_auth(settings)
+        on_app_init = [jwt_auth.on_app_init]
+        middleware = []
 
     return Litestar(
         route_handlers=route_handlers,
@@ -201,7 +211,8 @@ def create_app(settings: Settings | None = None) -> Litestar:
             "session": Provide(provide_db_session),
             "settings": Provide(provide_settings, sync_to_thread=False),
         },
-        on_app_init=[jwt_auth.on_app_init],
+        on_app_init=on_app_init,
+        middleware=middleware,
         cors_config=_create_cors_config(settings),
         openapi_config=_create_openapi_config(),
         plugins=[

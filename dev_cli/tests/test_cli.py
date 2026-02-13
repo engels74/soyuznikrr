@@ -74,3 +74,28 @@ def test_no_reload_implicit_start() -> None:
     args = parse_args(["--no-reload"])
     assert isinstance(args, StartArgs)
     assert args.no_reload is True
+
+
+def test_skip_auth_flag() -> None:
+    args = parse_args(["start", "--skip-auth"])
+    assert isinstance(args, StartArgs)
+    assert args.skip_auth is True
+
+
+def test_skip_auth_implicit_start() -> None:
+    args = parse_args(["--skip-auth"])
+    assert isinstance(args, StartArgs)
+    assert args.skip_auth is True
+
+
+def test_skip_auth_default_false() -> None:
+    args = parse_args([])
+    assert isinstance(args, StartArgs)
+    assert args.skip_auth is False
+
+
+def test_skip_auth_composes_with_backend_only() -> None:
+    args = parse_args(["--backend-only", "--skip-auth"])
+    assert isinstance(args, StartArgs)
+    assert args.backend_only is True
+    assert args.skip_auth is True

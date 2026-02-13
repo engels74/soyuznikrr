@@ -27,6 +27,7 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     host: str = "0.0.0.0"  # noqa: S104
     port: Annotated[int, msgspec.Meta(ge=1, le=65535)] = 8000
     debug: bool = False
+    skip_auth: bool = False
 
     # CORS
     cors_origins: Annotated[
@@ -94,6 +95,10 @@ def load_settings() -> Settings:
         "host": os.environ.get("HOST", "0.0.0.0"),  # noqa: S104
         "port": int(os.environ.get("PORT", "8000")),
         "debug": os.environ.get("DEBUG", "").lower() in ("true", "1", "yes"),
+        "skip_auth": (
+            os.environ.get("DEV_SKIP_AUTH", "").lower() in ("true", "1", "yes")
+            and os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+        ),
         "cors_origins": [
             origin.strip()
             for origin in os.environ.get("CORS_ORIGINS", "").split(",")

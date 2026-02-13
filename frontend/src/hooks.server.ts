@@ -1,5 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -12,13 +13,16 @@ function isPublicPath(pathname: string): boolean {
 export const handle: Handle = async ({ event, resolve }) => {
 	// Try to get user info from the access token cookie
 	const accessToken = event.cookies.get('zondarr_access_token');
+	const skipAuth = env.DEV_SKIP_AUTH === 'true';
 
-	if (accessToken) {
+	if (accessToken || skipAuth) {
 		try {
+			const headers: Record<string, string> = {};
+			if (accessToken) {
+				headers['Cookie'] = `zondarr_access_token=${accessToken}`;
+			}
 			const response = await event.fetch(`${API_BASE_URL}/api/auth/me`, {
-				headers: {
-					Cookie: `zondarr_access_token=${accessToken}`
-				}
+				headers
 			});
 			if (response.ok) {
 				const user = await response.json();

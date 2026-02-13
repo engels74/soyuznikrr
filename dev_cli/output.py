@@ -31,6 +31,7 @@ def print_banner(
     *,
     backend_port: int | None,
     frontend_port: int | None,
+    skip_auth: bool = False,
 ) -> None:
     """Print startup banner with server URLs."""
     print()
@@ -42,6 +43,8 @@ def print_banner(
         print(f"  Frontend:  {MAGENTA}http://localhost:{frontend_port}{RESET}")
     if backend_port is not None:
         print(f"  API Docs:  {CYAN}http://localhost:{backend_port}/docs{RESET}")
+    if skip_auth:
+        print(f"  Auth:      {YELLOW}SKIPPED (--skip-auth){RESET}")
     print(f"{DIM}  {'─' * 40}{RESET}")
     print(f"  Press {BOLD}Ctrl+C{RESET} to stop")
     print()

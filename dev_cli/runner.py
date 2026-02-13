@@ -116,6 +116,7 @@ class DevRunner:
         frontend_only: bool,
         open_browser: bool = False,
         reload: bool = True,
+        skip_auth: bool = False,
     ) -> None:
         self.repo_root = repo_root
         self.backend_port = backend_port
@@ -124,6 +125,7 @@ class DevRunner:
         self.frontend_only = frontend_only
         self.open_browser = open_browser
         self.reload = reload
+        self.skip_auth = skip_auth
         self.shutdown_event = asyncio.Event()
         self.servers: list[ServerProcess] = []
 
@@ -135,6 +137,7 @@ class DevRunner:
                 **parent_env,
                 "DEBUG": "true",
                 "CORS_ORIGINS": f"http://localhost:{self.frontend_port}",
+                **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             backend_cmd = [
                 "uv",
@@ -166,6 +169,7 @@ class DevRunner:
             frontend_env = {
                 **parent_env,
                 "VITE_API_URL": f"http://localhost:{self.backend_port}",
+                **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             self.servers.append(
                 ServerProcess(
