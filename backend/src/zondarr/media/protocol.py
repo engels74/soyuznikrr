@@ -22,7 +22,7 @@ Uses Python 3.14 features:
 from collections.abc import Sequence
 from typing import Protocol, Self
 
-from .types import Capability, ExternalUser, LibraryInfo
+from .types import Capability, ExternalUser, LibraryInfo, ServerInfo
 
 
 class MediaClient(Protocol):
@@ -109,6 +109,16 @@ class MediaClient(Protocol):
         Returns:
             True if the connection is successful and authenticated,
             False otherwise.
+        """
+        ...
+
+    async def get_server_info(self) -> ServerInfo:
+        """Return server name and version metadata.
+
+        Requires an active connection (call within async context manager).
+
+        Returns:
+            A ServerInfo object with the server's name and version.
         """
         ...
 

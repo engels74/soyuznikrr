@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 from zondarr.core.exceptions import ExternalServiceError
 from zondarr.media.exceptions import MediaClientError
-from zondarr.media.types import Capability, ExternalUser, LibraryInfo
+from zondarr.media.types import Capability, ExternalUser, LibraryInfo, ServerInfo
 
 
 def _is_external_service_error(error: Exception) -> bool:
@@ -201,6 +201,57 @@ class JellyfinClient:
         except Exception:
             # Handle all connection errors gracefully - return False, don't raise
             return False
+
+    async def get_server_info(self) -> ServerInfo:
+        """Return server name and version metadata.
+
+        Accesses jellyfin-sdk's system.info to extract ServerName and Version.
+
+        Returns:
+            A ServerInfo object with the server's name and version.
+
+        Raises:
+            MediaClientError: If the client is not initialized.
+        """
+        if self._api is None:
+            raise MediaClientError(
+                "Client not initialized - use async context manager",
+                operation="get_server_info",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+            )
+
+        try:
+            info: object = self._api.system.info  # pyright: ignore[reportAny]
+
+            # Extract ServerName (handle both camelCase and snake_case)
+            server_name: str = "Unknown"
+            if hasattr(info, "ServerName"):
+                server_name = str(info.ServerName)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+            elif hasattr(info, "server_name"):
+                server_name = str(info.server_name)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+
+            # Extract Version
+            version: str | None = None
+            if hasattr(info, "Version"):
+                version = str(info.Version)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+            elif hasattr(info, "version"):
+                version = str(info.version)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+
+            return ServerInfo(server_name=server_name, version=version)
+        except Exception as exc:
+            if _is_external_service_error(exc):
+                raise _create_external_service_error(
+                    f"Failed to get server info from Jellyfin: {exc}",
+                    server_url=self.url,
+                    original_error=exc,
+                ) from exc
+            raise MediaClientError(
+                f"Failed to get server info from Jellyfin: {exc}",
+                operation="get_server_info",
+                server_url=self.url,
+                cause=str(exc),
+            ) from exc
 
     async def get_libraries(self) -> Sequence[LibraryInfo]:
         """Retrieve all libraries (virtual folders) from the Jellyfin server.

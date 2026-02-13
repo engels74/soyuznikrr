@@ -976,15 +976,18 @@ class ReadinessResponse(msgspec.Struct, kw_only=True):
 class ConnectionTestRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to test a media server connection.
 
+    If server_type is omitted, the backend will auto-detect
+    by probing all registered providers concurrently.
+
     Attributes:
-        server_type: Type of media server (e.g., "plex", "jellyfin").
         url: Base URL for the media server API.
         api_key: Authentication token for the media server.
+        server_type: Optional type of media server. Auto-detected if omitted.
     """
 
-    server_type: NonEmptyStr
     url: UrlStr
     api_key: ApiKeyStr
+    server_type: NonEmptyStr | None = None
 
 
 class ConnectionTestResponse(msgspec.Struct, kw_only=True):
@@ -993,12 +996,14 @@ class ConnectionTestResponse(msgspec.Struct, kw_only=True):
     Attributes:
         success: Whether the connection test succeeded.
         message: Human-readable result message.
+        server_type: Detected or confirmed server type.
         server_name: Name of the server (if connection succeeded).
         version: Server version (if connection succeeded).
     """
 
     success: bool
     message: str
+    server_type: str | None = None
     server_name: str | None = None
     version: str | None = None
 

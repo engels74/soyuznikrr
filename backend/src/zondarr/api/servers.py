@@ -32,6 +32,8 @@ from zondarr.services.media_server import MediaServerService
 from zondarr.services.sync import SyncService
 
 from .schemas import (
+    ConnectionTestRequest,
+    ConnectionTestResponse,
     ErrorResponse,
     LibraryResponse,
     MediaServerCreate,
@@ -339,6 +341,47 @@ class ServerController(Controller):
             NotFoundError: If the server does not exist.
         """
         await media_server_service.remove(server_id)
+
+    @post(
+        "/test-connection",
+        status_code=200,
+        summary="Test media server connection",
+        description="Test connectivity and auto-detect server type. If server_type is omitted, probes all registered providers.",
+    )
+    async def test_connection(
+        self,
+        data: ConnectionTestRequest,
+        media_server_service: MediaServerService,
+    ) -> ConnectionTestResponse:
+        """Test media server connection and optionally auto-detect type.
+
+        Args:
+            data: ConnectionTestRequest with url, api_key, and optional server_type.
+            media_server_service: MediaServerService from DI.
+
+        Returns:
+            ConnectionTestResponse with success status, detected type, and server info.
+        """
+        success, detected_type, info = await media_server_service.detect_and_test(
+            url=data.url,
+            api_key=data.api_key,
+            server_type=data.server_type,
+        )
+
+        if success:
+            return ConnectionTestResponse(
+                success=True,
+                message="Connection successful",
+                server_type=detected_type,
+                server_name=info.server_name if info else None,
+                version=info.version if info else None,
+            )
+
+        return ConnectionTestResponse(
+            success=False,
+            message="Unable to connect to the media server. Check the URL and API key.",
+            server_type=detected_type,
+        )
 
     @post(
         "/{server_id:uuid}/sync",

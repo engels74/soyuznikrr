@@ -415,6 +415,19 @@ export async function getServer(serverId: string, client: ApiClient = api) {
 	});
 }
 
+export type ConnectionTestRequest = components['schemas']['ConnectionTestRequest'];
+export type ConnectionTestResponse = components['schemas']['ConnectionTestResponse'];
+
+/**
+ * Test a media server connection and optionally auto-detect server type.
+ *
+ * @param data - Connection test data (url, api_key, optional server_type)
+ * @returns Connection test response
+ */
+export async function testConnection(data: ConnectionTestRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/servers/test-connection', { body: data });
+}
+
 /**
  * Delete a media server.
  *

@@ -12,8 +12,9 @@
  * @module $lib/components/servers/create-server-dialog
  */
 
-import { Eye, EyeOff, Plus, Server } from "@lucide/svelte";
-import { createServer, withErrorHandling } from "$lib/api/client";
+import { Eye, EyeOff, Plug, Plus, Server } from "@lucide/svelte";
+import type { ConnectionTestResponse } from "$lib/api/client";
+import { createServer, testConnection, withErrorHandling } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
 import { Input } from "$lib/components/ui/input";
@@ -50,6 +51,10 @@ let submitting = $state(false);
 // Show/hide API key
 let showApiKey = $state(false);
 
+// Test connection state
+let testing = $state(false);
+let testResult = $state<ConnectionTestResponse | null>(null);
+
 // Form data state
 let formData = $state<CreateServerInput>({
 	name: "",
@@ -73,7 +78,20 @@ function resetForm() {
 	};
 	errors = {};
 	showApiKey = false;
+	testing = false;
+	testResult = null;
 }
+
+// Reset test result when url or api_key changes
+let prevUrl = $state("");
+let prevApiKey = $state("");
+$effect(() => {
+	if (formData.url !== prevUrl || formData.api_key !== prevApiKey) {
+		prevUrl = formData.url;
+		prevApiKey = formData.api_key;
+		testResult = null;
+	}
+});
 
 /**
  * Validate form data.
@@ -101,6 +119,52 @@ function validateForm(): boolean {
  */
 function getFieldErrors(field: string): string[] {
 	return errors[field] || [];
+}
+
+/**
+ * Whether the "Test Connection" button should be enabled.
+ */
+const canTest = $derived(formData.url.trim().length > 0 && formData.api_key.trim().length > 0);
+
+/**
+ * Handle test connection button click.
+ */
+async function handleTestConnection() {
+	testing = true;
+	testResult = null;
+
+	const testedUrl = formData.url;
+	const testedApiKey = formData.api_key;
+
+	try {
+		const result = await withErrorHandling(
+			() => testConnection({ url: testedUrl, api_key: testedApiKey }),
+			{ showErrorToast: false }
+		);
+
+		// Discard stale results if inputs changed during the request
+		if (formData.url !== testedUrl || formData.api_key !== testedApiKey) {
+			return;
+		}
+
+		if (result.error || !result.data) {
+			const errorBody = result.error as { detail?: string; message?: string } | undefined;
+			testResult = {
+				success: false,
+				message: errorBody?.detail ?? errorBody?.message ?? "Network error — could not reach the backend.",
+			};
+			return;
+		}
+
+		testResult = result.data;
+
+		// Auto-populate server_type on success
+		if (result.data.success && result.data.server_type) {
+			formData.server_type = result.data.server_type;
+		}
+	} finally {
+		testing = false;
+	}
 }
 
 /**
@@ -290,6 +354,48 @@ function handleCancel() {
 							<p>{error}</p>
 						{/each}
 					</div>
+				{/if}
+			</div>
+
+			<!-- Test Connection -->
+			<div class="space-y-2">
+				<Button
+					type="button"
+					variant="outline"
+					onclick={handleTestConnection}
+					disabled={!canTest || testing || submitting}
+					class="w-full border-cr-border bg-cr-bg hover:bg-cr-border text-cr-text"
+				>
+					{#if testing}
+						<span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+						Testing...
+					{:else}
+						<Plug class="size-4" />
+						Test Connection
+					{/if}
+				</Button>
+
+				{#if testResult}
+					{#if testResult.success}
+						{@const providerMeta = providerList.find((p) => p.server_type === testResult?.server_type)}
+						<div
+							class="rounded-md border px-3 py-2 text-sm"
+							style="border-color: {providerMeta?.color ?? '#22c55e'}40; background: {providerMeta?.color ?? '#22c55e'}10; color: {providerMeta?.color ?? '#22c55e'}"
+						>
+							<p class="font-medium">
+								Connected — {providerMeta?.display_name ?? testResult.server_type} server detected
+							</p>
+							{#if testResult.server_name}
+								<p class="text-cr-text-muted text-xs mt-0.5">
+									{testResult.server_name}{testResult.version ? ` (v${testResult.version})` : ""}
+								</p>
+							{/if}
+						</div>
+					{:else}
+						<div class="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-400">
+							<p>{testResult.message}</p>
+						</div>
+					{/if}
 				{/if}
 			</div>
 

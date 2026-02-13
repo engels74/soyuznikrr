@@ -54,6 +54,21 @@ class LibraryInfo(msgspec.Struct, omit_defaults=True, kw_only=True):
     library_type: str
 
 
+class ServerInfo(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Metadata about a media server.
+
+    Returned by MediaClient.get_server_info() to provide basic
+    server identification details.
+
+    Attributes:
+        server_name: Human-readable name of the server.
+        version: Server software version string.
+    """
+
+    server_name: str
+    version: str | None = None
+
+
 class ExternalUser(msgspec.Struct, omit_defaults=True, kw_only=True):
     """Information about a user created on a media server.
 

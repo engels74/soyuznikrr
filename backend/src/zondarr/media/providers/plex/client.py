@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from zondarr.core.exceptions import ExternalServiceError
 from zondarr.media.exceptions import MediaClientError
-from zondarr.media.types import Capability, ExternalUser, LibraryInfo
+from zondarr.media.types import Capability, ExternalUser, LibraryInfo, ServerInfo
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
@@ -337,6 +337,35 @@ class PlexClient:
         except Exception as exc:
             log.warning("plex_connection_test_failed", url=self.url, error=str(exc))
             return False
+
+    async def get_server_info(self) -> ServerInfo:
+        """Return server name and version metadata.
+
+        Accesses plexapi's friendlyName and version attributes.
+        Uses asyncio.to_thread() since plexapi is synchronous.
+
+        Returns:
+            A ServerInfo object with the server's name and version.
+
+        Raises:
+            MediaClientError: If the client is not initialized.
+        """
+        if self._server is None:
+            raise _create_media_client_error(
+                "Client not initialized - use async context manager",
+                operation="get_server_info",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+                error_code=PlexErrorCode.CLIENT_NOT_INITIALIZED,
+            )
+
+        def _get_info() -> ServerInfo:
+            assert self._server is not None  # noqa: S101
+            name: str = self._server.friendlyName  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            version: str = self._server.version  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            return ServerInfo(server_name=name, version=version)  # pyright: ignore[reportUnknownArgumentType]
+
+        return await asyncio.to_thread(_get_info)
 
     async def get_libraries(self) -> Sequence[LibraryInfo]:
         """Retrieve all libraries (sections) from the Plex server.
