@@ -367,13 +367,13 @@ class ServerController(Controller):
             server_type=data.server_type,
         )
 
-        if success and info:
+        if success:
             return ConnectionTestResponse(
                 success=True,
                 message="Connection successful",
                 server_type=detected_type,
-                server_name=info.server_name,
-                version=info.version,
+                server_name=info.server_name if info else None,
+                version=info.version if info else None,
             )
 
         return ConnectionTestResponse(

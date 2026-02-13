@@ -5,7 +5,6 @@ Properties: 10, 11
 Validates: Requirements 6.3, 6.5, 6.6
 """
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
@@ -147,7 +146,6 @@ class TestDetectAndTestBehavior:
         test_result: bool = True,
         info: ServerInfo | None = None,
         info_raises: bool = False,
-        enter_delay: float = 0,
     ) -> tuple[MagicMock, AsyncMock]:
         """Build a mock registry + client with configurable behavior."""
         mock_registry = MagicMock(spec=ClientRegistry)
@@ -165,15 +163,15 @@ class TestDetectAndTestBehavior:
         else:
             mock_client.get_server_info = AsyncMock(return_value=info)
 
-        async def _aenter(_: object) -> AsyncMock:
-            if enter_delay:
-                await asyncio.sleep(enter_delay)
-            return mock_client
-
-        mock_client.__aenter__ = _aenter
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_registry.create_client = MagicMock(return_value=mock_client)
         return mock_registry, mock_client
+
+    def _make_service(self, mock_registry: MagicMock) -> MediaServerService:
+        """Create a MediaServerService with a mock repository (unused by detect_and_test)."""
+        mock_repo = MagicMock(spec=MediaServerRepository)
+        return MediaServerService(mock_repo, registry=mock_registry)
 
     @given(
         server_type=server_type_strategy,
@@ -182,23 +180,20 @@ class TestDetectAndTestBehavior:
     )
     @pytest.mark.asyncio
     async def test_explicit_type_success(
-        self, db: TestDB, server_type: str, url: str, api_key: str
+        self, server_type: str, url: str, api_key: str
     ) -> None:
         """detect_and_test with explicit server_type returns success + info."""
-        await db.clean()
-        async with db.session_factory() as session:
-            repo = MediaServerRepository(session)
-            info = ServerInfo(server_name="TestServer", version="1.0")
-            mock_registry, _ = self._make_mock_registry(test_result=True, info=info)
-            service = MediaServerService(repo, registry=mock_registry)
+        info = ServerInfo(server_name="TestServer", version="1.0")
+        mock_registry, _ = self._make_mock_registry(test_result=True, info=info)
+        service = self._make_service(mock_registry)
 
-            success, detected, server_info = await service.detect_and_test(
-                url=url, api_key=api_key, server_type=server_type
-            )
-            assert success is True
-            assert detected == server_type
-            assert server_info is not None
-            assert server_info.server_name == "TestServer"
+        success, detected, server_info = await service.detect_and_test(
+            url=url, api_key=api_key, server_type=server_type
+        )
+        assert success is True
+        assert detected == server_type
+        assert server_info is not None
+        assert server_info.server_name == "TestServer"
 
     @given(
         server_type=server_type_strategy,
@@ -207,60 +202,49 @@ class TestDetectAndTestBehavior:
     )
     @pytest.mark.asyncio
     async def test_explicit_type_connection_failure(
-        self, db: TestDB, server_type: str, url: str, api_key: str
+        self, server_type: str, url: str, api_key: str
     ) -> None:
         """detect_and_test with explicit server_type returns failure when test_connection fails."""
-        await db.clean()
-        async with db.session_factory() as session:
-            repo = MediaServerRepository(session)
-            mock_registry, _ = self._make_mock_registry(test_result=False)
-            service = MediaServerService(repo, registry=mock_registry)
+        mock_registry, _ = self._make_mock_registry(test_result=False)
+        service = self._make_service(mock_registry)
 
-            success, detected, server_info = await service.detect_and_test(
-                url=url, api_key=api_key, server_type=server_type
-            )
-            assert success is False
-            assert detected == server_type
-            assert server_info is None
+        success, detected, server_info = await service.detect_and_test(
+            url=url, api_key=api_key, server_type=server_type
+        )
+        assert success is False
+        assert detected == server_type
+        assert server_info is None
 
     @given(url=url_strategy, api_key=name_strategy)
     @pytest.mark.asyncio
     async def test_auto_detect_returns_first_success(
-        self, db: TestDB, url: str, api_key: str
+        self, url: str, api_key: str
     ) -> None:
         """detect_and_test without server_type tries all types and returns the first success."""
-        await db.clean()
-        async with db.session_factory() as session:
-            repo = MediaServerRepository(session)
-            info = ServerInfo(server_name="Detected", version="2.0")
-            mock_registry, _ = self._make_mock_registry(test_result=True, info=info)
-            service = MediaServerService(repo, registry=mock_registry)
+        info = ServerInfo(server_name="Detected", version="2.0")
+        mock_registry, _ = self._make_mock_registry(test_result=True, info=info)
+        service = self._make_service(mock_registry)
 
-            success, detected, server_info = await service.detect_and_test(
-                url=url, api_key=api_key
-            )
-            assert success is True
-            assert detected in {"plex", "jellyfin"}
-            assert server_info is not None
+        success, detected, server_info = await service.detect_and_test(
+            url=url, api_key=api_key
+        )
+        assert success is True
+        assert detected in {"plex", "jellyfin"}
+        assert server_info is not None
 
     @given(url=url_strategy, api_key=name_strategy)
     @pytest.mark.asyncio
-    async def test_auto_detect_all_fail(
-        self, db: TestDB, url: str, api_key: str
-    ) -> None:
+    async def test_auto_detect_all_fail(self, url: str, api_key: str) -> None:
         """detect_and_test without server_type returns failure when all types fail."""
-        await db.clean()
-        async with db.session_factory() as session:
-            repo = MediaServerRepository(session)
-            mock_registry, _ = self._make_mock_registry(test_result=False)
-            service = MediaServerService(repo, registry=mock_registry)
+        mock_registry, _ = self._make_mock_registry(test_result=False)
+        service = self._make_service(mock_registry)
 
-            success, detected, server_info = await service.detect_and_test(
-                url=url, api_key=api_key
-            )
-            assert success is False
-            assert detected is None
-            assert server_info is None
+        success, detected, server_info = await service.detect_and_test(
+            url=url, api_key=api_key
+        )
+        assert success is False
+        assert detected is None
+        assert server_info is None
 
     @given(
         server_type=server_type_strategy,
@@ -269,23 +253,18 @@ class TestDetectAndTestBehavior:
     )
     @pytest.mark.asyncio
     async def test_metadata_failure_is_best_effort(
-        self, db: TestDB, server_type: str, url: str, api_key: str
+        self, server_type: str, url: str, api_key: str
     ) -> None:
         """detect_and_test still succeeds when get_server_info() raises."""
-        await db.clean()
-        async with db.session_factory() as session:
-            repo = MediaServerRepository(session)
-            mock_registry, _ = self._make_mock_registry(
-                test_result=True, info_raises=True
-            )
-            service = MediaServerService(repo, registry=mock_registry)
+        mock_registry, _ = self._make_mock_registry(test_result=True, info_raises=True)
+        service = self._make_service(mock_registry)
 
-            success, detected, server_info = await service.detect_and_test(
-                url=url, api_key=api_key, server_type=server_type
-            )
-            assert success is True
-            assert detected == server_type
-            assert server_info is None
+        success, detected, server_info = await service.detect_and_test(
+            url=url, api_key=api_key, server_type=server_type
+        )
+        assert success is True
+        assert detected == server_type
+        assert server_info is None
 
 
 class TestInvitationValidationChecksAllConditions:

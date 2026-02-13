@@ -415,52 +415,17 @@ export async function getServer(serverId: string, client: ApiClient = api) {
 	});
 }
 
-/** Connection test request */
-export interface TestConnectionRequest {
-	url: string;
-	api_key: string;
-	server_type?: string;
-}
-
-/** Connection test response */
-export interface TestConnectionResponse {
-	success: boolean;
-	message: string;
-	server_type?: string | null;
-	server_name?: string | null;
-	version?: string | null;
-}
+export type ConnectionTestRequest = components['schemas']['ConnectionTestRequest'];
+export type ConnectionTestResponse = components['schemas']['ConnectionTestResponse'];
 
 /**
  * Test a media server connection and optionally auto-detect server type.
- * Uses direct fetch because the endpoint isn't in the generated OpenAPI types
- * until types are regenerated.
  *
  * @param data - Connection test data (url, api_key, optional server_type)
- * @returns Connection test response in { data, error } shape
+ * @returns Connection test response
  */
-export async function testConnection(
-	data: TestConnectionRequest,
-	customFetch: typeof globalThis.fetch = fetch
-): Promise<{ data?: TestConnectionResponse; error?: unknown }> {
-	const response = await customFetch(`${API_BASE_URL}/api/v1/servers/test-connection`, {
-		method: 'POST',
-		credentials: 'include',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(data)
-	});
-
-	let body: unknown;
-	try {
-		body = await response.json();
-	} catch {
-		const text = await response.text().catch(() => '');
-		return { error: { detail: text || `Unexpected response (HTTP ${response.status})` } };
-	}
-	if (!response.ok) {
-		return { error: body };
-	}
-	return { data: body as TestConnectionResponse };
+export async function testConnection(data: ConnectionTestRequest, client: ApiClient = api) {
+	return client.POST('/api/v1/servers/test-connection', { body: data });
 }
 
 /**

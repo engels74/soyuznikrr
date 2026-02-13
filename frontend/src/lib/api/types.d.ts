@@ -343,6 +343,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/servers/test-connection': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Test media server connection
+		 * @description Test connectivity and auto-detect server type. If server_type is omitted, probes all registered providers.
+		 */
+		post: operations['ApiV1ServersTestConnectionTestConnection'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/users/{user_id}': {
 		parameters: {
 			query?: never;
@@ -612,6 +632,12 @@ export interface components {
 			/** @default true */
 			required: boolean;
 		};
+		/**
+		 * AuthFlowType
+		 * @description Admin authentication flow types.
+		 * @enum {string}
+		 */
+		AuthFlowType: 'oauth' | 'credentials';
 		/** AuthMethodsResponse */
 		AuthMethodsResponse: {
 			methods: string[];
@@ -621,6 +647,20 @@ export interface components {
 		/** AuthTokenResponse */
 		AuthTokenResponse: {
 			refresh_token: string;
+		};
+		/** ConnectionTestRequest */
+		ConnectionTestRequest: {
+			url: string;
+			api_key: string;
+			server_type?: string | null;
+		};
+		/** ConnectionTestResponse */
+		ConnectionTestResponse: {
+			success: boolean;
+			message: string;
+			server_type?: string | null;
+			server_name?: string | null;
+			version?: string | null;
 		};
 		/** CreateInvitationRequest */
 		CreateInvitationRequest: {
@@ -663,6 +703,7 @@ export interface components {
 			enabled: boolean;
 			/** Format: date-time */
 			created_at: string;
+			is_active: boolean;
 			target_servers: components['schemas']['MediaServerResponse'][];
 			allowed_libraries: components['schemas']['LibraryResponse'][];
 			expires_at?: string | null;
@@ -670,8 +711,6 @@ export interface components {
 			duration_days?: number | null;
 			created_by?: string | null;
 			updated_at?: string | null;
-			/** @default true */
-			is_active: boolean;
 			remaining_uses?: number | null;
 			pre_wizard?: components['schemas']['WizardResponse'] | null;
 			post_wizard?: components['schemas']['WizardResponse'] | null;
@@ -693,13 +732,12 @@ export interface components {
 			enabled: boolean;
 			/** Format: date-time */
 			created_at: string;
+			is_active: boolean;
 			expires_at?: string | null;
 			max_uses?: number | null;
 			duration_days?: number | null;
 			created_by?: string | null;
 			updated_at?: string | null;
-			/** @default true */
-			is_active: boolean;
 			remaining_uses?: number | null;
 		};
 		/** InvitationValidationResponse */
@@ -781,7 +819,7 @@ export interface components {
 		ProviderAuthInfo: {
 			method_name: string;
 			display_name: string;
-			flow_type: string;
+			flow_type: components['schemas']['AuthFlowType'];
 			fields?: components['schemas']['AuthFieldInfo'][];
 		};
 		/** ProviderMetadataResponse */
@@ -1565,7 +1603,7 @@ export interface operations {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Provider name (e.g. 'plex') */
+				/** @description Provider name */
 				provider: string;
 				/** @description PIN ID to check */
 				pin_id: number;
@@ -1608,7 +1646,7 @@ export interface operations {
 			query?: never;
 			header?: never;
 			path: {
-				/** @description Provider name (e.g. 'plex') */
+				/** @description Provider name */
 				provider: string;
 			};
 			cookie?: never;
@@ -1850,6 +1888,48 @@ export interface operations {
 				};
 				content: {
 					'application/json': unknown;
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1ServersTestConnectionTestConnection: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ConnectionTestRequest'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ConnectionTestResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

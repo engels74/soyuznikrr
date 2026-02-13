@@ -13,7 +13,7 @@
  */
 
 import { Eye, EyeOff, Plug, Plus, Server } from "@lucide/svelte";
-import type { TestConnectionResponse } from "$lib/api/client";
+import type { ConnectionTestResponse } from "$lib/api/client";
 import { createServer, testConnection, withErrorHandling } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
@@ -53,7 +53,7 @@ let showApiKey = $state(false);
 
 // Test connection state
 let testing = $state(false);
-let testResult = $state<TestConnectionResponse | null>(null);
+let testResult = $state<ConnectionTestResponse | null>(null);
 
 // Form data state
 let formData = $state<CreateServerInput>({
