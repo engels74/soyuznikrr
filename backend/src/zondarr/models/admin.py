@@ -26,7 +26,7 @@ class AdminAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         password_hash: Argon2id hash (nullable for external auth).
         email: Optional email address.
         auth_method: How this admin authenticates.
-        external_id: External service identifier (Plex email or Jellyfin user ID).
+        external_id: External service identifier for the auth provider.
         enabled: Whether this admin can log in.
         last_login_at: Timestamp of last successful login.
     """

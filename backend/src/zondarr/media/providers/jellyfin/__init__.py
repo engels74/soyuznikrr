@@ -12,6 +12,8 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
+from typing import TYPE_CHECKING  # noqa: E402
+
 from zondarr.media.provider import (  # noqa: E402
     AdminAuthDescriptor,
     AuthFieldDescriptor,
@@ -21,6 +23,9 @@ from zondarr.media.provider import (  # noqa: E402
     MediaClientClass,
     ProviderMetadata,
 )
+
+if TYPE_CHECKING:
+    from zondarr.config import Settings
 
 from .auth import JellyfinAdminAuth  # noqa: E402
 from .client import JellyfinClient  # noqa: E402
@@ -87,12 +92,13 @@ class JellyfinProvider:
         return JoinFlowDescriptor(flow_type=JoinFlowType.CREDENTIAL_CREATE)
 
     @property
-    def route_handlers(self) -> None:
+    def route_handlers(self) -> list[type] | None:
         return None
 
     def create_oauth_flow_provider(
         self,
-        settings: object,  # pyright: ignore[reportUnusedParameter]
+        settings: Settings,
     ) -> None:
         """Jellyfin does not support OAuth flows."""
+        del settings  # required by ProviderDescriptor protocol
         return None

@@ -73,10 +73,7 @@ def _resolve_flow(provider: str, state: State) -> OAuthFlowProvider:
     Raises:
         NotFoundError: If the provider is unknown or doesn't support OAuth.
     """
-    settings = state.get("settings")
-    if not isinstance(settings, Settings):
-        msg = "Settings not found in application state"
-        raise RuntimeError(msg)
+    settings: Settings = state.settings  # pyright: ignore[reportAny]
 
     try:
         flow = registry.create_oauth_flow_provider(provider, settings)

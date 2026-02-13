@@ -1,5 +1,7 @@
 <script lang="ts">
+import { onDestroy } from "svelte";
 import { loginExternal } from "$lib/api/auth";
+import { checkOAuthPin, createOAuthPin } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import { getProviderColor, getProviderIconSvg } from "$lib/stores/providers.svelte";
 
@@ -17,27 +19,34 @@ let loading = $state(false);
 const color = $derived(getProviderColor(method));
 const iconSvg = $derived(getProviderIconSvg(method));
 
+let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+function stopPolling() {
+	if (pollIntervalId) {
+		clearInterval(pollIntervalId);
+		pollIntervalId = null;
+	}
+	if (pollTimeoutId) {
+		clearTimeout(pollTimeoutId);
+		pollTimeoutId = null;
+	}
+}
+
+onDestroy(() => {
+	stopPolling();
+});
+
 async function handleOAuthLogin() {
 	loading = true;
 	try {
-		const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
-		const pinResponse = await fetch(
-			`${API_BASE_URL}/api/v1/join/${method}/oauth/pin`,
-			{
-				method: "POST",
-				credentials: "include",
-			},
-		);
+		const { data: pinData, error: pinError } = await createOAuthPin(method);
 
-		if (!pinResponse.ok) {
+		if (pinError || !pinData) {
+			loading = false;
 			onerror(`Failed to start ${displayName} authentication`);
 			return;
 		}
-
-		const pinData = (await pinResponse.json()) as {
-			pin_id: number;
-			auth_url: string;
-		};
 
 		const popup = window.open(
 			pinData.auth_url,
@@ -45,22 +54,14 @@ async function handleOAuthLogin() {
 			"width=800,height=600",
 		);
 
-		const pollInterval = setInterval(async () => {
+		pollIntervalId = setInterval(async () => {
 			try {
-				const checkResponse = await fetch(
-					`${API_BASE_URL}/api/v1/join/${method}/oauth/pin/${pinData.pin_id}`,
-					{ credentials: "include" },
-				);
+				const { data: checkData, error: checkError } = await checkOAuthPin(method, pinData.pin_id);
 
-				if (!checkResponse.ok) return;
-
-				const checkData = (await checkResponse.json()) as {
-					authenticated: boolean;
-					auth_token?: string;
-				};
+				if (checkError || !checkData) return;
 
 				if (checkData.authenticated && checkData.auth_token) {
-					clearInterval(pollInterval);
+					stopPolling();
 					popup?.close();
 
 					const result = await loginExternal(method, {
@@ -68,8 +69,10 @@ async function handleOAuthLogin() {
 					});
 					if (result.error) {
 						const err = result.error as { detail?: string };
+						loading = false;
 						onerror(err.detail ?? `${displayName} login failed`);
 					} else {
+						loading = false;
 						onsuccess();
 					}
 				}
@@ -79,15 +82,14 @@ async function handleOAuthLogin() {
 		}, 2000);
 
 		// Stop polling after 5 minutes
-		setTimeout(() => {
-			clearInterval(pollInterval);
+		pollTimeoutId = setTimeout(() => {
+			stopPolling();
 			popup?.close();
 			loading = false;
 		}, 300_000);
 	} catch {
-		onerror(`Failed to connect to ${displayName}`);
-	} finally {
 		loading = false;
+		onerror(`Failed to connect to ${displayName}`);
 	}
 }
 </script>

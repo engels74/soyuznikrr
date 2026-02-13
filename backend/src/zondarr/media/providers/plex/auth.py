@@ -4,6 +4,7 @@ Handles Plex OAuth token verification for admin login.
 Extracted from services/auth.py to be provider-self-contained.
 """
 
+import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -64,7 +65,7 @@ class PlexAdminAuth:
             )
 
         try:
-            account = MyPlexAccount(token=auth_token)
+            account = await asyncio.to_thread(MyPlexAccount, token=auth_token)
             _raw_email: object = account.email  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             _raw_username: object = account.username  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             plex_email = str(_raw_email)  # pyright: ignore[reportUnknownArgumentType]
@@ -76,7 +77,9 @@ class PlexAdminAuth:
 
         # Verify the authenticating user is the configured Plex server owner
         try:
-            owner_account = MyPlexAccount(token=configured_plex_token)
+            owner_account = await asyncio.to_thread(
+                MyPlexAccount, token=configured_plex_token
+            )
             _raw_owner_email: object = owner_account.email  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             owner_email = str(_raw_owner_email)  # pyright: ignore[reportUnknownArgumentType]
         except Exception as exc:

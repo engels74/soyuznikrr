@@ -106,7 +106,7 @@ class PlexProvider:
         return JoinFlowDescriptor(flow_type=JoinFlowType.OAUTH_LINK)
 
     @property
-    def route_handlers(self) -> None:
+    def route_handlers(self) -> list[type] | None:
         return None
 
     def create_oauth_flow_provider(self, settings: Settings) -> _PlexOAuthFlowAdapter:

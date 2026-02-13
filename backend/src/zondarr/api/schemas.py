@@ -1083,7 +1083,7 @@ class LoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     password: str
 
 
-class ExternalLoginRequest(msgspec.Struct, kw_only=True):
+class ExternalLoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """External provider login request.
 
     Accepts arbitrary credential fields as a dict. The provider's
