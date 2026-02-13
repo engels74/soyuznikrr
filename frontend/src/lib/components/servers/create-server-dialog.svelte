@@ -37,6 +37,13 @@ const providerList = $derived(getAllProviders());
 // Dialog open state
 let open = $state(false);
 
+// Reset form when dialog closes
+$effect(() => {
+	if (!open) {
+		resetForm();
+	}
+});
+
 // Submitting state
 let submitting = $state(false);
 
@@ -131,9 +138,8 @@ async function handleSubmit(event: Event) {
 			`${result.data?.name} has been configured`,
 		);
 
-		// Close dialog and reset form
+		// Close dialog (form resets via $effect watching open)
 		open = false;
-		resetForm();
 
 		// Notify parent to refresh list
 		onSuccess?.();
@@ -143,25 +149,14 @@ async function handleSubmit(event: Event) {
 }
 
 /**
- * Handle dialog close.
- */
-function handleOpenChange(isOpen: boolean) {
-	open = isOpen;
-	if (!isOpen) {
-		resetForm();
-	}
-}
-
-/**
  * Handle cancel button.
  */
 function handleCancel() {
 	open = false;
-	resetForm();
 }
 </script>
 
-<Dialog.Root bind:open onOpenChange={handleOpenChange}>
+<Dialog.Root bind:open>
 	<Dialog.Trigger>
 		{#snippet child({ props })}
 			<Button
