@@ -13,6 +13,7 @@ Implements Requirements 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 17.1, 17.2, 17.3, 17
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -435,17 +436,29 @@ class UserController(Controller):
         # Build invitation response if available (Requirement 17.3)
         invitation_response: InvitationResponse | None = None
         if user.invitation is not None:
+            inv = user.invitation
+            is_active = inv.enabled
+            if is_active and inv.expires_at is not None:
+                is_active = inv.expires_at > datetime.now(UTC)
+            if is_active and inv.max_uses is not None:
+                is_active = inv.use_count < inv.max_uses
+            remaining_uses = (
+                inv.max_uses - inv.use_count if inv.max_uses is not None else None
+            )
+
             invitation_response = InvitationResponse(
-                id=user.invitation.id,
-                code=user.invitation.code,
-                use_count=user.invitation.use_count,
-                enabled=user.invitation.enabled,
-                created_at=user.invitation.created_at,
-                expires_at=user.invitation.expires_at,
-                max_uses=user.invitation.max_uses,
-                duration_days=user.invitation.duration_days,
-                created_by=user.invitation.created_by,
-                updated_at=user.invitation.updated_at,
+                id=inv.id,
+                code=inv.code,
+                use_count=inv.use_count,
+                enabled=inv.enabled,
+                created_at=inv.created_at,
+                expires_at=inv.expires_at,
+                max_uses=inv.max_uses,
+                duration_days=inv.duration_days,
+                created_by=inv.created_by,
+                updated_at=inv.updated_at,
+                is_active=is_active,
+                remaining_uses=remaining_uses,
             )
 
         return UserDetailResponse(

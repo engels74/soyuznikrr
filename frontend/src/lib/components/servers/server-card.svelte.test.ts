@@ -109,7 +109,11 @@ describe('Property 25: Server Field Display', () => {
 				const libraryCountField = card?.querySelector('[data-field="library_count"]');
 				expect(libraryCountField).not.toBeNull();
 				const expectedCount =
-					server.libraries.length === 1 ? '1 library' : `${server.libraries.length} libraries`;
+					server.libraries.length === 0
+						? 'No libraries (sync to populate)'
+						: server.libraries.length === 1
+							? '1 library'
+							: `${server.libraries.length} libraries`;
 				expect(libraryCountField?.textContent).toBe(expectedCount);
 
 				cleanup();
@@ -236,7 +240,7 @@ describe('Property 25: Server Field Display', () => {
 	});
 
 	/**
-	 * For any server with zero libraries, the library count SHALL display "0 libraries".
+	 * For any server with zero libraries, the library count SHALL display "No libraries (sync to populate)".
 	 *
 	 * **Validates: Requirements 9.2**
 	 */
@@ -254,7 +258,7 @@ describe('Property 25: Server Field Display', () => {
 					const libraryCountField = card?.querySelector('[data-field="library_count"]');
 
 					expect(libraryCountField).not.toBeNull();
-					expect(libraryCountField?.textContent).toBe('0 libraries');
+					expect(libraryCountField?.textContent).toBe('No libraries (sync to populate)');
 
 					cleanup();
 				}
