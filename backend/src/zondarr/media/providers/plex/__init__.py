@@ -24,12 +24,8 @@ from .oauth_service import PlexOAuthError, PlexOAuthService
 if TYPE_CHECKING:
     from zondarr.config import Settings
 
-# Plex logo SVG path (simplified play button triangle)
-_PLEX_ICON_SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">'
-    '<path d="M5.5 3L18.5 12L5.5 21V3Z"/>'
-    "</svg>"
-)
+# Plex logo SVG path data (simplified play button triangle)
+_PLEX_ICON_SVG = "M5.5 3L18.5 12L5.5 21V3Z"
 
 # Default client identifier for Plex OAuth
 _DEFAULT_PLEX_CLIENT_ID = "zondarr-oauth-client"
@@ -115,11 +111,6 @@ class PlexProvider:
 
     def create_oauth_flow_provider(self, settings: Settings) -> _PlexOAuthFlowAdapter:
         """Create a Plex OAuth flow provider."""
-        client_id_attr: object = getattr(settings, "plex_client_id", None)
-        client_id: str = (
-            client_id_attr
-            if isinstance(client_id_attr, str)
-            else _DEFAULT_PLEX_CLIENT_ID
-        )
-        service = PlexOAuthService(client_id=client_id)
+        del settings  # unused; client_id is a fixed default
+        service = PlexOAuthService(client_id=_DEFAULT_PLEX_CLIENT_ID)
         return _PlexOAuthFlowAdapter(service)

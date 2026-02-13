@@ -2,7 +2,7 @@
  * Provider metadata store.
  *
  * Holds metadata for registered media server providers (color, label, icon, etc.)
- * Pre-populated with known defaults; can be updated from the backend API.
+ * Populated from the backend API at app startup via `setProviders()`.
  *
  * @module $lib/stores/providers
  */
@@ -23,50 +23,43 @@ export interface ProviderMeta {
 }
 
 // =============================================================================
-// Known provider defaults (used before API fetch or as fallback)
-// =============================================================================
-
-const PROVIDER_DEFAULTS: Record<string, ProviderMeta> = {
-	plex: {
-		server_type: 'plex',
-		display_name: 'Plex',
-		color: '#E5A00D',
-		icon_svg: 'M11.643 0H4.68l7.679 12-7.679 12h6.963L19.32 12z',
-		api_key_help_text: 'Find your Plex token in account settings or use a Plex Pass API token',
-		join_flow_type: 'oauth_link',
-		capabilities: [],
-		supported_permissions: []
-	},
-	jellyfin: {
-		server_type: 'jellyfin',
-		display_name: 'Jellyfin',
-		color: '#00A4DC',
-		icon_svg:
-			'M12 .002C5.375.002 0 5.377 0 12.002c0 6.624 5.375 12 12 12s12-5.376 12-12c0-6.625-5.375-12-12-12zm0 2.5a9.5 9.5 0 0 1 9.5 9.5 9.5 9.5 0 0 1-9.5 9.5 9.5 9.5 0 0 1-9.5-9.5 9.5 9.5 0 0 1 9.5-9.5z',
-		api_key_help_text: 'Create an API key in Jellyfin: Dashboard > API Keys',
-		join_flow_type: 'credential_create',
-		capabilities: [],
-		supported_permissions: []
-	}
-};
-
-// =============================================================================
 // State
 // =============================================================================
 
-let providers = $state<Map<string, ProviderMeta>>(new Map(Object.entries(PROVIDER_DEFAULTS)));
+let providers = $state<Map<string, ProviderMeta>>(new Map());
 
 // =============================================================================
 // API
 // =============================================================================
 
+/** Input shape accepted by setProviders (matches OpenAPI generated type). */
+interface ProviderMetaInput {
+	server_type: string;
+	display_name: string;
+	color: string;
+	icon_svg: string;
+	api_key_help_text?: string;
+	join_flow_type?: string | null;
+	capabilities?: string[];
+	supported_permissions?: string[];
+}
+
 /**
  * Replace provider metadata with data from the backend API.
  */
-export function setProviders(list: ProviderMeta[]): void {
+export function setProviders(list: ProviderMetaInput[]): void {
 	const map = new Map<string, ProviderMeta>();
 	for (const p of list) {
-		map.set(p.server_type, p);
+		map.set(p.server_type, {
+			server_type: p.server_type,
+			display_name: p.display_name,
+			color: p.color,
+			icon_svg: p.icon_svg,
+			api_key_help_text: p.api_key_help_text ?? '',
+			join_flow_type: p.join_flow_type ?? null,
+			capabilities: p.capabilities ?? [],
+			supported_permissions: p.supported_permissions ?? []
+		});
 	}
 	providers = map;
 }

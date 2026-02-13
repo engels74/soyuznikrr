@@ -1182,10 +1182,10 @@ class ProviderMetadataResponse(msgspec.Struct, kw_only=True, omit_defaults=True)
     """Provider metadata for frontend rendering.
 
     Attributes:
-        server_type: Provider identifier string (e.g., "plex").
-        display_name: Human-readable name (e.g., "Plex").
-        color: Brand hex color (e.g., "#E5A00D").
-        icon_svg: SVG markup for the provider icon.
+        server_type: Provider identifier string.
+        display_name: Human-readable name.
+        color: Brand hex color.
+        icon_svg: SVG path data for the provider icon.
         api_key_help_text: Help text for the "add server" form.
         capabilities: List of supported capability strings.
         supported_permissions: List of supported permission keys.

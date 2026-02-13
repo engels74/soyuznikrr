@@ -14,7 +14,7 @@ import { z } from 'zod';
  *
  * Required fields:
  * - name: Human-readable name for the server
- * - server_type: Type of media server (jellyfin or plex)
+ * - server_type: Type of media server (as registered by a provider)
  * - url: Base URL for the media server API
  * - api_key: Authentication token for the server
  */

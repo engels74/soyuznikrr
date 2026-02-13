@@ -64,7 +64,7 @@ def _resolve_flow(provider: str, state: State) -> OAuthFlowProvider:
     """Resolve an OAuth flow provider or raise NotFoundError.
 
     Args:
-        provider: The provider name (e.g., "plex").
+        provider: The provider name.
         state: Application state containing settings.
 
     Returns:
@@ -112,7 +112,7 @@ class OAuthController(Controller):
     async def create_pin(
         self,
         state: State,
-        provider: Annotated[str, Parameter(description="Provider name (e.g. 'plex')")],
+        provider: Annotated[str, Parameter(description="Provider name")],
     ) -> OAuthPinResponse:
         """Generate OAuth PIN and return auth URL.
 
@@ -148,7 +148,7 @@ class OAuthController(Controller):
     async def check_pin(
         self,
         state: State,
-        provider: Annotated[str, Parameter(description="Provider name (e.g. 'plex')")],
+        provider: Annotated[str, Parameter(description="Provider name")],
         pin_id: Annotated[int, Parameter(description="PIN ID to check")],
     ) -> OAuthCheckResponse:
         """Check if PIN has been authenticated.

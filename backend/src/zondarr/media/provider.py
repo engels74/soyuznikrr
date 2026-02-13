@@ -87,9 +87,9 @@ class ProviderMetadata(msgspec.Struct, kw_only=True):
     """Static metadata about a media server provider.
 
     Attributes:
-        server_type: Provider identifier string (e.g., "plex").
-        display_name: Human-readable name (e.g., "Plex").
-        color: Brand hex color (e.g., "#E5A00D").
+        server_type: Provider identifier string.
+        display_name: Human-readable name.
+        color: Brand hex color.
         icon_svg: SVG path data for the provider icon.
         env_url_var: Environment variable name for the server URL.
         env_api_key_var: Environment variable name for the API key.

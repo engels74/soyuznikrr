@@ -456,7 +456,7 @@ export async function redeemInvitation(
 /**
  * Create an OAuth PIN for authentication with a provider.
  *
- * @param provider - Provider type (e.g., "plex")
+ * @param provider - Provider type
  * @returns PIN response with auth URL
  */
 export async function createOAuthPin(
@@ -471,7 +471,7 @@ export async function createOAuthPin(
 /**
  * Check the status of an OAuth PIN.
  *
- * @param provider - Provider type (e.g., "plex")
+ * @param provider - Provider type
  * @param pinId - PIN ID to check
  * @returns Check response with authentication status
  */

@@ -17,6 +17,9 @@ import type { OAuthCheckResponse, OAuthPinResponse } from '$lib/api/client';
 import * as apiClient from '$lib/api/client';
 import OAuthJoinFlow from './oauth-join-flow.svelte';
 
+// Use a generic test provider to avoid coupling tests to any real provider
+const TEST_SERVER_TYPE = 'test-provider';
+
 // Mock the API client
 vi.mock('$lib/api/client', async () => {
 	const actual = await vi.importActual('$lib/api/client');
@@ -89,7 +92,7 @@ describe('Property 32: OAuth Polling', () => {
 		const pinResponse: OAuthPinResponse = {
 			pin_id: 12345,
 			code: 'ABCD',
-			auth_url: 'https://plex.tv/auth',
+			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 60000).toISOString()
 		};
 
@@ -125,7 +128,7 @@ describe('Property 32: OAuth Polling', () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		const { container } = render(OAuthJoinFlow, {
-			props: { serverType: 'plex', onAuthenticated }
+			props: { serverType: TEST_SERVER_TYPE, onAuthenticated }
 		});
 
 		// Click sign in button
@@ -167,7 +170,7 @@ describe('Property 32: OAuth Polling', () => {
 		const expiredPinResponse: OAuthPinResponse = {
 			pin_id: 12345,
 			code: 'ABCD',
-			auth_url: 'https://plex.tv/auth',
+			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 4000).toISOString()
 		};
 
@@ -188,7 +191,7 @@ describe('Property 32: OAuth Polling', () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		const { container } = render(OAuthJoinFlow, {
-			props: { serverType: 'plex', onAuthenticated }
+			props: { serverType: TEST_SERVER_TYPE, onAuthenticated }
 		});
 
 		// Click sign in button
@@ -225,7 +228,7 @@ describe('Property 32: OAuth Polling', () => {
 		const pinResponse: OAuthPinResponse = {
 			pin_id: 12345,
 			code: 'ABCD',
-			auth_url: 'https://plex.tv/auth',
+			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 60000).toISOString()
 		};
 
@@ -246,7 +249,7 @@ describe('Property 32: OAuth Polling', () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		const { container } = render(OAuthJoinFlow, {
-			props: { serverType: 'plex', onAuthenticated }
+			props: { serverType: TEST_SERVER_TYPE, onAuthenticated }
 		});
 
 		// Click sign in button
@@ -343,7 +346,7 @@ describe('OAuth Flow Component', () => {
 		const pinResponse: OAuthPinResponse = {
 			pin_id: 12345,
 			code: 'ABCD',
-			auth_url: 'https://plex.tv/auth/test',
+			auth_url: 'https://auth.example.com/oauth/test',
 			expires_at: new Date(Date.now() + 60000).toISOString()
 		};
 
@@ -356,7 +359,7 @@ describe('OAuth Flow Component', () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
 		const { container } = render(OAuthJoinFlow, {
-			props: { serverType: 'plex', onAuthenticated }
+			props: { serverType: TEST_SERVER_TYPE, onAuthenticated }
 		});
 
 		// Click sign in button

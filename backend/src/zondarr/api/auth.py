@@ -4,7 +4,7 @@ Provides endpoints for admin authentication:
 - GET /api/auth/methods — Available auth methods + setup_required flag
 - POST /api/auth/setup — Create first admin account
 - POST /api/auth/login — Local username/password login
-- POST /api/auth/login/{method} — External provider login (plex, jellyfin, etc.)
+- POST /api/auth/login/{method} — External provider login
 - POST /api/auth/refresh — Exchange refresh token for new access token
 - POST /api/auth/logout — Revoke tokens and clear cookies
 - GET /api/auth/me — Current admin info (requires auth)
@@ -197,11 +197,10 @@ class AuthController(Controller):
         session: AsyncSession,
         state: State,
     ) -> Response[AuthTokenResponse]:
-        """Authenticate with an external provider (plex, jellyfin, etc.).
+        """Authenticate with an external provider.
 
-        The credentials dict contents vary by provider:
-        - plex: {"auth_token": "..."}
-        - jellyfin: {"server_url": "...", "username": "...", "password": "..."}
+        The credentials dict contents vary by provider; each registered
+        provider declares its own required fields.
         """
         service = self._create_auth_service(session)
         settings: Settings = state.settings  # pyright: ignore[reportAny]

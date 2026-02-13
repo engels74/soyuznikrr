@@ -14,17 +14,16 @@ Example usage:
     from zondarr.media.registry import registry
 
     # Register providers (typically done at app startup)
-    registry.register(PlexProvider())
-    registry.register(JellyfinProvider())
+    registry.register(my_provider)
 
     # Get client class
-    client_class = registry.get_client_class("plex")
+    client_class = registry.get_client_class("provider_type")
 
     # Query capabilities
-    caps = registry.get_capabilities("plex")
+    caps = registry.get_capabilities("provider_type")
 
     # Create a client instance
-    client = registry.create_client("plex", url="http://...", api_key="...")
+    client = registry.create_client("provider_type", url="http://...", api_key="...")
 """
 
 import os
@@ -144,7 +143,7 @@ class ClientRegistry:
         """Get the admin auth provider for a given method name.
 
         Args:
-            method: The auth method name (e.g., "plex", "jellyfin").
+            method: The auth method name.
 
         Returns:
             The AdminAuthProvider instance, or None if not found.
