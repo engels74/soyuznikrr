@@ -17,9 +17,14 @@ let providersFetched = false;
 $effect(() => {
 	if (browser && !providersFetched) {
 		providersFetched = true;
-		api.GET("/api/v1/providers").then(({ data }) => {
-			if (data) setProviders(data);
-		});
+		api
+			.GET("/api/v1/providers")
+			.then(({ data }) => {
+				if (data) setProviders(data);
+			})
+			.catch(() => {
+				providersFetched = false;
+			});
 	}
 });
 </script>

@@ -25,14 +25,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 			auth_method: 'dev-skip'
 		};
 	} else if (accessToken) {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 2000);
 		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 2000);
 			const response = await event.fetch(`${API_BASE_URL}/api/auth/me`, {
 				headers: { Cookie: `zondarr_access_token=${accessToken}` },
 				signal: controller.signal
 			});
-			clearTimeout(timeout);
 			if (response.ok) {
 				const user: App.Locals['user'] = await response.json();
 				event.locals.user = user;
@@ -41,6 +40,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		} catch {
 			event.locals.user = null;
+		} finally {
+			clearTimeout(timeout);
 		}
 	} else {
 		event.locals.user = null;
