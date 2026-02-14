@@ -152,6 +152,13 @@ class JellyfinClient:
             ExternalServiceError: If connection to the Jellyfin server fails.
         """
         try:
+            import warnings
+
+            warnings.filterwarnings(
+                "ignore",
+                message="Core Pydantic V1 functionality isn't compatible with Python 3.14",
+                category=UserWarning,
+            )
             import jellyfin
 
             self._api = jellyfin.api(self.url, self.api_key)

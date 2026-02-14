@@ -9,9 +9,6 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from plexapi.exceptions import PlexApiException
-from requests.exceptions import RequestException
-
 from zondarr.core.exceptions import AuthenticationError
 from zondarr.models.admin import AdminAccount
 
@@ -50,7 +47,9 @@ class PlexAdminAuth:
             AuthenticationError: If Plex is not configured, verification fails,
                 or the account is not the server owner.
         """
+        from plexapi.exceptions import PlexApiException
         from plexapi.myplex import MyPlexAccount
+        from requests.exceptions import RequestException
 
         auth_token = str(credentials.get("auth_token", ""))
         if not auth_token:

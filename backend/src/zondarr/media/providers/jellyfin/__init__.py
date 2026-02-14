@@ -4,20 +4,9 @@ Implements ProviderDescriptor for Jellyfin, declaring metadata,
 client class, admin auth, join flow, and route handlers.
 """
 
-import warnings
+from typing import TYPE_CHECKING
 
-# python-jellyfin-apiclient depends on Pydantic V1 which emits a
-# deprecation warning on Python 3.14. Suppress it before importing
-# any Jellyfin-related modules.
-warnings.filterwarnings(
-    "ignore",
-    message="Core Pydantic V1 functionality isn't compatible with Python 3.14",
-    category=UserWarning,
-)
-
-from typing import TYPE_CHECKING  # noqa: E402
-
-from zondarr.media.provider import (  # noqa: E402
+from zondarr.media.provider import (
     AdminAuthDescriptor,
     AuthFieldDescriptor,
     AuthFlowType,
@@ -30,8 +19,8 @@ from zondarr.media.provider import (  # noqa: E402
 if TYPE_CHECKING:
     from zondarr.config import Settings
 
-from .auth import JellyfinAdminAuth  # noqa: E402
-from .client import JellyfinClient  # noqa: E402
+from .auth import JellyfinAdminAuth
+from .client import JellyfinClient
 
 # Jellyfin logo SVG path data (simplified)
 _JELLYFIN_ICON_SVG = (

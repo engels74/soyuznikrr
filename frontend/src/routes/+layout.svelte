@@ -3,6 +3,8 @@ import "virtual:uno.css";
 import "../app.css";
 import { ModeWatcher } from "mode-watcher";
 import type { Snippet } from "svelte";
+import { browser } from "$app/environment";
+import { api } from "$lib/api/client";
 import favicon from "$lib/assets/favicon.svg";
 import { Toaster } from "$lib/components/ui/sonner";
 import { setProviders } from "$lib/stores/providers.svelte";
@@ -10,8 +12,15 @@ import type { LayoutData } from "./$types";
 
 const { data, children }: { data: LayoutData; children: Snippet } = $props();
 
+let providersFetched = false;
+
 $effect(() => {
-	setProviders(data.providers);
+	if (browser && !providersFetched) {
+		providersFetched = true;
+		api.GET("/api/v1/providers").then(({ data }) => {
+			if (data) setProviders(data);
+		});
+	}
 });
 </script>
 
