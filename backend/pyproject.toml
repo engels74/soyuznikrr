@@ -67,6 +67,7 @@ pythonPlatform = "All"
 venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
+exclude = ["migrations"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
