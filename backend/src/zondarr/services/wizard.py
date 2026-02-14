@@ -22,6 +22,7 @@ from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
 from zondarr.services.interactions import interaction_registry
+from zondarr.services.interactions.protocol import InteractionSourceData
 
 # Type alias for step configuration values
 ConfigValue = str | int | bool | list[str] | None
@@ -532,8 +533,12 @@ class WizardService:
             if interaction is None or interaction.step_id != step_id:
                 raise NotFoundError("StepInteraction", str(interaction_id))
 
+            source = InteractionSourceData(
+                interaction_type=interaction.interaction_type,
+                config=interaction.config,
+            )
             is_valid, error = interaction_registry.validate_response(
-                interaction,  # pyright: ignore[reportArgumentType]
+                source,
                 response,
                 started_at,
             )

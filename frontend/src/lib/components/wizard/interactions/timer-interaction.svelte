@@ -13,9 +13,7 @@ import { onMount } from "svelte";
 import type { TimerConfig } from "$lib/api/client";
 import type { InteractionComponentProps } from "./registry";
 
-interface Props extends InteractionComponentProps {}
-
-const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: Props = $props();
+const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: InteractionComponentProps = $props();
 
 // Extract duration from config
 const config = $derived(rawConfig as unknown as TimerConfig);

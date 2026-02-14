@@ -41,7 +41,7 @@ export interface InteractionTypeRegistration {
 	type: string;
 	label: string;
 	description: string;
-	icon: string;
+	icon: Component;
 	configSchema: z.ZodType;
 	defaultConfig: () => Record<string, unknown>;
 	configEditor: Component<ConfigEditorProps>;

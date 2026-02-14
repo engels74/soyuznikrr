@@ -10,13 +10,6 @@
  * @module $lib/components/wizard/step-editor
  */
 
-import {
-	CircleHelp,
-	MousePointerClick,
-	ScrollText,
-	TextCursorInput,
-	Timer,
-} from "@lucide/svelte";
 import { slide } from "svelte/transition";
 import { toast } from "svelte-sonner";
 import type { StepInteractionResponse, WizardStepResponse } from "$lib/api/client";
@@ -29,18 +22,8 @@ import { Button } from "$lib/components/ui/button";
 import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
 import { Switch } from "$lib/components/ui/switch";
-import { getAllInteractionTypes, type InteractionTypeRegistration } from "./interactions/registry";
-import "$lib/components/wizard/interactions/register-defaults";
+import { getAllInteractionTypes, type InteractionTypeRegistration } from "./interactions";
 import MarkdownEditor from "./markdown-editor.svelte";
-
-/** Map icon names to Lucide components */
-const iconMap: Record<string, typeof MousePointerClick> = {
-	MousePointerClick,
-	Timer,
-	ScrollText,
-	TextCursorInput,
-	CircleHelp,
-};
 
 interface Props {
 	step: WizardStepResponse;
@@ -180,8 +163,9 @@ async function handleConfigChange(type: string, newConfig: Record<string, unknow
 		}
 
 		if (result.data) {
+			const updated = result.data;
 			activeInteractions = activeInteractions.map((i) =>
-				i.id === existing.id ? result.data! : i,
+				i.id === existing.id ? updated : i,
 			);
 			onInteractionsChange(activeInteractions);
 		}
@@ -235,7 +219,7 @@ function handleSave() {
 				{@const active = isActive(registration.type)}
 				{@const interaction = getActiveInteraction(registration.type)}
 				{@const loading = loadingTypes.has(registration.type)}
-				{@const IconComponent = iconMap[registration.icon]}
+				{@const IconComponent = registration.icon}
 				{@const errors = configErrors[registration.type] ?? {}}
 
 				<div class="module-card" class:active>
@@ -341,15 +325,15 @@ function handleSave() {
 	/* Module card */
 	.module-card {
 		position: relative;
-		border: 1px solid hsl(220 10% 16%);
+		border: 1px solid var(--cr-module-border);
 		border-radius: 0.625rem;
-		background: hsl(220 15% 7%);
+		background: var(--cr-module-bg);
 		overflow: hidden;
 		transition: border-color 0.2s ease;
 	}
 
 	.module-card.active {
-		border-color: hsl(45 90% 55% / 0.3);
+		border-color: var(--cr-module-active-border);
 	}
 
 	/* Gold left accent bar */
@@ -359,7 +343,7 @@ function handleSave() {
 		top: 0;
 		bottom: 0;
 		width: 3px;
-		background: linear-gradient(to bottom, hsl(45 90% 55%), hsl(45 80% 45%));
+		background: linear-gradient(to bottom, var(--cr-module-active-accent), var(--cr-module-active-accent-dim));
 		border-radius: 3px 0 0 3px;
 	}
 
@@ -382,15 +366,15 @@ function handleSave() {
 		align-items: center;
 		justify-content: center;
 		border-radius: 0.5rem;
-		background: hsl(220 10% 12%);
-		color: hsl(220 10% 45%);
+		background: var(--cr-module-icon-bg);
+		color: var(--cr-module-icon-color);
 		flex-shrink: 0;
 		transition: all 0.2s ease;
 	}
 
 	.module-icon.active {
-		background: hsl(45 90% 55% / 0.12);
-		color: hsl(45 90% 65%);
+		background: var(--cr-module-active-icon-bg);
+		color: var(--cr-module-active-icon-color);
 	}
 
 	.module-info {
@@ -409,7 +393,7 @@ function handleSave() {
 	}
 
 	.module-label.active {
-		color: hsl(45 80% 80%);
+		color: var(--cr-module-active-label);
 	}
 
 	.module-description {
@@ -424,7 +408,7 @@ function handleSave() {
 	.module-config {
 		padding: 0.75rem 1rem 1rem;
 		padding-left: calc(1rem + 3px);
-		border-top: 1px solid hsl(220 10% 14%);
+		border-top: 1px solid var(--cr-module-config-border);
 	}
 
 	/* Actions */

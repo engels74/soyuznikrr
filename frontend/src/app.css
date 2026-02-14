@@ -25,6 +25,22 @@
 	--cr-disabled: #f43f5e;
 	--cr-disabled-glow: rgba(244, 63, 94, 0.3);
 
+	/* Semantic colors */
+	--cr-error: hsl(0 70% 55%);
+
+	/* Module card (wizard step-editor) */
+	--cr-module-border: hsl(220 10% 16%);
+	--cr-module-bg: hsl(220 15% 7%);
+	--cr-module-icon-bg: hsl(220 10% 12%);
+	--cr-module-icon-color: hsl(220 10% 45%);
+	--cr-module-active-border: hsl(45 90% 55% / 0.3);
+	--cr-module-active-accent: hsl(45 90% 55%);
+	--cr-module-active-accent-dim: hsl(45 80% 45%);
+	--cr-module-active-icon-bg: hsl(45 90% 55% / 0.12);
+	--cr-module-active-icon-color: hsl(45 90% 65%);
+	--cr-module-active-label: hsl(45 80% 80%);
+	--cr-module-config-border: hsl(220 10% 14%);
+
 	/* Typography */
 	--font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 	--font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
@@ -57,6 +73,18 @@
 	--cr-active: #059669;
 	--cr-pending: #d97706;
 	--cr-disabled: #e11d48;
+	--cr-error: hsl(0 70% 45%);
+	--cr-module-border: hsl(220 10% 85%);
+	--cr-module-bg: hsl(220 15% 97%);
+	--cr-module-icon-bg: hsl(220 10% 92%);
+	--cr-module-icon-color: hsl(220 10% 55%);
+	--cr-module-active-border: hsl(45 90% 45% / 0.4);
+	--cr-module-active-accent: hsl(45 90% 45%);
+	--cr-module-active-accent-dim: hsl(45 80% 35%);
+	--cr-module-active-icon-bg: hsl(45 90% 50% / 0.15);
+	--cr-module-active-icon-color: hsl(45 80% 35%);
+	--cr-module-active-label: hsl(45 80% 25%);
+	--cr-module-config-border: hsl(220 10% 88%);
 }
 
 /* Base styles */

@@ -31,8 +31,7 @@ import * as Card from "$lib/components/ui/card";
 import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
 import { wizardSchema } from "$lib/schemas/wizard";
-import { getInteractionType } from "./interactions/registry";
-import "$lib/components/wizard/interactions/register-defaults";
+import { getInteractionType } from "./interactions";
 import StepEditor from "./step-editor.svelte";
 
 interface Props {

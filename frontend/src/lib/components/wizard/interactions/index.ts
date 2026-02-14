@@ -8,6 +8,9 @@
  * @module $lib/components/wizard/interactions
  */
 
+// Ensure all built-in interaction types are registered
+import './register-defaults';
+
 // Interaction components (consumed via registry, but exported for direct use)
 export { default as ClickInteraction } from './click-interaction.svelte';
 export { default as QuizInteraction } from './quiz-interaction.svelte';

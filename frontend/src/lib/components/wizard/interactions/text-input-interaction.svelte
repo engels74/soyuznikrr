@@ -11,9 +11,7 @@
 import type { TextInputConfig } from "$lib/api/client";
 import type { InteractionComponentProps } from "./registry";
 
-interface Props extends InteractionComponentProps {}
-
-const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: Props = $props();
+const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: InteractionComponentProps = $props();
 
 // Extract config with defaults
 const config = $derived(rawConfig as unknown as TextInputConfig);

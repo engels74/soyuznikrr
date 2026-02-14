@@ -7,6 +7,8 @@
  * @module $lib/components/wizard/interactions/register-defaults
  */
 
+import { CircleHelp, MousePointerClick, ScrollText, TextCursorInput, Timer } from '@lucide/svelte';
+
 import {
 	clickConfigSchema,
 	quizConfigSchema,
@@ -31,7 +33,7 @@ registerInteractionType({
 	type: 'click',
 	label: 'Click Confirmation',
 	description: 'Simple button that users click to confirm',
-	icon: 'MousePointerClick',
+	icon: MousePointerClick,
 	configSchema: clickConfigSchema,
 	defaultConfig: () => ({ button_text: 'I Understand' }),
 	configEditor: ClickConfigEditor,
@@ -42,7 +44,7 @@ registerInteractionType({
 	type: 'timer',
 	label: 'Timed Wait',
 	description: 'Countdown timer that users must wait through',
-	icon: 'Timer',
+	icon: Timer,
 	configSchema: timerConfigSchema,
 	defaultConfig: () => ({ duration_seconds: 10 }),
 	configEditor: TimerConfigEditor,
@@ -53,7 +55,7 @@ registerInteractionType({
 	type: 'tos',
 	label: 'Terms of Service',
 	description: 'Checkbox that users must accept to proceed',
-	icon: 'ScrollText',
+	icon: ScrollText,
 	configSchema: tosConfigSchema,
 	defaultConfig: () => ({ checkbox_label: 'I accept the terms of service' }),
 	configEditor: TosConfigEditor,
@@ -64,7 +66,7 @@ registerInteractionType({
 	type: 'text_input',
 	label: 'Text Input',
 	description: 'Free-form text field with validation',
-	icon: 'TextCursorInput',
+	icon: TextCursorInput,
 	configSchema: textInputConfigSchema,
 	defaultConfig: () => ({ label: 'Your response', required: true }),
 	configEditor: TextInputConfigEditor,
@@ -75,7 +77,7 @@ registerInteractionType({
 	type: 'quiz',
 	label: 'Quiz Question',
 	description: 'Multiple choice question with a correct answer',
-	icon: 'CircleHelp',
+	icon: CircleHelp,
 	configSchema: quizConfigSchema,
 	defaultConfig: () => ({
 		question: 'Enter your question here',

@@ -13,9 +13,7 @@ import { marked } from "marked";
 import { browser } from "$app/environment";
 import type { WizardDetailResponse } from "$lib/api/client";
 import { validateStep } from "$lib/api/client";
-import type { InteractionCompletionData } from "./interactions/registry";
-import { getInteractionType } from "./interactions/registry";
-import "$lib/components/wizard/interactions/register-defaults";
+import { getInteractionType, type InteractionCompletionData } from "./interactions";
 import WizardNavigation from "./wizard-navigation.svelte";
 import WizardProgress from "./wizard-progress.svelte";
 
@@ -307,9 +305,16 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 		--wizard-text: hsl(220 10% 92%);
 		--wizard-text-muted: hsl(220 10% 60%);
 		--wizard-accent: hsl(45 90% 55%);
+		--wizard-accent-dim: hsl(45 80% 45%);
 		--wizard-accent-glow: hsl(45 90% 55% / 0.15);
 		--wizard-success: hsl(150 60% 45%);
 		--wizard-error: hsl(0 70% 55%);
+		--wizard-error-bg: hsl(0 70% 55% / 0.1);
+		--wizard-error-border: hsl(0 70% 55% / 0.3);
+		--wizard-code-bg: hsl(220 15% 12%);
+		--wizard-track-bg: hsl(220 10% 16%);
+		--wizard-divider: hsl(220 10% 20%);
+		--wizard-ring-border: hsl(220 10% 30%);
 
 		position: relative;
 		min-height: 100vh;
@@ -390,7 +395,7 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 
 	.wizard-content :global(code) {
 		font-family: 'JetBrains Mono', 'Fira Code', monospace;
-		background: hsl(220 15% 12%);
+		background: var(--wizard-code-bg);
 		padding: 0.125rem 0.375rem;
 		border-radius: 0.25rem;
 		font-size: 0.9em;
@@ -419,14 +424,14 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 
 	.progress-track {
 		height: 2px;
-		background: hsl(220 10% 16%);
+		background: var(--wizard-track-bg);
 		border-radius: 1px;
 		overflow: hidden;
 	}
 
 	.progress-fill {
 		height: 100%;
-		background: linear-gradient(to right, var(--wizard-accent), hsl(45 80% 45%));
+		background: linear-gradient(to right, var(--wizard-accent), var(--wizard-accent-dim));
 		border-radius: 1px;
 		transition: width 0.4s ease;
 	}
@@ -435,7 +440,7 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 	.interaction-divider {
 		height: 1px;
 		margin: 1.25rem 0;
-		background: linear-gradient(to right, transparent, hsl(220 10% 20%), transparent);
+		background: linear-gradient(to right, transparent, var(--wizard-divider), transparent);
 	}
 
 	/* Interaction block */
@@ -460,7 +465,7 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 		width: 1.25rem;
 		height: 1.25rem;
 		border-radius: 50%;
-		border: 1.5px solid hsl(220 10% 30%);
+		border: 1.5px solid var(--wizard-ring-border);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -477,7 +482,7 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 	.check-icon {
 		width: 0.75rem;
 		height: 0.75rem;
-		color: hsl(220 20% 4%);
+		color: var(--wizard-bg);
 	}
 
 	.interaction-label {
@@ -494,8 +499,8 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 		font-size: 0.875rem;
 		margin-top: 1rem;
 		padding: 0.75rem 1rem;
-		background: hsl(0 70% 55% / 0.1);
-		border: 1px solid hsl(0 70% 55% / 0.3);
+		background: var(--wizard-error-bg);
+		border: 1px solid var(--wizard-error-border);
 		border-radius: 0.5rem;
 	}
 

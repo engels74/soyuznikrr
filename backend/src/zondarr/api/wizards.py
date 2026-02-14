@@ -30,12 +30,13 @@ from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zondarr.models.wizard import StepInteraction, Wizard, WizardStep
+from zondarr.models.wizard import Wizard
 from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
 from zondarr.services.wizard import WizardService
 
+from .converters import step_interaction_to_response, wizard_step_to_response
 from .schemas import (
     StepInteractionCreate,
     StepInteractionResponse,
@@ -346,7 +347,7 @@ class WizardController(Controller):
             content_markdown=data.content_markdown,
             step_order=data.step_order,
         )
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
 
     @patch(
         "/{wizard_id:uuid}/steps/{step_id:uuid}",
@@ -386,7 +387,7 @@ class WizardController(Controller):
             title=data.title,
             content_markdown=data.content_markdown,
         )
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
 
     @delete(
         "/{wizard_id:uuid}/steps/{step_id:uuid}",
@@ -458,7 +459,7 @@ class WizardController(Controller):
             ValidationError: If the new_order is invalid.
         """
         step = await wizard_service.reorder_step(wizard_id, step_id, data.new_order)
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
 
     # ==================== Interaction CRUD ====================
 
@@ -503,7 +504,7 @@ class WizardController(Controller):
             config=data.config,
             display_order=data.display_order,
         )
-        return self._to_interaction_response(interaction)
+        return step_interaction_to_response(interaction)
 
     @patch(
         "/{wizard_id:uuid}/steps/{step_id:uuid}/interactions/{interaction_id:uuid}",
@@ -549,7 +550,7 @@ class WizardController(Controller):
             interaction_id,
             config=data.config,
         )
-        return self._to_interaction_response(interaction)
+        return step_interaction_to_response(interaction)
 
     @delete(
         "/{wizard_id:uuid}/steps/{step_id:uuid}/interactions/{interaction_id:uuid}",
@@ -661,7 +662,7 @@ class WizardController(Controller):
         Returns:
             WizardDetailResponse with steps.
         """
-        steps = [self._to_step_response(step) for step in wizard.steps]
+        steps = [wizard_step_to_response(step) for step in wizard.steps]
 
         return WizardDetailResponse(
             id=wizard.id,
@@ -671,52 +672,4 @@ class WizardController(Controller):
             steps=steps,
             description=wizard.description,
             updated_at=wizard.updated_at,
-        )
-
-    def _to_step_response(self, step: WizardStep, /) -> WizardStepResponse:
-        """Convert a WizardStep entity to WizardStepResponse.
-
-        Args:
-            step: The WizardStep entity.
-
-        Returns:
-            WizardStepResponse with interactions.
-        """
-        interactions = [
-            self._to_interaction_response(i)
-            for i in (step.interactions if step.interactions else [])
-        ]
-        return WizardStepResponse(
-            id=step.id,
-            wizard_id=step.wizard_id,
-            step_order=step.step_order,
-            title=step.title,
-            content_markdown=step.content_markdown,
-            interactions=interactions,
-            created_at=step.created_at,
-            updated_at=step.updated_at,
-        )
-
-    def _to_interaction_response(
-        self, interaction: StepInteraction, /
-    ) -> StepInteractionResponse:
-        """Convert a StepInteraction entity to StepInteractionResponse.
-
-        Args:
-            interaction: The StepInteraction entity.
-
-        Returns:
-            StepInteractionResponse.
-        """
-        interaction_type = interaction.interaction_type
-        if hasattr(interaction_type, "value"):
-            interaction_type = interaction_type.value
-        return StepInteractionResponse(
-            id=interaction.id,
-            step_id=interaction.step_id,
-            interaction_type=interaction_type,
-            config=interaction.config,
-            display_order=interaction.display_order,
-            created_at=interaction.created_at,
-            updated_at=interaction.updated_at,
         )

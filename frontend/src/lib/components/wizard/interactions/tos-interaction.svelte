@@ -12,9 +12,7 @@ import { Check } from "@lucide/svelte";
 import type { TosConfig } from "$lib/api/client";
 import type { InteractionComponentProps } from "./registry";
 
-interface Props extends InteractionComponentProps {}
-
-const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: Props = $props();
+const { stepId, interactionId, config: rawConfig, onComplete, disabled = false }: InteractionComponentProps = $props();
 
 // Extract checkbox label from config with default
 const config = $derived(rawConfig as unknown as TosConfig);

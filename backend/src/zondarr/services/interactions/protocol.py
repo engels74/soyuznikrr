@@ -9,8 +9,11 @@ StepInteraction satisfy, allowing handlers to work with either.
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
+
+from zondarr.models.wizard import InteractionType
 
 # Type aliases matching WizardService conventions
 ConfigValue = str | int | bool | list[str] | None
@@ -23,10 +26,25 @@ class InteractionSource(Protocol):
 
     Both WizardStep (legacy) and StepInteraction satisfy this protocol
     structurally — they both have config and interaction_type attributes.
+
+    Accepts InteractionType (StrEnum) or plain str for interaction_type
+    to satisfy both ORM model types and plain dict/dataclass sources.
     """
 
     config: dict[str, ConfigValue]
-    interaction_type: str
+    interaction_type: InteractionType | str
+
+
+@dataclass(slots=True)
+class InteractionSourceData:
+    """Concrete adapter that satisfies InteractionSource protocol.
+
+    Use this to wrap ORM model data (e.g., StepInteraction) before
+    passing to the interaction registry, avoiding Mapped type mismatches.
+    """
+
+    interaction_type: InteractionType | str
+    config: dict[str, ConfigValue]
 
 
 class InteractionHandler(Protocol):

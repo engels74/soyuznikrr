@@ -10,9 +10,7 @@ import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
 import type { ConfigEditorProps } from "../registry";
 
-interface Props extends ConfigEditorProps {}
-
-const { config: rawConfig, onConfigChange, errors }: Props = $props();
+const { config: rawConfig, onConfigChange, errors }: ConfigEditorProps = $props();
 
 const config = $derived(rawConfig as unknown as QuizConfig);
 
@@ -157,7 +155,7 @@ function updateOption(index: number, value: string) {
 	}
 	.error-text {
 		font-size: 0.75rem;
-		color: hsl(0 70% 55%);
+		color: var(--cr-error);
 		margin: 0;
 	}
 </style>
