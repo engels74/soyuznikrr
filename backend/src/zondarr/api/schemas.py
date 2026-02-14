@@ -285,20 +285,17 @@ class WizardUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
 class WizardStepCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to create a wizard step.
 
-    Implements Requirements 3.1: Create step via API.
+    Steps are created as bare content containers. Interactions
+    are added separately via the interaction endpoints.
 
     Attributes:
-        interaction_type: Type of interaction (click, timer, tos, text_input, quiz).
         title: Display title for the step.
         content_markdown: Markdown content to display.
-        config: Type-specific configuration (button_text, duration_seconds, etc.).
         step_order: Position in the wizard sequence. Auto-assigned if not provided.
     """
 
-    interaction_type: InteractionTypeStr
     title: NonEmptyStr
     content_markdown: str
-    config: dict[str, str | int | bool | list[str] | None] = {}
     step_order: StepOrder | None = None
 
 
@@ -306,17 +303,14 @@ class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
     """Request to update a wizard step.
 
     All fields are optional - only provided fields will be updated.
-    Implements Requirements 3.2: Update step via API.
 
     Attributes:
         title: Display title for the step.
         content_markdown: Markdown content to display.
-        config: Type-specific configuration.
     """
 
     title: NonEmptyStr | None = None
     content_markdown: str | None = None
-    config: dict[str, str | int | bool | list[str] | None] | None = None
 
 
 class StepReorderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -331,35 +325,91 @@ class StepReorderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=Tru
     new_order: StepOrder
 
 
+class InteractionResponseData(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Response data for a single interaction in a validation request.
+
+    Attributes:
+        interaction_id: The UUID of the interaction being validated.
+        response: Type-specific response data (acknowledged, accepted, text, answer_index).
+        started_at: When the interaction was started (required for timer validation).
+    """
+
+    interaction_id: UUID
+    response: dict[str, str | int | bool | None]
+    started_at: datetime | None = None
+
+
 class StepValidationRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to validate a step completion.
 
-    Implements Requirements 9.1: Validate step completion via API.
+    Sends all interaction responses for a step. Empty list means
+    informational step (always valid).
 
     Attributes:
         step_id: The UUID of the step being validated.
-        response: Type-specific response data (acknowledged, accepted, text, answer_index).
-        started_at: When the step was started (required for timer validation).
+        interactions: List of interaction responses. Empty for informational steps.
     """
 
     step_id: UUID
-    response: dict[str, str | int | bool | None]
-    started_at: datetime | None = None
+    interactions: list[InteractionResponseData] = []
+
+
+class StepInteractionResponse(msgspec.Struct, omit_defaults=True):
+    """Step interaction response.
+
+    Attributes:
+        id: Unique identifier for the interaction.
+        step_id: ID of the parent step.
+        interaction_type: Type of interaction.
+        config: Type-specific configuration.
+        display_order: Position for rendering.
+        created_at: When the interaction was created.
+        updated_at: When the interaction was last modified.
+    """
+
+    id: UUID
+    step_id: UUID
+    interaction_type: str
+    config: dict[str, str | int | bool | list[str] | None]
+    display_order: int
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class StepInteractionCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to create a step interaction.
+
+    Attributes:
+        interaction_type: Type of interaction (click, timer, tos, text_input, quiz).
+        config: Type-specific configuration.
+        display_order: Position for rendering. Auto-assigned if not provided.
+    """
+
+    interaction_type: InteractionTypeStr
+    config: dict[str, str | int | bool | list[str] | None] = {}
+    display_order: StepOrder | None = None
+
+
+class StepInteractionUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to update a step interaction.
+
+    Attributes:
+        config: Type-specific configuration.
+    """
+
+    config: dict[str, str | int | bool | list[str] | None] | None = None
 
 
 class WizardStepResponse(msgspec.Struct, omit_defaults=True):
     """Wizard step response.
 
-    Implements Requirements 3.1: Step response schema.
-
     Attributes:
         id: Unique identifier for the step.
         wizard_id: ID of the parent wizard.
         step_order: Position in the wizard sequence.
-        interaction_type: Type of interaction.
         title: Display title for the step.
         content_markdown: Markdown content to display.
-        config: Type-specific configuration.
+        interactions: List of interactions attached to this step.
         created_at: When the step was created.
         updated_at: When the step was last modified.
     """
@@ -367,10 +417,9 @@ class WizardStepResponse(msgspec.Struct, omit_defaults=True):
     id: UUID
     wizard_id: UUID
     step_order: int
-    interaction_type: str
     title: str
     content_markdown: str
-    config: dict[str, str | int | bool | list[str] | None]
+    interactions: list[StepInteractionResponse]
     created_at: datetime
     updated_at: datetime | None = None
 

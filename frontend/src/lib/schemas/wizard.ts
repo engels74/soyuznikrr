@@ -167,22 +167,18 @@ export type QuizConfig = z.infer<typeof quizConfigSchema>;
 /**
  * Schema for creating or updating a wizard step.
  *
+ * Steps are bare content containers — interactions are attached separately.
+ *
  * Validates:
- * - interaction_type: one of click, timer, tos, text_input, quiz
  * - title: 1-255 characters
  * - content_markdown: required markdown content
- * - config: type-specific configuration object
  * - step_order: optional, non-negative integer
  *
  * Requirements: 3.1, 3.2
  */
 export const wizardStepSchema = z.object({
-	interaction_type: z.enum(interactionTypes, {
-		message: 'Invalid interaction type'
-	}),
 	title: z.string().min(1, 'Title is required').max(255, 'Title must be at most 255 characters'),
 	content_markdown: z.string().min(1, 'Content is required'),
-	config: z.record(z.string(), z.unknown()).default({}),
 	step_order: z.number().int().min(0, 'Step order must be non-negative').optional()
 });
 
@@ -233,68 +229,22 @@ export const quizResponseSchema = z.object({
 // =============================================================================
 
 /**
+ * Schema for a single interaction response in a validation request.
+ */
+export const interactionResponseDataSchema = z.object({
+	interaction_id: z.uuid('Invalid interaction ID'),
+	response: z.record(z.string(), z.unknown()),
+	started_at: z.iso.datetime().optional()
+});
+
+/**
  * Schema for step validation request.
  *
  * Requirements: 9.1
  */
 export const stepValidationRequestSchema = z.object({
 	step_id: z.uuid('Invalid step ID'),
-	response: z.record(z.string(), z.unknown()),
-	started_at: z.iso.datetime().optional()
+	interactions: z.array(interactionResponseDataSchema).default([])
 });
 
 export type StepValidationRequest = z.infer<typeof stepValidationRequestSchema>;
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Get the appropriate config schema for an interaction type.
- */
-export function getConfigSchemaForType(type: InteractionType) {
-	switch (type) {
-		case 'click':
-			return clickConfigSchema;
-		case 'timer':
-			return timerConfigSchema;
-		case 'tos':
-			return tosConfigSchema;
-		case 'text_input':
-			return textInputConfigSchema;
-		case 'quiz':
-			return quizConfigSchema;
-	}
-}
-
-/**
- * Validate step configuration based on interaction type.
- */
-export function validateStepConfig(type: InteractionType, config: unknown) {
-	const schema = getConfigSchemaForType(type);
-	return schema.safeParse(config);
-}
-
-/**
- * Get default configuration for an interaction type.
- */
-export function getDefaultConfig(type: InteractionType): {
-	[key: string]: string | number | boolean | string[] | null;
-} {
-	switch (type) {
-		case 'click':
-			return { button_text: 'I Understand' };
-		case 'timer':
-			return { duration_seconds: 10 };
-		case 'tos':
-			return { checkbox_label: 'I accept the terms of service' };
-		case 'text_input':
-			return { label: 'Your response', required: true };
-		case 'quiz':
-			return {
-				question: 'Enter your question here',
-				options: ['Option A', 'Option B'],
-				correct_answer_index: 0
-			};
-	}
-}

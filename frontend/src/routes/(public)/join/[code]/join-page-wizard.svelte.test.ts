@@ -90,16 +90,28 @@ const mediaServerResponseArb: fc.Arbitrary<MediaServerResponse> = fc.record({
 });
 
 /**
+ * Arbitrary for generating step interaction responses.
+ */
+const stepInteractionResponseArb = fc.record({
+	id: fc.uuid(),
+	step_id: fc.uuid(),
+	interaction_type: fc.constantFrom('click', 'timer', 'tos'),
+	config: fc.constant({} as { [key: string]: string | number | boolean | string[] | null }),
+	display_order: fc.integer({ min: 0, max: 5 }),
+	created_at: isoDateArb,
+	updated_at: fc.option(isoDateArb, { nil: null })
+});
+
+/**
  * Arbitrary for generating wizard step responses.
  */
 const wizardStepResponseArb: fc.Arbitrary<WizardStepResponse> = fc.record({
 	id: fc.uuid(),
 	wizard_id: fc.uuid(),
 	step_order: fc.integer({ min: 0, max: 10 }),
-	interaction_type: fc.constantFrom('click' as const, 'timer' as const, 'tos' as const),
 	title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
 	content_markdown: fc.string({ minLength: 1, maxLength: 500 }),
-	config: fc.constant({} as { [key: string]: string | number | boolean | string[] | null }),
+	interactions: fc.array(stepInteractionResponseArb, { minLength: 0, maxLength: 3 }),
 	created_at: isoDateArb,
 	updated_at: fc.option(isoDateArb, { nil: null })
 }) as fc.Arbitrary<WizardStepResponse>;
@@ -211,15 +223,19 @@ describe('Requirement 14.1: Pre-wizard display before registration', () => {
 	 *
 	 * **Validates: Requirement 14.1**
 	 */
-	it('should have pre-wizard steps with valid interaction types', () => {
+	it('should have pre-wizard steps with valid structure', () => {
 		fc.assert(
 			fc.property(validationWithPreWizardArb, (validation) => {
 				const validTypes = ['click', 'timer', 'tos', 'text_input', 'quiz'];
 
 				for (const step of validation.pre_wizard?.steps ?? []) {
-					expect(validTypes).toContain(step.interaction_type);
 					expect(step.title.length).toBeGreaterThan(0);
 					expect(step.id).toBeDefined();
+					// Interactions array should exist
+					expect(Array.isArray(step.interactions)).toBe(true);
+					for (const interaction of step.interactions) {
+						expect(validTypes).toContain(interaction.interaction_type);
+					}
 				}
 			}),
 			{ numRuns: 50 }
@@ -262,7 +278,7 @@ describe('Requirement 14.2: Post-wizard display after registration', () => {
 				for (const step of validation.post_wizard?.steps ?? []) {
 					expect(step.step_order).toBeGreaterThanOrEqual(0);
 					expect(step.wizard_id).toBeDefined();
-					expect(typeof step.config).toBe('object');
+					expect(Array.isArray(step.interactions)).toBe(true);
 				}
 			}),
 			{ numRuns: 50 }
@@ -351,7 +367,9 @@ describe('Requirement 14.4: Post-wizard completion before success', () => {
 				const validTypes = ['click', 'timer', 'tos', 'text_input', 'quiz'];
 
 				for (const step of validation.post_wizard?.steps ?? []) {
-					expect(validTypes).toContain(step.interaction_type);
+					for (const interaction of step.interactions) {
+						expect(validTypes).toContain(interaction.interaction_type);
+					}
 				}
 			}),
 			{ numRuns: 50 }

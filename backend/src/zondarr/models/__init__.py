@@ -9,7 +9,7 @@ from zondarr.models.invitation import (
     invitation_servers,
 )
 from zondarr.models.media_server import Library, MediaServer
-from zondarr.models.wizard import InteractionType, Wizard, WizardStep
+from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
 
 __all__ = [
     "AdminAccount",
@@ -20,6 +20,7 @@ __all__ = [
     "Library",
     "MediaServer",
     "RefreshToken",
+    "StepInteraction",
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "User",

@@ -16,9 +16,9 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WizardStepResponse } from '$lib/api/client';
 import ClickInteraction from '../interactions/click-interaction.svelte';
 import QuizInteraction from '../interactions/quiz-interaction.svelte';
+import type { InteractionComponentProps } from '../interactions/registry';
 import TextInputInteraction from '../interactions/text-input-interaction.svelte';
 import TimerInteraction from '../interactions/timer-interaction.svelte';
 import TosInteraction from '../interactions/tos-interaction.svelte';
@@ -27,19 +27,16 @@ import TosInteraction from '../interactions/tos-interaction.svelte';
 // Test Fixtures
 // =============================================================================
 
-function createMockStep(
-	interactionType: string,
-	config: { [key: string]: string | number | boolean | string[] | null } = {}
-): WizardStepResponse {
+function createInteractionProps(
+	config: Record<string, unknown> = {},
+	overrides: Partial<InteractionComponentProps> = {}
+): InteractionComponentProps {
 	return {
-		id: 'test-step-id',
-		wizard_id: 'test-wizard-id',
-		step_order: 0,
-		interaction_type: interactionType as WizardStepResponse['interaction_type'],
-		title: 'Test Step',
-		content_markdown: 'Test content',
+		interactionId: 'test-interaction-id',
 		config,
-		created_at: new Date().toISOString()
+		onComplete: vi.fn(),
+		disabled: false,
+		...overrides
 	};
 }
 
@@ -50,30 +47,28 @@ function createMockStep(
 
 describe('ClickInteraction', () => {
 	it('should render confirmation button with default text', () => {
-		const step = createMockStep('click', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(ClickInteraction, { props: { step, onComplete } });
+		render(ClickInteraction, { props });
 
 		const button = screen.getByRole('button', { name: 'I Understand' });
 		expect(button).toBeInTheDocument();
 	});
 
 	it('should render confirmation button with custom text', () => {
-		const step = createMockStep('click', { button_text: 'Got it!' });
-		const onComplete = vi.fn();
+		const props = createInteractionProps({ button_text: 'Got it!' });
 
-		render(ClickInteraction, { props: { step, onComplete } });
+		render(ClickInteraction, { props });
 
 		const button = screen.getByRole('button', { name: 'Got it!' });
 		expect(button).toBeInTheDocument();
 	});
 
 	it('should call onComplete with acknowledgment data when clicked', async () => {
-		const step = createMockStep('click', {});
 		const onComplete = vi.fn();
+		const props = createInteractionProps({}, { onComplete });
 
-		render(ClickInteraction, { props: { step, onComplete } });
+		render(ClickInteraction, { props });
 
 		const button = screen.getByRole('button', { name: 'I Understand' });
 		await fireEvent.click(button);
@@ -81,7 +76,7 @@ describe('ClickInteraction', () => {
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stepId: 'test-step-id',
+				interactionId: 'test-interaction-id',
 				interactionType: 'click',
 				data: { acknowledged: true },
 				completedAt: expect.any(String)
@@ -90,10 +85,9 @@ describe('ClickInteraction', () => {
 	});
 
 	it('should be disabled when disabled prop is true', () => {
-		const step = createMockStep('click', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({}, { disabled: true });
 
-		render(ClickInteraction, { props: { step, onComplete, disabled: true } });
+		render(ClickInteraction, { props });
 
 		const button = screen.getByRole('button', { name: 'I Understand' });
 		expect(button).toBeDisabled();
@@ -115,30 +109,27 @@ describe('TimerInteraction', () => {
 	});
 
 	it('should render countdown timer with initial duration', () => {
-		const step = createMockStep('timer', { duration_seconds: 10 });
-		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 10 });
 
-		render(TimerInteraction, { props: { step, onComplete } });
+		render(TimerInteraction, { props });
 
 		// Should show initial time (0:10)
 		expect(screen.getByText('0:10')).toBeInTheDocument();
 	});
 
 	it('should have disabled button while timer is counting down', () => {
-		const step = createMockStep('timer', { duration_seconds: 10 });
-		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 10 });
 
-		render(TimerInteraction, { props: { step, onComplete } });
+		render(TimerInteraction, { props });
 
 		const button = screen.getByRole('button', { name: 'Please wait...' });
 		expect(button).toBeDisabled();
 	});
 
 	it('should enable button when timer completes', async () => {
-		const step = createMockStep('timer', { duration_seconds: 3 });
-		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 3 });
 
-		render(TimerInteraction, { props: { step, onComplete } });
+		render(TimerInteraction, { props });
 
 		// Advance timer to completion (need to advance one tick at a time for Svelte reactivity)
 		for (let i = 0; i < 3; i++) {
@@ -150,10 +141,10 @@ describe('TimerInteraction', () => {
 	});
 
 	it('should call onComplete with waited data when button clicked after timer', async () => {
-		const step = createMockStep('timer', { duration_seconds: 2 });
 		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 2 }, { onComplete });
 
-		render(TimerInteraction, { props: { step, onComplete } });
+		render(TimerInteraction, { props });
 
 		// Advance timer to completion
 		for (let i = 0; i < 2; i++) {
@@ -166,7 +157,7 @@ describe('TimerInteraction', () => {
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stepId: 'test-step-id',
+				interactionId: 'test-interaction-id',
 				interactionType: 'timer',
 				data: { waited: true },
 				startedAt: expect.any(String),
@@ -176,10 +167,9 @@ describe('TimerInteraction', () => {
 	});
 
 	it('should use default duration when not specified', () => {
-		const step = createMockStep('timer', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(TimerInteraction, { props: { step, onComplete } });
+		render(TimerInteraction, { props });
 
 		// Default is 10 seconds
 		expect(screen.getByText('0:10')).toBeInTheDocument();
@@ -193,30 +183,27 @@ describe('TimerInteraction', () => {
 
 describe('TosInteraction', () => {
 	it('should render checkbox with default label', () => {
-		const step = createMockStep('tos', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(TosInteraction, { props: { step, onComplete } });
+		render(TosInteraction, { props });
 
 		expect(screen.getByText('I accept the terms of service')).toBeInTheDocument();
 	});
 
 	it('should render checkbox with custom label', () => {
-		const step = createMockStep('tos', {
+		const props = createInteractionProps({
 			checkbox_label: 'I agree to the rules'
 		});
-		const onComplete = vi.fn();
 
-		render(TosInteraction, { props: { step, onComplete } });
+		render(TosInteraction, { props });
 
 		expect(screen.getByText('I agree to the rules')).toBeInTheDocument();
 	});
 
 	it('should have disabled accept button when checkbox is not checked', () => {
-		const step = createMockStep('tos', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(TosInteraction, { props: { step, onComplete } });
+		render(TosInteraction, { props });
 
 		const acceptButton = screen.getByRole('button', {
 			name: 'Accept & Continue'
@@ -225,10 +212,9 @@ describe('TosInteraction', () => {
 	});
 
 	it('should enable accept button when checkbox is checked', async () => {
-		const step = createMockStep('tos', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(TosInteraction, { props: { step, onComplete } });
+		render(TosInteraction, { props });
 
 		const checkbox = screen.getByRole('checkbox');
 		await fireEvent.click(checkbox);
@@ -240,10 +226,10 @@ describe('TosInteraction', () => {
 	});
 
 	it('should call onComplete with acceptance data when accepted', async () => {
-		const step = createMockStep('tos', {});
 		const onComplete = vi.fn();
+		const props = createInteractionProps({}, { onComplete });
 
-		render(TosInteraction, { props: { step, onComplete } });
+		render(TosInteraction, { props });
 
 		const checkbox = screen.getByRole('checkbox');
 		await fireEvent.click(checkbox);
@@ -256,7 +242,7 @@ describe('TosInteraction', () => {
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stepId: 'test-step-id',
+				interactionId: 'test-interaction-id',
 				interactionType: 'tos',
 				data: {
 					accepted: true,
@@ -274,57 +260,52 @@ describe('TosInteraction', () => {
 
 describe('TextInputInteraction', () => {
 	it('should render labeled input with default label', () => {
-		const step = createMockStep('text_input', {});
-		const onComplete = vi.fn();
+		const props = createInteractionProps({});
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		expect(screen.getByLabelText('Your response')).toBeInTheDocument();
 	});
 
 	it('should render labeled input with custom label', () => {
-		const step = createMockStep('text_input', { label: 'Enter your name' });
-		const onComplete = vi.fn();
+		const props = createInteractionProps({ label: 'Enter your name' });
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		expect(screen.getByLabelText('Enter your name')).toBeInTheDocument();
 	});
 
 	it('should render input with placeholder', () => {
-		const step = createMockStep('text_input', {
+		const props = createInteractionProps({
 			label: 'Name',
 			placeholder: 'John Doe'
 		});
-		const onComplete = vi.fn();
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const input = screen.getByPlaceholderText('John Doe');
 		expect(input).toBeInTheDocument();
 	});
 
 	it('should have disabled submit button when required field is empty', () => {
-		const step = createMockStep('text_input', {
+		const props = createInteractionProps({
 			label: 'Name',
 			required: true
 		});
-		const onComplete = vi.fn();
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const submitButton = screen.getByRole('button', { name: 'Continue' });
 		expect(submitButton).toBeDisabled();
 	});
 
 	it('should enable submit button when required field has value', async () => {
-		const step = createMockStep('text_input', {
+		const props = createInteractionProps({
 			label: 'Name',
 			required: true
 		});
-		const onComplete = vi.fn();
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const input = screen.getByLabelText('Name');
 		await fireEvent.input(input, { target: { value: 'Test User' } });
@@ -334,13 +315,12 @@ describe('TextInputInteraction', () => {
 	});
 
 	it('should show validation error for min_length violation', async () => {
-		const step = createMockStep('text_input', {
+		const props = createInteractionProps({
 			label: 'Name',
 			min_length: 5
 		});
-		const onComplete = vi.fn();
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const input = screen.getByLabelText('Name');
 		await fireEvent.input(input, { target: { value: 'abc' } });
@@ -350,13 +330,12 @@ describe('TextInputInteraction', () => {
 	});
 
 	it('should show validation error for max_length violation', async () => {
-		const step = createMockStep('text_input', {
+		const props = createInteractionProps({
 			label: 'Name',
 			max_length: 5
 		});
-		const onComplete = vi.fn();
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const input = screen.getByLabelText('Name');
 		await fireEvent.input(input, { target: { value: 'abcdefgh' } });
@@ -366,10 +345,10 @@ describe('TextInputInteraction', () => {
 	});
 
 	it('should call onComplete with text data when submitted', async () => {
-		const step = createMockStep('text_input', { label: 'Name' });
 		const onComplete = vi.fn();
+		const props = createInteractionProps({ label: 'Name' }, { onComplete });
 
-		render(TextInputInteraction, { props: { step, onComplete } });
+		render(TextInputInteraction, { props });
 
 		const input = screen.getByLabelText('Name');
 		await fireEvent.input(input, { target: { value: 'Test User' } });
@@ -380,7 +359,7 @@ describe('TextInputInteraction', () => {
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stepId: 'test-step-id',
+				interactionId: 'test-interaction-id',
 				interactionType: 'text_input',
 				data: { text: 'Test User' }
 			})
@@ -395,14 +374,13 @@ describe('TextInputInteraction', () => {
 
 describe('QuizInteraction', () => {
 	it('should render question and options', () => {
-		const step = createMockStep('quiz', {
+		const props = createInteractionProps({
 			question: 'What is 2 + 2?',
 			options: ['3', '4', '5'],
 			correct_answer_index: 1
 		});
-		const onComplete = vi.fn();
 
-		render(QuizInteraction, { props: { step, onComplete } });
+		render(QuizInteraction, { props });
 
 		expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();
 		expect(screen.getByText('3')).toBeInTheDocument();
@@ -411,28 +389,26 @@ describe('QuizInteraction', () => {
 	});
 
 	it('should have disabled submit button when no option is selected', () => {
-		const step = createMockStep('quiz', {
+		const props = createInteractionProps({
 			question: 'What is 2 + 2?',
 			options: ['3', '4', '5'],
 			correct_answer_index: 1
 		});
-		const onComplete = vi.fn();
 
-		render(QuizInteraction, { props: { step, onComplete } });
+		render(QuizInteraction, { props });
 
 		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
 		expect(submitButton).toBeDisabled();
 	});
 
 	it('should enable submit button when an option is selected', async () => {
-		const step = createMockStep('quiz', {
+		const props = createInteractionProps({
 			question: 'What is 2 + 2?',
 			options: ['3', '4', '5'],
 			correct_answer_index: 1
 		});
-		const onComplete = vi.fn();
 
-		render(QuizInteraction, { props: { step, onComplete } });
+		render(QuizInteraction, { props });
 
 		const option = screen.getByRole('radio', { name: '4' });
 		await fireEvent.click(option);
@@ -442,14 +418,17 @@ describe('QuizInteraction', () => {
 	});
 
 	it('should call onComplete with selected answer_index when submitted', async () => {
-		const step = createMockStep('quiz', {
-			question: 'What is 2 + 2?',
-			options: ['3', '4', '5'],
-			correct_answer_index: 1
-		});
 		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete }
+		);
 
-		render(QuizInteraction, { props: { step, onComplete } });
+		render(QuizInteraction, { props });
 
 		const option = screen.getByRole('radio', { name: '4' });
 		await fireEvent.click(option);
@@ -460,7 +439,7 @@ describe('QuizInteraction', () => {
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stepId: 'test-step-id',
+				interactionId: 'test-interaction-id',
 				interactionType: 'quiz',
 				data: { answer_index: 1 }
 			})
@@ -468,14 +447,17 @@ describe('QuizInteraction', () => {
 	});
 
 	it('should allow changing selection before submitting', async () => {
-		const step = createMockStep('quiz', {
-			question: 'What is 2 + 2?',
-			options: ['3', '4', '5'],
-			correct_answer_index: 1
-		});
 		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete }
+		);
 
-		render(QuizInteraction, { props: { step, onComplete } });
+		render(QuizInteraction, { props });
 
 		// Select first option
 		const option1 = screen.getByRole('radio', { name: '3' });

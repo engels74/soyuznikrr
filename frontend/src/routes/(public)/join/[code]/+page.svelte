@@ -52,15 +52,7 @@ import {
 	CardTitle,
 } from "$lib/components/ui/card";
 import { Skeleton } from "$lib/components/ui/skeleton";
-import {
-	ClickInteraction,
-	QuizInteraction,
-	type StepResponse,
-	TextInputInteraction,
-	TimerInteraction,
-	TosInteraction,
-	WizardShell,
-} from "$lib/components/wizard";
+import { WizardShell } from "$lib/components/wizard";
 import {
 	type RegistrationInput,
 	registrationSchema,
@@ -463,20 +455,6 @@ function handleRegistrationRetry() {
 	}
 }
 
-/**
- * Render the appropriate interaction component for a wizard step.
- */
-function renderInteraction(
-	step: {
-		interaction_type: string;
-		id: string;
-		config: Record<string, unknown>;
-	},
-	onStepComplete: (response: StepResponse) => void,
-	disabled: boolean,
-) {
-	return { step, onStepComplete, disabled };
-}
 </script>
 
 <div class="space-y-6">
@@ -554,21 +532,7 @@ function renderInteraction(
 			wizard={data.validation.pre_wizard}
 			onComplete={handlePreWizardComplete}
 			onCancel={handlePreWizardCancel}
-		>
-			{#snippet interaction({ step, onStepComplete, disabled })}
-				{#if step.interaction_type === 'click'}
-					<ClickInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'timer'}
-					<TimerInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'tos'}
-					<TosInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'text_input'}
-					<TextInputInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'quiz'}
-					<QuizInteraction {step} onComplete={onStepComplete} {disabled} />
-				{/if}
-			{/snippet}
-		</WizardShell>
+		/>
 
 	<!-- Post-wizard state -->
 	{:else if currentStep === 'post_wizard' && data.validation?.post_wizard}
@@ -576,21 +540,7 @@ function renderInteraction(
 			wizard={data.validation.post_wizard}
 			onComplete={handlePostWizardComplete}
 			onCancel={handlePostWizardCancel}
-		>
-			{#snippet interaction({ step, onStepComplete, disabled })}
-				{#if step.interaction_type === 'click'}
-					<ClickInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'timer'}
-					<TimerInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'tos'}
-					<TosInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'text_input'}
-					<TextInputInteraction {step} onComplete={onStepComplete} {disabled} />
-				{:else if step.interaction_type === 'quiz'}
-					<QuizInteraction {step} onComplete={onStepComplete} {disabled} />
-				{/if}
-			{/snippet}
-		</WizardShell>
+		/>
 
 	<!-- Success state -->
 	{:else if currentStep === 'success' && redemptionResponse}

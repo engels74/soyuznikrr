@@ -520,7 +520,7 @@ export async function healthCheck(customFetch: typeof globalThis.fetch = fetch) 
 // Wizard Types
 // =============================================================================
 
-/** Wizard step configuration types (not in OpenAPI spec) */
+/** Interaction configuration types (not in OpenAPI spec) */
 export interface ClickConfig {
 	button_text?: string;
 }
@@ -560,6 +560,10 @@ export type CreateWizardRequest = components['schemas']['WizardCreate'];
 export type UpdateWizardRequest = components['schemas']['WizardUpdate'];
 export type CreateWizardStepRequest = components['schemas']['WizardStepCreate'];
 export type UpdateWizardStepRequest = components['schemas']['WizardStepUpdate'];
+export type StepInteractionResponse = components['schemas']['StepInteractionResponse'];
+export type StepInteractionCreate = components['schemas']['StepInteractionCreate'];
+export type StepInteractionUpdate = components['schemas']['StepInteractionUpdate'];
+export type InteractionResponseData = components['schemas']['InteractionResponseData'];
 
 // =============================================================================
 // Wizard API Wrappers
@@ -717,4 +721,72 @@ export async function reorderStep(
  */
 export async function validateStep(data: StepValidationRequest, client: ApiClient = api) {
 	return client.POST('/api/v1/wizards/validate-step', { body: data });
+}
+
+/**
+ * Add an interaction to a wizard step.
+ *
+ * @param wizardId - UUID of the parent wizard
+ * @param stepId - UUID of the step
+ * @param data - Interaction creation data
+ * @returns Created interaction response
+ */
+export async function addStepInteraction(
+	wizardId: string,
+	stepId: string,
+	data: StepInteractionCreate,
+	client: ApiClient = api
+) {
+	return client.POST('/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions', {
+		params: { path: { wizard_id: wizardId, step_id: stepId } },
+		body: data
+	});
+}
+
+/**
+ * Update a step interaction's configuration.
+ *
+ * @param wizardId - UUID of the parent wizard
+ * @param stepId - UUID of the step
+ * @param interactionId - UUID of the interaction to update
+ * @param data - Fields to update
+ * @returns Updated interaction response
+ */
+export async function updateStepInteraction(
+	wizardId: string,
+	stepId: string,
+	interactionId: string,
+	data: StepInteractionUpdate,
+	client: ApiClient = api
+) {
+	return client.PATCH('/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions/{interaction_id}', {
+		params: {
+			path: { wizard_id: wizardId, step_id: stepId, interaction_id: interactionId }
+		},
+		body: data
+	});
+}
+
+/**
+ * Remove an interaction from a step.
+ *
+ * @param wizardId - UUID of the parent wizard
+ * @param stepId - UUID of the step
+ * @param interactionId - UUID of the interaction to remove
+ * @returns Empty response on success
+ */
+export async function removeStepInteraction(
+	wizardId: string,
+	stepId: string,
+	interactionId: string,
+	client: ApiClient = api
+) {
+	return client.DELETE(
+		'/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions/{interaction_id}',
+		{
+			params: {
+				path: { wizard_id: wizardId, step_id: stepId, interaction_id: interactionId }
+			}
+		}
+	);
 }

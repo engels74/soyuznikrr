@@ -1,12 +1,14 @@
-"""Wizard and WizardStep models for configurable onboarding flows.
+"""Wizard, WizardStep, and StepInteraction models for configurable onboarding flows.
 
 Provides:
 - InteractionType: StrEnum for supported wizard step interaction types
 - Wizard: Model representing a configurable wizard flow
 - WizardStep: Model representing a single step within a wizard
+- StepInteraction: Model representing an interaction attached to a step
 
 Uses SQLAlchemy 2.0 patterns with mapped_column and Mapped types.
-Relationships use cascade delete for steps when wizard is deleted.
+Relationships use cascade delete for steps when wizard is deleted,
+and for interactions when step is deleted.
 """
 
 from enum import StrEnum
@@ -72,21 +74,20 @@ class Wizard(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 class WizardStep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """A single step within a wizard.
 
-    Represents one step in a wizard flow with a specific interaction type.
-    Steps are ordered within their parent wizard and must have unique
-    step_order values per wizard.
+    Represents one step in a wizard flow. Steps are content containers
+    with zero or more interactions attached. Steps are ordered within
+    their parent wizard and must have unique step_order values per wizard.
 
     Attributes:
         id: UUID primary key
         wizard_id: Foreign key to the parent wizard
         step_order: Position in the wizard sequence (0-indexed)
-        interaction_type: Type of user interaction required
         title: Display title for the step
         content_markdown: Markdown content to display
-        config: JSON configuration specific to the interaction type
         created_at: Timestamp when the step was created
         updated_at: Timestamp of last modification
         wizard: Reference to the parent wizard
+        interactions: List of interactions attached to this step
     """
 
     __tablename__: str = "wizard_steps"
@@ -95,12 +96,8 @@ class WizardStep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("wizards.id", ondelete="CASCADE"),
     )
     step_order: Mapped[int] = mapped_column(Integer)
-    interaction_type: Mapped[InteractionType] = mapped_column(String(20))
     title: Mapped[str] = mapped_column(String(255))
     content_markdown: Mapped[str] = mapped_column(Text)
-    config: Mapped[dict[str, str | int | bool | list[str] | None]] = mapped_column(
-        JSON, default=dict
-    )
 
     # Relationships - use joined for single relations
     wizard: Mapped[Wizard] = relationship(
@@ -108,7 +105,58 @@ class WizardStep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         lazy="joined",
     )
 
+    # Interactions - cascade delete, ordered by display_order
+    interactions: Mapped[list[StepInteraction]] = relationship(
+        back_populates="step",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="StepInteraction.display_order",
+    )
+
     # Table constraints - unique step_order per wizard
     __table_args__: tuple[UniqueConstraint, ...] = (
         UniqueConstraint("wizard_id", "step_order", name="uq_wizard_step_order"),
+    )
+
+
+class StepInteraction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """An interaction attached to a wizard step.
+
+    Represents a composable interaction type that users must complete.
+    Steps can have zero interactions (informational) or multiple
+    interactions (AND logic: user completes all).
+
+    Attributes:
+        id: UUID primary key
+        step_id: Foreign key to the parent step
+        interaction_type: Type of interaction (click, timer, tos, etc.)
+        config: JSON configuration specific to the interaction type
+        display_order: Position for rendering multiple interactions
+        created_at: Timestamp when the interaction was created
+        updated_at: Timestamp of last modification
+        step: Reference to the parent step
+    """
+
+    __tablename__: str = "step_interactions"
+
+    step_id: Mapped[UUID] = mapped_column(
+        ForeignKey("wizard_steps.id", ondelete="CASCADE"),
+    )
+    interaction_type: Mapped[InteractionType] = mapped_column(String(20))
+    config: Mapped[dict[str, str | int | bool | list[str] | None]] = mapped_column(
+        JSON, default=dict
+    )
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Relationships
+    step: Mapped[WizardStep] = relationship(
+        back_populates="interactions",
+        lazy="joined",
+    )
+
+    # Table constraints - unique interaction type per step
+    __table_args__: tuple[UniqueConstraint, ...] = (
+        UniqueConstraint(
+            "step_id", "interaction_type", name="uq_step_interaction_type"
+        ),
     )

@@ -9,26 +9,13 @@
  * Requirements: 6.1, 6.2, 6.3, 6.4, 12.3
  */
 import { Check } from "@lucide/svelte";
-import type { TosConfig, WizardStepResponse } from "$lib/api/client";
+import { tosConfigSchema } from "$lib/schemas/wizard";
+import type { InteractionComponentProps } from "./registry";
 
-export interface StepResponse {
-	stepId: string;
-	interactionType: string;
-	data: { [key: string]: string | number | boolean | null };
-	startedAt?: string;
-	completedAt: string;
-}
+const { interactionId, config: rawConfig, onComplete, disabled = false }: InteractionComponentProps = $props();
 
-interface Props {
-	step: WizardStepResponse;
-	onComplete: (response: StepResponse) => void;
-	disabled?: boolean;
-}
-
-const { step, onComplete, disabled = false }: Props = $props();
-
-// Extract checkbox label from config with default
-const config = $derived(step.config as unknown as TosConfig);
+// Validate config with Zod schema, falling back gracefully for partial configs
+const config = $derived(tosConfigSchema.safeParse(rawConfig).data);
 const checkboxLabel = $derived(
 	config?.checkbox_label ?? "I accept the terms of service",
 );
@@ -43,7 +30,7 @@ function handleAccept() {
 	if (!accepted) return;
 
 	onComplete({
-		stepId: step.id,
+		interactionId,
 		interactionType: "tos",
 		data: {
 			accepted: true,
@@ -80,7 +67,7 @@ function toggleAccepted() {
 	<!-- Accept button -->
 	<button
 		type="button"
-		class="accept-btn"
+		class="wizard-accent-btn"
 		onclick={handleAccept}
 		disabled={!canProceed || disabled}
 	>
@@ -114,28 +101,28 @@ function toggleAccepted() {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: hsl(220 15% 12%);
-		border: 2px solid hsl(220 10% 30%);
+		background: var(--wizard-input-hover-bg);
+		border: 2px solid var(--wizard-ring-border);
 		border-radius: 0.375rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
 	.checkbox:hover:not(:disabled) {
-		border-color: hsl(45 90% 55%);
-		background: hsl(220 15% 15%);
+		border-color: var(--wizard-accent);
+		background: var(--wizard-indicator-bg);
 	}
 
 	.checkbox:focus-visible {
 		outline: none;
 		box-shadow:
-			0 0 0 2px hsl(220 20% 4%),
-			0 0 0 4px hsl(45 90% 55% / 0.5);
+			0 0 0 2px var(--wizard-bg),
+			0 0 0 4px var(--wizard-focus-ring);
 	}
 
 	.checkbox.checked {
-		background: hsl(45 90% 55%);
-		border-color: hsl(45 90% 55%);
+		background: var(--wizard-accent);
+		border-color: var(--wizard-accent);
 	}
 
 	.checkbox:disabled {
@@ -147,7 +134,7 @@ function toggleAccepted() {
 	.checkbox :global(.check-icon) {
 		width: 1rem;
 		height: 1rem;
-		color: hsl(220 20% 4%);
+		color: var(--wizard-bg);
 		stroke-width: 3;
 	}
 
@@ -155,41 +142,7 @@ function toggleAccepted() {
 	.checkbox-label {
 		font-size: 0.9375rem;
 		line-height: 1.5;
-		color: hsl(220 10% 80%);
+		color: var(--wizard-text-secondary);
 		user-select: none;
-	}
-
-	/* Accept button */
-	.accept-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.75rem 1.5rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: hsl(220 20% 4%);
-		background: hsl(45 90% 55%);
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		box-shadow:
-			0 0 16px hsl(45 90% 55% / 0.3),
-			0 4px 12px hsl(0 0% 0% / 0.2);
-	}
-
-	.accept-btn:hover:not(:disabled) {
-		transform: scale(1.02);
-		box-shadow:
-			0 0 24px hsl(45 90% 55% / 0.4),
-			0 6px 16px hsl(0 0% 0% / 0.3);
-	}
-
-	.accept-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-		background: hsl(220 10% 25%);
-		color: hsl(220 10% 50%);
-		box-shadow: none;
 	}
 </style>

@@ -6,14 +6,12 @@
  * @module $lib/components/wizard
  */
 
-// Re-export interaction components
+// Registry and interaction types
 export {
-	ClickInteraction,
-	QuizInteraction,
-	type StepResponse,
-	TextInputInteraction,
-	TimerInteraction,
-	TosInteraction
+	getAllInteractionTypes,
+	getInteractionType,
+	type InteractionCompletionData,
+	type InteractionComponentProps
 } from './interactions';
 
 // Admin builder components

@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from datetime import datetime
 
 from zondarr.core.exceptions import ValidationError
-from zondarr.models.wizard import InteractionType, WizardStep
+from zondarr.models.wizard import InteractionType
 
 from .handlers import (
     ClickHandler,
@@ -22,7 +22,7 @@ from .handlers import (
     TimerHandler,
     TosHandler,
 )
-from .protocol import InteractionHandler, StepConfig
+from .protocol import InteractionHandler, InteractionSource, StepConfig
 
 # Type alias for input config
 InputConfig = Mapping[str, object]
@@ -112,24 +112,27 @@ class InteractionRegistry:
 
     def validate_response(
         self,
-        step: WizardStep,
+        source: InteractionSource,
         response: InputConfig,
         started_at: datetime | None,
         /,
     ) -> tuple[bool, str | None]:
-        """Validate a step response using the registered handler.
+        """Validate a response using the registered handler.
+
+        Works with any object that has config and interaction_type attributes
+        (both WizardStep and StepInteraction satisfy this).
 
         Args:
-            step: The wizard step (positional-only).
+            source: The interaction source (positional-only).
             response: The user's response data (positional-only).
             started_at: When the step was started (positional-only).
 
         Returns:
             A tuple of (is_valid, error_message).
         """
-        return self.get_handler(step.interaction_type).validate_response(
-            step, response, started_at
-        )
+        return self.get_handler(
+            InteractionType(source.interaction_type)
+        ).validate_response(source, response, started_at)
 
     def registered_types(self) -> set[InteractionType]:
         """Return the set of registered interaction types.

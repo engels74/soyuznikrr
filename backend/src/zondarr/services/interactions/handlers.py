@@ -14,9 +14,8 @@ response (user-side) for its interaction type.
 from datetime import UTC, datetime
 
 from zondarr.core.exceptions import ValidationError
-from zondarr.models.wizard import WizardStep
 
-from .protocol import InputConfig, StepConfig
+from .protocol import InputConfig, InteractionSource, StepConfig
 
 # Timer duration bounds
 MIN_TIMER_DURATION: int = 1
@@ -53,7 +52,7 @@ class ClickHandler:
 
     def validate_response(
         self,
-        _step: WizardStep,
+        _source: InteractionSource,
         response: InputConfig,
         _started_at: datetime | None,
         /,
@@ -61,7 +60,7 @@ class ClickHandler:
         """Validate click interaction response.
 
         Args:
-            _step: The wizard step (positional-only, unused).
+            _source: The interaction source (positional-only, unused).
             response: The user's response data (positional-only).
             _started_at: Unused for click (positional-only).
 
@@ -122,7 +121,7 @@ class TimerHandler:
 
     def validate_response(
         self,
-        step: WizardStep,
+        source: InteractionSource,
         _response: InputConfig,
         started_at: datetime | None,
         /,
@@ -132,7 +131,7 @@ class TimerHandler:
         Implements Property 11: Timer Duration Validation.
 
         Args:
-            step: The wizard step (positional-only).
+            source: The interaction source (positional-only).
             _response: Unused for timer (positional-only).
             started_at: When the step was started (positional-only).
 
@@ -142,7 +141,7 @@ class TimerHandler:
         if started_at is None:
             return False, "Timer start time required"
 
-        duration_seconds = step.config.get("duration_seconds", 0)
+        duration_seconds = source.config.get("duration_seconds", 0)
         if not isinstance(duration_seconds, int):
             return False, "Invalid timer configuration"
 
@@ -182,7 +181,7 @@ class TosHandler:
 
     def validate_response(
         self,
-        _step: WizardStep,
+        _source: InteractionSource,
         response: InputConfig,
         _started_at: datetime | None,
         /,
@@ -190,7 +189,7 @@ class TosHandler:
         """Validate TOS interaction response.
 
         Args:
-            _step: The wizard step (positional-only, unused).
+            _source: The interaction source (positional-only, unused).
             response: The user's response data (positional-only).
             _started_at: Unused for TOS (positional-only).
 
@@ -283,7 +282,7 @@ class TextInputHandler:
 
     def validate_response(
         self,
-        step: WizardStep,
+        source: InteractionSource,
         response: InputConfig,
         _started_at: datetime | None,
         /,
@@ -293,7 +292,7 @@ class TextInputHandler:
         Implements Property 10: Text Input Constraint Validation.
 
         Args:
-            step: The wizard step (positional-only).
+            source: The interaction source (positional-only).
             response: The user's response data (positional-only).
             _started_at: Unused for text input (positional-only).
 
@@ -301,7 +300,7 @@ class TextInputHandler:
             A tuple of (is_valid, error_message).
         """
         text = response.get("text")
-        config = step.config
+        config = source.config
 
         required = config.get("required", True)
         if required and (text is None or not str(text).strip()):
@@ -423,7 +422,7 @@ class QuizHandler:
 
     def validate_response(
         self,
-        step: WizardStep,
+        source: InteractionSource,
         response: InputConfig,
         _started_at: datetime | None,
         /,
@@ -433,7 +432,7 @@ class QuizHandler:
         Implements Property 9: Quiz Answer Validation.
 
         Args:
-            step: The wizard step (positional-only).
+            source: The interaction source (positional-only).
             response: The user's response data (positional-only).
             _started_at: Unused for quiz (positional-only).
 
@@ -447,7 +446,7 @@ class QuizHandler:
         if not isinstance(answer_index, int):
             return False, "Answer index must be an integer"
 
-        correct_index = step.config.get("correct_answer_index")
+        correct_index = source.config.get("correct_answer_index")
         if not isinstance(correct_index, int):
             return False, "Invalid quiz configuration"
 

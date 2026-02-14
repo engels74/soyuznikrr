@@ -15,11 +15,6 @@ import type { WizardDetailResponse } from "$lib/api/client";
 import { getErrorMessage, isNetworkError } from "$lib/api/errors";
 import ErrorState from "$lib/components/error-state.svelte";
 import {
-	ClickInteraction,
-	QuizInteraction,
-	TextInputInteraction,
-	TimerInteraction,
-	TosInteraction,
 	WizardBuilder,
 	WizardShell,
 } from "$lib/components/wizard";
@@ -93,21 +88,7 @@ async function handleRetry() {
 				wizard={data.wizard}
 				onComplete={handlePreviewComplete}
 				onCancel={handleExitPreview}
-			>
-				{#snippet interaction({ step, onStepComplete, disabled })}
-					{#if step.interaction_type === 'click'}
-						<ClickInteraction {step} onComplete={onStepComplete} {disabled} />
-					{:else if step.interaction_type === 'timer'}
-						<TimerInteraction {step} onComplete={onStepComplete} {disabled} />
-					{:else if step.interaction_type === 'tos'}
-						<TosInteraction {step} onComplete={onStepComplete} {disabled} />
-					{:else if step.interaction_type === 'text_input'}
-						<TextInputInteraction {step} onComplete={onStepComplete} {disabled} />
-					{:else if step.interaction_type === 'quiz'}
-						<QuizInteraction {step} onComplete={onStepComplete} {disabled} />
-					{/if}
-				{/snippet}
-			</WizardShell>
+			/>
 		</div>
 	{:else}
 		<!-- Edit mode - render the wizard builder -->

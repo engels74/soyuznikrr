@@ -1,8 +1,8 @@
 """WizardService for wizard business logic orchestration.
 
-Provides methods to create, update, delete, and validate wizards and steps.
-Delegates interaction type validation to the InteractionRegistry, which
-dispatches to type-specific handler implementations.
+Provides methods to create, update, delete, and validate wizards, steps,
+and step interactions. Delegates interaction type validation to the
+InteractionRegistry, which dispatches to type-specific handler implementations.
 
 Implements:
 - Property 5: Interaction Type Validation
@@ -17,10 +17,12 @@ from datetime import datetime
 from uuid import UUID
 
 from zondarr.core.exceptions import NotFoundError, ValidationError
-from zondarr.models.wizard import InteractionType, Wizard, WizardStep
+from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
+from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
 from zondarr.services.interactions import interaction_registry
+from zondarr.services.interactions.protocol import InteractionSourceData
 
 # Type alias for step configuration values
 ConfigValue = str | int | bool | list[str] | None
@@ -37,21 +39,25 @@ class WizardService:
     Orchestrates business logic for wizard management including:
     - Creating and updating wizards
     - Managing wizard steps with auto-ordering
+    - Managing step interactions (composable interaction types)
     - Validating step configurations via InteractionRegistry
     - Validating step completions during wizard execution
 
     Attributes:
         wizard_repo: The WizardRepository for wizard data access.
         step_repo: The WizardStepRepository for step data access.
+        interaction_repo: The StepInteractionRepository for interaction data access.
     """
 
     wizard_repo: WizardRepository
     step_repo: WizardStepRepository
+    interaction_repo: StepInteractionRepository
 
     def __init__(
         self,
         wizard_repo: WizardRepository,
         step_repo: WizardStepRepository,
+        interaction_repo: StepInteractionRepository,
         /,
     ) -> None:
         """Initialize the WizardService.
@@ -59,9 +65,11 @@ class WizardService:
         Args:
             wizard_repo: The WizardRepository for wizard data access (positional-only).
             step_repo: The WizardStepRepository for step data access (positional-only).
+            interaction_repo: The StepInteractionRepository for interaction data access (positional-only).
         """
         self.wizard_repo = wizard_repo
         self.step_repo = step_repo
+        self.interaction_repo = interaction_repo
 
     # ==================== Wizard CRUD ====================
 
@@ -211,22 +219,19 @@ class WizardService:
         wizard_id: UUID,
         /,
         *,
-        interaction_type: str,
         title: str,
         content_markdown: str,
-        config: InputConfig | None = None,
         step_order: int | None = None,
     ) -> WizardStep:
-        """Create a new wizard step.
+        """Create a new wizard step (bare content container).
 
-        If step_order is not provided, the step is appended to the end.
+        Steps are created without interaction types. Interactions are
+        added separately via add_interaction().
 
         Args:
             wizard_id: The UUID of the wizard (positional-only).
-            interaction_type: The interaction type (keyword-only).
             title: The step title (keyword-only).
             content_markdown: The markdown content (keyword-only).
-            config: The step configuration (keyword-only).
             step_order: The step position (keyword-only).
 
         Returns:
@@ -234,19 +239,12 @@ class WizardService:
 
         Raises:
             NotFoundError: If the wizard does not exist.
-            ValidationError: If the interaction type or config is invalid.
             RepositoryError: If the database operation fails.
         """
         # Verify wizard exists
         wizard = await self.wizard_repo.get_by_id(wizard_id)
         if wizard is None:
             raise NotFoundError("Wizard", str(wizard_id))
-
-        # Validate interaction type (Property 5)
-        validated_type = self._validate_interaction_type(interaction_type)
-
-        # Validate config for the interaction type
-        validated_config = self._validate_step_config(validated_type, config or {})
 
         # Auto-assign step_order if not provided
         if step_order is None:
@@ -256,10 +254,8 @@ class WizardService:
         step = WizardStep(
             wizard_id=wizard_id,
             step_order=step_order,
-            interaction_type=validated_type,
             title=title,
             content_markdown=content_markdown,
-            config=validated_config,
         )
         return await self.step_repo.create(step)
 
@@ -271,7 +267,6 @@ class WizardService:
         *,
         title: str | None = None,
         content_markdown: str | None = None,
-        config: InputConfig | None = None,
     ) -> WizardStep:
         """Update a wizard step.
 
@@ -280,14 +275,12 @@ class WizardService:
             step_id: The UUID of the step (positional-only).
             title: New title (keyword-only).
             content_markdown: New markdown content (keyword-only).
-            config: New configuration (keyword-only).
 
         Returns:
             The updated WizardStep entity.
 
         Raises:
             NotFoundError: If the wizard or step does not exist.
-            ValidationError: If the config is invalid.
             RepositoryError: If the database operation fails.
         """
         step = await self.step_repo.get_by_id(step_id)
@@ -299,10 +292,6 @@ class WizardService:
 
         if content_markdown is not None:
             step.content_markdown = content_markdown
-
-        if config is not None:
-            validated_config = self._validate_step_config(step.interaction_type, config)
-            step.config = validated_config
 
         return await self.step_repo.update(step)
 
@@ -368,44 +357,223 @@ class WizardService:
             raise NotFoundError("WizardStep", str(step_id))
         return updated_step
 
+    # ==================== Interaction CRUD ====================
+
+    async def add_interaction(
+        self,
+        wizard_id: UUID,
+        step_id: UUID,
+        /,
+        *,
+        interaction_type: str,
+        config: InputConfig | None = None,
+        display_order: int | None = None,
+    ) -> StepInteraction:
+        """Add an interaction to a step.
+
+        Args:
+            wizard_id: The UUID of the wizard (positional-only).
+            step_id: The UUID of the step (positional-only).
+            interaction_type: The interaction type (keyword-only).
+            config: The interaction configuration (keyword-only).
+            display_order: The display position (keyword-only).
+
+        Returns:
+            The created StepInteraction entity.
+
+        Raises:
+            NotFoundError: If the wizard or step does not exist.
+            ValidationError: If the interaction type or config is invalid,
+                or if the type is already on this step.
+            RepositoryError: If the database operation fails.
+        """
+        # Verify step exists and belongs to wizard
+        step = await self.step_repo.get_by_id(step_id)
+        if step is None or step.wizard_id != wizard_id:
+            raise NotFoundError("WizardStep", str(step_id))
+
+        # Validate interaction type
+        validated_type = self._validate_interaction_type(interaction_type)
+
+        # Validate config
+        validated_config = self._validate_step_config(validated_type, config or {})
+
+        # Check for duplicate type on this step
+        existing = await self.interaction_repo.get_by_step_id(step_id)
+        for existing_interaction in existing:
+            if existing_interaction.interaction_type == validated_type:
+                raise ValidationError(
+                    f"Step already has a {interaction_type} interaction",
+                    field_errors={
+                        "interaction_type": [
+                            f"Duplicate interaction type: {interaction_type}"
+                        ]
+                    },
+                )
+
+        # Auto-assign display_order if not provided
+        if display_order is None:
+            display_order = len(existing)
+
+        interaction = StepInteraction(
+            step_id=step_id,
+            interaction_type=validated_type,
+            config=validated_config,
+            display_order=display_order,
+        )
+        return await self.interaction_repo.create(interaction)
+
+    async def update_interaction(
+        self,
+        wizard_id: UUID,
+        step_id: UUID,
+        interaction_id: UUID,
+        /,
+        *,
+        config: InputConfig | None = None,
+    ) -> StepInteraction:
+        """Update a step interaction's config.
+
+        Args:
+            wizard_id: The UUID of the wizard (positional-only).
+            step_id: The UUID of the step (positional-only).
+            interaction_id: The UUID of the interaction (positional-only).
+            config: New configuration (keyword-only).
+
+        Returns:
+            The updated StepInteraction entity.
+
+        Raises:
+            NotFoundError: If the wizard, step, or interaction does not exist.
+            ValidationError: If the config is invalid.
+            RepositoryError: If the database operation fails.
+        """
+        interaction = await self.interaction_repo.get_by_id(interaction_id)
+        if interaction is None or interaction.step_id != step_id:
+            raise NotFoundError("StepInteraction", str(interaction_id))
+
+        # Verify step belongs to wizard
+        step = await self.step_repo.get_by_id(step_id)
+        if step is None or step.wizard_id != wizard_id:
+            raise NotFoundError("WizardStep", str(step_id))
+
+        if config is not None:
+            validated_config = self._validate_step_config(
+                interaction.interaction_type, config
+            )
+            interaction.config = validated_config
+
+        return await self.interaction_repo.update(interaction)
+
+    async def remove_interaction(
+        self,
+        wizard_id: UUID,
+        step_id: UUID,
+        interaction_id: UUID,
+        /,
+    ) -> None:
+        """Remove an interaction from a step.
+
+        Args:
+            wizard_id: The UUID of the wizard (positional-only).
+            step_id: The UUID of the step (positional-only).
+            interaction_id: The UUID of the interaction (positional-only).
+
+        Raises:
+            NotFoundError: If the wizard, step, or interaction does not exist.
+            RepositoryError: If the database operation fails.
+        """
+        interaction = await self.interaction_repo.get_by_id(interaction_id)
+        if interaction is None or interaction.step_id != step_id:
+            raise NotFoundError("StepInteraction", str(interaction_id))
+
+        # Verify step belongs to wizard
+        step = await self.step_repo.get_by_id(step_id)
+        if step is None or step.wizard_id != wizard_id:
+            raise NotFoundError("WizardStep", str(step_id))
+
+        await self.interaction_repo.delete(interaction)
+
     # ==================== Step Validation ====================
 
     async def validate_step(
         self,
         step_id: UUID,
-        response: InputConfig,
+        interactions: list[tuple[UUID, InputConfig, datetime | None]],
         /,
-        *,
-        started_at: datetime | None = None,
     ) -> tuple[bool, str | None, str | None]:
-        """Validate a step completion response.
+        """Validate step completion with all interactions.
+
+        Fetches the step's interactions from the DB and enforces that the
+        client-submitted set matches exactly (no omissions, no extras).
+        Steps with zero DB interactions are informational and always valid.
+        All interactions must pass (AND logic).
 
         Args:
             step_id: The UUID of the step (positional-only).
-            response: The user's response data (positional-only).
-            started_at: When the step was started (keyword-only, for timer validation).
+            interactions: List of (interaction_id, response, started_at) tuples (positional-only).
 
         Returns:
             A tuple of (is_valid, error_message, completion_token).
-            If valid, error_message is None and completion_token is set.
-            If invalid, error_message is set and completion_token is None.
 
         Raises:
-            NotFoundError: If the step does not exist.
+            NotFoundError: If the step or an interaction does not exist.
+            ValidationError: If submitted interaction IDs don't match the step's interactions.
             RepositoryError: If the database operation fails.
         """
         step = await self.step_repo.get_by_id(step_id)
         if step is None:
             raise NotFoundError("WizardStep", str(step_id))
 
-        is_valid, error = self._validate_step_response(step, response, started_at)
+        # Fetch authoritative interaction set from DB
+        db_interactions = await self.interaction_repo.get_by_step_id(step_id)
+        expected_ids = {i.id for i in db_interactions}
+        submitted_ids = {iid for iid, _, _ in interactions}
 
-        if is_valid:
-            # Generate completion token
+        # Informational step: only valid when DB truly has zero interactions
+        if not expected_ids:
             token = secrets.token_urlsafe(32)
             return True, None, token
-        else:
-            return False, error, None
+
+        # Enforce exact match between submitted and expected interaction IDs
+        missing = expected_ids - submitted_ids
+        extra = submitted_ids - expected_ids
+        if missing or extra:
+            errors: list[str] = []
+            if missing:
+                errors.append(
+                    f"Missing interactions: {', '.join(str(i) for i in missing)}"
+                )
+            if extra:
+                errors.append(
+                    f"Unknown interactions: {', '.join(str(i) for i in extra)}"
+                )
+            raise ValidationError(
+                "Submitted interactions do not match step requirements",
+                field_errors={"interactions": errors},
+            )
+
+        # Build lookup from DB interactions for validation
+        db_lookup = {i.id: i for i in db_interactions}
+
+        # Validate all interactions (AND logic)
+        for interaction_id, response, started_at in interactions:
+            interaction = db_lookup[interaction_id]
+
+            source = InteractionSourceData(
+                interaction_type=interaction.interaction_type,
+                config=interaction.config,
+            )
+            is_valid, error = interaction_registry.validate_response(
+                source,
+                response,
+                started_at,
+            )
+            if not is_valid:
+                return False, error, None
+
+        token = secrets.token_urlsafe(32)
+        return True, None, token
 
     # ==================== Validation Helpers ====================
 
@@ -452,24 +620,3 @@ class WizardService:
             ValidationError: If the configuration is invalid.
         """
         return interaction_registry.validate_config(interaction_type, config)
-
-    def _validate_step_response(
-        self,
-        step: WizardStep,
-        response: InputConfig,
-        started_at: datetime | None,
-        /,
-    ) -> tuple[bool, str | None]:
-        """Validate a step completion response using the interaction registry.
-
-        Delegates to the registered handler for the step's interaction type.
-
-        Args:
-            step: The wizard step (positional-only).
-            response: The user's response data (positional-only).
-            started_at: When the step was started (positional-only).
-
-        Returns:
-            A tuple of (is_valid, error_message).
-        """
-        return interaction_registry.validate_response(step, response, started_at)

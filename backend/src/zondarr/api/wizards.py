@@ -10,13 +10,16 @@ Provides REST endpoints for wizard CRUD operations:
 - PATCH /api/v1/wizards/{id}/steps/{step_id} - Update a step
 - DELETE /api/v1/wizards/{id}/steps/{step_id} - Delete a step
 - POST /api/v1/wizards/{id}/steps/{step_id}/reorder - Reorder a step
+- POST /api/v1/wizards/{id}/steps/{step_id}/interactions - Add interaction
+- PATCH /api/v1/wizards/{id}/steps/{step_id}/interactions/{iid} - Update interaction
+- DELETE /api/v1/wizards/{id}/steps/{step_id}/interactions/{iid} - Remove interaction
 - POST /api/v1/wizards/validate-step - Validate step completion (public)
 
 Uses Litestar Controller pattern with dependency injection for services.
-Implements Requirements 2.1-2.6, 3.1-3.5, 9.1-9.6.
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -27,12 +30,17 @@ from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zondarr.models.wizard import Wizard, WizardStep
+from zondarr.models.wizard import Wizard
+from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
 from zondarr.services.wizard import WizardService
 
+from .converters import step_interaction_to_response, wizard_step_to_response
 from .schemas import (
+    StepInteractionCreate,
+    StepInteractionResponse,
+    StepInteractionUpdate,
     StepReorderRequest,
     StepValidationRequest,
     StepValidationResponse,
@@ -75,27 +83,43 @@ async def provide_wizard_step_repository(
     return WizardStepRepository(session)
 
 
+async def provide_step_interaction_repository(
+    session: AsyncSession,
+) -> StepInteractionRepository:
+    """Provide StepInteractionRepository instance.
+
+    Args:
+        session: Database session from DI.
+
+    Returns:
+        Configured StepInteractionRepository instance.
+    """
+    return StepInteractionRepository(session)
+
+
 async def provide_wizard_service(
     wizard_repository: WizardRepository,
     step_repository: WizardStepRepository,
+    interaction_repository: StepInteractionRepository,
 ) -> WizardService:
     """Provide WizardService instance.
 
     Args:
         wizard_repository: WizardRepository from DI.
         step_repository: WizardStepRepository from DI.
+        interaction_repository: StepInteractionRepository from DI.
 
     Returns:
         Configured WizardService instance.
     """
-    return WizardService(wizard_repository, step_repository)
+    return WizardService(wizard_repository, step_repository, interaction_repository)
 
 
 class WizardController(Controller):
     """Controller for wizard management endpoints.
 
-    Provides CRUD operations for wizards and steps, plus a public
-    validation endpoint for step completion verification.
+    Provides CRUD operations for wizards, steps, and interactions,
+    plus a public validation endpoint for step completion verification.
     """
 
     path: str = "/api/v1/wizards"
@@ -103,6 +127,7 @@ class WizardController(Controller):
     dependencies: Mapping[str, Provide | AnyCallable] | None = {
         "wizard_repository": Provide(provide_wizard_repository),
         "step_repository": Provide(provide_wizard_step_repository),
+        "interaction_repository": Provide(provide_step_interaction_repository),
         "wizard_service": Provide(provide_wizard_service),
     }
 
@@ -315,17 +340,14 @@ class WizardController(Controller):
 
         Raises:
             NotFoundError: If the wizard does not exist.
-            ValidationError: If the interaction type or config is invalid.
         """
         step = await wizard_service.create_step(
             wizard_id,
-            interaction_type=data.interaction_type,
             title=data.title,
             content_markdown=data.content_markdown,
-            config=data.config,
             step_order=data.step_order,
         )
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
 
     @patch(
         "/{wizard_id:uuid}/steps/{step_id:uuid}",
@@ -358,16 +380,14 @@ class WizardController(Controller):
 
         Raises:
             NotFoundError: If the wizard or step does not exist.
-            ValidationError: If the config is invalid.
         """
         step = await wizard_service.update_step(
             wizard_id,
             step_id,
             title=data.title,
             content_markdown=data.content_markdown,
-            config=data.config,
         )
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
 
     @delete(
         "/{wizard_id:uuid}/steps/{step_id:uuid}",
@@ -439,7 +459,133 @@ class WizardController(Controller):
             ValidationError: If the new_order is invalid.
         """
         step = await wizard_service.reorder_step(wizard_id, step_id, data.new_order)
-        return self._to_step_response(step)
+        return wizard_step_to_response(step)
+
+    # ==================== Interaction CRUD ====================
+
+    @post(
+        "/{wizard_id:uuid}/steps/{step_id:uuid}/interactions",
+        status_code=HTTP_201_CREATED,
+        summary="Add interaction",
+        description="Add an interaction type to a wizard step.",
+    )
+    async def add_interaction(
+        self,
+        wizard_id: Annotated[
+            UUID,
+            Parameter(description="Wizard UUID"),
+        ],
+        step_id: Annotated[
+            UUID,
+            Parameter(description="Step UUID"),
+        ],
+        data: StepInteractionCreate,
+        wizard_service: WizardService,
+    ) -> StepInteractionResponse:
+        """Add an interaction to a step.
+
+        Args:
+            wizard_id: The UUID of the wizard.
+            step_id: The UUID of the step.
+            data: The interaction creation request.
+            wizard_service: WizardService from DI.
+
+        Returns:
+            The created interaction.
+
+        Raises:
+            NotFoundError: If the wizard or step does not exist.
+            ValidationError: If the type or config is invalid.
+        """
+        interaction = await wizard_service.add_interaction(
+            wizard_id,
+            step_id,
+            interaction_type=data.interaction_type,
+            config=data.config,
+            display_order=data.display_order,
+        )
+        return step_interaction_to_response(interaction)
+
+    @patch(
+        "/{wizard_id:uuid}/steps/{step_id:uuid}/interactions/{interaction_id:uuid}",
+        summary="Update interaction",
+        description="Update a step interaction's configuration.",
+    )
+    async def update_interaction(
+        self,
+        wizard_id: Annotated[
+            UUID,
+            Parameter(description="Wizard UUID"),
+        ],
+        step_id: Annotated[
+            UUID,
+            Parameter(description="Step UUID"),
+        ],
+        interaction_id: Annotated[
+            UUID,
+            Parameter(description="Interaction UUID"),
+        ],
+        data: StepInteractionUpdate,
+        wizard_service: WizardService,
+    ) -> StepInteractionResponse:
+        """Update a step interaction.
+
+        Args:
+            wizard_id: The UUID of the wizard.
+            step_id: The UUID of the step.
+            interaction_id: The UUID of the interaction.
+            data: The update request.
+            wizard_service: WizardService from DI.
+
+        Returns:
+            The updated interaction.
+
+        Raises:
+            NotFoundError: If the wizard, step, or interaction does not exist.
+            ValidationError: If the config is invalid.
+        """
+        interaction = await wizard_service.update_interaction(
+            wizard_id,
+            step_id,
+            interaction_id,
+            config=data.config,
+        )
+        return step_interaction_to_response(interaction)
+
+    @delete(
+        "/{wizard_id:uuid}/steps/{step_id:uuid}/interactions/{interaction_id:uuid}",
+        status_code=HTTP_204_NO_CONTENT,
+        summary="Remove interaction",
+        description="Remove an interaction from a wizard step.",
+    )
+    async def remove_interaction(
+        self,
+        wizard_id: Annotated[
+            UUID,
+            Parameter(description="Wizard UUID"),
+        ],
+        step_id: Annotated[
+            UUID,
+            Parameter(description="Step UUID"),
+        ],
+        interaction_id: Annotated[
+            UUID,
+            Parameter(description="Interaction UUID"),
+        ],
+        wizard_service: WizardService,
+    ) -> None:
+        """Remove an interaction from a step.
+
+        Args:
+            wizard_id: The UUID of the wizard.
+            step_id: The UUID of the step.
+            interaction_id: The UUID of the interaction.
+            wizard_service: WizardService from DI.
+
+        Raises:
+            NotFoundError: If the wizard, step, or interaction does not exist.
+        """
+        await wizard_service.remove_interaction(wizard_id, step_id, interaction_id)
 
     # ==================== Step Validation ====================
 
@@ -456,29 +602,29 @@ class WizardController(Controller):
     ) -> StepValidationResponse:
         """Validate a step completion.
 
-        Validates the user's response for a wizard step:
-        - Click: Requires acknowledged=true
-        - Timer: Requires elapsed time >= duration_seconds
-        - TOS: Requires accepted=true
-        - Text Input: Validates required, min_length, max_length
-        - Quiz: Requires correct answer_index
+        Validates all interaction responses for a step (AND logic).
+        Empty interactions list = informational step, always valid.
 
         This endpoint is publicly accessible without authentication.
 
         Args:
-            data: The validation request with step_id and response.
+            data: The validation request with step_id and interactions.
             wizard_service: WizardService from DI.
 
         Returns:
             Validation result with completion token if valid.
 
         Raises:
-            NotFoundError: If the step does not exist.
+            NotFoundError: If the step or an interaction does not exist.
         """
+        # Convert interaction responses to tuples
+        interaction_tuples: list[tuple[UUID, Mapping[str, object], datetime | None]] = [
+            (ir.interaction_id, ir.response, ir.started_at) for ir in data.interactions
+        ]
+
         is_valid, error, token = await wizard_service.validate_step(
             data.step_id,
-            data.response,
-            started_at=data.started_at,
+            interaction_tuples,
         )
 
         return StepValidationResponse(
@@ -516,7 +662,7 @@ class WizardController(Controller):
         Returns:
             WizardDetailResponse with steps.
         """
-        steps = [self._to_step_response(step) for step in wizard.steps]
+        steps = [wizard_step_to_response(step) for step in wizard.steps]
 
         return WizardDetailResponse(
             id=wizard.id,
@@ -526,28 +672,4 @@ class WizardController(Controller):
             steps=steps,
             description=wizard.description,
             updated_at=wizard.updated_at,
-        )
-
-    def _to_step_response(self, step: WizardStep, /) -> WizardStepResponse:
-        """Convert a WizardStep entity to WizardStepResponse.
-
-        Args:
-            step: The WizardStep entity.
-
-        Returns:
-            WizardStepResponse.
-        """
-        interaction_type = step.interaction_type
-        if hasattr(interaction_type, "value"):
-            interaction_type = interaction_type.value
-        return WizardStepResponse(
-            id=step.id,
-            wizard_id=step.wizard_id,
-            step_order=step.step_order,
-            interaction_type=interaction_type,
-            title=step.title,
-            content_markdown=step.content_markdown,
-            config=step.config,
-            created_at=step.created_at,
-            updated_at=step.updated_at,
         )

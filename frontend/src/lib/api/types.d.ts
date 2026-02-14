@@ -467,6 +467,26 @@ export interface paths {
 		patch: operations['ApiV1UsersUserIdPermissionsUpdatePermissions'];
 		trace?: never;
 	};
+	'/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Add interaction
+		 * @description Add an interaction type to a wizard step.
+		 */
+		post: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/wizards/{wizard_id}/steps': {
 		parameters: {
 			query?: never;
@@ -561,6 +581,30 @@ export interface paths {
 		 * @description Update mutable fields of a wizard.
 		 */
 		patch: operations['ApiV1WizardsWizardIdUpdateWizard'];
+		trace?: never;
+	};
+	'/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions/{interaction_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/**
+		 * Remove interaction
+		 * @description Remove an interaction from a wizard step.
+		 */
+		delete: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction'];
+		options?: never;
+		head?: never;
+		/**
+		 * Update interaction
+		 * @description Update a step interaction's configuration.
+		 */
+		patch: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction'];
 		trace?: never;
 	};
 	'/api/v1/wizards/{wizard_id}/steps/{step_id}/reorder': {
@@ -693,6 +737,15 @@ export interface components {
 			email?: string | null;
 			expires_at?: string | null;
 			updated_at?: string | null;
+		};
+		/** InteractionResponseData */
+		InteractionResponseData: {
+			/** Format: uuid */
+			interaction_id: string;
+			response: {
+				[key: string]: string | number | boolean | null;
+			};
+			started_at?: string | null;
 		};
 		/** InvitationDetailResponse */
 		InvitationDetailResponse: {
@@ -861,6 +914,35 @@ export interface components {
 		RefreshRequest: {
 			refresh_token: string;
 		};
+		/** StepInteractionCreate */
+		StepInteractionCreate: {
+			interaction_type: string;
+			config?: {
+				[key: string]: string | number | boolean | string[] | null;
+			};
+			display_order?: number | null;
+		};
+		/** StepInteractionResponse */
+		StepInteractionResponse: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			step_id: string;
+			interaction_type: string;
+			config: {
+				[key: string]: string | number | boolean | string[] | null;
+			};
+			display_order: number;
+			/** Format: date-time */
+			created_at: string;
+			updated_at?: string | null;
+		};
+		/** StepInteractionUpdate */
+		StepInteractionUpdate: {
+			config?: {
+				[key: string]: string | number | boolean | string[] | null;
+			} | null;
+		};
 		/** StepReorderRequest */
 		StepReorderRequest: {
 			new_order: number;
@@ -869,10 +951,7 @@ export interface components {
 		StepValidationRequest: {
 			/** Format: uuid */
 			step_id: string;
-			response: {
-				[key: string]: string | number | boolean | null;
-			};
-			started_at?: string | null;
+			interactions?: components['schemas']['InteractionResponseData'][];
 		};
 		/** StepValidationResponse */
 		StepValidationResponse: {
@@ -990,12 +1069,8 @@ export interface components {
 		};
 		/** WizardStepCreate */
 		WizardStepCreate: {
-			interaction_type: string;
 			title: string;
 			content_markdown: string;
-			config?: {
-				[key: string]: string | number | boolean | string[] | null;
-			};
 			step_order?: number | null;
 		};
 		/** WizardStepResponse */
@@ -1005,12 +1080,9 @@ export interface components {
 			/** Format: uuid */
 			wizard_id: string;
 			step_order: number;
-			interaction_type: string;
 			title: string;
 			content_markdown: string;
-			config: {
-				[key: string]: string | number | boolean | string[] | null;
-			};
+			interactions: components['schemas']['StepInteractionResponse'][];
 			/** Format: date-time */
 			created_at: string;
 			updated_at?: string | null;
@@ -1019,9 +1091,6 @@ export interface components {
 		WizardStepUpdate: {
 			title?: string | null;
 			content_markdown?: string | null;
-			config?: {
-				[key: string]: string | number | boolean | string[] | null;
-			} | null;
 		};
 		/** WizardUpdate */
 		WizardUpdate: {
@@ -1923,8 +1992,8 @@ export interface operations {
 			};
 		};
 		responses: {
-			/** @description Document created, URL follows */
-			201: {
+			/** @description Request fulfilled, document follows */
+			200: {
 				headers: {
 					[name: string]: unknown;
 				};
@@ -2192,6 +2261,53 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['UserDetailResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['StepInteractionCreate'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StepInteractionResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2537,6 +2653,98 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['WizardResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+				/** @description Interaction UUID */
+				interaction_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, nothing follows */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Wizard UUID */
+				wizard_id: string;
+				/** @description Step UUID */
+				step_id: string;
+				/** @description Interaction UUID */
+				interaction_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['StepInteractionUpdate'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StepInteractionResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

@@ -7,6 +7,7 @@ Validates: Requirements 1.3, 1.4
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from hypothesis import given, settings
@@ -15,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from tests.conftest import TestDB
-from zondarr.models import InteractionType, Wizard, WizardStep
+from zondarr.models import InteractionType, StepInteraction, Wizard, WizardStep
 
 
 @dataclass
@@ -97,12 +98,30 @@ class TestCascadeDeleteIntegrity:
                 step = WizardStep()
                 step.wizard_id = wizard_id
                 step.step_order = i
-                step.interaction_type = InteractionType.CLICK
                 step.title = f"Step {i}"
                 step.content_markdown = f"Content for step {i}"
-                step.config = {}
                 step.created_at = datetime.now(UTC)
                 session.add(step)
+
+            await session.flush()
+
+            # Add an interaction to the first step (if any steps exist)
+            step_ids: list[UUID] = []
+            if num_steps > 0:
+                steps_created = (
+                    await session.scalars(
+                        select(WizardStep).where(WizardStep.wizard_id == wizard_id)
+                    )
+                ).all()
+                step_ids = [s.id for s in steps_created]
+
+                interaction = StepInteraction()
+                interaction.step_id = step_ids[0]
+                interaction.interaction_type = InteractionType.CLICK
+                interaction.config = {}
+                interaction.display_order = 0
+                interaction.created_at = datetime.now(UTC)
+                session.add(interaction)
 
             await session.commit()
 
@@ -125,6 +144,17 @@ class TestCascadeDeleteIntegrity:
                 )
             ).all()
             assert len(steps_after) == 0
+
+            # Verify interactions were cascade deleted
+            if step_ids:
+                interactions_after = (
+                    await session.scalars(
+                        select(StepInteraction).where(
+                            StepInteraction.step_id.in_(step_ids)
+                        )
+                    )
+                ).all()
+                assert len(interactions_after) == 0
 
             # Verify wizard is gone
             wizard_after = await session.get(Wizard, wizard_id)
@@ -176,10 +206,8 @@ class TestStepOrderUniqueness:
             step1 = WizardStep()
             step1.wizard_id = wizard_id
             step1.step_order = step_order
-            step1.interaction_type = InteractionType.CLICK
             step1.title = title1
             step1.content_markdown = "Content 1"
-            step1.config = {}
             step1.created_at = datetime.now(UTC)
             session.add(step1)
             await session.flush()
@@ -188,10 +216,8 @@ class TestStepOrderUniqueness:
             step2 = WizardStep()
             step2.wizard_id = wizard_id
             step2.step_order = step_order  # Same order!
-            step2.interaction_type = InteractionType.TIMER
             step2.title = title2
             step2.content_markdown = "Content 2"
-            step2.config = {}
             step2.created_at = datetime.now(UTC)
             session.add(step2)
 
@@ -234,10 +260,8 @@ class TestStepOrderUniqueness:
             step1 = WizardStep()
             step1.wizard_id = wizard_id
             step1.step_order = step_order1
-            step1.interaction_type = InteractionType.CLICK
             step1.title = "Step 1"
             step1.content_markdown = "Content 1"
-            step1.config = {}
             step1.created_at = datetime.now(UTC)
             session.add(step1)
 
@@ -245,10 +269,8 @@ class TestStepOrderUniqueness:
             step2 = WizardStep()
             step2.wizard_id = wizard_id
             step2.step_order = step_order2
-            step2.interaction_type = InteractionType.TIMER
             step2.title = "Step 2"
             step2.content_markdown = "Content 2"
-            step2.config = {}
             step2.created_at = datetime.now(UTC)
             session.add(step2)
 
@@ -361,6 +383,7 @@ class TestStepOrderContiguity:
 
         await db.clean()
 
+        from zondarr.repositories.step_interaction import StepInteractionRepository
         from zondarr.repositories.wizard import WizardRepository
         from zondarr.repositories.wizard_step import WizardStepRepository
         from zondarr.services.wizard import WizardService
@@ -368,7 +391,8 @@ class TestStepOrderContiguity:
         async with db.session_factory() as session:
             wizard_repo = WizardRepository(session)
             step_repo = WizardStepRepository(session)
-            service = WizardService(wizard_repo, step_repo)
+            interaction_repo = StepInteractionRepository(session)
+            service = WizardService(wizard_repo, step_repo, interaction_repo)
 
             # Create wizard
             wizard = await service.create_wizard(name=wizard_name)
@@ -378,7 +402,6 @@ class TestStepOrderContiguity:
             for i in range(num_steps):
                 step = await service.create_step(
                     wizard.id,
-                    interaction_type="click",
                     title=f"Step {i}",
                     content_markdown=f"Content {i}",
                 )
@@ -387,8 +410,6 @@ class TestStepOrderContiguity:
             await session.commit()
 
             # Delete a step
-            from uuid import UUID
-
             await service.delete_step(wizard.id, UUID(step_ids[delete_index]))
             await session.commit()
 
