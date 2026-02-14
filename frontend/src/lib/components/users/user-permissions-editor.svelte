@@ -15,11 +15,10 @@
 
 import { toast } from "svelte-sonner";
 import {
-	type ErrorResponse,
 	type UpdateUserPermissions,
 	updateUserPermissions,
 } from "$lib/api/client";
-import { ApiError, getErrorMessage } from "$lib/api/errors";
+import { ApiError, asErrorResponse, getErrorMessage } from "$lib/api/errors";
 import { Label } from "$lib/components/ui/label";
 
 interface Props {
@@ -68,7 +67,7 @@ async function handlePermissionChange(
 
 		if (result.error) {
 			const status = result.response?.status ?? 500;
-			const errorBody = result.error as unknown as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			throw new ApiError(
 				status,
 				errorBody?.error_code ?? "UNKNOWN_ERROR",

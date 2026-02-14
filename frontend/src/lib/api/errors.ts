@@ -100,6 +100,22 @@ export class ApiError extends Error {
 }
 
 /**
+ * Safely cast an unknown API error body to ErrorResponse.
+ *
+ * openapi-fetch returns error bodies typed as `unknown`. This utility provides
+ * runtime validation instead of raw `as unknown as ErrorResponse` casts.
+ *
+ * @param error - The unknown error body from an API response
+ * @returns Typed ErrorResponse if the shape matches, otherwise undefined
+ */
+export function asErrorResponse(error: unknown): ErrorResponse | undefined {
+	if (error && typeof error === 'object' && 'detail' in error) {
+		return error as ErrorResponse;
+	}
+	return undefined;
+}
+
+/**
  * Extract a user-friendly error message from any error.
  *
  * Handles ApiError, standard Error, and unknown error types.

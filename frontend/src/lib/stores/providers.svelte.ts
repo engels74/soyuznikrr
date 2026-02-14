@@ -26,7 +26,9 @@ export interface ProviderMeta {
 // State
 // =============================================================================
 
-// SAFETY: Only mutated from $effect() in +layout.svelte (client-only)
+// SAFETY: Module-level $state is shared during SSR (per guideline warning).
+// This is safe because: (1) only mutated client-side from $effect() in +layout.svelte,
+// (2) provider metadata is identical for all users (not per-user state).
 let providers = $state<Map<string, ProviderMeta>>(new Map());
 
 // =============================================================================

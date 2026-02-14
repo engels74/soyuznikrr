@@ -6,8 +6,9 @@ import LocalLoginForm from "$lib/components/auth/local-login-form.svelte";
 import OAuthLoginButton from "$lib/components/auth/oauth-login-button.svelte";
 import * as Card from "$lib/components/ui/card";
 import { Separator } from "$lib/components/ui/separator";
+import type { PageData } from "./$types";
 
-const { data } = $props();
+const { data }: { data: PageData } = $props();
 
 let error = $state("");
 

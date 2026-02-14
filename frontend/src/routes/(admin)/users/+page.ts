@@ -9,7 +9,6 @@
 
 import {
 	createScopedClient,
-	type ErrorResponse,
 	getInvitations,
 	getServers,
 	getUsers,
@@ -17,7 +16,7 @@ import {
 	type MediaServerWithLibrariesResponse,
 	type UserListResponse
 } from '$lib/api/client';
-import { ApiError } from '$lib/api/errors';
+import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, url }) => {
@@ -83,7 +82,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 
 		// Handle error response
 		const status = usersResult.response?.status ?? 500;
-		const errorBody = usersResult.error as unknown as ErrorResponse | undefined;
+		const errorBody = asErrorResponse(usersResult.error);
 		return {
 			users: null as UserListResponse | null,
 			servers: serversResult.data ?? ([] as MediaServerWithLibrariesResponse[]),

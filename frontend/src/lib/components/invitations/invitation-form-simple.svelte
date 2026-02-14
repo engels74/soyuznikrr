@@ -143,16 +143,6 @@ let expiresAtLocal = $state(
 	formatDateTimeLocal(formData.expires_at as string | undefined),
 );
 
-// Sync local datetime to form data
-$effect(() => {
-	if (expiresAtLocal) {
-		(formData as CreateInvitationInput).expires_at =
-			toISOString(expiresAtLocal);
-	} else {
-		(formData as CreateInvitationInput).expires_at = "";
-	}
-});
-
 /**
  * Handle form submission.
  */
@@ -293,6 +283,12 @@ function getFieldErrors(field: string): string[] {
 		<Input
 			type="datetime-local"
 			bind:value={expiresAtLocal}
+			oninput={(e) => {
+				const value = e.currentTarget.value;
+				(formData as CreateInvitationInput).expires_at = value
+					? toISOString(value)
+					: "";
+			}}
 			class="border-cr-border bg-cr-surface text-cr-text"
 			data-field-expires-at
 		/>
