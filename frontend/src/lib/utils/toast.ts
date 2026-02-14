@@ -1,4 +1,5 @@
 import { toast } from 'svelte-sonner';
+import type { ErrorResponse } from '$lib/api/client';
 
 // Patterns that indicate unsafe/internal error details
 const UNSAFE_PATTERNS = [
@@ -77,7 +78,7 @@ export function showError(message: string, description?: string) {
  */
 export function showApiError(error: unknown) {
 	if (error && typeof error === 'object' && 'detail' in error) {
-		const apiError = error as { detail: string; error_code?: string };
+		const apiError = error as ErrorResponse;
 		const safeMessage = sanitizeErrorMessage(apiError.detail);
 
 		// Only show error code if it's a user-facing code (not internal)

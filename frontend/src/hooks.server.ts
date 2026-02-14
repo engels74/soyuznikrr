@@ -1,8 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
+const API_BASE_URL = publicEnv.PUBLIC_API_URL ?? '';
 
 const PUBLIC_PATHS = ['/login', '/setup', '/join'];
 
@@ -25,7 +26,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				headers
 			});
 			if (response.ok) {
-				const user = await response.json();
+				const user: App.Locals['user'] = await response.json();
 				event.locals.user = user;
 			} else {
 				event.locals.user = null;

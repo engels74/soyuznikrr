@@ -168,7 +168,7 @@ class DevRunner:
         if not self.backend_only:
             frontend_env = {
                 **parent_env,
-                "VITE_API_URL": f"http://localhost:{self.backend_port}",
+                "PUBLIC_API_URL": f"http://localhost:{self.backend_port}",
                 **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             self.servers.append(

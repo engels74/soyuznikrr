@@ -15,6 +15,7 @@
 
 import { toast } from "svelte-sonner";
 import {
+	type ErrorResponse,
 	type UpdateUserPermissions,
 	updateUserPermissions,
 } from "$lib/api/client";
@@ -67,10 +68,7 @@ async function handlePermissionChange(
 
 		if (result.error) {
 			const status = result.response?.status ?? 500;
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as unknown as ErrorResponse | undefined;
 			throw new ApiError(
 				status,
 				errorBody?.error_code ?? "UNKNOWN_ERROR",

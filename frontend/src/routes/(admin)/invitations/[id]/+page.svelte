@@ -27,6 +27,7 @@ import {
 import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteInvitation,
+	type ErrorResponse,
 	type InvitationDetailResponse,
 	type MediaServerWithLibrariesResponse,
 	updateInvitation,
@@ -276,20 +277,18 @@ function validateForm(): boolean {
  */
 async function handleSave() {
 	if (!data.invitation || !validateForm()) return;
+	const invitationId = data.invitation.id;
 
 	saving = true;
 	try {
 		const updateData = transformUpdateFormData(formData);
 		const result = await withErrorHandling(
-			() => updateInvitation(data.invitation!.id, updateData),
+			() => updateInvitation(invitationId, updateData),
 			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to update invitation",
 				errorBody?.detail ?? "An error occurred",
@@ -309,19 +308,17 @@ async function handleSave() {
  */
 async function handleDelete() {
 	if (!data.invitation) return;
+	const invitationId = data.invitation.id;
 
 	deleting = true;
 	try {
 		const result = await withErrorHandling(
-			() => deleteInvitation(data.invitation!.id),
+			() => deleteInvitation(invitationId),
 			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to delete invitation",
 				errorBody?.detail ?? "An error occurred",

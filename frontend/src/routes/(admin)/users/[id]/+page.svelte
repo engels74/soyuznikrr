@@ -29,6 +29,7 @@ import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteUser,
 	disableUser,
+	type ErrorResponse,
 	enableUser,
 	withErrorHandling,
 } from "$lib/api/client";
@@ -134,18 +135,16 @@ const expiresDisplay = $derived.by(() => {
  */
 async function handleEnable() {
 	if (!data.user) return;
+	const userId = data.user.id;
 
 	enabling = true;
 	try {
-		const result = await withErrorHandling(() => enableUser(data.user!.id), {
+		const result = await withErrorHandling(() => enableUser(userId), {
 			showErrorToast: false,
 		});
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to enable user",
 				errorBody?.detail ?? "An error occurred",
@@ -165,18 +164,16 @@ async function handleEnable() {
  */
 async function handleDisable() {
 	if (!data.user) return;
+	const userId = data.user.id;
 
 	disabling = true;
 	try {
-		const result = await withErrorHandling(() => disableUser(data.user!.id), {
+		const result = await withErrorHandling(() => disableUser(userId), {
 			showErrorToast: false,
 		});
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to disable user",
 				errorBody?.detail ?? "An error occurred",
@@ -196,18 +193,16 @@ async function handleDisable() {
  */
 async function handleDelete() {
 	if (!data.user) return;
+	const userId = data.user.id;
 
 	deleting = true;
 	try {
-		const result = await withErrorHandling(() => deleteUser(data.user!.id), {
+		const result = await withErrorHandling(() => deleteUser(userId), {
 			showErrorToast: false,
 		});
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to delete user",
 				errorBody?.detail ?? "An error occurred",

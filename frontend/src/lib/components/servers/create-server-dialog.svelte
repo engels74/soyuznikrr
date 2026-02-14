@@ -13,7 +13,7 @@
  */
 
 import { Eye, EyeOff, Plug, Plus, Server } from "@lucide/svelte";
-import type { ConnectionTestResponse } from "$lib/api/client";
+import type { ConnectionTestResponse, ErrorResponse } from "$lib/api/client";
 import { createServer, testConnection, withErrorHandling } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
@@ -148,10 +148,10 @@ async function handleTestConnection() {
 		}
 
 		if (result.error || !result.data) {
-			const errorBody = result.error as { detail?: string; message?: string } | undefined;
+			const errorBody = result.error as ErrorResponse | undefined;
 			testResult = {
 				success: false,
-				message: errorBody?.detail ?? errorBody?.message ?? "Network error — could not reach the backend.",
+				message: errorBody?.detail ?? "Network error — could not reach the backend.",
 			};
 			return;
 		}
@@ -185,10 +185,7 @@ async function handleSubmit(event: Event) {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to add server",
 				errorBody?.detail ?? "An error occurred",

@@ -132,4 +132,4 @@ Direct commits to `main` are blocked by pre-commit hook.
 
 ## Environment Setup
 
-Copy `.env.example` to `.env`. The `dev_cli` auto-generates `SECRET_KEY` and sets `CORS_ORIGINS` if not present. Key variables: `SECRET_KEY` (required), `DATABASE_URL`, `DEBUG`, `CORS_ORIGINS`, `VITE_API_URL`.
+Copy `.env.example` to `.env`. The `dev_cli` auto-generates `SECRET_KEY` and sets `CORS_ORIGINS` if not present. Key variables: `SECRET_KEY` (required), `DATABASE_URL`, `DEBUG`, `CORS_ORIGINS`, `PUBLIC_API_URL`.

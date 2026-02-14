@@ -10,7 +10,13 @@
  * @module routes/(admin)/users/[id]/+page
  */
 
-import { createScopedClient, getUser, getUsers, type UserDetailResponse } from '$lib/api/client';
+import {
+	createScopedClient,
+	type ErrorResponse,
+	getUser,
+	getUsers,
+	type UserDetailResponse
+} from '$lib/api/client';
 import { ApiError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
@@ -25,10 +31,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		// Handle user fetch error
 		if (userResult.error) {
 			const status = userResult.response?.status ?? 500;
-			const errorBody = userResult.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = userResult.error as unknown as ErrorResponse | undefined;
 			return {
 				user: null as UserDetailResponse | null,
 				linkedUsers: [] as UserDetailResponse[],

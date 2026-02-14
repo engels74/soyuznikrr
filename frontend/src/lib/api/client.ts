@@ -8,6 +8,7 @@
  */
 
 import createClient, { type Client } from 'openapi-fetch';
+import { env } from '$env/dynamic/public';
 import { showApiError, showNetworkError } from '$lib/utils/toast';
 import type { components, paths } from './types';
 
@@ -15,7 +16,7 @@ import type { components, paths } from './types';
 export type ApiClient = Client<paths>;
 
 // Base URL from environment variable, defaults to empty string for same-origin
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
+const API_BASE_URL = env.PUBLIC_API_URL ?? '';
 
 /**
  * Type-safe API client instance.

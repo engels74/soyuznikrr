@@ -11,6 +11,7 @@
 
 import {
 	createScopedClient,
+	type ErrorResponse,
 	getWizards,
 	type ListWizardsParams,
 	type WizardListResponse
@@ -43,7 +44,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 
 		// Handle error response
 		const status = result.response?.status ?? 500;
-		const errorBody = result.error as { error_code?: string; detail?: string } | undefined;
+		const errorBody = result.error as unknown as ErrorResponse | undefined;
 		return {
 			wizards: null as WizardListResponse | null,
 			error: new ApiError(

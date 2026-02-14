@@ -11,8 +11,6 @@
  * @module routes/(admin)/invitations/+page
  */
 
-import { Plus } from "@lucide/svelte";
-import { toast } from "svelte-sonner";
 import { goto, invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
 import { deleteInvitation, type ListInvitationsParams, withErrorHandling } from "$lib/api/client";
@@ -20,11 +18,11 @@ import { getErrorMessage, isNetworkError } from "$lib/api/errors";
 import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import EmptyState from "$lib/components/empty-state.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
+import CreateInvitationDialog from "$lib/components/invitations/create-invitation-dialog.svelte";
 import InvitationFilters from "$lib/components/invitations/invitation-filters.svelte";
 import InvitationListSkeleton from "$lib/components/invitations/invitation-list-skeleton.svelte";
 import InvitationTable from "$lib/components/invitations/invitation-table.svelte";
 import Pagination from "$lib/components/pagination.svelte";
-import { Button } from "$lib/components/ui/button";
 import { showSuccess } from "$lib/utils/toast";
 import type { PageData } from "./$types";
 
@@ -84,14 +82,6 @@ function handlePageChange(newPage: number) {
 }
 
 /**
- * Open create invitation dialog.
- * TODO: Implement in Task 7
- */
-function openCreateDialog() {
-	toast.info("Create invitation dialog will be implemented in Task 7");
-}
-
-/**
  * Request deletion of an invitation (shows confirmation dialog).
  */
 function handleDeleteRequest(id: string) {
@@ -104,9 +94,10 @@ function handleDeleteRequest(id: string) {
  */
 async function handleDeleteConfirm() {
 	if (!deleteTarget) return;
+	const target = deleteTarget;
 	deleting = true;
 	try {
-		const result = await withErrorHandling(() => deleteInvitation(deleteTarget!));
+		const result = await withErrorHandling(() => deleteInvitation(target));
 		if (!result.error) {
 			showSuccess("Invitation deleted");
 			await invalidateAll();
@@ -123,13 +114,7 @@ async function handleDeleteConfirm() {
 	<!-- Header with description and create button -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<p class="text-cr-text-muted">Manage invitation codes for user onboarding.</p>
-		<Button
-			onclick={openCreateDialog}
-			class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
-		>
-			<Plus class="size-4" />
-			Create Invitation
-		</Button>
+		<CreateInvitationDialog servers={data.servers} onSuccess={() => invalidateAll()} />
 	</div>
 
 	<!-- Filters -->
@@ -153,8 +138,7 @@ async function handleDeleteConfirm() {
 	{:else if !data.invitations || data.invitations.items.length === 0}
 		<EmptyState
 			title="No invitations yet"
-			description="Create your first invitation to start onboarding users to your media servers."
-			action={{ label: 'Create Invitation', onClick: openCreateDialog }}
+			description="Create your first invitation using the button above to start onboarding users to your media servers."
 		/>
 	{:else}
 		<!-- Invitation table -->

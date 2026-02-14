@@ -22,6 +22,7 @@ import {
 import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteServer,
+	type ErrorResponse,
 	type SyncResult,
 	syncServer,
 	withErrorHandling,
@@ -76,19 +77,17 @@ function formatDate(dateString: string | null | undefined): string {
  */
 async function handleSync() {
 	if (!data.server) return;
+	const serverId = data.server.id;
 
 	syncing = true;
 	try {
 		const result = await withErrorHandling(
-			() => syncServer(data.server!.id, false),
+			() => syncServer(serverId, false),
 			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError("Sync failed", errorBody?.detail ?? "An error occurred");
 			return;
 		}
@@ -122,19 +121,17 @@ function closeSyncDialog() {
  */
 async function handleDelete() {
 	if (!data.server) return;
+	const serverId = data.server.id;
 
 	deleting = true;
 	try {
 		const result = await withErrorHandling(
-			() => deleteServer(data.server!.id),
+			() => deleteServer(serverId),
 			{ showErrorToast: false },
 		);
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to delete server",
 				errorBody?.detail ?? "An error occurred",

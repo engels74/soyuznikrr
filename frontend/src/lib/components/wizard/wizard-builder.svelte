@@ -219,7 +219,8 @@ async function handleUpdateStep(
 		}
 
 		if (result.data) {
-			steps = steps.map((s) => (s.id === stepId ? result.data! : s));
+			const updatedStep = result.data;
+			steps = steps.map((s) => (s.id === stepId ? updatedStep : s));
 			toast.success("Step updated successfully");
 		}
 	} catch (error) {

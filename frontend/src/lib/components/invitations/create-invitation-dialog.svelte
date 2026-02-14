@@ -14,6 +14,7 @@
 import { Plus } from "@lucide/svelte";
 import {
 	createInvitation,
+	type ErrorResponse,
 	getWizards,
 	type MediaServerWithLibrariesResponse,
 	type WizardResponse,
@@ -82,7 +83,7 @@ async function fetchWizards() {
 			wizards = result.data.items.filter((w) => w.enabled);
 		}
 	} catch (error) {
-		console.error("Failed to fetch wizards:", error);
+		showError("Failed to load wizards", error instanceof Error ? error.message : "An unexpected error occurred");
 	} finally {
 		loadingWizards = false;
 	}
@@ -142,10 +143,7 @@ async function handleSubmit() {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as {
-				error_code?: string;
-				detail?: string;
-			};
+			const errorBody = result.error as ErrorResponse | undefined;
 			showError(
 				"Failed to create invitation",
 				errorBody?.detail ?? "An error occurred",

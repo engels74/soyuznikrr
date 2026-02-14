@@ -9,6 +9,7 @@
 
 import {
 	createScopedClient,
+	type ErrorResponse,
 	getInvitations,
 	getServers,
 	getUsers,
@@ -82,7 +83,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 
 		// Handle error response
 		const status = usersResult.response?.status ?? 500;
-		const errorBody = usersResult.error as { error_code?: string; detail?: string } | undefined;
+		const errorBody = usersResult.error as unknown as ErrorResponse | undefined;
 		return {
 			users: null as UserListResponse | null,
 			servers: serversResult.data ?? ([] as MediaServerWithLibrariesResponse[]),
