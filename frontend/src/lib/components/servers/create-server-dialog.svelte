@@ -13,8 +13,9 @@
  */
 
 import { Eye, EyeOff, Plug, Plus, Server } from "@lucide/svelte";
-import type { ConnectionTestResponse, ErrorResponse } from "$lib/api/client";
+import type { ConnectionTestResponse } from "$lib/api/client";
 import { createServer, testConnection, withErrorHandling } from "$lib/api/client";
+import { asErrorResponse } from "$lib/api/errors";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
 import { Input } from "$lib/components/ui/input";
@@ -82,16 +83,12 @@ function resetForm() {
 	testResult = null;
 }
 
-// Reset test result when url or api_key changes
-let prevUrl = $state("");
-let prevApiKey = $state("");
-$effect(() => {
-	if (formData.url !== prevUrl || formData.api_key !== prevApiKey) {
-		prevUrl = formData.url;
-		prevApiKey = formData.api_key;
-		testResult = null;
-	}
-});
+/**
+ * Clear stale test result when connection fields change.
+ */
+function onConnectionFieldChange() {
+	testResult = null;
+}
 
 /**
  * Validate form data.
@@ -148,7 +145,7 @@ async function handleTestConnection() {
 		}
 
 		if (result.error || !result.data) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			testResult = {
 				success: false,
 				message: errorBody?.detail ?? "Network error — could not reach the backend.",
@@ -185,7 +182,7 @@ async function handleSubmit(event: Event) {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to add server",
 				errorBody?.detail ?? "An error occurred",
@@ -299,6 +296,7 @@ function handleCancel() {
 					id="url"
 					type="url"
 					bind:value={formData.url}
+					oninput={onConnectionFieldChange}
 					placeholder="https://media.example.com"
 					disabled={submitting}
 					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
@@ -322,6 +320,7 @@ function handleCancel() {
 						id="api_key"
 						type={showApiKey ? 'text' : 'password'}
 						bind:value={formData.api_key}
+						oninput={onConnectionFieldChange}
 						placeholder="Enter API key"
 						disabled={submitting}
 						class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm pr-10"

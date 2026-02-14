@@ -22,12 +22,11 @@ import {
 import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteServer,
-	type ErrorResponse,
 	type SyncResult,
 	syncServer,
 	withErrorHandling,
 } from "$lib/api/client";
-import { getErrorMessage } from "$lib/api/errors";
+import { asErrorResponse, getErrorMessage } from "$lib/api/errors";
 import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import SyncResultsDialog from "$lib/components/servers/sync-results-dialog.svelte";
@@ -87,7 +86,7 @@ async function handleSync() {
 		);
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError("Sync failed", errorBody?.detail ?? "An error occurred");
 			return;
 		}
@@ -131,7 +130,7 @@ async function handleDelete() {
 		);
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to delete server",
 				errorBody?.detail ?? "An error occurred",

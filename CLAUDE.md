@@ -96,7 +96,7 @@ bun run lint:staged                # Lint staged files only
 **Key patterns**:
 - Svelte 5 Runes exclusively (`$state`, `$derived`, `$effect`, `$props`, `$bindable`) — no legacy `$:` or `export let`
 - Snippets instead of slots for component composition
-- Forms: sveltekit-superforms + Zod + formsnap for validation
+- Forms: Direct `$state` binding with Zod `.safeParse()` validation (not sveltekit-superforms + formsnap, since the app uses API-driven mutations rather than SvelteKit form actions)
 - End-to-end type safety: OpenAPI spec → `openapi-typescript` → `openapi-fetch` client
 - `createScopedClient(fetch)` for SvelteKit load functions (passes SvelteKit's fetch for SSR)
 - Styling: UnoCSS with Tailwind Wind4 preset + shadcn design system

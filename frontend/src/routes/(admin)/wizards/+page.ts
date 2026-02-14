@@ -11,12 +11,11 @@
 
 import {
 	createScopedClient,
-	type ErrorResponse,
 	getWizards,
 	type ListWizardsParams,
 	type WizardListResponse
 } from '$lib/api/client';
-import { ApiError } from '$lib/api/errors';
+import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, url }) => {
@@ -44,7 +43,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 
 		// Handle error response
 		const status = result.response?.status ?? 500;
-		const errorBody = result.error as unknown as ErrorResponse | undefined;
+		const errorBody = asErrorResponse(result.error);
 		return {
 			wizards: null as WizardListResponse | null,
 			error: new ApiError(

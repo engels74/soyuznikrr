@@ -59,14 +59,14 @@ export function sanitizeErrorMessage(message: string): string {
 /**
  * Display a success toast notification.
  */
-export function showSuccess(message: string, description?: string) {
+export function showSuccess(message: string, description?: string): void {
 	toast.success(message, { description });
 }
 
 /**
  * Display an error toast notification.
  */
-export function showError(message: string, description?: string) {
+export function showError(message: string, description?: string): void {
 	toast.error(sanitizeErrorMessage(message), {
 		description: description ? sanitizeErrorMessage(description) : undefined
 	});
@@ -76,7 +76,7 @@ export function showError(message: string, description?: string) {
  * Display an error toast from an API error response.
  * Filters out stack traces and internal details for security.
  */
-export function showApiError(error: unknown) {
+export function showApiError(error: unknown): void {
 	if (error && typeof error === 'object' && 'detail' in error) {
 		const apiError = error as ErrorResponse;
 		const safeMessage = sanitizeErrorMessage(apiError.detail);
@@ -101,7 +101,7 @@ export function showApiError(error: unknown) {
 /**
  * Display a network error toast with retry guidance.
  */
-export function showNetworkError() {
+export function showNetworkError(): void {
 	toast.error('Network error', {
 		description: 'Please check your connection and try again.'
 	});
@@ -110,13 +110,13 @@ export function showNetworkError() {
 /**
  * Display an info toast notification.
  */
-export function showInfo(message: string, description?: string) {
+export function showInfo(message: string, description?: string): void {
 	toast.info(message, { description });
 }
 
 /**
  * Display a warning toast notification.
  */
-export function showWarning(message: string, description?: string) {
+export function showWarning(message: string, description?: string): void {
 	toast.warning(message, { description });
 }

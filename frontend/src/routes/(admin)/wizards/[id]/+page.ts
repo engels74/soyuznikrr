@@ -8,13 +8,8 @@
  * @module routes/(admin)/wizards/[id]/+page
  */
 
-import {
-	createScopedClient,
-	type ErrorResponse,
-	getWizard,
-	type WizardDetailResponse
-} from '$lib/api/client';
-import { ApiError } from '$lib/api/errors';
+import { createScopedClient, getWizard, type WizardDetailResponse } from '$lib/api/client';
+import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params }) => {
@@ -33,7 +28,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 
 		// Handle error response
 		const status = result.response?.status ?? 500;
-		const errorBody = result.error as unknown as ErrorResponse | undefined;
+		const errorBody = asErrorResponse(result.error);
 		return {
 			wizard: null as WizardDetailResponse | null,
 			error: new ApiError(

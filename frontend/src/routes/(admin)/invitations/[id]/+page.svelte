@@ -27,14 +27,13 @@ import {
 import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteInvitation,
-	type ErrorResponse,
 	type InvitationDetailResponse,
 	type MediaServerWithLibrariesResponse,
 	updateInvitation,
 	type WizardResponse,
 	withErrorHandling,
 } from "$lib/api/client";
-import { ApiError, getErrorMessage } from "$lib/api/errors";
+import { ApiError, asErrorResponse, getErrorMessage } from "$lib/api/errors";
 import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import StatusBadge, {
@@ -78,7 +77,8 @@ const formData = $state<UpdateInvitationInput>({
 	post_wizard_id: "",
 });
 
-// Sync form data when initial data changes (e.g., after invalidateAll)
+// Cannot use $derived — formData must be independently mutable for user edits.
+// This $effect resets the form when server data changes (e.g., after save + invalidateAll).
 $effect(() => {
 	formData.expires_at = initialFormData.expires_at;
 	formData.max_uses = initialFormData.max_uses;
@@ -108,7 +108,8 @@ const initialExpiresAtLocal = $derived(
 // Local state for datetime-local input
 let expiresAtLocal = $state("");
 
-// Sync expiresAtLocal when initial data changes
+// Cannot use $derived — expiresAtLocal is user-editable via the datetime-local input.
+// This $effect resets it when server data changes (e.g., after save + invalidateAll).
 $effect(() => {
 	expiresAtLocal = initialExpiresAtLocal;
 });
@@ -279,7 +280,7 @@ async function handleSave() {
 		);
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to update invitation",
 				errorBody?.detail ?? "An error occurred",
@@ -309,7 +310,7 @@ async function handleDelete() {
 		);
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to delete invitation",
 				errorBody?.detail ?? "An error occurred",

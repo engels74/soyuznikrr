@@ -14,12 +14,12 @@
 import { Plus } from "@lucide/svelte";
 import {
 	createInvitation,
-	type ErrorResponse,
 	getWizards,
 	type MediaServerWithLibrariesResponse,
 	type WizardResponse,
 	withErrorHandling,
 } from "$lib/api/client";
+import { asErrorResponse } from "$lib/api/errors";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
 import {
@@ -143,7 +143,7 @@ async function handleSubmit() {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to create invitation",
 				errorBody?.detail ?? "An error occurred",

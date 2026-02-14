@@ -9,11 +9,10 @@
 
 import {
 	createScopedClient,
-	type ErrorResponse,
 	getServers,
 	type MediaServerWithLibrariesResponse
 } from '$lib/api/client';
-import { ApiError } from '$lib/api/errors';
+import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch }) => {
@@ -30,7 +29,7 @@ export const load: PageLoad = async ({ fetch }) => {
 
 		// Handle error response
 		const status = result.response?.status ?? 500;
-		const errorBody = result.error as unknown as ErrorResponse | undefined;
+		const errorBody = asErrorResponse(result.error);
 		return {
 			servers: [] as MediaServerWithLibrariesResponse[],
 			error: new ApiError(

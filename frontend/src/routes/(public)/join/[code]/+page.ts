@@ -11,11 +11,10 @@
 
 import {
 	createScopedClient,
-	type ErrorResponse,
 	type InvitationValidationResponse,
 	validateInvitation
 } from '$lib/api/client';
-import { ApiError } from '$lib/api/errors';
+import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params }) => {
@@ -38,7 +37,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 
 		// Handle error response
 		const status = result.response?.status ?? 500;
-		const errorBody = result.error as unknown as ErrorResponse | undefined;
+		const errorBody = asErrorResponse(result.error);
 		return {
 			code,
 			validation: null as InvitationValidationResponse | null,

@@ -29,11 +29,10 @@ import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteUser,
 	disableUser,
-	type ErrorResponse,
 	enableUser,
 	withErrorHandling,
 } from "$lib/api/client";
-import { getErrorMessage } from "$lib/api/errors";
+import { asErrorResponse, getErrorMessage } from "$lib/api/errors";
 import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import StatusBadge, {
@@ -144,7 +143,7 @@ async function handleEnable() {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to enable user",
 				errorBody?.detail ?? "An error occurred",
@@ -173,7 +172,7 @@ async function handleDisable() {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to disable user",
 				errorBody?.detail ?? "An error occurred",
@@ -202,7 +201,7 @@ async function handleDelete() {
 		});
 
 		if (result.error) {
-			const errorBody = result.error as ErrorResponse | undefined;
+			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to delete user",
 				errorBody?.detail ?? "An error occurred",
