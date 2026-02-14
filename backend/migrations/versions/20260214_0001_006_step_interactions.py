@@ -58,19 +58,14 @@ def upgrade() -> None:
         sa.text("SELECT id, interaction_type, config, created_at FROM wizard_steps")
     ).fetchall()
 
-    for step in steps:
-        step_id = step[0]
-        interaction_type = step[1]
-        config = step[2]
-        created_at = step[3]
-
+    for step_id, interaction_type, config, created_at in steps:  # pyright: ignore[reportAny]
         # Only migrate if there's an interaction type
         if interaction_type:
             new_id = str(uuid4())
-            connection.execute(
+            _ = connection.execute(
                 sa.text(
-                    "INSERT INTO step_interactions (id, step_id, interaction_type, config, display_order, created_at) "
-                    "VALUES (:id, :step_id, :interaction_type, :config, 0, :created_at)"
+                    "INSERT INTO step_interactions (id, step_id, interaction_type, config, display_order, created_at)"
+                    + " VALUES (:id, :step_id, :interaction_type, :config, 0, :created_at)"
                 ),
                 {
                     "id": new_id,
@@ -104,20 +99,16 @@ def downgrade() -> None:
     connection = op.get_bind()
     interactions = connection.execute(
         sa.text(
-            "SELECT step_id, interaction_type, config FROM step_interactions "
-            "ORDER BY display_order ASC"
+            "SELECT step_id, interaction_type, config FROM step_interactions"
+            + " ORDER BY display_order ASC"
         )
     ).fetchall()
 
-    for interaction in interactions:
-        step_id = interaction[0]
-        interaction_type = interaction[1]
-        config = interaction[2]
-
-        connection.execute(
+    for step_id, interaction_type, config in interactions:  # pyright: ignore[reportAny]
+        _ = connection.execute(
             sa.text(
-                "UPDATE wizard_steps SET interaction_type = :interaction_type, config = :config "
-                "WHERE id = :step_id AND interaction_type IS NULL"
+                "UPDATE wizard_steps SET interaction_type = :interaction_type, config = :config"
+                + " WHERE id = :step_id AND interaction_type IS NULL"
             ),
             {
                 "step_id": step_id,
@@ -127,10 +118,10 @@ def downgrade() -> None:
         )
 
     # Set default for any steps that didn't get migrated back
-    connection.execute(
+    _ = connection.execute(
         sa.text(
-            "UPDATE wizard_steps SET interaction_type = 'click', config = '{}' "
-            "WHERE interaction_type IS NULL"
+            "UPDATE wizard_steps SET interaction_type = 'click', config = '{}'"
+            + " WHERE interaction_type IS NULL"
         )
     )
 
