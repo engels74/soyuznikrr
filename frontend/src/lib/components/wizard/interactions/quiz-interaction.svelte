@@ -79,7 +79,7 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 	<!-- Submit button -->
 	<button
 		type="button"
-		class="submit-btn"
+		class="wizard-accent-btn submit-btn"
 		onclick={handleSubmit}
 		disabled={!hasSelection || disabled}
 	>
@@ -100,7 +100,7 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
 		font-size: 1.375rem;
 		font-weight: 500;
-		color: hsl(220 10% 92%);
+		color: var(--wizard-text);
 		margin: 0;
 		line-height: 1.4;
 	}
@@ -118,8 +118,8 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		align-items: center;
 		gap: 0.875rem;
 		padding: 1rem 1.25rem;
-		background: hsl(220 15% 10%);
-		border: 2px solid hsl(220 10% 22%);
+		background: var(--wizard-input-bg);
+		border: 2px solid var(--wizard-input-border);
 		border-radius: 0.75rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
@@ -129,17 +129,17 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 	.option:hover:not(:disabled):not(.selected) {
 		border-color: hsl(45 90% 55% / 0.5);
 		box-shadow: 0 0 12px hsl(45 90% 55% / 0.15);
-		background: hsl(220 15% 12%);
+		background: var(--wizard-input-hover-bg);
 	}
 
 	.option:focus-visible {
 		outline: none;
-		border-color: hsl(45 90% 55%);
+		border-color: var(--wizard-accent);
 		box-shadow: 0 0 0 3px hsl(45 90% 55% / 0.2);
 	}
 
 	.option.selected {
-		border-color: hsl(45 90% 55%);
+		border-color: var(--wizard-accent);
 		background: hsl(45 90% 55% / 0.08);
 		box-shadow: 0 0 16px hsl(45 90% 55% / 0.2);
 	}
@@ -157,15 +157,15 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: hsl(220 15% 15%);
-		border: 2px solid hsl(220 10% 30%);
+		background: var(--wizard-indicator-bg);
+		border: 2px solid var(--wizard-ring-border);
 		border-radius: 50%;
 		transition: all 0.2s ease;
 	}
 
 	.option.selected .option-indicator {
-		background: hsl(45 90% 55%);
-		border-color: hsl(45 90% 55%);
+		background: var(--wizard-accent);
+		border-color: var(--wizard-accent);
 		animation: check-pop 0.3s ease;
 	}
 
@@ -173,55 +173,25 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 	.option-indicator :global(.check-icon) {
 		width: 0.875rem;
 		height: 0.875rem;
-		color: hsl(220 20% 4%);
+		color: var(--wizard-bg);
 		stroke-width: 3;
 	}
 
 	/* Option text */
 	.option-text {
 		font-size: 0.9375rem;
-		color: hsl(220 10% 80%);
+		color: var(--wizard-text-secondary);
 		line-height: 1.4;
 	}
 
 	.option.selected .option-text {
-		color: hsl(220 10% 92%);
+		color: var(--wizard-text);
 	}
 
-	/* Submit button */
+	/* Submit button layout */
 	.submit-btn {
 		align-self: flex-start;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.75rem 1.5rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: hsl(220 20% 4%);
-		background: hsl(45 90% 55%);
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		box-shadow:
-			0 0 16px hsl(45 90% 55% / 0.3),
-			0 4px 12px hsl(0 0% 0% / 0.2);
 		margin-top: 0.5rem;
-	}
-
-	.submit-btn:hover:not(:disabled) {
-		transform: scale(1.02);
-		box-shadow:
-			0 0 24px hsl(45 90% 55% / 0.4),
-			0 6px 16px hsl(0 0% 0% / 0.3);
-	}
-
-	.submit-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-		background: hsl(220 10% 25%);
-		color: hsl(220 10% 50%);
-		box-shadow: none;
 	}
 
 	/* Checkmark pop animation */

@@ -303,17 +303,27 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 		--wizard-border: hsl(220 10% 18%);
 		--wizard-text: hsl(220 10% 92%);
 		--wizard-text-muted: hsl(220 10% 60%);
-		--wizard-accent: hsl(45 90% 55%);
-		--wizard-accent-dim: hsl(45 80% 45%);
+		--wizard-accent: var(--cr-module-active-accent);
+		--wizard-accent-dim: var(--cr-module-active-accent-dim);
 		--wizard-accent-glow: hsl(45 90% 55% / 0.15);
-		--wizard-success: hsl(150 60% 45%);
-		--wizard-error: hsl(0 70% 55%);
+		--wizard-success: var(--cr-success);
+		--wizard-error: var(--cr-error);
 		--wizard-error-bg: hsl(0 70% 55% / 0.1);
 		--wizard-error-border: hsl(0 70% 55% / 0.3);
 		--wizard-code-bg: hsl(220 15% 12%);
 		--wizard-track-bg: hsl(220 10% 16%);
 		--wizard-divider: hsl(220 10% 20%);
 		--wizard-ring-border: hsl(220 10% 30%);
+
+		/* Form element colors (used by interaction components) */
+		--wizard-text-secondary: hsl(220 10% 80%);
+		--wizard-text-dim: hsl(220 10% 50%);
+		--wizard-input-bg: hsl(220 15% 10%);
+		--wizard-input-border: hsl(220 10% 22%);
+		--wizard-input-hover-bg: hsl(220 15% 12%);
+		--wizard-indicator-bg: hsl(220 15% 15%);
+		--wizard-placeholder: hsl(220 10% 45%);
+		--wizard-btn-disabled-bg: hsl(220 10% 25%);
 
 		position: relative;
 		min-height: 100vh;

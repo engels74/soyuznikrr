@@ -106,7 +106,7 @@ function handleComplete() {
 	<!-- Continue button -->
 	<button
 		type="button"
-		class="continue-btn"
+		class="wizard-accent-btn"
 		onclick={handleComplete}
 		disabled={!isComplete || disabled}
 	>
@@ -139,7 +139,7 @@ function handleComplete() {
 	/* Track circle */
 	.track {
 		fill: none;
-		stroke: hsl(220 10% 18%);
+		stroke: var(--wizard-border);
 		stroke-width: 6;
 	}
 
@@ -175,7 +175,7 @@ function handleComplete() {
 	}
 
 	.timer-ring.complete .progress {
-		stroke: hsl(150 60% 45%);
+		stroke: var(--wizard-success);
 	}
 
 	/* Time display in center */
@@ -194,58 +194,24 @@ function handleComplete() {
 		font-size: 2.5rem;
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
-		color: hsl(220 10% 92%);
+		color: var(--wizard-text);
 		letter-spacing: -0.02em;
 	}
 
 	.timer-ring.pulse .time-value {
-		color: hsl(45 90% 55%);
+		color: var(--wizard-accent);
 		animation: time-pulse 1s ease-in-out infinite;
 	}
 
 	.timer-ring.complete .time-value {
-		color: hsl(150 60% 45%);
+		color: var(--wizard-success);
 	}
 
 	.time-label {
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		color: hsl(220 10% 50%);
-	}
-
-	/* Continue button */
-	.continue-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.75rem 1.5rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: hsl(220 20% 4%);
-		background: hsl(45 90% 55%);
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		box-shadow:
-			0 0 16px hsl(45 90% 55% / 0.3),
-			0 4px 12px hsl(0 0% 0% / 0.2);
-	}
-
-	.continue-btn:hover:not(:disabled) {
-		transform: scale(1.02);
-		box-shadow:
-			0 0 24px hsl(45 90% 55% / 0.4),
-			0 6px 16px hsl(0 0% 0% / 0.3);
-	}
-
-	.continue-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-		background: hsl(220 10% 25%);
-		color: hsl(220 10% 50%);
-		box-shadow: none;
+		color: var(--wizard-text-dim);
 	}
 
 	/* Animations */
