@@ -584,9 +584,10 @@ function getFieldErrors(field: string): string[] {
 								<Input
 									type="datetime-local"
 									bind:value={expiresAtLocal}
-									oninput={() => {
-										formData.expires_at = expiresAtLocal
-											? toISOString(expiresAtLocal)
+									oninput={(e) => {
+										const value = e.currentTarget.value;
+										formData.expires_at = value
+											? toISOString(value)
 											: "";
 									}}
 									class="border-cr-border bg-cr-bg text-cr-text"

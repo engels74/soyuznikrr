@@ -109,7 +109,7 @@ export class ApiError extends Error {
  * @returns Typed ErrorResponse if the shape matches, otherwise undefined
  */
 export function asErrorResponse(error: unknown): ErrorResponse | undefined {
-	if (error && typeof error === 'object' && 'detail' in error && 'error_code' in error) {
+	if (error && typeof error === 'object' && 'detail' in error) {
 		return error as ErrorResponse;
 	}
 	return undefined;
