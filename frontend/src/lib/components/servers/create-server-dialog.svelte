@@ -59,7 +59,7 @@ let testResult = $state<ConnectionTestResponse | null>(null);
 // Form data state
 let formData = $state<CreateServerInput>({
 	name: "",
-	server_type: "",
+	server_type: "plex",
 	url: "",
 	api_key: "",
 });
@@ -73,7 +73,7 @@ let errors = $state<Record<string, string[]>>({});
 function resetForm() {
 	formData = {
 		name: "",
-		server_type: "",
+		server_type: "plex",
 		url: "",
 		api_key: "",
 	};
@@ -124,6 +124,11 @@ function getFieldErrors(field: string): string[] {
 const canTest = $derived(formData.url.trim().length > 0 && formData.api_key.trim().length > 0);
 
 /**
+ * Whether the connection has been verified via a successful test.
+ */
+const connectionVerified = $derived(testResult?.success === true);
+
+/**
  * Handle test connection button click.
  */
 async function handleTestConnection() {
@@ -170,7 +175,7 @@ async function handleTestConnection() {
 async function handleSubmit(event: Event) {
 	event.preventDefault();
 
-	if (!validateForm()) {
+	if (!connectionVerified || !validateForm()) {
 		return;
 	}
 
@@ -247,6 +252,7 @@ function handleCancel() {
 				<Input
 					id="name"
 					bind:value={formData.name}
+					oninput={onConnectionFieldChange}
 					placeholder="My Media Server"
 					disabled={submitting}
 					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent"
@@ -269,7 +275,7 @@ function handleCancel() {
 						<button
 							type="button"
 							disabled={submitting}
-							onclick={() => (formData.server_type = provider.server_type)}
+							onclick={() => { formData.server_type = provider.server_type; onConnectionFieldChange(); }}
 							class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors {i < providerList.length - 1 ? 'border-r' : ''} {formData.server_type === provider.server_type
 								? ''
 								: 'bg-cr-bg text-cr-text-muted hover:bg-cr-border border-cr-border'}"
@@ -408,7 +414,7 @@ function handleCancel() {
 				</Button>
 				<Button
 					type="submit"
-					disabled={submitting}
+					disabled={submitting || !connectionVerified}
 					class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 				>
 					{#if submitting}
