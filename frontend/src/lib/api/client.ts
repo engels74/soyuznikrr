@@ -419,6 +419,22 @@ export async function getServer(serverId: string, client: ApiClient = api) {
 export type ConnectionTestRequest = components['schemas']['ConnectionTestRequest'];
 export type ConnectionTestResponse = components['schemas']['ConnectionTestResponse'];
 
+// Env credentials types — manually defined since the endpoint is new
+// and types may not yet be regenerated
+export interface EnvCredentialResponse {
+	server_type: string;
+	display_name: string;
+	url: string | null;
+	api_key: string | null;
+	masked_api_key: string | null;
+	has_url: boolean;
+	has_api_key: boolean;
+}
+
+export interface EnvCredentialsResponse {
+	credentials: EnvCredentialResponse[];
+}
+
 /**
  * Test a media server connection and optionally auto-detect server type.
  *
@@ -427,6 +443,17 @@ export type ConnectionTestResponse = components['schemas']['ConnectionTestRespon
  */
 export async function testConnection(data: ConnectionTestRequest, client: ApiClient = api) {
 	return client.POST('/api/v1/servers/test-connection', { body: data });
+}
+
+/**
+ * Get detected environment variable credentials for media server providers.
+ *
+ * @returns Env credentials response with detected providers
+ */
+export async function getEnvCredentials(
+	client: ApiClient = api
+): Promise<{ data?: EnvCredentialsResponse; error?: unknown }> {
+	return client.GET('/api/v1/servers/env-credentials' as never);
 }
 
 /**

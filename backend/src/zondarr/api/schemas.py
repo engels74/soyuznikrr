@@ -145,6 +145,38 @@ class MediaServerCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True
     api_key: ApiKeyStr
 
 
+class EnvCredentialResponse(msgspec.Struct, kw_only=True):
+    """A single detected provider credential from environment variables.
+
+    Attributes:
+        server_type: Provider identifier string (e.g., "plex", "jellyfin").
+        display_name: Human-readable provider name.
+        url: Detected URL from env var (for form auto-fill).
+        api_key: Detected API key from env var (for form auto-fill).
+        masked_api_key: Masked version of the API key for display.
+        has_url: Whether a URL was detected.
+        has_api_key: Whether an API key was detected.
+    """
+
+    server_type: str
+    display_name: str
+    url: str | None = None
+    api_key: str | None = None
+    masked_api_key: str | None = None
+    has_url: bool = False
+    has_api_key: bool = False
+
+
+class EnvCredentialsResponse(msgspec.Struct, kw_only=True):
+    """Response listing all detected environment variable credentials.
+
+    Attributes:
+        credentials: List of detected provider credentials.
+    """
+
+    credentials: list[EnvCredentialResponse]
+
+
 class MediaServerUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to update a media server.
 

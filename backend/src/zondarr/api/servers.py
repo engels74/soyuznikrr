@@ -23,6 +23,7 @@ from litestar.status_codes import HTTP_503_SERVICE_UNAVAILABLE
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.config import Settings
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
 from zondarr.repositories.identity import IdentityRepository
@@ -34,6 +35,8 @@ from zondarr.services.sync import SyncService
 from .schemas import (
     ConnectionTestRequest,
     ConnectionTestResponse,
+    EnvCredentialResponse,
+    EnvCredentialsResponse,
     ErrorResponse,
     LibraryResponse,
     MediaServerCreate,
@@ -44,6 +47,20 @@ from .schemas import (
 )
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
+
+
+def _mask_api_key(api_key: str) -> str:
+    """Mask an API key for safe display.
+
+    Shows first 4 + last 4 chars for keys >= 12 chars,
+    first 2 + last 2 for 6-11 chars, all asterisks for < 6.
+    """
+    length = len(api_key)
+    if length >= 12:
+        return f"{api_key[:4]}{'*' * (length - 8)}{api_key[-4:]}"
+    if length >= 6:
+        return f"{api_key[:2]}{'*' * (length - 4)}{api_key[-2:]}"
+    return "*" * length
 
 
 async def provide_media_server_repository(
@@ -141,6 +158,50 @@ class ServerController(Controller):
         "sync_service": Provide(provide_sync_service),
         "media_server_service": Provide(provide_media_server_service),
     }
+
+    @get(
+        "/env-credentials",
+        summary="Get detected environment credentials",
+        description="Returns media server credentials detected from environment variables.",
+    )
+    async def get_env_credentials(
+        self,
+        settings: Settings,
+    ) -> EnvCredentialsResponse:
+        """Get detected environment variable credentials for media server providers.
+
+        Iterates all registered providers and checks if their env vars are set.
+        Only includes providers that have at least one credential (URL or API key).
+
+        Args:
+            settings: Application settings from DI.
+
+        Returns:
+            EnvCredentialsResponse with detected credentials.
+        """
+        credentials: list[EnvCredentialResponse] = []
+
+        for meta in registry.get_all_metadata():
+            provider_creds = settings.provider_credentials.get(meta.server_type, {})
+            url = provider_creds.get("url")
+            api_key = provider_creds.get("api_key")
+
+            if not url and not api_key:
+                continue
+
+            credentials.append(
+                EnvCredentialResponse(
+                    server_type=meta.server_type,
+                    display_name=meta.display_name,
+                    url=url,
+                    api_key=api_key,
+                    masked_api_key=_mask_api_key(api_key) if api_key else None,
+                    has_url=bool(url),
+                    has_api_key=bool(api_key),
+                )
+            )
+
+        return EnvCredentialsResponse(credentials=credentials)
 
     @get(
         "/",

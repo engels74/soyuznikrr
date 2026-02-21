@@ -12,9 +12,9 @@
  * @module $lib/components/servers/create-server-dialog
  */
 
-import { Eye, EyeOff, Plug, Plus, Server } from "@lucide/svelte";
-import type { ConnectionTestResponse } from "$lib/api/client";
-import { createServer, testConnection, withErrorHandling } from "$lib/api/client";
+import { Eye, EyeOff, Info, Plug, Plus, Server } from "@lucide/svelte";
+import type { ConnectionTestResponse, EnvCredentialResponse } from "$lib/api/client";
+import { createServer, getEnvCredentials, testConnection, withErrorHandling } from "$lib/api/client";
 import { asErrorResponse } from "$lib/api/errors";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
@@ -39,9 +39,11 @@ const providerList = $derived(getAllProviders());
 // Dialog open state
 let open = $state(false);
 
-// Reset form when dialog closes
+// Reset form when dialog closes, fetch env credentials when it opens
 $effect(() => {
-	if (!open) {
+	if (open) {
+		fetchEnvCredentials();
+	} else {
 		resetForm();
 	}
 });
@@ -67,6 +69,16 @@ let formData = $state<CreateServerInput>({
 // Validation errors
 let errors = $state<Record<string, string[]>>({});
 
+// Env credentials auto-detection
+let envCredentials = $state<EnvCredentialResponse[]>([]);
+let envLoading = $state(false);
+let envDismissed = $state(false);
+
+const completeEnvCredentials = $derived(
+	envCredentials.filter((c) => c.has_url && c.has_api_key)
+);
+const showEnvBanner = $derived(!envDismissed && completeEnvCredentials.length > 0);
+
 /**
  * Reset form to initial state.
  */
@@ -81,6 +93,37 @@ function resetForm() {
 	showApiKey = false;
 	testing = false;
 	testResult = null;
+	envCredentials = [];
+	envDismissed = false;
+}
+
+/**
+ * Fetch detected environment credentials from the backend.
+ */
+async function fetchEnvCredentials() {
+	envLoading = true;
+	try {
+		const result = await withErrorHandling(() => getEnvCredentials(), {
+			showErrorToast: false,
+		});
+		if (result.data) {
+			envCredentials = result.data.credentials;
+		}
+	} finally {
+		envLoading = false;
+	}
+}
+
+/**
+ * Auto-fill the form with detected environment credentials.
+ */
+function handleUseEnvCredentials(credential: EnvCredentialResponse) {
+	formData.server_type = credential.server_type;
+	if (credential.url) formData.url = credential.url;
+	if (credential.api_key) formData.api_key = credential.api_key;
+	if (!formData.name) formData.name = credential.display_name;
+	testResult = null;
+	envDismissed = true;
 }
 
 /**
@@ -244,6 +287,47 @@ function handleCancel() {
 				Connect a media server to manage user access.
 			</Dialog.Description>
 		</Dialog.Header>
+
+		{#if showEnvBanner}
+			<div class="mt-4 rounded-lg border border-cr-accent/30 bg-cr-accent/5 p-3">
+				<div class="flex items-start justify-between gap-2">
+					<div class="flex items-center gap-2 text-sm font-medium text-cr-accent">
+						<Info class="size-4 shrink-0" />
+						Environment credentials detected
+					</div>
+					<button
+						type="button"
+						onclick={() => (envDismissed = true)}
+						class="text-xs text-cr-text-muted hover:text-cr-text"
+					>
+						Dismiss
+					</button>
+				</div>
+				<div class="mt-2 space-y-1.5">
+					{#each completeEnvCredentials as credential (credential.server_type)}
+						{@const providerMeta = providerList.find((p) => p.server_type === credential.server_type)}
+						<button
+							type="button"
+							onclick={() => handleUseEnvCredentials(credential)}
+							class="flex w-full items-center gap-3 rounded-md border border-cr-border bg-cr-bg px-3 py-2 text-left text-sm transition-colors hover:border-cr-accent/40 hover:bg-cr-accent/5"
+						>
+							<span
+								class="shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold"
+								style="background: {providerMeta?.color ?? '#6b7280'}20; color: {providerMeta?.color ?? '#6b7280'}"
+							>
+								{credential.display_name}
+							</span>
+							<span class="min-w-0 flex-1 truncate font-mono text-xs text-cr-text-muted">
+								{credential.url}
+							</span>
+							<span class="shrink-0 font-mono text-xs text-cr-text-muted/60">
+								{credential.masked_api_key}
+							</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 
 		<form onsubmit={handleSubmit} class="mt-4 space-y-4">
 			<!-- Server Name -->
