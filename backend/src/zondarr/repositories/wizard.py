@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from zondarr.core.exceptions import RepositoryError
-from zondarr.models.wizard import Wizard
+from zondarr.models.wizard import Wizard, WizardStep
 from zondarr.repositories.base import Repository
 
 # Type alias for valid sort fields
@@ -58,7 +58,9 @@ class WizardRepository(Repository[Wizard]):
         try:
             result = await self.session.scalars(
                 select(Wizard)
-                .options(selectinload(Wizard.steps))
+                .options(
+                    selectinload(Wizard.steps).selectinload(WizardStep.interactions)
+                )
                 .where(Wizard.id == wizard_id)
             )
             return result.first()

@@ -13,10 +13,12 @@
  * @module routes/(admin)/wizards/+page
  */
 
-import { Plus, Wand2 } from "@lucide/svelte";
+import { Plus, Trash2, Wand2 } from "@lucide/svelte";
 import { goto, invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
+import { deleteWizard, withErrorHandling } from "$lib/api/client";
 import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import EmptyState from "$lib/components/empty-state.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import Pagination from "$lib/components/pagination.svelte";
@@ -24,12 +26,18 @@ import { Badge } from "$lib/components/ui/badge";
 import { Button } from "$lib/components/ui/button";
 import * as Card from "$lib/components/ui/card";
 import { Skeleton } from "$lib/components/ui/skeleton";
+import { showSuccess } from "$lib/utils/toast";
 import type { PageData } from "./$types";
 
 const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);
+
+// Delete state
+let deleteTarget = $state<string | null>(null);
+let showDeleteDialog = $state(false);
+let deleting = $state(false);
 
 /**
  * Handle retry after error.
@@ -55,6 +63,34 @@ function handleEditWizard(wizardId: string) {
  */
 function handleCreateWizard() {
 	goto("/wizards/new");
+}
+
+/**
+ * Request deletion of a wizard (shows confirmation dialog).
+ */
+function handleDeleteRequest(id: string) {
+	deleteTarget = id;
+	showDeleteDialog = true;
+}
+
+/**
+ * Confirm and execute wizard deletion.
+ */
+async function handleDeleteConfirm() {
+	if (!deleteTarget) return;
+	const target = deleteTarget;
+	deleting = true;
+	try {
+		const result = await withErrorHandling(() => deleteWizard(target));
+		if (!result.error) {
+			showSuccess("Wizard deleted");
+			await invalidateAll();
+		}
+	} finally {
+		deleting = false;
+		showDeleteDialog = false;
+		deleteTarget = null;
+	}
 }
 
 /**
@@ -119,12 +155,22 @@ function handlePageChange(newPage: number) {
 								<Wand2 class="size-5 text-cr-accent" />
 								<Card.Title class="text-cr-text">{wizard.name}</Card.Title>
 							</div>
-							<Badge
-								variant={wizard.enabled ? 'default' : 'secondary'}
-								class={wizard.enabled ? 'bg-green-600' : 'bg-cr-text-muted'}
-							>
-								{wizard.enabled ? 'Enabled' : 'Disabled'}
-							</Badge>
+							<div class="flex items-center gap-2">
+								<Badge
+									variant={wizard.enabled ? 'default' : 'secondary'}
+									class={wizard.enabled ? 'bg-green-600' : 'bg-cr-text-muted'}
+								>
+									{wizard.enabled ? 'Enabled' : 'Disabled'}
+								</Badge>
+								<Button
+									variant="ghost"
+									size="icon"
+									class="size-8 text-rose-400 hover:bg-rose-400/10 hover:text-rose-400"
+									onclick={(e: MouseEvent) => { e.stopPropagation(); handleDeleteRequest(wizard.id); }}
+								>
+									<Trash2 class="size-4" />
+								</Button>
+							</div>
 						</div>
 						{#if wizard.description}
 							<Card.Description class="text-cr-text-muted line-clamp-2">
@@ -151,3 +197,14 @@ function handlePageChange(newPage: number) {
 		/>
 	{/if}
 </div>
+
+<ConfirmDialog
+	open={showDeleteDialog}
+	title="Delete Wizard"
+	description="Are you sure you want to delete this wizard? This action cannot be undone."
+	confirmLabel={deleting ? 'Deleting...' : 'Delete'}
+	variant="destructive"
+	loading={deleting}
+	onConfirm={handleDeleteConfirm}
+	onCancel={() => { showDeleteDialog = false; deleteTarget = null; }}
+/>
