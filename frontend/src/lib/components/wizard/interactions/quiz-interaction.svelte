@@ -21,7 +21,7 @@ const options = $derived(config?.options ?? []);
 
 // Selection state — restore from completion data if navigating back
 let selectedIndex = $state<number | null>(
-	typeof completionData?.data?.answer_index === "number" ? completionData.data.answer_index : null,
+	(() => (typeof completionData?.data?.answer_index === "number" ? completionData.data.answer_index : null))(),
 );
 
 // Derived - has selection

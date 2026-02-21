@@ -21,7 +21,7 @@ const checkboxLabel = $derived(
 );
 
 // Checkbox state — restore from completion data if navigating back
-let accepted = $state(completionData?.data?.accepted === true);
+let accepted = $state((() => completionData?.data?.accepted === true)());
 
 // Derived - can proceed only when accepted
 const canProceed = $derived(accepted);

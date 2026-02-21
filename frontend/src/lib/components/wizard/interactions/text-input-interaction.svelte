@@ -26,7 +26,7 @@ const inputId = $derived(`wizard-text-input-${interactionId}`);
 
 // Input state — restore from completion data if navigating back
 let inputValue = $state(
-	typeof completionData?.data?.text === "string" ? completionData.data.text : "",
+	(() => (typeof completionData?.data?.text === "string" ? completionData.data.text : ""))(),
 );
 let touched = $state(false);
 

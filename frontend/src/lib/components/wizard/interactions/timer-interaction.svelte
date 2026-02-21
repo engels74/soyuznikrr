@@ -20,11 +20,11 @@ const config = $derived(timerConfigSchema.safeParse(rawConfig).data);
 const durationSeconds = $derived(config?.duration_seconds ?? 10);
 
 // If already completed (navigating back), start at 0
-const alreadyCompleted = completionData?.data?.waited === true;
+const alreadyCompleted = (() => completionData?.data?.waited === true)();
 
 // Timer state
 let remainingSeconds = $state(0);
-let startedAt = $state<string | null>(completionData?.startedAt ?? null);
+let startedAt = $state<string | null>((() => completionData?.startedAt ?? null)());
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 // Derived values
