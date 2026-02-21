@@ -291,7 +291,7 @@ function handleCancel() {
 		</Dialog.Header>
 
 		{#if showEnvBanner}
-			<div class="rounded-lg border border-cr-accent/30 bg-cr-accent/5 p-3">
+			<div class="min-w-0 rounded-lg border border-cr-accent/30 bg-cr-accent/5 p-3">
 				<div class="flex items-start justify-between gap-2">
 					<div class="flex items-center gap-2 text-sm font-medium text-cr-accent">
 						<Info class="size-4 shrink-0" />
@@ -331,7 +331,7 @@ function handleCancel() {
 			</div>
 		{/if}
 
-		<form onsubmit={handleSubmit} class="space-y-4">
+		<form onsubmit={handleSubmit} class="min-w-0 space-y-4">
 			<!-- Server Name -->
 			<div class="space-y-2">
 				<Label for="name" class="text-cr-text">Server Name</Label>
@@ -470,18 +470,18 @@ function handleCancel() {
 							class="rounded-md border px-3 py-2 text-sm"
 							style="border-color: {providerMeta?.color ?? '#22c55e'}40; background: {providerMeta?.color ?? '#22c55e'}10; color: {providerMeta?.color ?? '#22c55e'}"
 						>
-							<p class="font-medium">
+							<p class="font-medium break-all">
 								Connected — {providerMeta?.display_name ?? testResult.server_type} server detected
 							</p>
 							{#if testResult.server_name}
-								<p class="text-cr-text-muted text-xs mt-0.5">
+								<p class="text-cr-text-muted text-xs mt-0.5 break-all">
 									{testResult.server_name}{testResult.version ? ` (v${testResult.version})` : ""}
 								</p>
 							{/if}
 						</div>
 					{:else}
 						<div class="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-400">
-							<p>{testResult.message}</p>
+							<p class="break-all">{testResult.message}</p>
 						</div>
 					{/if}
 				{/if}
