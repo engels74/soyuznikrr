@@ -40,10 +40,12 @@ const providerList = $derived(getAllProviders());
 let open = $state(false);
 
 // Reset form when dialog closes, fetch env credentials when it opens
+let hasBeenOpened = false;
 $effect(() => {
 	if (open) {
+		hasBeenOpened = true;
 		fetchEnvCredentials();
-	} else {
+	} else if (hasBeenOpened) {
 		resetForm();
 	}
 });
@@ -276,7 +278,7 @@ function handleCancel() {
 	</Dialog.Trigger>
 
 	<Dialog.Content
-		class="border-cr-border bg-cr-surface sm:max-w-md"
+		class="border-cr-border bg-cr-surface sm:max-w-lg max-h-[85dvh] overflow-y-auto"
 	>
 		<Dialog.Header>
 			<Dialog.Title class="text-cr-text flex items-center gap-2">
@@ -289,7 +291,7 @@ function handleCancel() {
 		</Dialog.Header>
 
 		{#if showEnvBanner}
-			<div class="mt-4 rounded-lg border border-cr-accent/30 bg-cr-accent/5 p-3">
+			<div class="rounded-lg border border-cr-accent/30 bg-cr-accent/5 p-3">
 				<div class="flex items-start justify-between gap-2">
 					<div class="flex items-center gap-2 text-sm font-medium text-cr-accent">
 						<Info class="size-4 shrink-0" />
@@ -329,7 +331,7 @@ function handleCancel() {
 			</div>
 		{/if}
 
-		<form onsubmit={handleSubmit} class="mt-4 space-y-4">
+		<form onsubmit={handleSubmit} class="space-y-4">
 			<!-- Server Name -->
 			<div class="space-y-2">
 				<Label for="name" class="text-cr-text">Server Name</Label>
