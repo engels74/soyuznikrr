@@ -49,7 +49,7 @@ from .schemas import (
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
 
-def _mask_api_key(api_key: str) -> str:
+def mask_api_key(api_key: str) -> str:
     """Mask an API key for safe display.
 
     Shows first 4 + last 4 chars for keys >= 12 chars,
@@ -195,7 +195,7 @@ class ServerController(Controller):
                     display_name=meta.display_name,
                     url=url,
                     api_key=api_key,
-                    masked_api_key=_mask_api_key(api_key) if api_key else None,
+                    masked_api_key=mask_api_key(api_key) if api_key else None,
                     has_url=bool(url),
                     has_api_key=bool(api_key),
                 )

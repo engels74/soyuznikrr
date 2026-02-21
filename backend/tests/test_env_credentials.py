@@ -1,7 +1,7 @@
 """Tests for environment credential detection endpoint.
 
 Tests for:
-- _mask_api_key helper (unit tests)
+- mask_api_key helper (unit tests)
 - GET /api/v1/servers/env-credentials endpoint (integration tests)
 """
 
@@ -15,14 +15,17 @@ from litestar.testing import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.conftest import create_test_engine
-from zondarr.api.servers import (  # pyright: ignore[reportPrivateUsage]
+from zondarr.api.servers import (
     ServerController,
-    _mask_api_key,
+    mask_api_key,
 )
 from zondarr.config import Settings
 from zondarr.media.providers.jellyfin import JellyfinProvider
 from zondarr.media.providers.plex import PlexProvider
 from zondarr.media.registry import registry
+
+# Type alias for JSON credential dicts returned by the endpoint
+type CredentialDict = dict[str, object]
 
 
 def _make_test_settings(
@@ -70,48 +73,56 @@ def _make_test_app(
     )
 
 
+def _get_credentials(response_json: dict[str, object]) -> list[CredentialDict]:
+    """Extract credentials list from response JSON with proper typing."""
+    creds = response_json["credentials"]
+    assert isinstance(creds, list)
+    result: list[CredentialDict] = creds  # pyright: ignore[reportUnknownVariableType]
+    return result
+
+
 # =============================================================================
-# Unit tests for _mask_api_key
+# Unit tests for mask_api_key
 # =============================================================================
 
 
 class TestMaskApiKey:
-    """Unit tests for the _mask_api_key helper."""
+    """Unit tests for the mask_api_key helper."""
 
     def test_short_key_all_masked(self) -> None:
         """Keys shorter than 6 chars are fully masked."""
-        assert _mask_api_key("abc") == "***"
-        assert _mask_api_key("ab") == "**"
-        assert _mask_api_key("a") == "*"
-        assert _mask_api_key("12345") == "*****"
+        assert mask_api_key("abc") == "***"
+        assert mask_api_key("ab") == "**"
+        assert mask_api_key("a") == "*"
+        assert mask_api_key("12345") == "*****"
 
     def test_medium_key_shows_first2_last2(self) -> None:
         """Keys 6-11 chars show first 2 and last 2."""
-        assert _mask_api_key("abcdef") == "ab**ef"
-        assert _mask_api_key("abcdefgh") == "ab****gh"
-        assert _mask_api_key("abcdefghijk") == "ab*******jk"
+        assert mask_api_key("abcdef") == "ab**ef"
+        assert mask_api_key("abcdefgh") == "ab****gh"
+        assert mask_api_key("abcdefghijk") == "ab*******jk"
 
     def test_long_key_shows_first4_last4(self) -> None:
         """Keys >= 12 chars show first 4 and last 4."""
-        assert _mask_api_key("abcdefghijkl") == "abcd****ijkl"
-        assert _mask_api_key("1234567890abcdef") == "1234********cdef"
+        assert mask_api_key("abcdefghijkl") == "abcd****ijkl"
+        assert mask_api_key("1234567890abcdef") == "1234********cdef"
 
     def test_boundary_at_6(self) -> None:
         """Key of exactly 6 chars uses medium masking."""
-        result = _mask_api_key("123456")
+        result = mask_api_key("123456")
         assert result == "12**56"
         assert len(result) == 6
 
     def test_boundary_at_12(self) -> None:
         """Key of exactly 12 chars uses long masking."""
-        result = _mask_api_key("123456789012")
+        result = mask_api_key("123456789012")
         assert result == "1234****9012"
         assert len(result) == 12
 
     def test_mask_preserves_length(self) -> None:
         """Masked output has the same length as input."""
         for key in ["a", "ab", "abc", "abcdef", "abcdefghij", "abcdefghijklmnop"]:
-            assert len(_mask_api_key(key)) == len(key)
+            assert len(mask_api_key(key)) == len(key)
 
 
 # =============================================================================
@@ -134,7 +145,7 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
                 assert data["credentials"] == []
         finally:
             await engine.dispose()
@@ -158,11 +169,13 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
-                creds = data["credentials"]
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                creds = _get_credentials(data)
                 assert len(creds) >= 1
 
-                plex_cred = next((c for c in creds if c["server_type"] == "plex"), None)
+                plex_cred: CredentialDict | None = next(
+                    (c for c in creds if c["server_type"] == "plex"), None
+                )
                 assert plex_cred is not None
                 assert plex_cred["url"] == "http://plex.local:32400"
                 assert plex_cred["api_key"] == "my-plex-token-here"
@@ -189,9 +202,9 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
-                creds = data["credentials"]
-                server_types = [c["server_type"] for c in creds]
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                creds = _get_credentials(data)
+                server_types: list[object] = [c["server_type"] for c in creds]
                 assert "plex" in server_types
                 assert "jellyfin" not in server_types
         finally:
@@ -216,9 +229,10 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
-                plex_cred = next(
-                    c for c in data["credentials"] if c["server_type"] == "plex"
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                creds = _get_credentials(data)
+                plex_cred: CredentialDict = next(
+                    c for c in creds if c["server_type"] == "plex"
                 )
                 # 16 char key: first 4 + 8 stars + last 4
                 assert plex_cred["masked_api_key"] == "abcd********mnop"
@@ -241,9 +255,10 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
-                plex_cred = next(
-                    c for c in data["credentials"] if c["server_type"] == "plex"
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                creds = _get_credentials(data)
+                plex_cred: CredentialDict = next(
+                    c for c in creds if c["server_type"] == "plex"
                 )
                 assert plex_cred["has_url"] is True
                 assert plex_cred["has_api_key"] is False
@@ -275,9 +290,9 @@ class TestEnvCredentialsEndpoint:
             with TestClient(app) as client:
                 response = client.get("/api/v1/servers/env-credentials")
                 assert response.status_code == 200
-                data = response.json()
-                creds = data["credentials"]
-                server_types = {c["server_type"] for c in creds}
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                creds = _get_credentials(data)
+                server_types: set[object] = {c["server_type"] for c in creds}
                 assert "plex" in server_types
                 assert "jellyfin" in server_types
         finally:
