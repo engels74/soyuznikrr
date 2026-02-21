@@ -11,10 +11,12 @@ from datetime import UTC, datetime
 from typing import Literal, override
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models.invitation import Invitation
+from zondarr.models.wizard import Wizard, WizardStep
 from zondarr.repositories.base import Repository
 
 # Type alias for valid sort fields
@@ -57,7 +59,16 @@ class InvitationRepository(Repository[Invitation]):
         """
         try:
             result = await self.session.scalars(
-                select(Invitation).where(Invitation.code == code)
+                select(Invitation)
+                .options(
+                    selectinload(Invitation.pre_wizard)
+                    .selectinload(Wizard.steps)
+                    .selectinload(WizardStep.interactions),
+                    selectinload(Invitation.post_wizard)
+                    .selectinload(Wizard.steps)
+                    .selectinload(WizardStep.interactions),
+                )
+                .where(Invitation.code == code)
             )
             return result.first()
         except Exception as e:

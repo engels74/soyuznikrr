@@ -295,7 +295,9 @@ class WizardService:
         if content_markdown is not None:
             step.content_markdown = content_markdown
 
-        return await self.step_repo.update(step)
+        updated_step = await self.step_repo.update(step)
+        await self.step_repo.session.refresh(updated_step, ["interactions"])
+        return updated_step
 
     async def delete_step(self, wizard_id: UUID, step_id: UUID, /) -> None:
         """Delete a wizard step and normalize remaining step orders.
@@ -357,6 +359,7 @@ class WizardService:
         updated_step = await self.step_repo.get_by_id(step_id)
         if updated_step is None:
             raise NotFoundError("WizardStep", str(step_id))
+        await self.step_repo.session.refresh(updated_step, ["interactions"])
         return updated_step
 
     # ==================== Interaction CRUD ====================
@@ -465,7 +468,9 @@ class WizardService:
             )
             interaction.config = validated_config
 
-        return await self.interaction_repo.update(interaction)
+        updated = await self.interaction_repo.update(interaction)
+        await self.interaction_repo.session.refresh(updated, ["step"])
+        return updated
 
     async def remove_interaction(
         self,
