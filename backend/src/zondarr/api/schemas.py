@@ -1085,6 +1085,30 @@ class CsrfOriginUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
     csrf_origin: OriginUrl | None = None
 
 
+class CsrfOriginTestRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to test a CSRF origin against the browser's actual Origin header.
+
+    Attributes:
+        origin: The origin URL to test.
+    """
+
+    origin: OriginUrl
+
+
+class CsrfOriginTestResponse(msgspec.Struct, kw_only=True):
+    """Response from CSRF origin test.
+
+    Attributes:
+        success: Whether the provided origin matches the request's Origin header.
+        message: Human-readable result description.
+        request_origin: The Origin header extracted from the request, if available.
+    """
+
+    success: bool
+    message: str
+    request_origin: str | None = None
+
+
 # =============================================================================
 # Connection Test Schemas
 # =============================================================================

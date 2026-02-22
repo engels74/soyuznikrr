@@ -5,13 +5,20 @@ All endpoints require authentication (not in AUTH_EXCLUDE_PATHS).
 """
 
 from collections.abc import Mapping, Sequence
+from urllib.parse import urlparse
 
-from litestar import Controller, get, put
+from litestar import Controller, Request, get, post, put
+from litestar.datastructures import State
 from litestar.di import Provide
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zondarr.api.schemas import CsrfOriginResponse, CsrfOriginUpdate
+from zondarr.api.schemas import (
+    CsrfOriginResponse,
+    CsrfOriginTestRequest,
+    CsrfOriginTestResponse,
+    CsrfOriginUpdate,
+)
 from zondarr.config import Settings
 from zondarr.core.exceptions import ValidationError
 from zondarr.repositories.app_setting import AppSettingRepository
@@ -76,3 +83,63 @@ class SettingsController(Controller):
         _ = await settings_service.set_csrf_origin(data.csrf_origin)
         origin, locked = await settings_service.get_csrf_origin()
         return CsrfOriginResponse(csrf_origin=origin, is_locked=locked)
+
+    @post(
+        "/csrf-origin/test",
+        summary="Test CSRF origin against browser",
+        description="Compares the provided origin against the request's Origin header to verify they match.",
+    )
+    async def test_csrf_origin(
+        self,
+        data: CsrfOriginTestRequest,
+        request: Request[object, object, State],
+    ) -> CsrfOriginTestResponse:
+        """Test whether the provided CSRF origin matches the browser's actual Origin header."""
+        request_origin = self._extract_request_origin(request)
+        if request_origin is None:
+            return CsrfOriginTestResponse(
+                success=False,
+                message="Could not determine your browser's origin. No Origin or Referer header was sent.",
+                request_origin=None,
+            )
+
+        # Normalize both origins: lowercase, strip trailing slashes
+        normalized_provided = data.origin.lower().rstrip("/")
+        normalized_request = request_origin.lower().rstrip("/")
+
+        if normalized_provided == normalized_request:
+            return CsrfOriginTestResponse(
+                success=True,
+                message="Origin matches — CSRF protection will work correctly.",
+                request_origin=request_origin,
+            )
+
+        return CsrfOriginTestResponse(
+            success=False,
+            message=f"Origin mismatch: you entered '{data.origin}' but your browser sent '{request_origin}'.",
+            request_origin=request_origin,
+        )
+
+    @staticmethod
+    def _extract_request_origin(request: Request[object, object, State]) -> str | None:
+        """Extract the origin from the request's Origin or Referer header."""
+        origin = request.headers.get("origin")
+        if origin and origin.lower() != "null":
+            return origin
+
+        referer = request.headers.get("referer")
+        if referer:
+            parsed = urlparse(referer)
+            if parsed.scheme and parsed.hostname:
+                host = parsed.hostname
+                if ":" in host:
+                    host = f"[{host}]"
+                default_ports = {"http": 80, "https": 443}
+                port_suffix = (
+                    f":{parsed.port}"
+                    if parsed.port and parsed.port != default_ports.get(parsed.scheme)
+                    else ""
+                )
+                return f"{parsed.scheme}://{host}{port_suffix}"
+
+        return None

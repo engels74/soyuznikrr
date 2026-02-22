@@ -202,9 +202,10 @@ class CSRFMiddleware:
                 # Restore brackets for IPv6 addresses
                 if ":" in host:
                     host = f"[{host}]"
+                default_ports = {"http": 80, "https": 443}
                 port_suffix = (
                     f":{parsed.port}"
-                    if parsed.port and parsed.port not in (80, 443)
+                    if parsed.port and parsed.port != default_ports.get(parsed.scheme)
                     else ""
                 )
                 return f"{parsed.scheme}://{host}{port_suffix}"

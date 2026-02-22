@@ -1,8 +1,10 @@
 <script lang="ts">
-import { ShieldCheck } from '@lucide/svelte';
+import { Plug, ShieldCheck } from '@lucide/svelte';
 import { browser } from '$app/environment';
-import { setCsrfOrigin, withErrorHandling } from '$lib/api/client';
+import type { CsrfOriginTestResponse } from '$lib/api/client';
+import { setCsrfOrigin, testCsrfOrigin, withErrorHandling } from '$lib/api/client';
 import { asErrorResponse } from '$lib/api/errors';
+import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
@@ -21,8 +23,65 @@ let errors = $state<Record<string, string>>({});
 let serverError = $state('');
 let submitting = $state(false);
 
-async function handleSubmit(e: SubmitEvent) {
-	e.preventDefault();
+// Test state
+let testing = $state(false);
+let testResult = $state<CsrfOriginTestResponse | null>(null);
+let hasAttemptedTest = $state(false);
+
+// Confirmation dialog state
+let showSaveConfirm = $state(false);
+let showSkipConfirm = $state(false);
+
+const canTest = $derived(origin.trim().length > 0);
+const testPassed = $derived(testResult?.success === true);
+
+function onOriginChange() {
+	testResult = null;
+	hasAttemptedTest = false;
+}
+
+async function handleTest() {
+	testing = true;
+	testResult = null;
+
+	try {
+		const result = await withErrorHandling(() => testCsrfOrigin(origin), {
+			showErrorToast: false
+		});
+
+		if (result.error || !result.data) {
+			const errorBody = asErrorResponse(result.error);
+			testResult = {
+				success: false,
+				message: errorBody?.detail ?? 'Network error — could not reach the backend.',
+				request_origin: null
+			};
+		} else {
+			testResult = result.data;
+		}
+	} finally {
+		testing = false;
+		hasAttemptedTest = true;
+	}
+}
+
+function handleSaveClick() {
+	if (testPassed) {
+		handleSubmit();
+	} else {
+		showSaveConfirm = true;
+	}
+}
+
+function handleSkipClick() {
+	if (testPassed) {
+		onSkip();
+	} else {
+		showSkipConfirm = true;
+	}
+}
+
+async function handleSubmit() {
 	errors = {};
 	serverError = '';
 
@@ -84,15 +143,16 @@ async function handleSubmit(e: SubmitEvent) {
 			</div>
 		</div>
 
-		<form onsubmit={handleSubmit} class="flex flex-col gap-4">
+		<div class="flex flex-col gap-4">
 			<div class="flex flex-col gap-1.5">
 				<Label for="csrf-origin" class="text-cr-text">Trusted Origin</Label>
 				<Input
 					id="csrf-origin"
 					type="url"
 					bind:value={origin}
+					oninput={onOriginChange}
 					placeholder="https://zondarr.example.com"
-					disabled={submitting}
+					disabled={submitting || testing}
 					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
 				/>
 				<p class="text-xs text-cr-text-muted">
@@ -103,19 +163,57 @@ async function handleSubmit(e: SubmitEvent) {
 				{/if}
 			</div>
 
+			<!-- Test Origin -->
+			<div class="space-y-2">
+				<Button
+					type="button"
+					variant="outline"
+					onclick={handleTest}
+					disabled={!canTest || testing || submitting}
+					class="w-full border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border"
+				>
+					{#if testing}
+						<span
+							class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+						></span>
+						Testing...
+					{:else}
+						<Plug class="size-4" />
+						Test Origin
+					{/if}
+				</Button>
+
+				{#if testResult}
+					{#if testResult.success}
+						<div
+							class="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-400"
+						>
+							<p>{testResult.message}</p>
+						</div>
+					{:else}
+						<div
+							class="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-400"
+						>
+							<p>{testResult.message}</p>
+						</div>
+					{/if}
+				{/if}
+			</div>
+
 			<div class="flex items-center justify-between gap-3 border-t border-cr-border pt-4">
 				<Button
 					type="button"
 					variant="ghost"
-					onclick={onSkip}
-					disabled={submitting}
+					onclick={handleSkipClick}
+					disabled={!hasAttemptedTest || submitting || testing}
 					class="text-cr-text-muted hover:text-cr-text"
 				>
 					Skip for now
 				</Button>
 				<Button
-					type="submit"
-					disabled={submitting}
+					type="button"
+					onclick={handleSaveClick}
+					disabled={!hasAttemptedTest || submitting || testing}
 					class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 				>
 					{#if submitting}
@@ -128,10 +226,40 @@ async function handleSubmit(e: SubmitEvent) {
 					{/if}
 				</Button>
 			</div>
-		</form>
+		</div>
 
 		<p class="mt-3 text-center text-xs text-cr-text-dim">
 			You can change this later in Settings.
 		</p>
 	</Card.Content>
 </Card.Root>
+
+<ConfirmDialog
+	bind:open={showSaveConfirm}
+	title="Save Mismatched Origin?"
+	description="The CSRF origin test did not pass. Saving a mismatched origin may block you from accessing Zondarr. Are you sure you want to save?"
+	confirmLabel="Save Anyway"
+	variant="warning"
+	onConfirm={() => {
+		showSaveConfirm = false;
+		handleSubmit();
+	}}
+	onCancel={() => {
+		showSaveConfirm = false;
+	}}
+/>
+
+<ConfirmDialog
+	bind:open={showSkipConfirm}
+	title="Skip Without CSRF Protection?"
+	description="The CSRF origin test did not pass. Skipping means CSRF protection will not be configured. Are you sure?"
+	confirmLabel="Skip Anyway"
+	variant="warning"
+	onConfirm={() => {
+		showSkipConfirm = false;
+		onSkip();
+	}}
+	onCancel={() => {
+		showSkipConfirm = false;
+	}}
+/>
