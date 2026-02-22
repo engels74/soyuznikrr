@@ -29,14 +29,9 @@ const { children }: Props = $props();
 	</header>
 
 	<!-- Main content area -->
-	<main class="flex flex-1 flex-col items-center justify-center px-4 py-8 md:py-12">
+	<main class="flex flex-1 flex-col items-center px-4 py-8 md:py-12">
 		<div class="w-full max-w-lg">
 			{@render children()}
 		</div>
 	</main>
-
-	<!-- Minimal footer -->
-	<footer class="border-t border-cr-border bg-cr-bg px-4 py-4 text-center text-sm text-cr-text-muted">
-		<p>Powered by Zondarr</p>
-	</footer>
 </div>
