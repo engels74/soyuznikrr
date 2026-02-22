@@ -1,6 +1,7 @@
 """API layer - Litestar controllers and schemas."""
 
 from zondarr.api.health import HealthController
+from zondarr.api.logs import LogController
 from zondarr.api.providers import ProviderController
 from zondarr.api.schemas import (
     AuthFieldInfo,
@@ -54,6 +55,7 @@ __all__ = [
     "InvitationUpdate",
     "LibraryResponse",
     "LivenessResponse",
+    "LogController",
     "MediaServerCreate",
     "MediaServerResponse",
     "MediaServerUpdate",
