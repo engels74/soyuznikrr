@@ -570,6 +570,35 @@ export async function setCsrfOrigin(data: {
 	return { data: result };
 }
 
+export interface CsrfOriginTestResponse {
+	success: boolean;
+	message: string;
+	request_origin: string | null;
+}
+
+/**
+ * Test a CSRF origin against the browser's actual Origin header.
+ *
+ * @param origin - The origin URL to test
+ * @returns Test result with success/failure and message
+ */
+export async function testCsrfOrigin(
+	origin: string
+): Promise<{ data?: CsrfOriginTestResponse; error?: unknown }> {
+	const response = await fetch(`${API_BASE_URL}/api/v1/settings/csrf-origin/test`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ origin }),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	const result = (await response.json()) as CsrfOriginTestResponse;
+	return { data: result };
+}
+
 // =============================================================================
 // Health API Wrappers
 // =============================================================================

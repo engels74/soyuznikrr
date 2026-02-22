@@ -198,3 +198,129 @@ class TestUpdateCsrfOriginEndpoint:
                 assert data["is_locked"] is False
         finally:
             await engine.dispose()
+
+
+class TestCsrfOriginTestEndpoint:
+    """Tests for POST /api/v1/settings/csrf-origin/test."""
+
+    @pytest.mark.asyncio
+    async def test_matching_origin(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://app.example.com"},
+                    headers={"Origin": "https://app.example.com"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is True
+                assert "matches" in str(data["message"]).lower()
+                assert data["request_origin"] == "https://app.example.com"
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_mismatched_origin(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://wrong.example.com"},
+                    headers={"Origin": "https://actual.example.com"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is False
+                assert "mismatch" in str(data["message"]).lower()
+                assert data["request_origin"] == "https://actual.example.com"
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_matching(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://APP.Example.COM"},
+                    headers={"Origin": "https://app.example.com"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is True
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_trailing_slash_normalization(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                # Note: OriginUrl pattern forbids trailing slashes, so only the
+                # Origin header may have one. Test that the header side is normalized.
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://app.example.com"},
+                    headers={"Origin": "https://app.example.com/"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is True
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_missing_origin_and_referer(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://app.example.com"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is False
+                assert data["request_origin"] is None
+                assert "could not determine" in str(data["message"]).lower()
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_referer_header_fallback(self) -> None:
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_test_app(session_factory, _make_test_settings())
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/v1/settings/csrf-origin/test",
+                    json={"origin": "https://app.example.com"},
+                    headers={"Referer": "https://app.example.com/settings/csrf"},
+                )
+                assert response.status_code == 201
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["success"] is True
+                assert data["request_origin"] == "https://app.example.com"
+        finally:
+            await engine.dispose()

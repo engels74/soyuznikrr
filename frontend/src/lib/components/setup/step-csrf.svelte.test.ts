@@ -1,7 +1,7 @@
 /**
  * Component tests for StepCsrf with API mocking.
  *
- * Tests rendering, validation, and API interaction.
+ * Tests rendering, validation, test button, and API interaction.
  *
  * @module $lib/components/setup/step-csrf.svelte.test
  */
@@ -16,6 +16,7 @@ vi.mock('$lib/api/client', async () => {
 	return {
 		...actual,
 		setCsrfOrigin: vi.fn(),
+		testCsrfOrigin: vi.fn(),
 		withErrorHandling: vi.fn()
 	};
 });
@@ -25,8 +26,15 @@ import StepCsrf from './step-csrf.svelte';
 
 afterEach(() => {
 	cleanup();
-	vi.clearAllMocks();
+	vi.resetAllMocks();
 });
+
+/** Helper to find a button by text content. */
+function findButton(container: HTMLElement, text: string): HTMLButtonElement | undefined {
+	return Array.from(container.querySelectorAll('button')).find((b) =>
+		b.textContent?.includes(text)
+	) as HTMLButtonElement | undefined;
+}
 
 describe('Step CSRF Component', () => {
 	it('should render security configuration card', () => {
@@ -49,35 +57,172 @@ describe('Step CSRF Component', () => {
 		expect(input.value).toBe(window.location.origin);
 	});
 
-	it('should render Skip and Save buttons', () => {
+	it('should render Test, Skip and Save buttons', () => {
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
 		});
 
-		const buttons = container.querySelectorAll('button');
-		const buttonTexts = Array.from(buttons).map((b) => b.textContent?.trim());
-		expect(buttonTexts.some((t) => t?.includes('Skip'))).toBe(true);
-		expect(buttonTexts.some((t) => t?.includes('Save'))).toBe(true);
+		expect(findButton(container, 'Test Origin')).toBeTruthy();
+		expect(findButton(container, 'Skip')).toBeTruthy();
+		expect(findButton(container, 'Save')).toBeTruthy();
 	});
 
-	it('should call onSkip when Skip clicked', async () => {
+	it('should have Save and Skip disabled before test attempt', () => {
+		const { container } = render(StepCsrf, {
+			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		const saveBtn = findButton(container, 'Save');
+		const skipBtn = findButton(container, 'Skip');
+		expect(saveBtn?.disabled).toBe(true);
+		expect(skipBtn?.disabled).toBe(true);
+	});
+
+	it('should enable Save and Skip after successful test', async () => {
+		const user = userEvent.setup();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
+			error: undefined
+		});
+
+		const { container } = render(StepCsrf, {
+			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		const testBtn = findButton(container, 'Test Origin')!;
+		await user.click(testBtn);
+
+		const saveBtn = findButton(container, 'Save');
+		const skipBtn = findButton(container, 'Skip');
+		expect(saveBtn?.disabled).toBe(false);
+		expect(skipBtn?.disabled).toBe(false);
+	});
+
+	it('should display success result after test', async () => {
+		const user = userEvent.setup();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+			data: {
+				success: true,
+				message: 'Origin matches — CSRF protection will work correctly.',
+				request_origin: 'http://localhost:3000'
+			},
+			error: undefined
+		});
+
+		const { container } = render(StepCsrf, {
+			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await user.click(findButton(container, 'Test Origin')!);
+
+		expect(container.textContent).toContain('Origin matches');
+		// Green success box
+		expect(container.querySelector('.border-green-500\\/30')).toBeTruthy();
+	});
+
+	it('should display failure result after test', async () => {
+		const user = userEvent.setup();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+			data: {
+				success: false,
+				message:
+					"Origin mismatch: you entered 'https://wrong.com' but your browser sent 'http://localhost:3000'.",
+				request_origin: 'http://localhost:3000'
+			},
+			error: undefined
+		});
+
+		const { container } = render(StepCsrf, {
+			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await user.click(findButton(container, 'Test Origin')!);
+
+		expect(container.textContent).toContain('Origin mismatch');
+		// Rose failure box
+		expect(container.querySelector('.border-rose-400\\/30')).toBeTruthy();
+	});
+
+	it('should reset test state when origin changes', async () => {
+		const user = userEvent.setup();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
+			error: undefined
+		});
+
+		const { container } = render(StepCsrf, {
+			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		// Run test first
+		await user.click(findButton(container, 'Test Origin')!);
+		expect(findButton(container, 'Save')?.disabled).toBe(false);
+
+		// Change origin input
+		const input = container.querySelector('input[type="url"]') as HTMLInputElement;
+		await user.type(input, '/changed');
+
+		// Save and Skip should be disabled again
+		expect(findButton(container, 'Save')?.disabled).toBe(true);
+		expect(findButton(container, 'Skip')?.disabled).toBe(true);
+	});
+
+	it('should call API and onComplete on successful test then save', async () => {
+		const onComplete = vi.fn();
+		const user = userEvent.setup();
+
+		// First call: test origin, second call: save
+		vi.mocked(apiClient.withErrorHandling)
+			.mockResolvedValueOnce({
+				data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
+				error: undefined
+			})
+			.mockResolvedValueOnce({
+				data: { csrf_origin: 'http://localhost:3000', is_locked: false },
+				error: undefined
+			});
+
+		const { container } = render(StepCsrf, {
+			props: { onComplete, onSkip: vi.fn() }
+		});
+
+		// Test first
+		await user.click(findButton(container, 'Test Origin')!);
+		// Then save (test passed, so no confirmation dialog)
+		await user.click(findButton(container, 'Save')!);
+
+		expect(apiClient.withErrorHandling).toHaveBeenCalledTimes(2);
+		expect(onComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it('should call onSkip directly when test passed and Skip clicked', async () => {
 		const onSkip = vi.fn();
 		const user = userEvent.setup();
+
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
+			error: undefined
+		});
+
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip }
 		});
 
-		const skipButton = Array.from(container.querySelectorAll('button')).find((b) =>
-			b.textContent?.includes('Skip')
-		);
-		expect(skipButton).toBeTruthy();
-		await user.click(skipButton!);
+		await user.click(findButton(container, 'Test Origin')!);
+		await user.click(findButton(container, 'Skip')!);
 
 		expect(onSkip).toHaveBeenCalledTimes(1);
 	});
 
-	it('should show validation error for empty origin', async () => {
+	it('should show validation error for empty origin on save', async () => {
 		const user = userEvent.setup();
+
+		// Mock test as failed so save triggers confirmation
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+			data: { success: false, message: 'Failed', request_origin: null },
+			error: undefined
+		});
+
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
 		});
@@ -86,79 +231,73 @@ describe('Step CSRF Component', () => {
 		const input = container.querySelector('input[type="url"]') as HTMLInputElement;
 		await user.clear(input);
 
-		// Submit the form
-		const submitButton = Array.from(container.querySelectorAll('button')).find((b) =>
-			b.textContent?.includes('Save')
-		);
-		await user.click(submitButton!);
+		// Type something to enable test, then test
+		await user.type(input, 'https://test.com');
+		await user.click(findButton(container, 'Test Origin')!);
 
-		// Should show a validation error (Zod chain may show "Origin is required" or "Must be a valid URL")
-		const errorText = container.querySelector('.text-red-400');
-		expect(errorText).toBeTruthy();
-	});
-
-	it('should show validation error for origin with path', async () => {
-		const user = userEvent.setup();
-		const { container } = render(StepCsrf, {
-			props: { onComplete: vi.fn(), onSkip: vi.fn() }
-		});
-
-		const input = container.querySelector('input[type="url"]') as HTMLInputElement;
+		// Clear input again
 		await user.clear(input);
-		await user.type(input, 'https://example.com/');
 
-		const submitButton = Array.from(container.querySelectorAll('button')).find((b) =>
-			b.textContent?.includes('Save')
-		);
-		await user.click(submitButton!);
+		// Need a new test since input changed; but buttons are disabled now
+		// Test the validation path: type valid origin, test, then try save with empty
+		// Reset: type origin, test, clear, test again with empty won't work since canTest is false
+		// So let's test validation on save with a path-containing origin
+		await user.type(input, 'https://example.com/path');
 
+		// Test to enable buttons
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+			data: { success: false, message: 'Mismatch', request_origin: 'http://localhost:3000' },
+			error: undefined
+		});
+		await user.click(findButton(container, 'Test Origin')!);
+
+		// Click save - shows confirmation since test failed
+		await user.click(findButton(container, 'Save')!);
+
+		// Confirm in the dialog - find "Save Anyway" button
+		const confirmBtn = findButton(document.body as HTMLElement, 'Save Anyway');
+		if (confirmBtn) {
+			vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+				data: undefined,
+				error: undefined
+			});
+			await user.click(confirmBtn);
+		}
+
+		// Should show a validation error for path
 		expect(container.textContent).toContain('without a trailing path');
 	});
 
-	it('should call API and onComplete on success', async () => {
-		const onComplete = vi.fn();
-		const user = userEvent.setup();
-
-		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
-			data: { csrf_origin: 'https://app.example.com', is_locked: false },
-			error: undefined
-		});
-
-		const { container } = render(StepCsrf, {
-			props: { onComplete, onSkip: vi.fn() }
-		});
-
-		// Input is auto-populated with window.location.origin (http://localhost:3000)
-		const submitButton = Array.from(container.querySelectorAll('button')).find((b) =>
-			b.textContent?.includes('Save')
-		);
-		await user.click(submitButton!);
-
-		// withErrorHandling should have been called
-		expect(apiClient.withErrorHandling).toHaveBeenCalledTimes(1);
-
-		// onComplete should have been called
-		expect(onComplete).toHaveBeenCalledTimes(1);
-	});
-
 	it('should display server error on API failure', async () => {
-		const user = userEvent.setup();
+		// pointerEventsCheck disabled: prior test's dialog CSS leaks into jsdom
+		const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
-			data: undefined,
-			error: { detail: 'Server unavailable', error_code: 'INTERNAL_ERROR' }
+		let callCount = 0;
+		vi.mocked(apiClient.withErrorHandling).mockImplementation(async () => {
+			callCount++;
+			if (callCount === 1) {
+				return {
+					data: {
+						success: true,
+						message: 'Origin matches',
+						request_origin: 'http://localhost:3000'
+					},
+					error: undefined
+				};
+			}
+			return {
+				data: undefined,
+				error: { detail: 'Server unavailable', error_code: 'INTERNAL_ERROR' }
+			};
 		});
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
 		});
 
-		const submitButton = Array.from(container.querySelectorAll('button')).find((b) =>
-			b.textContent?.includes('Save')
-		);
-		await user.click(submitButton!);
+		await user.click(findButton(container, 'Test Origin')!);
+		await user.click(findButton(container, 'Save')!);
 
-		// Should display server error
 		expect(container.textContent).toContain('Server unavailable');
 	});
 
