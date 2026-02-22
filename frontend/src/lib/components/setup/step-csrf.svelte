@@ -205,7 +205,7 @@ async function handleSubmit() {
 					type="button"
 					variant="ghost"
 					onclick={handleSkipClick}
-					disabled={!hasAttemptedTest || submitting}
+					disabled={!hasAttemptedTest || submitting || testing}
 					class="text-cr-text-muted hover:text-cr-text"
 				>
 					Skip for now
@@ -213,7 +213,7 @@ async function handleSubmit() {
 				<Button
 					type="button"
 					onclick={handleSaveClick}
-					disabled={!hasAttemptedTest || submitting}
+					disabled={!hasAttemptedTest || submitting || testing}
 					class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 				>
 					{#if submitting}
