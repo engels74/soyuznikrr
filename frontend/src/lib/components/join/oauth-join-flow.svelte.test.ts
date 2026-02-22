@@ -85,7 +85,8 @@ describe('Property 32: OAuth Polling', () => {
 
 		const authResponse: OAuthCheckResponse = {
 			authenticated: true,
-			email: 'test@example.com'
+			email: 'test@example.com',
+			auth_token: 'test-auth-token-123'
 		};
 
 		// Mock createOAuthPin to return the generated PIN
@@ -138,9 +139,9 @@ describe('Property 32: OAuth Polling', () => {
 			expect(apiClient.checkOAuthPin).toHaveBeenCalledTimes(pollsBeforeAuth);
 		});
 
-		// Verify onAuthenticated was called with the email
+		// Verify onAuthenticated was called with the email and auth token
 		await vi.waitFor(() => {
-			expect(onAuthenticated).toHaveBeenCalledWith(authResponse.email);
+			expect(onAuthenticated).toHaveBeenCalledWith(authResponse.email, authResponse.auth_token);
 		});
 	});
 

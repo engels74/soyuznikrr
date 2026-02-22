@@ -90,6 +90,7 @@ let formErrors = $state<Record<string, string[]>>({});
 
 // OAuth state
 let oauthEmail = $state<string | null>(null);
+let oauthToken = $state<string | null>(null);
 
 // Response data
 let redemptionResponse = $state<RedemptionResponse | null>(null);
@@ -101,10 +102,10 @@ let postWizardCompleted = $state(false);
 
 // Derive server URLs for success page
 const serverUrls = $derived.by(() => {
-	const urls: Record<string, string> = {};
+	const urls: Record<string, { url: string; serverType: string }> = {};
 	if (data.validation?.target_servers) {
 		for (const server of data.validation.target_servers) {
-			urls[server.id] = server.url;
+			urls[server.id] = { url: server.url, serverType: server.server_type };
 		}
 	}
 	return urls;
@@ -238,6 +239,7 @@ function handleBack() {
 	currentStep = "validation";
 	formErrors = {};
 	oauthEmail = null;
+	oauthToken = null;
 }
 
 /**
@@ -374,8 +376,9 @@ async function handleRegistrationSubmit() {
 /**
  * Handle OAuth authentication success.
  */
-async function handleOAuthAuthenticated(email: string) {
+async function handleOAuthAuthenticated(email: string, authToken: string) {
 	oauthEmail = email;
+	oauthToken = authToken;
 	currentStep = "oauth_redeeming";
 
 	// Proceed to redeem the invitation with OAuth credentials
@@ -386,6 +389,7 @@ async function handleOAuthAuthenticated(email: string) {
 			username: sanitizeEmailToUsername(email),
 			password: "oauth_placeholder", // Placeholder - backend handles OAuth auth differently
 			email: email,
+			auth_token: authToken,
 		});
 
 		if (response.error) {
@@ -440,6 +444,7 @@ async function handleOAuthAuthenticated(email: string) {
 function handleOAuthCancel() {
 	currentStep = "validation";
 	oauthEmail = null;
+	oauthToken = null;
 }
 
 /**
@@ -448,6 +453,7 @@ function handleOAuthCancel() {
 function handleRegistrationRetry() {
 	redemptionError = null;
 	oauthEmail = null;
+	oauthToken = null;
 	// Go back to appropriate registration step
 	if (hasOAuthLinkServer && !hasCredentialCreateServer) {
 		currentStep = "oauth";

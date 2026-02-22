@@ -892,6 +892,7 @@ export interface components {
 			username: string;
 			password: string;
 			email?: string | null;
+			auth_token?: string | null;
 		};
 		/** RedemptionErrorResponse */
 		RedemptionErrorResponse: {

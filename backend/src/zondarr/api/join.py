@@ -209,6 +209,7 @@ class JoinController(Controller):
                 username=data.username,
                 password=data.password,
                 email=data.email,
+                auth_token=data.auth_token,
             )
 
             # Convert users to response format

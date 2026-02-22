@@ -441,11 +441,108 @@ class PlexClient:
                 original_error=exc,
             ) from exc
 
-    async def _create_friend(self, email: str) -> ExternalUser:
-        """Create a Friend user via inviteFriend.
+    async def _share_library_direct(self, email: str, auth_token: str) -> ExternalUser:
+        """Share server libraries directly using the user's Plex auth token.
+
+        Uses the shared_servers API with the user's numeric Plex ID (obtained
+        from their OAuth token) to grant library access directly. This avoids
+        creating a friend relationship and requires no manual acceptance.
+
+        Falls back to inviteFriend if direct sharing fails.
+
+        Args:
+            email: The email address of the Plex user.
+            auth_token: The user's Plex OAuth auth token.
+
+        Returns:
+            An ExternalUser with the numeric Plex user ID and username.
+
+        Raises:
+            MediaClientError: If both direct sharing and fallback fail.
+        """
+        if self._account is None or self._server is None:
+            raise _create_media_client_error(
+                "Client not initialized - use async context manager",
+                operation="share_library_direct",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+                error_code=PlexErrorCode.CLIENT_NOT_INITIALIZED,
+            )
+
+        try:
+            from plexapi.myplex import MyPlexAccount
+
+            def _share_direct() -> ExternalUser:
+                assert self._account is not None  # noqa: S101
+                assert self._server is not None  # noqa: S101
+
+                # Get the user's Plex account info from their auth token
+                user_account: MyPlexAccount = MyPlexAccount(token=auth_token)
+                plex_user_id: str = str(user_account.id)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                username: str = user_account.username or email  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+                # Get the server's machine identifier
+                machine_id: str = self._server.machineIdentifier  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+                # Use the admin account's shared_servers API to grant access
+                # This mirrors plexapi's updateFriend() when user has no existing access:
+                # POST to shared_servers with invited_id (numeric Plex user ID)
+                headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+                sharing_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers"
+                params: dict[str, str] = {
+                    "server_id": machine_id,
+                    "shared_server[library_section_ids]": "",
+                    "shared_server[invited_id]": plex_user_id,
+                    "sharing_settings[filterMovies]": "",
+                    "sharing_settings[filterTelevision]": "",
+                    "sharing_settings[filterMusic]": "",
+                }
+                # Use the admin account's session to make the request
+                resp = self._account._session.post(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                    sharing_url,
+                    headers=headers,
+                    params=params,
+                    timeout=30,
+                )
+                _ = resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+                return ExternalUser(
+                    external_user_id=plex_user_id,
+                    username=username,  # pyright: ignore[reportUnknownArgumentType]
+                    email=email,
+                )
+
+            result = await asyncio.to_thread(_share_direct)
+
+            log.info(
+                "plex_library_shared_direct",
+                url=self.url,
+                email=email,
+                user_id=result.external_user_id,
+                username=result.username,
+            )
+
+            return result
+
+        except Exception as exc:
+            log.warning(
+                "plex_direct_share_failed_falling_back",
+                url=self.url,
+                email=email,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            # Fall back to inviteFriend
+            return await self._invite_friend(email)
+
+    async def _invite_friend(self, email: str) -> ExternalUser:
+        """Invite a Friend user via inviteFriend (legacy fallback).
 
         Sends an invitation to an existing Plex.tv account. The user must
         have an existing Plex account or create one to accept the invitation.
+
+        Note: This creates a pending friend invitation that requires manual
+        acceptance. Prefer _share_library_direct when an auth_token is available.
 
         Args:
             email: The email address of the Plex.tv account to invite.
@@ -537,6 +634,29 @@ class PlexClient:
                 cause=str(exc),
                 error_code=error_code,
             ) from exc
+
+    async def _create_friend(
+        self, email: str, *, auth_token: str | None = None
+    ) -> ExternalUser:
+        """Create a Friend/shared user on the Plex server.
+
+        If auth_token is provided, uses direct library sharing via the
+        shared_servers API (no friend relationship, immediate access).
+        Otherwise falls back to inviteFriend (creates pending invitation).
+
+        Args:
+            email: The email address of the Plex.tv account.
+            auth_token: Optional OAuth auth token from the user.
+
+        Returns:
+            An ExternalUser with the user's details.
+
+        Raises:
+            MediaClientError: If user creation fails.
+        """
+        if auth_token:
+            return await self._share_library_direct(email, auth_token)
+        return await self._invite_friend(email)
 
     async def _create_home_user(self, username: str) -> ExternalUser:
         """Create a Home User via createHomeUser.
@@ -640,11 +760,14 @@ class PlexClient:
         /,
         *,
         email: str | None = None,
+        auth_token: str | None = None,
     ) -> ExternalUser:
         """Create a new user on the Plex server.
 
         Uses email presence to determine the user type:
-        - If email is provided, creates a Friend invitation via Plex.tv.
+        - If email is provided, creates a Friend/shared user via Plex.tv.
+          If auth_token is also provided, uses direct library sharing
+          (no friend relationship, immediate access).
         - If no email, creates a managed Home User within the Plex Home.
 
         Note: The password parameter is ignored for Plex since authentication
@@ -654,7 +777,9 @@ class PlexClient:
             username: The username for the new account (positional-only).
             password: Ignored for Plex (positional-only).
             email: Email address (keyword-only). If provided, creates a Friend
-                invitation; otherwise creates a Home User.
+                or shared user; otherwise creates a Home User.
+            auth_token: Optional OAuth auth token from the user (keyword-only).
+                When provided with email, enables direct library sharing.
 
         Returns:
             An ExternalUser object with the created user's details.
@@ -667,7 +792,7 @@ class PlexClient:
         _ = password  # Explicitly ignore password parameter
 
         if email is not None:
-            return await self._create_friend(email)
+            return await self._create_friend(email, auth_token=auth_token)
 
         # No email provided - create as Home User
         return await self._create_home_user(username)

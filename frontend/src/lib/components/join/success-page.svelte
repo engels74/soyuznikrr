@@ -23,18 +23,28 @@ import {
 	CardTitle,
 } from "$lib/components/ui/card";
 
+interface ServerUrlInfo {
+	url: string;
+	serverType: string;
+}
+
 interface Props {
 	response: RedemptionResponse;
-	serverUrls?: Record<string, string>;
+	serverUrls?: Record<string, ServerUrlInfo>;
 }
 
 const { response, serverUrls = {} }: Props = $props();
 
 /**
  * Get server URL for a user.
+ * For Plex servers, always returns https://app.plex.tv since users access
+ * Plex through the web app rather than direct server URLs.
  */
 function getServerUrl(user: UserResponse): string | undefined {
-	return serverUrls[user.media_server_id];
+	const info = serverUrls[user.media_server_id];
+	if (!info) return undefined;
+	if (info.serverType === "plex") return "https://app.plex.tv";
+	return info.url;
 }
 </script>
 

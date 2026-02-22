@@ -1295,7 +1295,9 @@ class TestRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1431,7 +1433,9 @@ class TestRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1562,7 +1566,9 @@ class TestRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1708,7 +1714,9 @@ class TestRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1896,7 +1904,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 # Fail if this is the Plex server
                 if server.server_type == "plex":
                     raise MediaClientError(
@@ -2062,7 +2072,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 # Fail if this is the Plex server
                 if server.server_type == "plex":
                     raise MediaClientError(
@@ -2229,7 +2241,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 /,
                 *,
                 email: str | None = None,
+                auth_token: str | None = None,
             ) -> ExternalUser:
+                _ = auth_token
                 nonlocal create_call_count
 
                 create_call_count += 1

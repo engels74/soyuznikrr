@@ -143,6 +143,7 @@ class MediaClient(Protocol):
         /,
         *,
         email: str | None = None,
+        auth_token: str | None = None,
     ) -> ExternalUser:
         """Create a new user on the media server.
 
@@ -154,6 +155,9 @@ class MediaClient(Protocol):
             username: The username for the new account (positional-only).
             password: The password for the new account (positional-only).
             email: Optional email address for the user (keyword-only).
+            auth_token: Optional OAuth auth token from the user (keyword-only).
+                Used by providers that support direct library sharing (e.g. Plex)
+                to grant access without creating a friend relationship.
 
         Returns:
             An ExternalUser object with the created user's details.

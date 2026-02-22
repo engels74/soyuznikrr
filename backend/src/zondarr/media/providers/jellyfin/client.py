@@ -351,6 +351,7 @@ class JellyfinClient:
         /,
         *,
         email: str | None = None,
+        auth_token: str | None = None,
     ) -> ExternalUser:
         """Create a new user on the Jellyfin server and set their password.
 
@@ -361,6 +362,7 @@ class JellyfinClient:
             username: The username for the new account (positional-only).
             password: The password for the new account (positional-only).
             email: Optional email address for the user (keyword-only).
+            auth_token: Ignored for Jellyfin (keyword-only).
 
         Returns:
             An ExternalUser object with the created user's details including
@@ -371,6 +373,7 @@ class JellyfinClient:
             MediaClientError: If the username already exists (error_code="USERNAME_TAKEN").
             MediaClientError: If user creation fails for other reasons.
         """
+        _ = auth_token  # Not used for Jellyfin
         if self._api is None:
             raise MediaClientError(
                 "Client not initialized - use async context manager",

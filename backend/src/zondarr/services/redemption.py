@@ -98,6 +98,7 @@ class RedemptionService:
         username: str,
         password: str,
         email: str | None = None,
+        auth_token: str | None = None,
     ) -> tuple[Identity, Sequence[User]]:
         """Redeem an invitation code and create user accounts.
 
@@ -145,6 +146,7 @@ class RedemptionService:
                         username,
                         password,
                         email=email,
+                        auth_token=auth_token,
                     )
                     created_external_users.append((server, external_user))
 
