@@ -142,6 +142,8 @@ class SyncService:
                         external_user_id=ext_user.external_user_id,
                         username=ext_user.username,
                     )
+                    orphaned_ids.discard(ext_id)
+                    matched_count += 1
                     continue
 
                 # Create an Identity for the orphaned user

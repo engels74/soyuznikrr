@@ -158,6 +158,12 @@ class UserService:
             if existing is None:
                 continue
 
+            # Only clean up sync-imported users (no invitation link).
+            # Invitation-linked records must not be deleted — let the
+            # UniqueConstraint catch double-redemption instead.
+            if existing.invitation_id is not None:
+                continue
+
             identity_id = existing.identity_id
 
             # Delete the stale local User (no media server call)
