@@ -14,6 +14,7 @@
  */
 
 import { Check, Copy, Eye, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
+import { onDestroy } from "svelte";
 import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
 import type { InvitationResponse } from "$lib/api/client";
@@ -136,6 +137,11 @@ function handleEdit() {
 }
 
 let copied = $state(false);
+let copiedTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+onDestroy(() => {
+	if (copiedTimeoutId) clearTimeout(copiedTimeoutId);
+});
 
 /**
  * Copy the invite link to clipboard.
@@ -146,7 +152,8 @@ async function copyInviteLink() {
 		await navigator.clipboard.writeText(url);
 		copied = true;
 		showSuccess("Invite link copied");
-		setTimeout(() => { copied = false; }, 2000);
+		if (copiedTimeoutId) clearTimeout(copiedTimeoutId);
+		copiedTimeoutId = setTimeout(() => { copied = false; }, 2000);
 	} catch {
 		showError("Failed to copy invite link");
 	}
