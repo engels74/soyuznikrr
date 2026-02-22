@@ -205,6 +205,60 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 	newMap.set(stepId, stepCompletions);
 	interactionCompletions = newMap;
 }
+
+async function handleInteractionValidate(
+	data: InteractionCompletionData,
+): Promise<{ valid: boolean; pending?: boolean; error?: string | null }> {
+	const step = currentStep;
+	if (!step) return { valid: false, error: "No current step" };
+
+	// Build a temporary completions map including this pending response
+	const tempCompletions = new Map(
+		interactionCompletions.get(step.id) ?? new Map(),
+	);
+	tempCompletions.set(data.interactionId, data);
+
+	// Check if all other interactions on the step are completed
+	const allReady = currentInteractions.every((i) =>
+		tempCompletions.has(i.id),
+	);
+
+	if (!allReady) {
+		// Not all interactions ready — store completion locally, skip backend validation
+		// Return pending: true so the interaction knows this is not a backend-validated result
+		handleInteractionComplete(data);
+		return { valid: true, pending: true };
+	}
+
+	// All interactions ready — validate with backend
+	try {
+		const interactions = currentInteractions.map((interaction) => {
+			const completion = tempCompletions.get(interaction.id);
+			return {
+				interaction_id: interaction.id,
+				response: completion?.data ?? {},
+				started_at: completion?.startedAt ?? null,
+			};
+		});
+
+		const result = await validateStep({
+			step_id: step.id,
+			interactions,
+		});
+
+		if (result.data?.valid) {
+			handleInteractionComplete(data);
+			return { valid: true };
+		}
+		// Backend rejected — clear all completions for this step so interactions can retry
+		const newMap = new Map(interactionCompletions);
+		newMap.delete(step.id);
+		interactionCompletions = newMap;
+		return { valid: false, error: result.data?.error ?? "Incorrect answer" };
+	} catch {
+		return { valid: false, error: "Validation failed. Please try again." };
+	}
+}
 </script>
 
 <div class="wizard-shell">
@@ -274,6 +328,7 @@ function handleInteractionComplete(data: InteractionCompletionData) {
 									interactionId={interaction.id}
 									config={interaction.config}
 									onComplete={handleInteractionComplete}
+									onValidate={handleInteractionValidate}
 									disabled={isValidating || isCompleted}
 									completionData={currentCompletions.get(interaction.id)}
 								/>

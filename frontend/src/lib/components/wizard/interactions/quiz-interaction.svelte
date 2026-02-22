@@ -4,15 +4,17 @@
  *
  * Renders question and selectable options.
  * Applies border glow on hover, checkmark animation on selection.
- * Calls onComplete with selected answer_index.
+ * Validates answer via onValidate (if provided) with inline feedback and cooldown.
+ * Falls back to onComplete directly when onValidate is not provided (preview mode).
  *
  * Requirements: 8.1, 8.2, 8.3, 12.5
  */
-import { Check } from "@lucide/svelte";
+import { Check, X } from "@lucide/svelte";
+import { onDestroy } from "svelte";
 import { quizConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionComponentProps } from "./registry";
 
-const { interactionId, config: rawConfig, onComplete, disabled = false, completionData }: InteractionComponentProps = $props();
+const { interactionId, config: rawConfig, onComplete, onValidate, disabled = false, completionData }: InteractionComponentProps = $props();
 
 // Validate config with Zod schema, falling back gracefully for partial configs
 const config = $derived(quizConfigSchema.safeParse(rawConfig).data);
@@ -24,23 +26,103 @@ let selectedIndex = $state<number | null>(
 	(() => (typeof completionData?.data?.answer_index === "number" ? completionData.data.answer_index : null))(),
 );
 
+// Already correct if we have completion data (navigated back to completed step)
+const alreadyCorrect = $derived(completionData != null);
+
+// Feedback and cooldown state
+let feedbackState = $state<"correct" | "incorrect" | null>(alreadyCorrect ? "correct" : null);
+let inlineError = $state<string | null>(null);
+let isSubmitting = $state(false);
+let wrongAttempts = $state(0);
+let cooldownRemaining = $state(0);
+let cooldownInterval = $state<ReturnType<typeof setInterval> | null>(null);
+
+// Reset local state when the shell clears completionData (e.g. after step-level validation failure)
+$effect(() => {
+	if (completionData == null && feedbackState === "correct") {
+		feedbackState = null;
+		selectedIndex = null;
+		wrongAttempts = 0;
+		cooldownRemaining = 0;
+		inlineError = null;
+		if (cooldownInterval) {
+			clearInterval(cooldownInterval);
+			cooldownInterval = null;
+		}
+	}
+});
+
+// Derived - interaction disabled
+const isInteractionDisabled = $derived(
+	disabled || isSubmitting || cooldownRemaining > 0 || alreadyCorrect || feedbackState === "correct",
+);
+
 // Derived - has selection
 const hasSelection = $derived(selectedIndex !== null);
 
 function selectOption(index: number) {
-	if (disabled) return;
+	if (isInteractionDisabled) return;
 	selectedIndex = index;
+	// Clear feedback when selecting a new option after wrong answer
+	if (feedbackState === "incorrect") {
+		feedbackState = null;
+		inlineError = null;
+	}
 }
 
-function handleSubmit() {
-	if (selectedIndex === null) return;
+function startCooldown() {
+	const duration = Math.min(3 + (wrongAttempts - 1) * 2, 10);
+	cooldownRemaining = duration;
 
-	onComplete({
+	if (cooldownInterval) clearInterval(cooldownInterval);
+	cooldownInterval = setInterval(() => {
+		cooldownRemaining--;
+		if (cooldownRemaining <= 0) {
+			if (cooldownInterval) {
+				clearInterval(cooldownInterval);
+				cooldownInterval = null;
+			}
+		}
+	}, 1000);
+}
+
+async function handleSubmit() {
+	if (selectedIndex === null || isInteractionDisabled) return;
+
+	const completionPayload = {
 		interactionId,
-		interactionType: "quiz",
+		interactionType: "quiz" as const,
 		data: { answer_index: selectedIndex },
 		completedAt: new Date().toISOString(),
-	});
+	};
+
+	// Fallback: no onValidate (preview mode) — call onComplete directly
+	if (!onValidate) {
+		onComplete(completionPayload);
+		return;
+	}
+
+	// Validate via backend
+	isSubmitting = true;
+	try {
+		const result = await onValidate(completionPayload);
+
+		if (result.valid && !result.pending) {
+			feedbackState = "correct";
+			inlineError = null;
+		} else if (result.valid && result.pending) {
+			// Answer accepted but not yet validated by backend (multi-interaction step)
+			// Don't show "Correct!" — just accept silently
+			inlineError = null;
+		} else {
+			wrongAttempts++;
+			feedbackState = "incorrect";
+			inlineError = result.error ?? "Incorrect answer";
+			startCooldown();
+		}
+	} finally {
+		isSubmitting = false;
+	}
 }
 
 function handleKeydown(event: KeyboardEvent, index: number) {
@@ -49,6 +131,10 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		selectOption(index);
 	}
 }
+
+onDestroy(() => {
+	if (cooldownInterval) clearInterval(cooldownInterval);
+});
 </script>
 
 <div class="quiz-interaction">
@@ -63,13 +149,19 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 				role="radio"
 				aria-checked={selectedIndex === index}
 				class="option"
-				class:selected={selectedIndex === index}
+				class:selected={selectedIndex === index && !feedbackState}
+				class:correct={selectedIndex === index && feedbackState === "correct"}
+				class:incorrect={selectedIndex === index && feedbackState === "incorrect"}
 				onclick={() => selectOption(index)}
 				onkeydown={(e) => handleKeydown(e, index)}
-				{disabled}
+				disabled={isInteractionDisabled}
 			>
-				<span class="option-indicator">
-					{#if selectedIndex === index}
+				<span class="option-indicator" class:indicator-correct={selectedIndex === index && feedbackState === "correct"} class:indicator-incorrect={selectedIndex === index && feedbackState === "incorrect"}>
+					{#if selectedIndex === index && feedbackState === "correct"}
+						<Check class="check-icon" />
+					{:else if selectedIndex === index && feedbackState === "incorrect"}
+						<X class="x-icon" />
+					{:else if selectedIndex === index}
 						<Check class="check-icon" />
 					{/if}
 				</span>
@@ -78,15 +170,35 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		{/each}
 	</div>
 
-	<!-- Submit button -->
-	<button
-		type="button"
-		class="wizard-accent-btn submit-btn"
-		onclick={handleSubmit}
-		disabled={!hasSelection || disabled}
-	>
-		Submit Answer
-	</button>
+	<!-- Feedback messages -->
+	{#if feedbackState === "correct"}
+		<p class="quiz-success">Correct!</p>
+	{:else if feedbackState === "incorrect" && inlineError}
+		<p class="quiz-error">
+			{inlineError}
+			{#if cooldownRemaining > 0}
+				<span class="cooldown-text"> — wait {cooldownRemaining}s</span>
+			{/if}
+		</p>
+	{/if}
+
+	<!-- Submit button (hidden once correct or already completed) -->
+	{#if feedbackState !== "correct" && !alreadyCorrect}
+		<button
+			type="button"
+			class="wizard-accent-btn submit-btn"
+			onclick={handleSubmit}
+			disabled={!hasSelection || isInteractionDisabled}
+		>
+			{#if isSubmitting}
+				Checking...
+			{:else if cooldownRemaining > 0}
+				Wait {cooldownRemaining}s...
+			{:else}
+				Submit Answer
+			{/if}
+		</button>
+	{/if}
 </div>
 
 <style>
@@ -128,7 +240,7 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		text-align: left;
 	}
 
-	.option:hover:not(:disabled):not(.selected) {
+	.option:hover:not(:disabled):not(.selected):not(.correct):not(.incorrect) {
 		border-color: var(--wizard-accent-border-hover);
 		box-shadow: 0 0 12px var(--wizard-accent-glow-sm);
 		background: var(--wizard-input-hover-bg);
@@ -146,12 +258,29 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		box-shadow: 0 0 16px var(--wizard-accent-glow-md);
 	}
 
+	.option.correct {
+		border-color: var(--wizard-success);
+		background: hsl(150 60% 45% / 0.08);
+		box-shadow: 0 0 16px var(--wizard-success-glow-sm);
+	}
+
+	.option.incorrect {
+		border-color: var(--wizard-error);
+		background: var(--wizard-error-bg);
+		box-shadow: 0 0 16px var(--wizard-error-glow-sm);
+	}
+
 	.option:disabled {
 		cursor: not-allowed;
 		opacity: 0.5;
 	}
 
-	/* Option indicator (circle/check) */
+	.option.correct:disabled,
+	.option.incorrect:disabled {
+		opacity: 1;
+	}
+
+	/* Option indicator (circle/check/x) */
 	.option-indicator {
 		flex-shrink: 0;
 		width: 1.5rem;
@@ -171,8 +300,28 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 		animation: check-pop 0.3s ease;
 	}
 
+	.option-indicator.indicator-correct {
+		background: var(--wizard-success);
+		border-color: var(--wizard-success);
+		animation: check-pop 0.3s ease;
+	}
+
+	.option-indicator.indicator-incorrect {
+		background: var(--wizard-error);
+		border-color: var(--wizard-error);
+		animation: check-pop 0.3s ease;
+	}
+
 	/* Check icon */
 	.option-indicator :global(.check-icon) {
+		width: 0.875rem;
+		height: 0.875rem;
+		color: var(--wizard-bg);
+		stroke-width: 3;
+	}
+
+	/* X icon */
+	.option-indicator :global(.x-icon) {
 		width: 0.875rem;
 		height: 0.875rem;
 		color: var(--wizard-bg);
@@ -188,6 +337,33 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 
 	.option.selected .option-text {
 		color: var(--wizard-text);
+	}
+
+	.option.correct .option-text {
+		color: var(--wizard-text);
+	}
+
+	/* Feedback messages */
+	.quiz-success {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--wizard-success);
+		margin: 0;
+	}
+
+	.quiz-error {
+		font-size: 0.875rem;
+		color: var(--wizard-error);
+		margin: 0;
+		padding: 0.75rem 1rem;
+		background: var(--wizard-error-bg);
+		border: 1px solid var(--wizard-error-border);
+		border-radius: 0.5rem;
+	}
+
+	.cooldown-text {
+		font-weight: 500;
+		opacity: 0.8;
 	}
 
 	/* Submit button layout */

@@ -15,7 +15,7 @@
 
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import ClickInteraction from '../interactions/click-interaction.svelte';
 import QuizInteraction from '../interactions/quiz-interaction.svelte';
 import type { InteractionComponentProps } from '../interactions/registry';
@@ -479,5 +479,229 @@ describe('QuizInteraction', () => {
 				data: { answer_index: 1 }
 			})
 		);
+	});
+});
+
+// =============================================================================
+// Quiz Interaction Tests — onValidate (backend validation)
+// Requirements: 8.4, 8.5
+// =============================================================================
+
+describe('QuizInteraction with onValidate', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('should show "Correct!" feedback when onValidate returns valid', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: true });
+		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete, onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		const option = screen.getByRole('radio', { name: '4' });
+		await fireEvent.click(option);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		// Wait for async onValidate to resolve
+		await vi.waitFor(() => {
+			expect(screen.getByText('Correct!')).toBeInTheDocument();
+		});
+
+		// Submit button should be hidden after correct answer
+		expect(screen.queryByRole('button', { name: 'Submit Answer' })).not.toBeInTheDocument();
+	});
+
+	it('should show error feedback when onValidate returns invalid', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: false, error: 'Wrong answer!' });
+		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete, onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		const option = screen.getByRole('radio', { name: '3' });
+		await fireEvent.click(option);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		// Wait for async onValidate to resolve
+		await vi.waitFor(() => {
+			expect(screen.getByText(/Wrong answer!/)).toBeInTheDocument();
+		});
+	});
+
+	it('should start cooldown after wrong answer and disable options', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: false, error: 'Incorrect' });
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete: vi.fn(), onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		const option = screen.getByRole('radio', { name: '3' });
+		await fireEvent.click(option);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		// Wait for validation to complete and cooldown to start
+		await vi.waitFor(() => {
+			expect(screen.getByRole('button', { name: /Wait 3s/i })).toBeInTheDocument();
+		});
+
+		// Options should be disabled during cooldown
+		const allOptions = screen.getAllByRole('radio');
+		for (const opt of allOptions) {
+			expect(opt).toBeDisabled();
+		}
+
+		// Advance through cooldown
+		for (let i = 0; i < 3; i++) {
+			await vi.advanceTimersByTimeAsync(1000);
+		}
+
+		// After cooldown, options should be re-enabled
+		await vi.waitFor(() => {
+			const opts = screen.getAllByRole('radio');
+			for (const opt of opts) {
+				expect(opt).not.toBeDisabled();
+			}
+		});
+	});
+
+	it('should clear error feedback when selecting a new option after wrong answer', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: false, error: 'Incorrect' });
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete: vi.fn(), onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		// Select wrong answer and submit
+		const option1 = screen.getByRole('radio', { name: '3' });
+		await fireEvent.click(option1);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		// Wait for error to appear
+		await vi.waitFor(() => {
+			expect(screen.getByText(/Incorrect/)).toBeInTheDocument();
+		});
+
+		// Advance through cooldown so options re-enable
+		for (let i = 0; i < 3; i++) {
+			await vi.advanceTimersByTimeAsync(1000);
+		}
+
+		// Select a different option — error should clear
+		const option2 = screen.getByRole('radio', { name: '4' });
+		await fireEvent.click(option2);
+
+		expect(screen.queryByText(/Incorrect/)).not.toBeInTheDocument();
+	});
+
+	it('should not call onComplete directly when onValidate is provided', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: true });
+		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete, onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		const option = screen.getByRole('radio', { name: '4' });
+		await fireEvent.click(option);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		await vi.waitFor(() => {
+			expect(screen.getByText('Correct!')).toBeInTheDocument();
+		});
+
+		// onComplete should NOT be called directly — the shell's onValidate handler calls it
+		expect(onComplete).not.toHaveBeenCalled();
+		// But onValidate should have been called
+		expect(onValidate).toHaveBeenCalledTimes(1);
+	});
+
+	it('should increase cooldown duration with repeated wrong answers', async () => {
+		let callCount = 0;
+		const onValidate = vi.fn().mockImplementation(async () => {
+			callCount++;
+			return { valid: false, error: `Wrong #${callCount}` };
+		});
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete: vi.fn(), onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		// First wrong attempt — 3s cooldown
+		const option = screen.getByRole('radio', { name: '3' });
+		await fireEvent.click(option);
+		await fireEvent.click(screen.getByRole('button', { name: 'Submit Answer' }));
+
+		await vi.waitFor(() => {
+			expect(screen.getByRole('button', { name: /Wait 3s/i })).toBeInTheDocument();
+		});
+
+		// Advance through first cooldown
+		for (let i = 0; i < 3; i++) {
+			await vi.advanceTimersByTimeAsync(1000);
+		}
+
+		// Second wrong attempt — 5s cooldown
+		const option2 = screen.getByRole('radio', { name: '5' });
+		await fireEvent.click(option2);
+		await fireEvent.click(screen.getByRole('button', { name: 'Submit Answer' }));
+
+		await vi.waitFor(() => {
+			expect(screen.getByRole('button', { name: /Wait 5s/i })).toBeInTheDocument();
+		});
+
+		expect((onValidate as Mock).mock.calls.length).toBe(2);
 	});
 });

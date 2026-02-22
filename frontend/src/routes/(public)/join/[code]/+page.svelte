@@ -458,29 +458,27 @@ function handleRegistrationRetry() {
 </script>
 
 <div class="space-y-6">
-	<!-- Page header -->
-	<div class="text-center">
-		<h1 class="text-2xl font-bold text-cr-text md:text-3xl">Join Media Server</h1>
-		<p class="mt-2 text-cr-text-muted">
-			{#if currentStep === 'validation'}
-				Validate your invitation code to get started
-			{:else if currentStep === 'pre_wizard'}
-				Complete the required steps to continue
-			{:else if currentStep === 'registration'}
-				Create your account
-			{:else if currentStep === 'oauth'}
-				Sign in to continue
-			{:else if currentStep === 'oauth_redeeming'}
-				Adding you to the server...
-			{:else if currentStep === 'post_wizard'}
-				Almost there! Complete the final steps
-			{:else if currentStep === 'success'}
-				Welcome aboard!
-			{:else}
-				Something went wrong
-			{/if}
-		</p>
-	</div>
+	<!-- Page header (hidden during wizard steps which have their own chrome) -->
+	{#if currentStep !== 'pre_wizard' && currentStep !== 'post_wizard'}
+		<div class="text-center">
+			<h1 class="text-2xl font-bold text-cr-text md:text-3xl">Join Media Server</h1>
+			<p class="mt-2 text-cr-text-muted">
+				{#if currentStep === 'validation'}
+					Validate your invitation code to get started
+				{:else if currentStep === 'registration'}
+					Create your account
+				{:else if currentStep === 'oauth'}
+					Sign in to continue
+				{:else if currentStep === 'oauth_redeeming'}
+					Adding you to the server...
+				{:else if currentStep === 'success'}
+					Welcome aboard!
+				{:else}
+					Something went wrong
+				{/if}
+			</p>
+		</div>
+	{/if}
 
 	<!-- Loading state -->
 	{#if isRetrying}

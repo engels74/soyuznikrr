@@ -32,6 +32,9 @@ export interface InteractionComponentProps {
 	interactionId: string;
 	config: Record<string, unknown>;
 	onComplete: (data: InteractionCompletionData) => void;
+	onValidate?: (
+		data: InteractionCompletionData
+	) => Promise<{ valid: boolean; pending?: boolean; error?: string | null }>;
 	disabled: boolean;
 	completionData?: InteractionCompletionData;
 }
