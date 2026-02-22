@@ -15,7 +15,6 @@
 
 import { Check, Copy, Eye, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
 import { onDestroy } from "svelte";
-import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
 import type { InvitationResponse } from "$lib/api/client";
 import StatusBadge, {
@@ -165,8 +164,6 @@ async function copyInviteLink() {
 function handleDelete() {
 	if (onDelete) {
 		onDelete(invitation.id);
-	} else {
-		toast.info("Delete functionality will be implemented in Task 7");
 	}
 }
 </script>

@@ -15,7 +15,6 @@
  */
 
 import { Eye, MoreHorizontal, Power, PowerOff, Trash2 } from "@lucide/svelte";
-import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
 import type { UserDetailResponse } from "$lib/api/client";
 import StatusBadge, {
@@ -116,8 +115,6 @@ function viewUser() {
 function handleEnable() {
 	if (onEnable) {
 		onEnable(user.id);
-	} else {
-		toast.info("Enable functionality will be implemented in Task 10");
 	}
 }
 
@@ -127,8 +124,6 @@ function handleEnable() {
 function handleDisable() {
 	if (onDisable) {
 		onDisable(user.id);
-	} else {
-		toast.info("Disable functionality will be implemented in Task 10");
 	}
 }
 
@@ -138,8 +133,6 @@ function handleDisable() {
 function handleDelete() {
 	if (onDelete) {
 		onDelete(user.id);
-	} else {
-		toast.info("Delete functionality will be implemented in Task 10");
 	}
 }
 </script>

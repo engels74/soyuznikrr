@@ -13,20 +13,27 @@
 
 import { goto, invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
-import type { ListUsersParams } from "$lib/api/client";
+import { deleteUser, disableUser, enableUser, type ListUsersParams, withErrorHandling } from "$lib/api/client";
 import { getErrorMessage, isNetworkError } from "$lib/api/errors";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import EmptyState from "$lib/components/empty-state.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import Pagination from "$lib/components/pagination.svelte";
 import UserFilters from "$lib/components/users/user-filters.svelte";
 import UserListSkeleton from "$lib/components/users/user-list-skeleton.svelte";
 import UserTable from "$lib/components/users/user-table.svelte";
+import { showSuccess } from "$lib/utils/toast";
 import type { PageData } from "./$types";
 
 const { data }: { data: PageData } = $props();
 
 // Loading state for refresh operations
 let isRefreshing = $state(false);
+
+// Delete state
+let deleteTarget = $state<string | null>(null);
+let showDeleteDialog = $state(false);
+let deleting = $state(false);
 
 // Derive current filter state from URL params
 const currentParams = $derived(data.params);
@@ -72,6 +79,56 @@ function handleFilterChange(newParams: Partial<ListUsersParams>) {
 function handlePageChange(newPage: number) {
 	handleFilterChange({ page: newPage });
 }
+
+/**
+ * Handle enabling a user.
+ */
+async function handleEnableUser(id: string) {
+	const result = await withErrorHandling(() => enableUser(id));
+	if (!result.error) {
+		showSuccess("User enabled");
+		await invalidateAll();
+	}
+}
+
+/**
+ * Handle disabling a user.
+ */
+async function handleDisableUser(id: string) {
+	const result = await withErrorHandling(() => disableUser(id));
+	if (!result.error) {
+		showSuccess("User disabled");
+		await invalidateAll();
+	}
+}
+
+/**
+ * Request deletion of a user (shows confirmation dialog).
+ */
+function handleDeleteRequest(id: string) {
+	deleteTarget = id;
+	showDeleteDialog = true;
+}
+
+/**
+ * Confirm and execute user deletion.
+ */
+async function handleDeleteConfirm() {
+	if (!deleteTarget) return;
+	const target = deleteTarget;
+	deleting = true;
+	try {
+		const result = await withErrorHandling(() => deleteUser(target));
+		if (!result.error) {
+			showSuccess("User deleted");
+			await invalidateAll();
+		}
+	} finally {
+		deleting = false;
+		showDeleteDialog = false;
+		deleteTarget = null;
+	}
+}
 </script>
 
 <div class="space-y-6">
@@ -109,7 +166,12 @@ function handlePageChange(newPage: number) {
 		/>
 	{:else}
 		<!-- User table -->
-		<UserTable users={data.users.items} />
+		<UserTable
+			users={data.users.items}
+			onEnable={handleEnableUser}
+			onDisable={handleDisableUser}
+			onDelete={handleDeleteRequest}
+		/>
 
 		<!-- Pagination -->
 		<Pagination
@@ -121,3 +183,14 @@ function handlePageChange(newPage: number) {
 		/>
 	{/if}
 </div>
+
+<ConfirmDialog
+	open={showDeleteDialog}
+	title="Delete User"
+	description="Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone."
+	confirmLabel={deleting ? 'Deleting...' : 'Delete'}
+	variant="destructive"
+	loading={deleting}
+	onConfirm={handleDeleteConfirm}
+	onCancel={() => { showDeleteDialog = false; deleteTarget = null; }}
+/>
