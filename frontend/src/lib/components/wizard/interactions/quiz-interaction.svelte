@@ -30,16 +30,20 @@ let selectedIndex = $state<number | null>(
 const alreadyCorrect = $derived(completionData != null);
 
 // Feedback and cooldown state
-let feedbackState = $state<"correct" | "incorrect" | null>(alreadyCorrect ? "correct" : null);
+let feedbackState = $state<"correct" | "incorrect" | null>(completionData != null ? "correct" : null);
 let inlineError = $state<string | null>(null);
 let isSubmitting = $state(false);
 let wrongAttempts = $state(0);
 let cooldownRemaining = $state(0);
 let cooldownInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
+// Track previous completionData for transition detection
+let previousCompletionData = completionData;
+
 // Reset local state when the shell clears completionData (e.g. after step-level validation failure)
+// Only fires when completionData transitions from non-null to null, not when it was always null
 $effect(() => {
-	if (completionData == null && feedbackState === "correct") {
+	if (previousCompletionData != null && completionData == null && feedbackState === "correct") {
 		feedbackState = null;
 		selectedIndex = null;
 		wrongAttempts = 0;
@@ -50,6 +54,7 @@ $effect(() => {
 			cooldownInterval = null;
 		}
 	}
+	previousCompletionData = completionData;
 });
 
 // Derived - interaction disabled

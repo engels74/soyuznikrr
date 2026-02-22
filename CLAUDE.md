@@ -37,7 +37,7 @@ bun install                        # Install dependencies
 bun run dev                        # Vite dev server
 bun run build                      # Production build
 bun run check                      # svelte-check type checking
-bun test                           # Run Vitest tests
+bun run test                       # Run Vitest tests
 bun run test:watch                 # Tests in watch mode
 bun run generate:api               # Regenerate TypeScript types from OpenAPI spec
 ```

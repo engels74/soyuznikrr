@@ -262,9 +262,6 @@ async function handleInteractionValidate(
 </script>
 
 <div class="wizard-shell">
-	<!-- Background gradient -->
-	<div class="wizard-bg"></div>
-
 	<div class="wizard-container">
 		<!-- Progress indicator -->
 		<WizardProgress current={currentStepIndex + 1} total={wizard.steps.length} {progress} />
@@ -416,30 +413,20 @@ async function handleInteractionValidate(
 		--wizard-btn-disabled-bg: hsl(220 10% 25%);
 
 		position: relative;
-		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		padding: 2rem;
 		background: var(--wizard-bg);
+		border-radius: 0.75rem;
+		padding: 1.5rem;
 		color: var(--wizard-text);
 		font-family: 'Satoshi', 'DM Sans', system-ui, sans-serif;
-	}
-
-	/* Atmospheric background gradient */
-	.wizard-bg {
-		position: absolute;
-		inset: 0;
-		background: radial-gradient(ellipse at center, var(--wizard-surface-elevated) 0%, var(--wizard-bg) 70%);
-		pointer-events: none;
 	}
 
 	.wizard-container {
 		position: relative;
 		width: 100%;
 		max-width: 640px;
-		max-height: calc(100vh - 4rem);
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;

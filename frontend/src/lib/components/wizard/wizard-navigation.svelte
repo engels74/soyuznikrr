@@ -73,13 +73,9 @@ const {
 
 <style>
 	.wizard-navigation {
-		position: fixed;
+		position: sticky;
 		bottom: 0;
-		left: 0;
-		right: 0;
-		padding: 1rem 2rem 2rem;
-		background: linear-gradient(to top, hsl(220 20% 4%) 60%, transparent);
-		backdrop-filter: blur(8px);
+		padding: 1rem 0 0;
 		animation: wizard-reveal 0.6s ease-out 0.4s both;
 		z-index: 10;
 	}
