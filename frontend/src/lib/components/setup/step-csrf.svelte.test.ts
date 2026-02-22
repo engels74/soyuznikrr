@@ -97,7 +97,7 @@ describe('Step CSRF Component', () => {
 		expect(errorText).toBeTruthy();
 	});
 
-	it('should show validation error for trailing slash', async () => {
+	it('should show validation error for origin with path', async () => {
 		const user = userEvent.setup();
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
@@ -112,7 +112,7 @@ describe('Step CSRF Component', () => {
 		);
 		await user.click(submitButton!);
 
-		expect(container.textContent).toContain('Remove trailing slash');
+		expect(container.textContent).toContain('without a trailing path');
 	});
 
 	it('should call API and onComplete on success', async () => {

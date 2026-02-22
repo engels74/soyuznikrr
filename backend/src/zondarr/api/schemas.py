@@ -1058,7 +1058,7 @@ class ReadinessResponse(msgspec.Struct, kw_only=True):
 
 # Origin URL (must start with http:// or https://)
 OriginUrl = Annotated[
-    str, msgspec.Meta(min_length=1, max_length=2048, pattern=r"^https?://")
+    str, msgspec.Meta(min_length=1, max_length=2048, pattern=r"^https?://[^/?#]+$")
 ]
 
 

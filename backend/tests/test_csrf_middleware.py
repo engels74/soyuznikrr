@@ -422,10 +422,10 @@ class TestCsrfOriginCache:
         cache = _CsrfOriginCache()
         cache.set("https://cached.com")
 
-        # Advance past 60s TTL
+        # Advance past 60s TTL — stale value is still returned for fallback
         with patch.object(time, "monotonic", return_value=time.monotonic() + 61):
             value, is_valid = cache.get()
-            assert value is None
+            assert value == "https://cached.com"
             assert is_valid is False
 
     def test_cache_set_none_is_valid(self) -> None:

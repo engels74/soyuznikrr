@@ -71,7 +71,7 @@ class _CsrfOriginCache:
         """
         if time.monotonic() - self._fetched_at < _CACHE_TTL:
             return self._value, True
-        return None, False
+        return self._value, False
 
     def set(self, value: str | None) -> None:
         self._value = value
@@ -198,12 +198,16 @@ class CSRFMiddleware:
         if referer:
             parsed = urlparse(referer)
             if parsed.scheme and parsed.hostname:
+                host = parsed.hostname
+                # Restore brackets for IPv6 addresses
+                if ":" in host:
+                    host = f"[{host}]"
                 port_suffix = (
                     f":{parsed.port}"
                     if parsed.port and parsed.port not in (80, 443)
                     else ""
                 )
-                return f"{parsed.scheme}://{parsed.hostname}{port_suffix}"
+                return f"{parsed.scheme}://{host}{port_suffix}"
 
         return None
 

@@ -63,14 +63,16 @@ describe('CSRF Origin Validation', () => {
 		);
 	});
 
-	it('should reject origins with trailing slash', () => {
-		const result = csrfOriginSchema.safeParse({ origin: 'https://example.com/' });
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			const trailingSlashErrors = result.error.issues.filter(
-				(e) => e.message === 'Remove trailing slash'
-			);
-			expect(trailingSlashErrors.length).toBeGreaterThan(0);
+	it('should reject origins with trailing slash or path', () => {
+		for (const origin of ['https://example.com/', 'https://example.com/app']) {
+			const result = csrfOriginSchema.safeParse({ origin });
+			expect(result.success, `Expected '${origin}' to be rejected`).toBe(false);
+			if (!result.success) {
+				const pathErrors = result.error.issues.filter((e) =>
+					e.message.includes('without a trailing path')
+				);
+				expect(pathErrors.length).toBeGreaterThan(0);
+			}
 		}
 	});
 
