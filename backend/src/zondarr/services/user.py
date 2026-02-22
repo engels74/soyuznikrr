@@ -20,6 +20,8 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+import structlog
+
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
@@ -28,6 +30,8 @@ from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.user import UserRepository
+
+log = structlog.get_logger()  # pyright: ignore[reportAny]  # structlog lacks stubs
 
 # Type aliases for sort parameters
 UserSortField = Literal["created_at", "username", "expires_at"]
@@ -123,6 +127,61 @@ class UserService:
             users.append(user)
 
         return identity, users
+
+    async def cleanup_stale_local_users(
+        self,
+        external_users: Sequence[tuple[MediaServer, ExternalUser]],
+    ) -> int:
+        """Remove stale local User records that match incoming external users.
+
+        For each (server, external_user) pair, checks if a local User already
+        exists with the same (external_user_id, media_server_id). If found,
+        deletes the local User record (does NOT delete from the media server).
+        If the Identity has no remaining Users after deletion, deletes the
+        Identity too (Property 21 pattern).
+
+        This prevents duplicate entries when a sync-imported user later
+        redeems an invitation.
+
+        Args:
+            external_users: Sequence of (MediaServer, ExternalUser) tuples
+                to check against.
+
+        Returns:
+            Count of local User records cleaned up.
+        """
+        cleaned = 0
+        for server, external_user in external_users:
+            existing = await self.user_repository.get_by_external_and_server(
+                external_user.external_user_id, server.id
+            )
+            if existing is None:
+                continue
+
+            identity_id = existing.identity_id
+
+            # Delete the stale local User (no media server call)
+            await self.user_repository.delete(existing)
+            cleaned += 1
+
+            log.info(  # pyright: ignore[reportAny]
+                "Cleaned up stale local user before redemption",
+                external_user_id=external_user.external_user_id,
+                server_name=server.name,
+            )
+
+            # Property 21: cascade to Identity if no Users remain
+            remaining = await self.user_repository.get_by_identity(identity_id)
+            if len(remaining) == 0:
+                identity = await self.identity_repository.get_by_id(identity_id)
+                if identity is not None:
+                    await self.identity_repository.delete(identity)
+                    log.info(  # pyright: ignore[reportAny]
+                        "Deleted orphaned identity after stale user cleanup",
+                        identity_id=str(identity_id),
+                    )
+
+        return cleaned
 
     async def get_by_id(self, user_id: UUID, /) -> User:
         """Retrieve a user by ID.

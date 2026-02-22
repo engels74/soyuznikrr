@@ -219,6 +219,16 @@ class RedemptionService:
         if invitation.duration_days is not None:
             expires_at = datetime.now(UTC) + timedelta(days=invitation.duration_days)
 
+        # Step 5.5: Clean up stale local users (e.g. sync-imported duplicates)
+        cleaned = await self.user_service.cleanup_stale_local_users(
+            created_external_users
+        )
+        if cleaned > 0:
+            log.info(  # pyright: ignore[reportAny]
+                "Cleaned stale local users before creating new records",
+                cleaned_count=cleaned,
+            )
+
         # Step 6: Create local Identity and User records (Requirement 14.7)
         identity, users = await self.user_service.create_identity_with_users(
             display_name=username,

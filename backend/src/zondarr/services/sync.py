@@ -9,6 +9,8 @@ Identity and User records.
 from datetime import UTC, datetime
 from uuid import UUID
 
+import structlog
+
 from zondarr.api.schemas import SyncResult
 from zondarr.core.exceptions import NotFoundError
 from zondarr.media.registry import registry
@@ -16,6 +18,8 @@ from zondarr.models.identity import Identity, User
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
+
+log = structlog.get_logger()  # pyright: ignore[reportAny]  # structlog lacks stubs
 
 
 class SyncService:
@@ -127,6 +131,19 @@ class SyncService:
         if not dry_run and orphaned_ids:
             for ext_id in orphaned_ids:
                 ext_user = external_map[ext_id]
+
+                # Dedup check: skip if user already exists locally
+                existing = await self.user_repo.get_by_external_and_server(
+                    ext_user.external_user_id, server.id
+                )
+                if existing is not None:
+                    log.info(  # pyright: ignore[reportAny]
+                        "Skipping already-imported user during sync",
+                        external_user_id=ext_user.external_user_id,
+                        username=ext_user.username,
+                    )
+                    continue
+
                 # Create an Identity for the orphaned user
                 identity = Identity()
                 identity.display_name = ext_user.username
@@ -143,7 +160,7 @@ class SyncService:
                 user.enabled = True
                 _ = await self.user_repo.create(user)
 
-            imported_count = len(orphaned_ids)
+                imported_count += 1
 
         # Build result with usernames for human readability
         return SyncResult(

@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String
+from sqlalchemy import Boolean, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from zondarr.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -96,11 +96,16 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     expires_at: Mapped[datetime | None] = mapped_column(default=None)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Table-level indexes for performance (Requirement 24)
-    __table_args__: tuple[Index, ...] = (
+    # Table-level indexes and constraints
+    __table_args__: tuple[Index | UniqueConstraint, ...] = (
         Index("ix_users_media_server_id", "media_server_id"),
         Index("ix_users_identity_id", "identity_id"),
         Index("ix_users_enabled_expires", "enabled", "expires_at"),
+        UniqueConstraint(
+            "external_user_id",
+            "media_server_id",
+            name="uq_users_external_user_server",
+        ),
     )
 
     # Relationships - use joined for single relations
