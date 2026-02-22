@@ -15,6 +15,8 @@
 import {
 	ArrowLeft,
 	Calendar,
+	Check,
+	Copy,
 	ExternalLink,
 	Hash,
 	Save,
@@ -99,6 +101,25 @@ let deleting = $state(false);
 
 // Delete confirmation dialog
 let showDeleteDialog = $state(false);
+
+// Copy link state
+let copied = $state(false);
+
+/**
+ * Copy the invite link to clipboard.
+ */
+async function copyInviteLink() {
+	if (!data.invitation) return;
+	const url = `${window.location.origin}/join/${data.invitation.code}`;
+	try {
+		await navigator.clipboard.writeText(url);
+		copied = true;
+		showSuccess("Invite link copied");
+		setTimeout(() => { copied = false; }, 2000);
+	} catch {
+		showError("Failed to copy invite link");
+	}
+}
 
 // Derive local datetime value from initial data
 const initialExpiresAtLocal = $derived(
@@ -362,6 +383,20 @@ function getFieldErrors(field: string): string[] {
 			{/if}
 		</div>
 		{#if data.invitation}
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={copyInviteLink}
+				class="border-cr-border text-cr-text-muted hover:text-cr-accent hover:border-cr-accent/50"
+			>
+				{#if copied}
+					<Check class="size-4" />
+					Copied!
+				{:else}
+					<Copy class="size-4" />
+					Copy Invite Link
+				{/if}
+			</Button>
 			<StatusBadge {status} label={statusLabel} />
 		{/if}
 	</div>

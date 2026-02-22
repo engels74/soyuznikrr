@@ -13,7 +13,7 @@
  * @module $lib/components/invitations/invitation-row
  */
 
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
+import { Check, Copy, Eye, MoreHorizontal, Pencil, Trash2 } from "@lucide/svelte";
 import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
 import type { InvitationResponse } from "$lib/api/client";
@@ -22,6 +22,7 @@ import StatusBadge, {
 } from "$lib/components/status-badge.svelte";
 import { Button } from "$lib/components/ui/button";
 import * as Table from "$lib/components/ui/table";
+import { showError, showSuccess } from "$lib/utils/toast";
 
 interface Props {
 	invitation: InvitationResponse;
@@ -134,6 +135,23 @@ function handleEdit() {
 	}
 }
 
+let copied = $state(false);
+
+/**
+ * Copy the invite link to clipboard.
+ */
+async function copyInviteLink() {
+	const url = `${window.location.origin}/join/${invitation.code}`;
+	try {
+		await navigator.clipboard.writeText(url);
+		copied = true;
+		showSuccess("Invite link copied");
+		setTimeout(() => { copied = false; }, 2000);
+	} catch {
+		showError("Failed to copy invite link");
+	}
+}
+
 /**
  * Handle delete action.
  */
@@ -200,6 +218,19 @@ function handleDelete() {
 			role="toolbar"
 			aria-label="Invitation actions"
 		>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				onclick={(e: MouseEvent) => { e.stopPropagation(); copyInviteLink(); }}
+				aria-label="Copy invite link"
+				class="text-cr-text-muted hover:text-cr-accent hover:bg-cr-accent/10"
+			>
+				{#if copied}
+					<Check class="size-4" />
+				{:else}
+					<Copy class="size-4" />
+				{/if}
+			</Button>
 			<Button
 				variant="ghost"
 				size="icon-sm"
