@@ -11,10 +11,12 @@ The middleware checks:
 """
 
 import time
+from typing import final
 from urllib.parse import urlparse
 
 import msgspec
 import structlog
+from litestar.enums import ScopeType
 from litestar.types import ASGIApp, Receive, Scope, Send
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -51,6 +53,7 @@ CSRF_EXCLUDE_PREFIXES = ("/api/v1/join/",)
 _CACHE_TTL = 60
 
 
+@final
 class _CsrfOriginCache:
     """Simple TTL cache for the CSRF origin from the database."""
 
@@ -75,6 +78,7 @@ class _CsrfOriginCache:
         self._fetched_at = time.monotonic()
 
 
+@final
 class CSRFMiddleware:
     """Raw ASGI middleware for origin-based CSRF protection.
 
@@ -87,17 +91,20 @@ class CSRFMiddleware:
         self._warned_no_origin = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] != ScopeType.HTTP:
             await self.app(scope, receive, send)
             return
 
-        method: str = scope.get("method", "GET")  # pyright: ignore[reportAny]
-        method_bytes = method.encode() if isinstance(method, str) else method
-        if method_bytes in SAFE_METHODS:
+        await self._handle_http(scope, receive, send)
+
+    async def _handle_http(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle CSRF validation for HTTP requests."""
+        method = str(scope.get("method", "GET"))  # pyright: ignore[reportUnknownMemberType]
+        if method.encode() in SAFE_METHODS:
             await self.app(scope, receive, send)
             return
 
-        path: str = scope.get("path", "")  # pyright: ignore[reportAny]
+        path = str(scope.get("path", ""))  # pyright: ignore[reportUnknownMemberType]
         if self._is_excluded_path(path):
             await self.app(scope, receive, send)
             return
@@ -139,12 +146,12 @@ class CSRFMiddleware:
 
     async def _get_trusted_origin(self, scope: Scope) -> str | None:
         """Resolve the trusted CSRF origin from settings or DB."""
-        app = scope.get("app")  # pyright: ignore[reportAny]
-        if app is None:
+        app = scope.get("app")  # pyright: ignore[reportUnknownMemberType]
+        if app is None:  # pyright: ignore[reportUnnecessaryComparison]
             return None
 
         # Check env var first (fast path)
-        settings: Settings | None = getattr(app.state, "settings", None)  # pyright: ignore[reportAny]
+        settings: Settings | None = getattr(app.state, "settings", None)
         if settings is not None and settings.csrf_origin:
             return settings.csrf_origin
 
@@ -154,7 +161,7 @@ class CSRFMiddleware:
             return cached_value
 
         # Fetch from DB
-        session_factory: async_sessionmaker[AsyncSession] | None = getattr(  # pyright: ignore[reportAny]
+        session_factory: async_sessionmaker[AsyncSession] | None = getattr(
             app.state, "session_factory", None
         )
         if session_factory is None:
@@ -173,7 +180,7 @@ class CSRFMiddleware:
 
     def _extract_origin(self, scope: Scope) -> str | None:
         """Extract origin from Origin header, falling back to Referer."""
-        headers = scope.get("headers", [])
+        headers = scope.get("headers", [])  # pyright: ignore[reportUnknownMemberType]
 
         origin: str | None = None
         referer: str | None = None
@@ -213,7 +220,7 @@ class CSRFMiddleware:
         )
 
         await send(
-            {  # pyright: ignore[reportArgumentType]
+            {
                 "type": "http.response.start",
                 "status": 403,
                 "headers": [

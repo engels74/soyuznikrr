@@ -73,6 +73,6 @@ class SettingsController(Controller):
                 field_errors={"csrf_origin": ["Locked by environment variable"]},
             )
 
-        await settings_service.set_csrf_origin(data.csrf_origin)
+        _ = await settings_service.set_csrf_origin(data.csrf_origin)
         origin, locked = await settings_service.get_csrf_origin()
         return CsrfOriginResponse(csrf_origin=origin, is_locked=locked)
