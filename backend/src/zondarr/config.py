@@ -49,6 +49,14 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = False
 
+    # CSRF origin for origin-based CSRF protection
+    csrf_origin: Annotated[
+        str | None,
+        msgspec.Meta(
+            description="Trusted origin for CSRF protection (e.g., https://zondarr.example.com)"
+        ),
+    ] = None
+
     # Dynamic provider credentials populated from env vars
     # Keyed by server_type (e.g., "plex", "jellyfin")
     # Each value is a dict with "url" and "api_key" keys
@@ -107,6 +115,7 @@ def load_settings() -> Settings:
         "secret_key": secret_key,
         "secure_cookies": os.environ.get("SECURE_COOKIES", "").lower()
         in ("true", "1", "yes"),
+        "csrf_origin": os.environ.get("CSRF_ORIGIN") or None,
         "expiration_check_interval_seconds": int(
             os.environ.get("EXPIRATION_CHECK_INTERVAL_SECONDS", "3600")
         ),

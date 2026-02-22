@@ -135,6 +135,7 @@ _TRUNCATE_ORDER: list[str] = [
     "libraries",
     "identities",
     "media_servers",
+    "app_settings",
 ]
 
 

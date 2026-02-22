@@ -45,10 +45,12 @@ from zondarr.api.join import JoinController
 from zondarr.api.oauth import OAuthController
 from zondarr.api.providers import ProviderController
 from zondarr.api.servers import ServerController
+from zondarr.api.settings import SettingsController
 from zondarr.api.users import UserController
 from zondarr.api.wizards import WizardController
 from zondarr.config import Settings, load_settings
 from zondarr.core.auth import DevSkipAuthMiddleware, create_jwt_auth
+from zondarr.core.csrf import CSRFMiddleware
 from zondarr.core.database import db_lifespan, provide_db_session
 from zondarr.core.exceptions import (
     AuthenticationError,
@@ -83,6 +85,7 @@ def _create_openapi_config() -> OpenAPIConfig:
         Tag(name="Join", description="Public invitation redemption"),
         Tag(name="OAuth", description="OAuth authentication flows"),
         Tag(name="Providers", description="Provider metadata"),
+        Tag(name="Settings", description="Application settings"),
         Tag(name="Users", description="User and identity management"),
         Tag(name="Wizards", description="Wizard management for onboarding flows"),
     ]
@@ -184,6 +187,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
         OAuthController,
         ProviderController,
         ServerController,
+        SettingsController,
         UserController,
         WizardController,
     ]
@@ -197,11 +201,14 @@ def create_app(settings: Settings | None = None) -> Litestar:
     if settings.skip_auth:
         app_logger.warning("Authentication disabled — DEV_SKIP_AUTH is active")
         on_app_init = []
-        middleware = [DefineMiddleware(DevSkipAuthMiddleware)]
+        middleware = [
+            DefineMiddleware(CSRFMiddleware),
+            DefineMiddleware(DevSkipAuthMiddleware),
+        ]
     else:
         jwt_auth = create_jwt_auth(settings)
         on_app_init = [jwt_auth.on_app_init]
-        middleware = []
+        middleware = [DefineMiddleware(CSRFMiddleware)]
 
     return Litestar(
         route_handlers=route_handlers,

@@ -1053,6 +1053,39 @@ class ReadinessResponse(msgspec.Struct, kw_only=True):
 
 
 # =============================================================================
+# Settings Schemas
+# =============================================================================
+
+# Origin URL (must start with http:// or https://)
+OriginUrl = Annotated[
+    str, msgspec.Meta(min_length=1, max_length=2048, pattern=r"^https?://[^/?#]+$")
+]
+
+
+class CsrfOriginResponse(msgspec.Struct, kw_only=True):
+    """CSRF origin setting response.
+
+    Attributes:
+        csrf_origin: The configured CSRF origin URL, or null if not set.
+        is_locked: True if the value is set via environment variable and cannot
+            be changed through the API.
+    """
+
+    csrf_origin: str | None
+    is_locked: bool
+
+
+class CsrfOriginUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to update the CSRF origin setting.
+
+    Attributes:
+        csrf_origin: The origin URL to set, or null to clear.
+    """
+
+    csrf_origin: OriginUrl | None = None
+
+
+# =============================================================================
 # Connection Test Schemas
 # =============================================================================
 
