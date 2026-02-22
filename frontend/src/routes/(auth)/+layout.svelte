@@ -22,7 +22,7 @@ const { children }: Props = $props();
 	</div>
 
 	<!-- Content slot -->
-	<div class="w-full max-w-md">
+	<div class="w-full max-w-lg">
 		{@render children()}
 	</div>
 </div>

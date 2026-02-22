@@ -527,6 +527,50 @@ export async function checkOAuthPin(
 }
 
 // =============================================================================
+// Settings API Wrappers
+// =============================================================================
+
+/** CSRF origin response */
+export interface CsrfOriginResponse {
+	csrf_origin: string | null;
+	is_locked: boolean;
+}
+
+/**
+ * Get the current CSRF origin setting.
+ *
+ * @returns CSRF origin and locked status
+ */
+export async function getCsrfOrigin(
+	client: ApiClient = api
+): Promise<{ data?: CsrfOriginResponse; error?: unknown }> {
+	return client.GET('/api/v1/settings/csrf-origin' as never);
+}
+
+/**
+ * Set the CSRF origin setting.
+ *
+ * @param data - The origin to set (or null to clear)
+ * @returns Updated CSRF origin and locked status
+ */
+export async function setCsrfOrigin(data: {
+	csrf_origin: string | null;
+}): Promise<{ data?: CsrfOriginResponse; error?: unknown }> {
+	const response = await fetch(`${API_BASE_URL}/api/v1/settings/csrf-origin`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	const result = (await response.json()) as CsrfOriginResponse;
+	return { data: result };
+}
+
+// =============================================================================
 // Health API Wrappers
 // =============================================================================
 
