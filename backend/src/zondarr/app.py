@@ -167,7 +167,10 @@ def _create_cors_config(settings: Settings) -> CORSConfig | None:
 async def _log_stream_lifespan(_app: Litestar):
     """Bind the log buffer to the running event loop on startup."""
     log_buffer.bind_loop(asyncio.get_running_loop())
-    yield
+    try:
+        yield
+    finally:
+        log_buffer.unbind_loop()
 
 
 def create_app(settings: Settings | None = None) -> Litestar:

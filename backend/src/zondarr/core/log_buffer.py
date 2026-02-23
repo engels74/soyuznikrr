@@ -77,9 +77,35 @@ class LogBuffer:
         self._loop = loop
         self._condition = asyncio.Condition()
 
-    def append(self, entry: LogEntry) -> None:
-        """Append a log entry (called from any thread)."""
+    def unbind_loop(self) -> None:
+        """Unbind from the event loop. Must be called during app shutdown."""
+        self._loop = None
+        self._condition = None
+
+    def append_entry(
+        self,
+        *,
+        timestamp: str,
+        level: str,
+        logger_name: str,
+        message: str,
+        fields: dict[str, str],
+    ) -> None:
+        """Allocate a seq number and append a log entry atomically.
+
+        Combines sequence allocation and deque insertion under a single lock
+        to prevent out-of-order entries when called from multiple threads.
+        """
         with self._lock:
+            self._seq += 1
+            entry = LogEntry(
+                seq=self._seq,
+                timestamp=timestamp,
+                level=level,
+                logger_name=logger_name,
+                message=message,
+                fields=fields,
+            )
             self._deque.append(entry)
 
         # Wake async consumers if loop is bound
@@ -98,12 +124,6 @@ class LogBuffer:
             async with self._condition:
                 self._condition.notify_all()
 
-    def next_seq(self) -> int:
-        """Allocate and return the next sequence number (thread-safe)."""
-        with self._lock:
-            self._seq += 1
-            return self._seq
-
     def get_entries_since(self, after_seq: int) -> tuple[list[LogEntry], int]:
         """Return entries with seq > after_seq and the current max seq.
 
@@ -118,14 +138,24 @@ class LogBuffer:
             current_seq = self._seq
         return entries, current_seq
 
-    async def wait_for_new(self, timeout: float = 30.0) -> bool:
+    def _has_entries_since(self, after_seq: int) -> bool:
+        """Check if any entries exist with seq > after_seq (thread-safe)."""
+        with self._lock:
+            return self._seq > after_seq
+
+    async def wait_for_new(self, after_seq: int, timeout: float = 30.0) -> bool:
         """Wait for new entries with a timeout.
 
+        Checks for entries while holding the Condition lock before waiting,
+        preventing the race where a notification fires between
+        ``get_entries_since()`` and this call.
+
         Args:
+            after_seq: Sequence number to check against before waiting.
             timeout: Maximum seconds to wait.
 
         Returns:
-            True if notified, False if timed out.
+            True if new entries are available, False if timed out.
         """
         if self._condition is None:
             await asyncio.sleep(timeout)
@@ -134,6 +164,8 @@ class LogBuffer:
         try:
             async with asyncio.timeout(timeout):
                 async with self._condition:
+                    if self._has_entries_since(after_seq):
+                        return True
                     _ = await self._condition.wait()
             return True
         except TimeoutError:
@@ -169,15 +201,12 @@ def capture_log_processor(
         if key not in _KNOWN_KEYS:
             fields[key] = str(value)  # pyright: ignore[reportAny]
 
-    seq = log_buffer.next_seq()
-    entry = LogEntry(
-        seq=seq,
+    log_buffer.append_entry(
         timestamp=timestamp,
         level=level,
         logger_name=logger_name,
         message=message,
         fields=fields,
     )
-    log_buffer.append(entry)
 
     return event_dict

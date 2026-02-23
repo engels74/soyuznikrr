@@ -79,7 +79,7 @@ class LogController(Controller):
             while True:
                 try:
                     _ = await asyncio.wait_for(
-                        log_buffer.wait_for_new(timeout=30.0),
+                        log_buffer.wait_for_new(after_seq=last_seq, timeout=30.0),
                         timeout=35.0,
                     )
                 except TimeoutError:
