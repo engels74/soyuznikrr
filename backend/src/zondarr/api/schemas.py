@@ -136,23 +136,28 @@ class MediaServerCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True
         name: Human-readable name for the server.
         server_type: Type of media server (e.g., "plex", "jellyfin").
         url: Base URL for the media server API.
-        api_key: Authentication token for the media server.
+        api_key: Authentication token for the media server (optional if use_env_credentials is True).
+        use_env_credentials: If True, resolve api_key from environment variables on the server.
     """
 
     name: NonEmptyStr
     server_type: NonEmptyStr
     url: UrlStr
-    api_key: ApiKeyStr
+    api_key: ApiKeyStr | None = None
+    use_env_credentials: bool = False
 
 
 class EnvCredentialResponse(msgspec.Struct, kw_only=True):
     """A single detected provider credential from environment variables.
 
+    The plaintext api_key is never sent to the client. Use
+    ``use_env_credentials: true`` on create/test endpoints to have the
+    server resolve the key from env vars.
+
     Attributes:
         server_type: Provider identifier string (e.g., "plex", "jellyfin").
         display_name: Human-readable provider name.
         url: Detected URL from env var (for form auto-fill).
-        api_key: Detected API key from env var (for form auto-fill).
         masked_api_key: Masked version of the API key for display.
         has_url: Whether a URL was detected.
         has_api_key: Whether an API key was detected.
@@ -161,7 +166,6 @@ class EnvCredentialResponse(msgspec.Struct, kw_only=True):
     server_type: str
     display_name: str
     url: str | None = None
-    api_key: str | None = None
     masked_api_key: str | None = None
     has_url: bool = False
     has_api_key: bool = False
@@ -1122,13 +1126,15 @@ class ConnectionTestRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=
 
     Attributes:
         url: Base URL for the media server API.
-        api_key: Authentication token for the media server.
+        api_key: Authentication token for the media server (optional if use_env_credentials is True).
         server_type: Optional type of media server. Auto-detected if omitted.
+        use_env_credentials: If True, resolve api_key from environment variables on the server.
     """
 
     url: UrlStr
-    api_key: ApiKeyStr
+    api_key: ApiKeyStr | None = None
     server_type: NonEmptyStr | None = None
+    use_env_credentials: bool = False
 
 
 class ConnectionTestResponse(msgspec.Struct, kw_only=True):

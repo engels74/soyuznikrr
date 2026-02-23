@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Eye, EyeOff, Info, Plug } from '@lucide/svelte';
+import { Eye, EyeOff, Info, KeyRound, Plug, X } from '@lucide/svelte';
 import type { ConnectionTestResponse, EnvCredentialResponse } from '$lib/api/client';
 import { createServer, getEnvCredentials, testConnection, withErrorHandling } from '$lib/api/client';
 import { asErrorResponse } from '$lib/api/errors';
@@ -33,7 +33,8 @@ let formData = $state<CreateServerInput>({
 	name: '',
 	server_type: 'plex',
 	url: '',
-	api_key: ''
+	api_key: '',
+	use_env_credentials: false
 });
 
 let errors = $state<Record<string, string[]>>({});
@@ -68,10 +69,17 @@ async function fetchEnvCredentials() {
 function handleUseEnvCredentials(credential: EnvCredentialResponse) {
 	formData.server_type = credential.server_type;
 	if (credential.url) formData.url = credential.url;
-	if (credential.api_key) formData.api_key = credential.api_key;
+	formData.use_env_credentials = true;
+	formData.api_key = '';
 	if (!formData.name) formData.name = credential.display_name;
 	testResult = null;
 	envDismissed = true;
+}
+
+function handleClearEnvCredentials() {
+	formData.use_env_credentials = false;
+	formData.api_key = '';
+	testResult = null;
 }
 
 function onConnectionFieldChange() {
@@ -100,7 +108,9 @@ function getFieldErrors(field: string): string[] {
 	return errors[field] || [];
 }
 
-const canTest = $derived(formData.url.trim().length > 0 && formData.api_key.trim().length > 0);
+const canTest = $derived(
+	formData.url.trim().length > 0 && (formData.use_env_credentials || (formData.api_key ?? '').trim().length > 0)
+);
 const connectionVerified = $derived(testResult?.success === true);
 
 async function handleTestConnection() {
@@ -109,14 +119,19 @@ async function handleTestConnection() {
 
 	const testedUrl = formData.url;
 	const testedApiKey = formData.api_key;
+	const testedUseEnv = formData.use_env_credentials;
 
 	try {
+		const testPayload = testedUseEnv
+			? { url: testedUrl, server_type: formData.server_type, use_env_credentials: true as const }
+			: { url: testedUrl, api_key: testedApiKey };
+
 		const result = await withErrorHandling(
-			() => testConnection({ url: testedUrl, api_key: testedApiKey }),
+			() => testConnection(testPayload),
 			{ showErrorToast: false }
 		);
 
-		if (formData.url !== testedUrl || formData.api_key !== testedApiKey) {
+		if (formData.url !== testedUrl || formData.api_key !== testedApiKey || formData.use_env_credentials !== testedUseEnv) {
 			return;
 		}
 
@@ -302,29 +317,44 @@ async function handleSubmit(event: Event) {
 			<!-- API Key -->
 			<div class="space-y-2">
 				<Label for="server-api-key" class="text-cr-text">API Key</Label>
-				<div class="relative">
-					<Input
-						id="server-api-key"
-						type={showApiKey ? 'text' : 'password'}
-						bind:value={formData.api_key}
-						oninput={onConnectionFieldChange}
-						placeholder="Enter API key"
-						disabled={submitting}
-						class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm pr-10"
-					/>
-					<button
-						type="button"
-						onclick={() => (showApiKey = !showApiKey)}
-						class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-cr-text-muted hover:text-cr-text"
-						aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
-					>
-						{#if showApiKey}
-							<EyeOff class="size-4" />
-						{:else}
-							<Eye class="size-4" />
-						{/if}
-					</button>
-				</div>
+				{#if formData.use_env_credentials}
+					<div class="flex items-center gap-2 rounded-md border border-cr-accent/30 bg-cr-accent/5 px-3 py-2">
+						<KeyRound class="size-4 shrink-0 text-cr-accent" />
+						<span class="flex-1 text-sm text-cr-text">Using environment credentials</span>
+						<button
+							type="button"
+							onclick={handleClearEnvCredentials}
+							class="p-0.5 text-cr-text-muted hover:text-cr-text"
+							aria-label="Clear environment credentials"
+						>
+							<X class="size-4" />
+						</button>
+					</div>
+				{:else}
+					<div class="relative">
+						<Input
+							id="server-api-key"
+							type={showApiKey ? 'text' : 'password'}
+							bind:value={formData.api_key}
+							oninput={onConnectionFieldChange}
+							placeholder="Enter API key"
+							disabled={submitting}
+							class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm pr-10"
+						/>
+						<button
+							type="button"
+							onclick={() => (showApiKey = !showApiKey)}
+							class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-cr-text-muted hover:text-cr-text"
+							aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+						>
+							{#if showApiKey}
+								<EyeOff class="size-4" />
+							{:else}
+								<Eye class="size-4" />
+							{/if}
+						</button>
+					</div>
+				{/if}
 				{#each providerList as provider (provider.server_type)}
 					{#if formData.server_type === provider.server_type && provider.api_key_help_text}
 						<p class="text-xs text-cr-text-muted">{provider.api_key_help_text}</p>

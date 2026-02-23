@@ -391,7 +391,8 @@ export interface CreateServerRequest {
 	name: string;
 	server_type: string;
 	url: string;
-	api_key: string;
+	api_key?: string;
+	use_env_credentials?: boolean;
 }
 
 /**
@@ -401,7 +402,7 @@ export interface CreateServerRequest {
  * @returns Created media server response
  */
 export async function createServer(data: CreateServerRequest, client: ApiClient = api) {
-	return client.POST('/api/v1/servers', { body: data });
+	return client.POST('/api/v1/servers', { body: data as never });
 }
 
 /**
@@ -416,7 +417,13 @@ export async function getServer(serverId: string, client: ApiClient = api) {
 	});
 }
 
-export type ConnectionTestRequest = components['schemas']['ConnectionTestRequest'];
+// Override generated type to support use_env_credentials flow
+export interface ConnectionTestRequest {
+	url: string;
+	api_key?: string;
+	server_type?: string | null;
+	use_env_credentials?: boolean;
+}
 export type ConnectionTestResponse = components['schemas']['ConnectionTestResponse'];
 
 // Env credentials types — manually defined since the endpoint is new
@@ -425,7 +432,6 @@ export interface EnvCredentialResponse {
 	server_type: string;
 	display_name: string;
 	url: string | null;
-	api_key: string | null;
 	masked_api_key: string | null;
 	has_url: boolean;
 	has_api_key: boolean;
@@ -442,7 +448,7 @@ export interface EnvCredentialsResponse {
  * @returns Connection test response
  */
 export async function testConnection(data: ConnectionTestRequest, client: ApiClient = api) {
-	return client.POST('/api/v1/servers/test-connection', { body: data });
+	return client.POST('/api/v1/servers/test-connection', { body: data as never });
 }
 
 /**

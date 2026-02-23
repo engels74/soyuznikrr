@@ -182,7 +182,7 @@ class TestEnvCredentialsEndpoint:
                 )
                 assert plex_cred is not None
                 assert plex_cred["url"] == "http://plex.local:32400"
-                assert plex_cred["api_key"] == "my-plex-token-here"
+                assert "api_key" not in plex_cred
                 assert plex_cred["has_url"] is True
                 assert plex_cred["has_api_key"] is True
                 assert plex_cred["display_name"] == "Plex"
@@ -266,8 +266,7 @@ class TestEnvCredentialsEndpoint:
                 )
                 assert plex_cred["has_url"] is True
                 assert plex_cred["has_api_key"] is False
-                assert plex_cred["api_key"] is None
-                assert plex_cred["masked_api_key"] is None
+                assert "api_key" not in plex_cred
         finally:
             await engine.dispose()
 

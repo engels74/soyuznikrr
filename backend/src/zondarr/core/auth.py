@@ -26,10 +26,10 @@ from zondarr.repositories.admin import AdminAccountRepository
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
 
-# Paths excluded from JWT auth
+# Paths excluded from JWT auth (always excluded)
 # Note: /api/auth/me requires auth, so we list specific public sub-paths
 # rather than excluding the entire /api/auth/ prefix.
-AUTH_EXCLUDE_PATHS = [
+_AUTH_EXCLUDE_PATHS_BASE = [
     "/api/auth/methods",
     "/api/auth/setup",
     "/api/auth/login",
@@ -38,6 +38,10 @@ AUTH_EXCLUDE_PATHS = [
     "/api/v1/join/",
     "/api/health",
     "/health",
+]
+
+# Doc paths — only excluded in debug mode
+_AUTH_EXCLUDE_PATHS_DOCS = [
     "/docs",
     "/swagger",
     "/scalar",
@@ -162,16 +166,23 @@ def create_jwt_auth(settings: Settings) -> JWTCookieAuth[AdminUser]:
     Uses FixedJWTCookieMiddleware to work around a Litestar bug where
     cookie token values are not parsed correctly.
 
+    Doc paths (/docs, /swagger, /scalar, /schema) are only excluded from
+    auth when debug mode is enabled.
+
     Args:
         settings: Application settings containing secret_key.
 
     Returns:
         Configured JWTCookieAuth instance.
     """
+    exclude = list(_AUTH_EXCLUDE_PATHS_BASE)
+    if settings.debug:
+        exclude.extend(_AUTH_EXCLUDE_PATHS_DOCS)
+
     return JWTCookieAuth[AdminUser](
         retrieve_user_handler=retrieve_user_handler,
         token_secret=settings.secret_key,
         key="zondarr_access_token",
-        exclude=AUTH_EXCLUDE_PATHS,
+        exclude=exclude,
         authentication_middleware_class=FixedJWTCookieMiddleware,
     )

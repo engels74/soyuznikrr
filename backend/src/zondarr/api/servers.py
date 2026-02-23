@@ -24,6 +24,7 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
+from zondarr.core.exceptions import ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
 from zondarr.repositories.identity import IdentityRepository
@@ -159,6 +160,55 @@ class ServerController(Controller):
         "media_server_service": Provide(provide_media_server_service),
     }
 
+    @staticmethod
+    def _resolve_api_key(
+        api_key: str | None,
+        use_env_credentials: bool,
+        server_type: str | None,
+        settings: Settings,
+    ) -> str:
+        """Resolve API key from request body or environment credentials.
+
+        Args:
+            api_key: Explicit API key from the request body.
+            use_env_credentials: Whether to look up the key from env vars.
+            server_type: Provider type (needed for env lookup).
+            settings: Application settings containing provider_credentials.
+
+        Returns:
+            The resolved API key string.
+
+        Raises:
+            ValidationError: If no API key can be resolved.
+        """
+        if use_env_credentials:
+            if server_type is None:
+                raise ValidationError(
+                    "server_type is required when using environment credentials",
+                    field_errors={
+                        "server_type": ["Required when use_env_credentials is true"]
+                    },
+                )
+            provider_creds = settings.provider_credentials.get(server_type, {})
+            env_key = provider_creds.get("api_key")
+            if not env_key:
+                raise ValidationError(
+                    f"No API key found in environment for provider '{server_type}'",
+                    field_errors={
+                        "api_key": [
+                            f"No environment API key configured for {server_type}"
+                        ]
+                    },
+                )
+            return env_key
+
+        if not api_key:
+            raise ValidationError(
+                "API key is required",
+                field_errors={"api_key": ["API key is required"]},
+            )
+        return api_key
+
     @get(
         "/env-credentials",
         cache=False,
@@ -195,7 +245,6 @@ class ServerController(Controller):
                     server_type=meta.server_type,
                     display_name=meta.display_name,
                     url=url,
-                    api_key=api_key,
                     masked_api_key=mask_api_key(api_key) if api_key else None,
                     has_url=bool(url),
                     has_api_key=bool(api_key),
@@ -275,6 +324,7 @@ class ServerController(Controller):
         self,
         data: MediaServerCreate,
         media_server_service: MediaServerService,
+        settings: Settings,
     ) -> MediaServerWithLibrariesResponse:
         """Create a new media server.
 
@@ -284,6 +334,7 @@ class ServerController(Controller):
         Args:
             data: MediaServerCreate with server configuration.
             media_server_service: MediaServerService from DI.
+            settings: Application settings from DI.
 
         Returns:
             Created media server details.
@@ -291,11 +342,16 @@ class ServerController(Controller):
         Raises:
             ValidationError: If connection validation fails.
         """
+        # Resolve API key: from env credentials or from the request body
+        api_key = self._resolve_api_key(
+            data.api_key, data.use_env_credentials, data.server_type, settings
+        )
+
         server = await media_server_service.add(
             name=data.name,
             server_type=data.server_type,
             url=data.url,
-            api_key=data.api_key,
+            api_key=api_key,
         )
 
         # Sync libraries after creation (best-effort — don't fail server creation)
@@ -414,19 +470,32 @@ class ServerController(Controller):
         self,
         data: ConnectionTestRequest,
         media_server_service: MediaServerService,
+        settings: Settings,
     ) -> ConnectionTestResponse:
         """Test media server connection and optionally auto-detect type.
 
         Args:
             data: ConnectionTestRequest with url, api_key, and optional server_type.
             media_server_service: MediaServerService from DI.
+            settings: Application settings from DI.
 
         Returns:
             ConnectionTestResponse with success status, detected type, and server info.
         """
+        # Resolve API key: from env credentials or from the request body
+        try:
+            api_key = self._resolve_api_key(
+                data.api_key, data.use_env_credentials, data.server_type, settings
+            )
+        except ValidationError as exc:
+            return ConnectionTestResponse(
+                success=False,
+                message=exc.message,
+            )
+
         success, detected_type, info = await media_server_service.detect_and_test(
             url=data.url,
-            api_key=data.api_key,
+            api_key=api_key,
             server_type=data.server_type,
         )
 

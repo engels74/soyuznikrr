@@ -24,9 +24,11 @@ from zondarr.core.csrf import (
 from zondarr.models.app_setting import AppSetting
 
 
-def _make_test_settings(csrf_origin: str | None = None) -> Settings:
+def _make_test_settings(
+    csrf_origin: str | None = None, *, debug: bool = False
+) -> Settings:
     """Create a Settings instance for testing."""
-    return Settings(secret_key="a" * 32, csrf_origin=csrf_origin)
+    return Settings(secret_key="a" * 32, csrf_origin=csrf_origin, debug=debug)
 
 
 def _make_csrf_app(
@@ -324,11 +326,30 @@ class TestCSRFOriginFromDB:
             await engine.dispose()
 
     @pytest.mark.asyncio
-    async def test_no_origin_configured_allows_all(self) -> None:
+    async def test_no_origin_configured_rejects_in_production(self) -> None:
         engine = await create_test_engine()
         try:
             sf = async_sessionmaker(engine, expire_on_commit=False)
-            app = _make_csrf_app(sf, _make_test_settings())
+            app = _make_csrf_app(sf, _make_test_settings(debug=False))
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/test-post",
+                    json={},
+                    headers={"Origin": "https://anything.com"},
+                )
+                assert response.status_code == 403
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["error_code"] == "CSRF_NOT_CONFIGURED"
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_no_origin_configured_allows_in_debug(self) -> None:
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(sf, _make_test_settings(debug=True))
 
             with TestClient(app) as client:
                 response = client.post(
@@ -337,6 +358,19 @@ class TestCSRFOriginFromDB:
                     headers={"Origin": "https://anything.com"},
                 )
                 assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_safe_methods_pass_without_origin_in_production(self) -> None:
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(sf, _make_test_settings(debug=False))
+
+            with TestClient(app) as client:
+                response = client.get("/test-get")
+                assert response.status_code == 200
         finally:
             await engine.dispose()
 
@@ -478,5 +512,87 @@ class TestCSRF403Response:
                 assert "detail" in data
                 assert "error_code" in data
                 assert "timestamp" in data
+        finally:
+            await engine.dispose()
+
+
+class TestCSRFDocPathExclusion:
+    """Tests for doc path exclusion based on debug mode."""
+
+    @pytest.mark.asyncio
+    async def test_doc_paths_excluded_in_debug_mode(self) -> None:
+        """Doc paths bypass CSRF in debug mode."""
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+
+            @post("/docs")
+            async def handle_docs() -> dict[str, str]:
+                return {"status": "ok"}
+
+            async def provide_session() -> AsyncGenerator[AsyncSession]:
+                async with sf() as session:
+                    yield session
+
+            app = Litestar(
+                route_handlers=[handle_docs],
+                middleware=[DefineMiddleware(CSRFMiddleware)],
+                state=State(
+                    {
+                        "settings": _make_test_settings(
+                            csrf_origin="https://app.example.com", debug=True
+                        ),
+                        "session_factory": sf,
+                    }
+                ),
+                dependencies={"session": Provide(provide_session)},
+            )
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/docs",
+                    json={},
+                    headers={"Origin": "https://evil.com"},
+                )
+                assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_doc_paths_not_excluded_in_production(self) -> None:
+        """Doc paths are NOT excluded from CSRF in production mode."""
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+
+            @post("/docs")
+            async def handle_docs() -> dict[str, str]:
+                return {"status": "ok"}
+
+            async def provide_session() -> AsyncGenerator[AsyncSession]:
+                async with sf() as session:
+                    yield session
+
+            app = Litestar(
+                route_handlers=[handle_docs],
+                middleware=[DefineMiddleware(CSRFMiddleware)],
+                state=State(
+                    {
+                        "settings": _make_test_settings(
+                            csrf_origin="https://app.example.com", debug=False
+                        ),
+                        "session_factory": sf,
+                    }
+                ),
+                dependencies={"session": Provide(provide_session)},
+            )
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/docs",
+                    json={},
+                    headers={"Origin": "https://evil.com"},
+                )
+                assert response.status_code == 403
         finally:
             await engine.dispose()

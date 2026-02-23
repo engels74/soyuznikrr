@@ -7,7 +7,7 @@ distributed app behind reverse proxies.
 The middleware checks:
 1. Settings.csrf_origin (env var — fast, no DB hit)
 2. Database app_settings table with a 60-second TTL cache
-3. If no origin configured, allows all requests with a one-time warning
+3. If no origin configured: allows in debug mode, rejects in production
 """
 
 import time
@@ -29,8 +29,8 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright
 # HTTP methods that don't change state
 SAFE_METHODS = frozenset({b"GET", b"HEAD", b"OPTIONS"})
 
-# Paths excluded from CSRF checks (public/auth endpoints)
-CSRF_EXCLUDE_PATHS = frozenset(
+# Paths excluded from CSRF checks (public/auth endpoints — always excluded)
+_CSRF_EXCLUDE_PATHS_BASE = frozenset(
     {
         "/api/auth/setup",
         "/api/auth/login",
@@ -39,6 +39,12 @@ CSRF_EXCLUDE_PATHS = frozenset(
         "/api/auth/methods",
         "/api/health",
         "/health",
+    }
+)
+
+# Doc paths — only excluded in debug mode
+_CSRF_EXCLUDE_PATHS_DOCS = frozenset(
+    {
         "/docs",
         "/swagger",
         "/scalar",
@@ -104,18 +110,39 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Extract settings early (reused for path exclusion and deny-by-default)
+        app = scope.get("app")  # pyright: ignore[reportUnknownMemberType]
+        settings: Settings | None = (
+            getattr(app.state, "settings", None) if app is not None else None  # pyright: ignore[reportUnnecessaryComparison]
+        )
+        is_debug = settings.debug if settings is not None else False
+
         path = str(scope.get("path", ""))  # pyright: ignore[reportUnknownMemberType]
-        if self._is_excluded_path(path):
+        if self._is_excluded_path(path, debug=is_debug):
             await self.app(scope, receive, send)
             return
 
         # Resolve trusted origin
         trusted_origin = await self._get_trusted_origin(scope)
         if trusted_origin is None:
+            if is_debug:
+                # Dev mode: warn and allow through (preserves existing dev behavior)
+                if not self._warned_no_origin:
+                    logger.warning(
+                        "No CSRF origin configured — all origins allowed (debug mode)"
+                    )
+                    self._warned_no_origin = True
+                await self.app(scope, receive, send)
+                return
+            # Production: deny by default
             if not self._warned_no_origin:
-                logger.warning("No CSRF origin configured — all origins allowed")
+                logger.error(
+                    "No CSRF origin configured — rejecting all mutating requests (set CSRF_ORIGIN or configure via UI)"
+                )
                 self._warned_no_origin = True
-            await self.app(scope, receive, send)
+            await self._send_403(
+                send, "CSRF origin not configured", error_code="CSRF_NOT_CONFIGURED"
+            )
             return
 
         # Extract request origin
@@ -138,9 +165,11 @@ class CSRFMiddleware:
 
         await self.app(scope, receive, send)
 
-    def _is_excluded_path(self, path: str) -> bool:
+    def _is_excluded_path(self, path: str, *, debug: bool = False) -> bool:
         """Check if the path is excluded from CSRF checks."""
-        if path in CSRF_EXCLUDE_PATHS:
+        if path in _CSRF_EXCLUDE_PATHS_BASE:
+            return True
+        if debug and path in _CSRF_EXCLUDE_PATHS_DOCS:
             return True
         return any(path.startswith(prefix) for prefix in CSRF_EXCLUDE_PREFIXES)
 
@@ -212,14 +241,16 @@ class CSRFMiddleware:
 
         return None
 
-    async def _send_403(self, send: Send, detail: str) -> None:
+    async def _send_403(
+        self, send: Send, detail: str, *, error_code: str = "CSRF_ORIGIN_MISMATCH"
+    ) -> None:
         """Send a 403 Forbidden JSON response."""
         from datetime import UTC, datetime
 
         body = msgspec.json.encode(
             {
                 "detail": detail,
-                "error_code": "CSRF_ORIGIN_MISMATCH",
+                "error_code": error_code,
                 "timestamp": datetime.now(UTC).isoformat(),
             }
         )
