@@ -7,6 +7,8 @@
  * @module $lib/stores/log-stream
  */
 
+import { env } from '$env/dynamic/public';
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -52,8 +54,8 @@ let _eventSource: EventSource | null = null;
 export function connect(): void {
 	if (_eventSource) return;
 
-	// Use same-origin by default (SvelteKit proxy or direct)
-	const url = '/api/v1/logs/stream';
+	const API_BASE_URL = env.PUBLIC_API_URL ?? '';
+	const url = `${API_BASE_URL}/api/v1/logs/stream`;
 
 	const es = new EventSource(url, { withCredentials: true });
 	_eventSource = es;
