@@ -10,6 +10,6 @@ import LogViewer from "$lib/components/logs/log-viewer.svelte";
 </script>
 
 <div class="space-y-6">
-	<p class="text-cr-text-muted">Real-time log output from the backend.</p>
+	<p class="text-cr-text-muted">Real-time structured log output from the backend, streamed via SSE.</p>
 	<LogViewer />
 </div>

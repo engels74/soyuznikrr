@@ -38,9 +38,11 @@ export const LEVEL_ORDER: Record<LogLevel, number> = {
 
 const MAX_ENTRIES = 2000;
 
-let _entries = $state<LogEntry[]>([]);
+let _entries = $state.raw<LogEntry[]>([]);
 let _connected = $state(false);
+let _loading = $state(false);
 let _error = $state<string | null>(null);
+let _lastSeq = 0;
 
 let _eventSource: EventSource | null = null;
 
@@ -54,6 +56,8 @@ let _eventSource: EventSource | null = null;
 export function connect(): void {
 	if (_eventSource) return;
 
+	_loading = true;
+
 	const API_BASE_URL = env.PUBLIC_API_URL ?? '';
 	const url = `${API_BASE_URL}/api/v1/logs/stream`;
 
@@ -62,17 +66,22 @@ export function connect(): void {
 
 	es.onopen = () => {
 		_connected = true;
+		_loading = false;
 		_error = null;
+		_lastSeq = 0;
 	};
 
 	es.addEventListener('log', (event: MessageEvent<string>) => {
 		try {
 			const entry = JSON.parse(event.data) as LogEntry;
+			// Deduplicate by seq on reconnect
+			if (entry.seq <= _lastSeq) return;
+			_lastSeq = entry.seq;
+
 			if (_entries.length >= MAX_ENTRIES) {
-				// Drop oldest entries to stay within the cap
 				_entries = [..._entries.slice(-MAX_ENTRIES + 100), entry];
 			} else {
-				_entries.push(entry);
+				_entries = [..._entries, entry];
 			}
 		} catch {
 			// Ignore malformed events
@@ -81,6 +90,7 @@ export function connect(): void {
 
 	es.onerror = () => {
 		_connected = false;
+		_loading = false;
 		_error = 'Connection lost. Reconnecting...';
 	};
 }
@@ -94,7 +104,9 @@ export function disconnect(): void {
 		_eventSource = null;
 	}
 	_connected = false;
+	_loading = false;
 	_error = null;
+	_lastSeq = 0;
 }
 
 /**
@@ -114,6 +126,10 @@ export function getEntries(): LogEntry[] {
 
 export function getConnected(): boolean {
 	return _connected;
+}
+
+export function getLoading(): boolean {
+	return _loading;
 }
 
 export function getError(): string | null {
