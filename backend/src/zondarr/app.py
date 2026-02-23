@@ -18,6 +18,9 @@ Usage:
     app = create_app(settings=test_settings)
 """
 
+import asyncio
+from contextlib import asynccontextmanager
+
 import structlog
 from litestar import Litestar
 from litestar.config.cors import CORSConfig
@@ -29,6 +32,7 @@ from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
+from structlog.types import Processor
 
 from zondarr.api.auth import AuthController
 from zondarr.api.errors import (
@@ -42,6 +46,7 @@ from zondarr.api.errors import (
 from zondarr.api.health import HealthController
 from zondarr.api.invitations import InvitationController
 from zondarr.api.join import JoinController
+from zondarr.api.logs import LogController
 from zondarr.api.oauth import OAuthController
 from zondarr.api.providers import ProviderController
 from zondarr.api.servers import ServerController
@@ -58,6 +63,7 @@ from zondarr.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from zondarr.core.log_buffer import capture_log_processor, log_buffer
 from zondarr.core.tasks import background_tasks_lifespan
 from zondarr.media.providers import register_all_providers
 from zondarr.media.registry import registry
@@ -117,10 +123,27 @@ def _create_openapi_config() -> OpenAPIConfig:
 def _create_structlog_config() -> StructlogConfig:
     """Create structlog configuration for structured logging.
 
+    Inserts ``capture_log_processor`` before the final renderer so that
+    enriched event dicts (with timestamp, level, contextvars) are captured
+    into the in-memory log buffer for SSE streaming.
+
     Returns:
         Configured StructlogConfig instance.
     """
-    return StructlogConfig()
+    from litestar.logging.config import StructLoggingConfig as _StructLoggingConfig
+
+    base = _StructLoggingConfig()
+    processors: list[Processor] = list(base.processors) if base.processors else []
+
+    # Insert capture processor before the final renderer
+    if len(processors) >= 1:
+        processors.insert(-1, capture_log_processor)
+    else:
+        processors.append(capture_log_processor)
+
+    return StructlogConfig(
+        structlog_logging_config=_StructLoggingConfig(processors=processors),
+    )
 
 
 def _create_cors_config(settings: Settings) -> CORSConfig | None:
@@ -138,6 +161,16 @@ def _create_cors_config(settings: Settings) -> CORSConfig | None:
         allow_credentials=True,
         max_age=3600,
     )
+
+
+@asynccontextmanager
+async def _log_stream_lifespan(_app: Litestar):
+    """Bind the log buffer to the running event loop on startup."""
+    log_buffer.bind_loop(asyncio.get_running_loop())
+    try:
+        yield
+    finally:
+        log_buffer.unbind_loop()
 
 
 def create_app(settings: Settings | None = None) -> Litestar:
@@ -184,6 +217,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
         HealthController,
         InvitationController,
         JoinController,
+        LogController,
         OAuthController,
         ProviderController,
         ServerController,
@@ -212,7 +246,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
 
     return Litestar(
         route_handlers=route_handlers,
-        lifespan=[db_lifespan, background_tasks_lifespan],
+        lifespan=[db_lifespan, _log_stream_lifespan, background_tasks_lifespan],
         state=State({"settings": settings}),
         dependencies={
             "session": Provide(provide_db_session),
