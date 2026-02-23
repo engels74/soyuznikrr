@@ -23,17 +23,8 @@ _LEVEL_ORDER: dict[str, int] = {
 
 _encoder = msgspec.json.Encoder()
 
-
-def _entry_to_dict(entry: LogEntry) -> dict[str, object]:
-    """Convert a LogEntry to a JSON-serializable dict."""
-    return {
-        "seq": entry.seq,
-        "timestamp": entry.timestamp,
-        "level": entry.level,
-        "logger_name": entry.logger_name,
-        "message": entry.message,
-        "fields": entry.fields,
-    }
+_BACKFILL_LIMIT = 500
+_BACKFILL_BATCH = 50
 
 
 class LogController(Controller):
@@ -67,35 +58,47 @@ class LogController(Controller):
         async def _generate() -> AsyncGenerator[ServerSentEventMessage | str]:
             last_seq = 0
 
-            # Send initial backfill
-            entries, last_seq = log_buffer.get_entries_since(0)
-            for entry in _filter_entries(entries, min_level, source):
-                yield ServerSentEventMessage(
-                    data=_encoder.encode(_entry_to_dict(entry)).decode(),
-                    event="log",
-                )
+            try:
+                # Send initial backfill (limited to most recent entries)
+                entries, last_seq = log_buffer.get_entries_since(0)
+                backfill = _filter_entries(entries, min_level, source)
+                # Only send the tail if there are too many
+                if len(backfill) > _BACKFILL_LIMIT:
+                    backfill = backfill[-_BACKFILL_LIMIT:]
 
-            # Stream new entries
-            while True:
-                try:
-                    _ = await asyncio.wait_for(
-                        log_buffer.wait_for_new(after_seq=last_seq, timeout=30.0),
-                        timeout=35.0,
+                for i, entry in enumerate(backfill):
+                    yield ServerSentEventMessage(
+                        data=_encoder.encode(entry).decode(),
+                        event="log",
                     )
-                except TimeoutError:
-                    pass
+                    # Yield to event loop periodically during backfill
+                    if (i + 1) % _BACKFILL_BATCH == 0:
+                        await asyncio.sleep(0)
 
-                entries, current_seq = log_buffer.get_entries_since(last_seq)
-                if entries:
-                    last_seq = current_seq
-                    for entry in _filter_entries(entries, min_level, source):
-                        yield ServerSentEventMessage(
-                            data=_encoder.encode(_entry_to_dict(entry)).decode(),
-                            event="log",
+                # Stream new entries
+                while True:
+                    try:
+                        _ = await asyncio.wait_for(
+                            log_buffer.wait_for_new(after_seq=last_seq, timeout=30.0),
+                            timeout=35.0,
                         )
-                else:
-                    # Heartbeat comment to keep connection alive
-                    yield ServerSentEventMessage(comment="heartbeat")
+                    except TimeoutError:
+                        pass
+
+                    entries, current_seq = log_buffer.get_entries_since(last_seq)
+                    if entries:
+                        last_seq = current_seq
+                        for entry in _filter_entries(entries, min_level, source):
+                            yield ServerSentEventMessage(
+                                data=_encoder.encode(entry).decode(),
+                                event="log",
+                            )
+                    else:
+                        # Heartbeat comment to keep connection alive
+                        yield ServerSentEventMessage(comment="heartbeat")
+
+            except (asyncio.CancelledError, GeneratorExit):
+                return
 
         return ServerSentEvent(
             _generate(),

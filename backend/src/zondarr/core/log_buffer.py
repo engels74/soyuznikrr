@@ -47,6 +47,14 @@ _KNOWN_KEYS = frozenset(
     }
 )
 
+# Litestar HTTP access log events — framework noise that should never
+# enter the SSE stream (also prevents feedback loops if middleware
+# exclude is misconfigured).
+_EXCLUDED_EVENTS = frozenset({"HTTP Request", "HTTP Response"})
+
+_MAX_MESSAGE_LENGTH = 2048
+_MAX_FIELD_LENGTH = 1024
+
 _encoder = msgspec.json.Encoder()
 
 
@@ -176,6 +184,13 @@ class LogBuffer:
 log_buffer = LogBuffer()
 
 
+def _truncate(value: str, max_len: int) -> str:
+    """Truncate a string to max_len, appending '...' if trimmed."""
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 3] + "..."
+
+
 def capture_log_processor(
     _logger: WrappedLogger,  # pyright: ignore[reportExplicitAny,reportAny]
     _method_name: str,
@@ -187,19 +202,28 @@ def capture_log_processor(
     LogEntry from the enriched event dict and appends it to the module-level
     log_buffer singleton.
 
+    Skips Litestar HTTP access log events to prevent feedback loops and
+    truncates oversized messages/fields for safety.
+
     Returns the event dict unchanged (pass-through).
     """
+    event = str(event_dict.get("event", ""))  # pyright: ignore[reportAny]
+
+    # Skip Litestar HTTP middleware events (prevents SSE feedback loop)
+    if event in _EXCLUDED_EVENTS:
+        return event_dict
+
     # Extract known fields
     timestamp = str(event_dict.get("timestamp", ""))  # pyright: ignore[reportAny]
     level = str(event_dict.get("level", "INFO")).upper()  # pyright: ignore[reportAny]
     logger_name = str(event_dict.get("_logger", ""))  # pyright: ignore[reportAny]
-    message = str(event_dict.get("event", ""))  # pyright: ignore[reportAny]
+    message = _truncate(event, _MAX_MESSAGE_LENGTH)
 
     # Collect extra fields (stringify values for JSON safety)
     fields: dict[str, str] = {}
     for key, value in event_dict.items():  # pyright: ignore[reportAny]
         if key not in _KNOWN_KEYS:
-            fields[key] = str(value)  # pyright: ignore[reportAny]
+            fields[key] = _truncate(str(value), _MAX_FIELD_LENGTH)  # pyright: ignore[reportAny]
 
     log_buffer.append_entry(
         timestamp=timestamp,

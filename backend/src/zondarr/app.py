@@ -127,10 +127,15 @@ def _create_structlog_config() -> StructlogConfig:
     enriched event dicts (with timestamp, level, contextvars) are captured
     into the in-memory log buffer for SSE streaming.
 
+    Configures ``middleware_logging_config`` to:
+    - Exclude the SSE log stream endpoint (prevents feedback loop)
+    - Slim down logged fields (no body/headers/cookies)
+
     Returns:
         Configured StructlogConfig instance.
     """
     from litestar.logging.config import StructLoggingConfig as _StructLoggingConfig
+    from litestar.middleware.logging import LoggingMiddlewareConfig
 
     base = _StructLoggingConfig()
     processors: list[Processor] = list(base.processors) if base.processors else []
@@ -143,6 +148,17 @@ def _create_structlog_config() -> StructlogConfig:
 
     return StructlogConfig(
         structlog_logging_config=_StructLoggingConfig(processors=processors),
+        middleware_logging_config=LoggingMiddlewareConfig(
+            exclude=["/api/v1/logs/stream"],
+            request_log_fields=(
+                "method",
+                "path",
+                "content_type",
+                "query",
+                "path_params",
+            ),
+            response_log_fields=("status_code",),
+        ),
     )
 
 
