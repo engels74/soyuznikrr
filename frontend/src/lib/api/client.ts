@@ -24,10 +24,7 @@ const API_BASE_URL = env.PUBLIC_API_URL ?? '';
  */
 export const api = createClient<paths>({
 	baseUrl: API_BASE_URL,
-	credentials: 'include',
-	headers: {
-		'Content-Type': 'application/json'
-	}
+	credentials: 'include'
 });
 
 /**
@@ -38,9 +35,6 @@ export function createScopedClient(customFetch: typeof globalThis.fetch): ApiCli
 	return createClient<paths>({
 		baseUrl: API_BASE_URL,
 		credentials: 'include',
-		headers: {
-			'Content-Type': 'application/json'
-		},
 		fetch: customFetch
 	});
 }
