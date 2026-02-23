@@ -47,11 +47,6 @@ _KNOWN_KEYS = frozenset(
     }
 )
 
-# Litestar HTTP access log events — framework noise that should never
-# enter the SSE stream (also prevents feedback loops if middleware
-# exclude is misconfigured).
-_EXCLUDED_EVENTS = frozenset({"HTTP Request", "HTTP Response"})
-
 _MAX_MESSAGE_LENGTH = 2048
 _MAX_FIELD_LENGTH = 1024
 
@@ -202,16 +197,14 @@ def capture_log_processor(
     LogEntry from the enriched event dict and appends it to the module-level
     log_buffer singleton.
 
-    Skips Litestar HTTP access log events to prevent feedback loops and
-    truncates oversized messages/fields for safety.
+    HTTP access logs ("HTTP Request"/"HTTP Response") are intentionally
+    captured here. The SSE feedback loop is prevented at the middleware level:
+    LoggingMiddlewareConfig excludes /api/v1/logs/stream, and response bodies
+    are never logged (response_log_fields=("status_code",) in app.py).
 
     Returns the event dict unchanged (pass-through).
     """
     event = str(event_dict.get("event", ""))  # pyright: ignore[reportAny]
-
-    # Skip Litestar HTTP middleware events (prevents SSE feedback loop)
-    if event in _EXCLUDED_EVENTS:
-        return event_dict
 
     # Extract known fields
     timestamp = str(event_dict.get("timestamp", ""))  # pyright: ignore[reportAny]
