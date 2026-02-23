@@ -47,13 +47,17 @@ let _lastSeq = 0;
 let _eventSource: EventSource | null = null;
 let _pending: LogEntry[] = [];
 let _rafId: number | null = null;
+let _flushTimer: ReturnType<typeof setInterval> | null = null;
 
 // =============================================================================
 // Internal helpers
 // =============================================================================
 
 function flushPending(): void {
-	_rafId = null;
+	if (_rafId !== null) {
+		cancelAnimationFrame(_rafId);
+		_rafId = null;
+	}
 	if (_pending.length === 0) return;
 
 	const batch = _pending;
@@ -94,14 +98,31 @@ export function connect(): void {
 		// _lastSeq is reset in disconnect() for genuinely fresh connections.
 	};
 
+	// Fallback flush for when RAF is paused (backgrounded tab)
+	_flushTimer = setInterval(flushPending, 2000);
+
 	es.addEventListener('log', (event: MessageEvent<string>) => {
 		try {
 			const entry = JSON.parse(event.data) as LogEntry;
+
+			// Detect seq regression: if the backend restarts, its seq counter
+			// resets to 0 while _lastSeq stays high. A large backward jump
+			// (>50%) indicates a restart rather than normal backfill overlap.
+			if (_lastSeq > 0 && entry.seq < _lastSeq && entry.seq < _lastSeq / 2) {
+				_lastSeq = 0;
+				_entries = [];
+				_pending = [];
+			}
+
 			// Deduplicate by seq on reconnect
 			if (entry.seq <= _lastSeq) return;
 			_lastSeq = entry.seq;
 
 			_pending.push(entry);
+			// Cap pending buffer to prevent unbounded growth when tab is backgrounded
+			if (_pending.length > MAX_ENTRIES) {
+				_pending = _pending.slice(-MAX_ENTRIES);
+			}
 			if (_rafId === null) {
 				_rafId = requestAnimationFrame(flushPending);
 			}
@@ -121,6 +142,10 @@ export function connect(): void {
  * Disconnect from the SSE log stream.
  */
 export function disconnect(): void {
+	if (_flushTimer !== null) {
+		clearInterval(_flushTimer);
+		_flushTimer = null;
+	}
 	if (_rafId !== null) {
 		cancelAnimationFrame(_rafId);
 		_rafId = null;
