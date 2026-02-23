@@ -1,7 +1,7 @@
 """Settings controller for application-level configuration.
 
 Provides endpoints for managing CSRF origin and other application settings.
-All endpoints require authentication (not in AUTH_EXCLUDE_PATHS).
+All endpoints require authentication.
 """
 
 from collections.abc import Mapping, Sequence

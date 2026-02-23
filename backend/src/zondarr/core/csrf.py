@@ -52,9 +52,6 @@ _CSRF_EXCLUDE_PATHS_DOCS = frozenset(
     }
 )
 
-# Backward-compatible union (used by tests that import this name)
-CSRF_EXCLUDE_PATHS = _CSRF_EXCLUDE_PATHS_BASE | _CSRF_EXCLUDE_PATHS_DOCS
-
 # Prefixes excluded from CSRF checks
 CSRF_EXCLUDE_PREFIXES = ("/api/v1/join/",)
 
@@ -115,7 +112,9 @@ class CSRFMiddleware:
 
         # Extract settings early (reused for path exclusion and deny-by-default)
         app = scope.get("app")  # pyright: ignore[reportUnknownMemberType]
-        settings: Settings | None = getattr(app.state, "settings", None)
+        settings: Settings | None = (
+            getattr(app.state, "settings", None) if app is not None else None  # pyright: ignore[reportUnnecessaryComparison]
+        )
         is_debug = settings.debug if settings is not None else False
 
         path = str(scope.get("path", ""))  # pyright: ignore[reportUnknownMemberType]

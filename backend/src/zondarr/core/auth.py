@@ -48,9 +48,6 @@ _AUTH_EXCLUDE_PATHS_DOCS = [
     "/schema",
 ]
 
-# Backward-compatible union
-AUTH_EXCLUDE_PATHS = _AUTH_EXCLUDE_PATHS_BASE + _AUTH_EXCLUDE_PATHS_DOCS
-
 
 class AdminUser(msgspec.Struct):
     """Lightweight admin user data stored in request.user after JWT validation.
