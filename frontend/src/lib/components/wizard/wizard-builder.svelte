@@ -26,6 +26,7 @@ import {
 	updateStep,
 	updateWizard,
 } from "$lib/api/client";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import { Button } from "$lib/components/ui/button";
 import * as Card from "$lib/components/ui/card";
 import { Input } from "$lib/components/ui/input";
@@ -58,6 +59,11 @@ let errors = $state<Record<string, string[]>>({});
 
 // Step editing state
 let editingStepId = $state<string | null>(null);
+
+// Delete step confirmation state
+let showDeleteStepDialog = $state(false);
+let deleteTargetStepId = $state<string | null>(null);
+let deletingStep = $state(false);
 
 // Drag state for reordering
 let draggedStepId = $state<string | null>(null);
@@ -175,20 +181,29 @@ async function handleAddStep() {
 }
 
 /**
- * Delete a step from the wizard.
+ * Request step deletion (shows confirmation dialog).
  */
-async function handleDeleteStep(stepId: string) {
-	if (!wizard?.id) return;
+function handleDeleteStepRequest(stepId: string) {
+	deleteTargetStepId = stepId;
+	showDeleteStepDialog = true;
+}
 
+/**
+ * Delete a step from the wizard after confirmation.
+ */
+async function handleDeleteStepConfirm() {
+	if (!wizard?.id || !deleteTargetStepId) return;
+
+	deletingStep = true;
 	try {
-		const result = await deleteStep(wizard.id, stepId);
+		const result = await deleteStep(wizard.id, deleteTargetStepId);
 
 		if (result.error) {
 			throw new Error(result.error.detail ?? "Failed to delete step");
 		}
 
-		steps = steps.filter((s) => s.id !== stepId);
-		if (editingStepId === stepId) {
+		steps = steps.filter((s) => s.id !== deleteTargetStepId);
+		if (editingStepId === deleteTargetStepId) {
 			editingStepId = null;
 		}
 		toast.success("Step deleted successfully");
@@ -196,6 +211,10 @@ async function handleDeleteStep(stepId: string) {
 		toast.error(
 			error instanceof Error ? error.message : "Failed to delete step",
 		);
+	} finally {
+		deletingStep = false;
+		showDeleteStepDialog = false;
+		deleteTargetStepId = null;
 	}
 }
 
@@ -478,7 +497,7 @@ function handleDragEnd() {
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => handleDeleteStep(step.id)}
+											onclick={() => handleDeleteStepRequest(step.id)}
 											class="text-cr-text-muted hover:text-destructive"
 										>
 											<Trash2 class="size-4" />
@@ -513,6 +532,17 @@ function handleDragEnd() {
 		{/if}
 	</div>
 </div>
+
+<ConfirmDialog
+	open={showDeleteStepDialog}
+	title="Delete Step"
+	description="Are you sure you want to delete this step? The step and all its interactions will be permanently removed."
+	confirmLabel={deletingStep ? "Deleting..." : "Delete"}
+	variant="destructive"
+	loading={deletingStep}
+	onConfirm={handleDeleteStepConfirm}
+	onCancel={() => { showDeleteStepDialog = false; deleteTargetStepId = null; }}
+/>
 
 <style>
 	.wizard-builder {
