@@ -78,6 +78,7 @@ const {
 		padding: 1rem 0 0;
 		animation: wizard-reveal 0.6s ease-out 0.4s both;
 		z-index: 10;
+		pointer-events: none;
 	}
 
 	.nav-content {
@@ -116,11 +117,13 @@ const {
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s ease;
+		pointer-events: auto;
 	}
 
 	button:disabled {
 		cursor: not-allowed;
 		opacity: 0.5;
+		pointer-events: none;
 	}
 
 	/* Back button styling */
