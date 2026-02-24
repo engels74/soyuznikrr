@@ -21,7 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
 from zondarr.core.auth import AdminUser
-from zondarr.core.exceptions import AuthenticationError
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.services.auth import AuthService
 
@@ -130,11 +129,7 @@ class AuthController(Controller):
     ) -> Response[AuthTokenResponse]:
         """Create the first admin account (only when no admins exist)."""
         service = self._create_auth_service(session)
-
-        if not await service.setup_required():
-            raise AuthenticationError("Setup already completed", "SETUP_NOT_REQUIRED")
-
-        admin = await service.create_admin(
+        admin = await service.setup_admin(
             data.username, data.password, email=data.email
         )
 
