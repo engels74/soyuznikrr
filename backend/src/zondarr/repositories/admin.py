@@ -5,6 +5,7 @@ from typing import override
 from uuid import uuid4
 
 from sqlalchemy import delete, exists, func, insert, literal, select
+from sqlalchemy.exc import IntegrityError
 
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models.admin import AdminAccount, RefreshToken
@@ -90,10 +91,16 @@ class AdminAccountRepository(Repository[AdminAccount]):
         email: str | None,
         auth_method: str,
     ) -> AdminAccount | None:
-        """Atomically create the first admin account.
+        """Create the first admin account if none exists.
 
-        Uses INSERT ... SELECT ... WHERE NOT EXISTS to guarantee only one
-        admin row is ever inserted, regardless of concurrent requests.
+        Uses INSERT ... SELECT ... WHERE NOT EXISTS as the primary guard.
+        Falls back to catching IntegrityError from the UNIQUE constraint
+        on ``username`` to handle PostgreSQL races under READ COMMITTED
+        isolation (two transactions can both see "no rows" and attempt
+        to insert). A savepoint keeps the outer transaction clean.
+
+        The caller (AuthService.setup_admin) also holds an asyncio.Lock
+        to serialize attempts within a single process.
 
         Args:
             username: Admin username.
@@ -131,6 +138,11 @@ class AdminAccountRepository(Repository[AdminAccount]):
                 return None
 
             return await self.get_by_id(admin_id)
+        except IntegrityError:
+            # Concurrent insert won the race — UNIQUE(username) prevented
+            # the duplicate. The caller (setup_admin) will raise
+            # AuthenticationError, and the DI layer rolls back the session.
+            return None
         except Exception as e:
             raise RepositoryError(
                 "Failed to create first admin",

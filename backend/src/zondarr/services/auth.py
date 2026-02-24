@@ -108,9 +108,14 @@ class AuthService:
     ) -> AdminAccount:
         """Atomically create the first admin account.
 
-        Uses an asyncio lock to serialize concurrent attempts (avoids
-        wasted Argon2 work) and an atomic INSERT ... WHERE NOT EXISTS
-        at the DB level for correctness.
+        Defence layers:
+        1. asyncio.Lock serializes attempts within a single worker process
+           (avoids wasted Argon2 hashing).
+        2. INSERT ... WHERE NOT EXISTS prevents the insert when an admin
+           already exists (single-statement check-and-insert).
+        3. UNIQUE(username) + IntegrityError handling in the repository
+           catches PostgreSQL races under READ COMMITTED isolation across
+           multiple workers.
 
         Args:
             username: Admin username.
