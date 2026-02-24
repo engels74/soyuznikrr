@@ -1207,12 +1207,73 @@ class TestUserTypeRoutingCorrectness:
                 assert result.email == email
 
 
+class MockHTTPResponse:
+    """Mock HTTP response."""
+
+    _json_data: dict[str, object]
+
+    def __init__(self, *, json_data: dict[str, object] | None = None) -> None:
+        self._json_data = json_data or {}
+
+    def raise_for_status(self) -> None:
+        """No-op for success responses."""
+
+    def json(self) -> dict[str, object]:
+        """Return mock JSON data."""
+        return self._json_data
+
+
+class MockSessionForSharedServers:
+    """Mock HTTP session for shared_servers API calls."""
+
+    _get_json: dict[str, object]
+    _get_error: Exception | None
+    _delete_error: Exception | None
+    get_called: bool
+    delete_called: bool
+    delete_url: str | None
+
+    def __init__(
+        self,
+        *,
+        get_json: dict[str, object] | None = None,
+        get_error: Exception | None = None,
+        delete_error: Exception | None = None,
+    ) -> None:
+        self._get_json = get_json or {"SharedServer": []}
+        self._get_error = get_error
+        self._delete_error = delete_error
+        self.get_called = False
+        self.delete_called = False
+        self.delete_url = None
+
+    def get(self, url: str, **kwargs: object) -> MockHTTPResponse:
+        """Mock GET request."""
+        self.get_called = True
+        if self._get_error is not None:
+            raise self._get_error
+        return MockHTTPResponse(json_data=self._get_json)
+
+    def delete(self, url: str, **kwargs: object) -> MockHTTPResponse:
+        """Mock DELETE request."""
+        self.delete_called = True
+        self.delete_url = url
+        if self._delete_error is not None:
+            raise self._delete_error
+        return MockHTTPResponse(json_data={})
+
+    def post(self, url: str, **kwargs: object) -> MockHTTPResponse:
+        """Mock POST request (unused, for interface completeness)."""
+        return MockHTTPResponse(json_data={})
+
+
 class MockMyPlexAccountWithUserManagement:
     """Mock MyPlexAccount that supports user listing and deletion."""
 
     _users: list[MockMyPlexUser]
     _remove_friend_error: Exception | None
     _remove_home_user_error: Exception | None
+    _session: MockSessionForSharedServers
     removed_users: list[str]
 
     def __init__(
@@ -1221,10 +1282,12 @@ class MockMyPlexAccountWithUserManagement:
         users: list[MockMyPlexUser] | None = None,
         remove_friend_error: Exception | None = None,
         remove_home_user_error: Exception | None = None,
+        session: MockSessionForSharedServers | None = None,
     ) -> None:
         self._users = users or []
         self._remove_friend_error = remove_friend_error
         self._remove_home_user_error = remove_home_user_error
+        self._session = session or MockSessionForSharedServers()
         self.removed_users = []
 
     def users(self) -> list[MockMyPlexUser]:
@@ -1242,6 +1305,10 @@ class MockMyPlexAccountWithUserManagement:
         if self._remove_home_user_error is not None:
             raise self._remove_home_user_error
         self.removed_users.append(str(user.id))
+
+    def _headers(self) -> dict[str, str]:
+        """Return mock headers."""
+        return {"X-Plex-Token": "mock-token"}
 
 
 class MockMyPlexUserWithHome(MockMyPlexUser):
@@ -1267,6 +1334,7 @@ class MockPlexServerWithUserManagement:
     url: str
     token: str
     friendlyName: str
+    machineIdentifier: str
     library: MockLibrary
     _account: MockMyPlexAccountWithUserManagement
 
@@ -1276,11 +1344,13 @@ class MockPlexServerWithUserManagement:
         token: str,
         *,
         friendly_name: str = "Test Server",
+        machine_identifier: str = "test-machine-id",
         account: MockMyPlexAccountWithUserManagement | None = None,
     ) -> None:
         self.url = url
         self.token = token
         self.friendlyName = friendly_name
+        self.machineIdentifier = machine_identifier
         self.library = MockLibrary()
         self._account = account or MockMyPlexAccountWithUserManagement()
 
@@ -1386,11 +1456,14 @@ class TestDeleteUserReturnValueCorrectness:
         api_key: str,
         user_id: int,
     ) -> None:
-        """delete_user returns False when user is not found."""
+        """delete_user returns False when user is not in friends list or shared_servers."""
         from zondarr.media.providers.plex.client import PlexClient
 
-        # Empty user list - user won't be found
-        mock_account = MockMyPlexAccountWithUserManagement(users=[])
+        # Empty user list AND empty shared_servers response
+        mock_session = MockSessionForSharedServers(get_json={"SharedServer": []})
+        mock_account = MockMyPlexAccountWithUserManagement(
+            users=[], session=mock_session
+        )
         mock_server = MockPlexServerWithUserManagement(
             url, api_key, account=mock_account
         )
@@ -1403,6 +1476,96 @@ class TestDeleteUserReturnValueCorrectness:
 
                 assert result is False
                 assert len(mock_account.removed_users) == 0
+                assert mock_session.get_called is True
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_returns_true_when_shared_server_user_deleted(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+    ) -> None:
+        """delete_user returns True when user is only in shared_servers (not friends)."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        # User NOT in friends list, but IS in shared_servers
+        mock_session = MockSessionForSharedServers(
+            get_json={
+                "SharedServer": [
+                    {"id": 42, "userID": user_id},
+                ]
+            }
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(
+            users=[], session=mock_session
+        )
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.delete_user(str(user_id))
+
+                assert result is True
+                assert len(mock_account.removed_users) == 0  # Not in friends
+                assert mock_session.delete_called is True
+                assert mock_session.delete_url is not None
+                assert "42" in mock_session.delete_url
+
+    @settings(max_examples=100)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_removes_both_friend_and_shared_access(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """delete_user removes both friend relationship and shared server entry."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        # User IS in friends list AND has shared_servers entry
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_session = MockSessionForSharedServers(
+            get_json={
+                "SharedServer": [
+                    {"id": 99, "userID": user_id},
+                ]
+            }
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(
+            users=[mock_user], session=mock_session
+        )
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                result = await client.delete_user(str(user_id))
+
+                assert result is True
+                assert str(user_id) in mock_account.removed_users
+                assert mock_session.delete_called is True
 
     @settings(max_examples=25)
     @given(
@@ -2637,8 +2800,8 @@ class MockResponse:
             raise Exception(f"HTTP {self._status_code}")
 
 
-class MockSession:
-    """Mock requests session used by the admin account."""
+class MockSessionForDirectShare:
+    """Mock requests session used by the admin account for direct share."""
 
     _response: MockResponse | None
     _post_error: Exception | None
@@ -2703,7 +2866,7 @@ class MockMyPlexInvite:
 class MockMyPlexAccountForDirectShare:
     """Mock MyPlexAccount that supports direct share and invite cancellation."""
 
-    _session: MockSession
+    _session: MockSessionForDirectShare
     _pending_invites: list[MockMyPlexInvite]
     _cancel_invite_error: Exception | None
     cancelled_invites: list[MockMyPlexInvite]
@@ -2712,11 +2875,11 @@ class MockMyPlexAccountForDirectShare:
     def __init__(
         self,
         *,
-        session: MockSession | None = None,
+        session: MockSessionForDirectShare | None = None,
         pending_invites: list[MockMyPlexInvite] | None = None,
         cancel_invite_error: Exception | None = None,
     ) -> None:
-        self._session = session or MockSession()
+        self._session = session or MockSessionForDirectShare()
         self._pending_invites = pending_invites or []
         self._cancel_invite_error = cancel_invite_error
         self.cancelled_invites = []
@@ -2811,7 +2974,9 @@ class TestDirectShareFailurePropagatesError:
         from zondarr.media.providers.plex.client import PlexClient
 
         # Session that raises a connection error on POST
-        mock_session = MockSession(post_error=ConnectionError("Plex API unreachable"))
+        mock_session = MockSessionForDirectShare(
+            post_error=ConnectionError("Plex API unreachable")
+        )
         mock_account = MockMyPlexAccountForDirectShare(session=mock_session)
         mock_server = MockPlexServerForDirectShare(url, api_key, account=mock_account)
 
@@ -2847,7 +3012,7 @@ class TestDirectShareFailurePropagatesError:
         from zondarr.media.providers.plex.client import PlexClient
 
         # Session that returns a 500 response
-        mock_session = MockSession(response=MockResponse(status_code=500))
+        mock_session = MockSessionForDirectShare(response=MockResponse(status_code=500))
         mock_account = MockMyPlexAccountForDirectShare(session=mock_session)
         mock_server = MockPlexServerForDirectShare(url, api_key, account=mock_account)
 

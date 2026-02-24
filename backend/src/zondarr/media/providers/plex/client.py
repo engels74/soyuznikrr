@@ -519,6 +519,7 @@ class PlexClient:
                     external_user_id=plex_user_id,
                     username=username,  # pyright: ignore[reportUnknownArgumentType]
                     email=email,
+                    user_type="shared",
                 )
 
             result = await asyncio.to_thread(_share_direct)
@@ -691,6 +692,7 @@ class PlexClient:
                 external_user_id=user_id,
                 username=username,
                 email=email,
+                user_type="friend",
             )
 
         except MediaClientError:
@@ -809,6 +811,7 @@ class PlexClient:
                 external_user_id=user_id,
                 username=username,
                 email=None,
+                user_type="home",
             )
 
         except MediaClientError:
@@ -896,12 +899,67 @@ class PlexClient:
         # No email provided - create as Home User
         return await self._create_home_user(username)
 
+    def _remove_shared_server_access_sync(self, external_user_id: str) -> bool:
+        """Remove shared server access for a user (synchronous, call from thread).
+
+        Queries the shared_servers API for the server's machine identifier,
+        finds a shared server entry matching the user ID, and DELETEs it.
+
+        Args:
+            external_user_id: The user's numeric Plex user ID.
+
+        Returns:
+            True if a shared server entry was found and removed, False if not found.
+        """
+        assert self._account is not None  # noqa: S101
+        assert self._server is not None  # noqa: S101
+
+        machine_id: str = self._server.machineIdentifier  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+
+        # GET shared servers for this machine
+        sharing_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers"
+        resp = self._account._session.get(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+            sharing_url,
+            headers=headers,
+            timeout=30,
+        )
+        _ = resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+        # Parse JSON to find matching userID
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
+        shared_servers: list[dict[str, object]] = []  # pyright: ignore[reportExplicitAny]
+
+        # Response may be {"SharedServer": [...]} or similar structure
+        if isinstance(data, dict):
+            for key in ("SharedServer", "shared_servers"):
+                val = data.get(key)
+                if isinstance(val, list):
+                    shared_servers = val  # pyright: ignore[reportUnknownVariableType]
+                    break
+
+        for entry in shared_servers:  # pyright: ignore[reportUnknownVariableType]
+            entry_user_id = str(entry.get("userID", ""))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            if entry_user_id == external_user_id:
+                shared_server_id = entry.get("id", "")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                delete_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers/{shared_server_id}"
+                del_resp = self._account._session.delete(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                    delete_url,
+                    headers=headers,
+                    timeout=30,
+                )
+                _ = del_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                return True
+
+        return False
+
     async def delete_user(self, external_user_id: str, /) -> bool:
         """Delete a user from the Plex server.
 
         Removes the user account identified by the external user ID.
-        Attempts to find the user among Friends first, then Home Users,
-        and uses the appropriate removal method.
+        Attempts to find the user among Friends/Home Users first, then
+        checks shared_servers for direct-share users. Returns True if
+        either path succeeds.
 
         Args:
             external_user_id: The user's unique identifier on the server
@@ -931,7 +989,8 @@ class PlexClient:
                 # plexapi lacks type stubs, users() returns list of MyPlexUser
                 users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
 
-                # Find the user by ID
+                # Path 1: Find the user among Friends/Home Users
+                friend_deleted = False
                 target_user: object | None = None
                 for user in users:  # pyright: ignore[reportUnknownVariableType]
                     user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
@@ -939,21 +998,36 @@ class PlexClient:
                         target_user = user  # pyright: ignore[reportUnknownVariableType]
                         break
 
-                if target_user is None:
-                    return False
+                if target_user is not None:
+                    # Determine if this is a Home User or Friend
+                    is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
 
-                # Determine if this is a Home User or Friend
-                # Home Users have home=True attribute
-                is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
+                    if is_home_user:
+                        self._account.removeHomeUser(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                    else:
+                        self._account.removeFriend(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                    friend_deleted = True
 
-                if is_home_user:
-                    # Remove Home User via removeHomeUser
-                    self._account.removeHomeUser(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
-                else:
-                    # Remove Friend via removeFriend
-                    self._account.removeFriend(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                # Path 2: Remove shared server access (direct-share users)
+                shared_deleted = False
+                if self._server is not None:
+                    try:
+                        shared_deleted = self._remove_shared_server_access_sync(
+                            external_user_id
+                        )
+                    except Exception as shared_exc:
+                        # If Path 1 succeeded, log warning but don't fail
+                        if friend_deleted:
+                            log.warning(  # pyright: ignore[reportAny]
+                                "plex_shared_server_cleanup_failed",
+                                url=self.url,
+                                user_id=external_user_id,
+                                error=str(shared_exc),
+                            )
+                        else:
+                            raise
 
-                return True
+                return friend_deleted or shared_deleted
 
             deleted = await asyncio.to_thread(_delete)
 

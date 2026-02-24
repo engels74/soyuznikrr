@@ -159,6 +159,19 @@ function handleDelete() {
 			>
 				{user.media_server.server_type}
 			</span>
+			{#if user.external_user_type === "friend"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+					Friend
+				</span>
+			{:else if user.external_user_type === "shared"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">
+					Shared
+				</span>
+			{:else if user.external_user_type === "home"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 border border-teal-500/30">
+					Home
+				</span>
+			{/if}
 			<span class="text-sm text-cr-text-muted" data-user-server>
 				{user.media_server.name}
 			</span>

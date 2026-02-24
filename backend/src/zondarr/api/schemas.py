@@ -847,6 +847,7 @@ class UserResponse(msgspec.Struct, omit_defaults=True):
     username: str
     enabled: bool
     created_at: datetime
+    external_user_type: str | None = None
     expires_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -882,6 +883,7 @@ class UserDetailResponse(msgspec.Struct, omit_defaults=True):
     created_at: datetime
     identity: IdentityResponse
     media_server: MediaServerResponse
+    external_user_type: str | None = None
     expires_at: datetime | None = None
     updated_at: datetime | None = None
     invitation_id: UUID | None = None
