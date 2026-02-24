@@ -6,7 +6,7 @@ Provides:
 - create_jwt_auth: Factory for configured JWTCookieAuth instance
 """
 
-from typing import Any
+from typing import Any, override
 from uuid import UUID
 
 import msgspec
@@ -75,7 +75,8 @@ DEV_ADMIN = AdminUser(
 class DevSkipAuthMiddleware(AbstractAuthenticationMiddleware):
     """Dev-only middleware that bypasses auth and injects a mock admin user."""
 
-    async def authenticate_request(  # pyright: ignore[reportImplicitOverride]
+    @override
+    async def authenticate_request(
         self,
         connection: ASGIConnection[Any, Any, Any, Any],  # pyright: ignore[reportExplicitAny]
     ) -> AuthenticationResult:
@@ -136,7 +137,8 @@ class FixedJWTCookieMiddleware(JWTCookieAuthenticationMiddleware):
     This subclass handles both cases correctly.
     """
 
-    async def authenticate_request(  # pyright: ignore[reportImplicitOverride]
+    @override
+    async def authenticate_request(
         self,
         connection: ASGIConnection[Any, Any, Any, Any],  # pyright: ignore[reportExplicitAny]
     ) -> AuthenticationResult:

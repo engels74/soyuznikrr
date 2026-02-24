@@ -9,8 +9,6 @@ The buffer bridges sync structlog processors with async SSE consumers via
 ``loop.call_soon_threadsafe()`` for cross-thread notification.
 """
 
-from __future__ import annotations
-
 import asyncio
 import threading
 from collections import deque

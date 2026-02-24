@@ -97,7 +97,7 @@ class LogController(Controller):
                         # Heartbeat comment to keep connection alive
                         yield ServerSentEventMessage(comment="heartbeat")
 
-            except (asyncio.CancelledError, GeneratorExit):
+            except asyncio.CancelledError, GeneratorExit:
                 return
 
         return ServerSentEvent(

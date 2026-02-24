@@ -1,16 +1,16 @@
 """Registry for interaction type handlers.
 
 Provides a registry that maps InteractionType enum values to handler
-instances. Follows the same pattern as ClientRegistry in
-zondarr.media.registry.
+instances. All built-in interaction types are registered on
+initialization via an exhaustive match in ``_create_handler()``.
 
-The registry is pre-populated with all built-in interaction types
-on initialization. New interaction types can be registered at runtime
-without modifying existing code.
+Adding a new interaction type requires updating ``_create_handler()``
+so that ``assert_never`` continues to guarantee full coverage.
 """
 
 from collections.abc import Mapping
 from datetime import datetime
+from typing import assert_never
 
 from zondarr.core.exceptions import ValidationError
 from zondarr.models.wizard import InteractionType
@@ -38,7 +38,7 @@ class InteractionRegistry:
     Adding a new interaction type requires:
     1. Add the type to InteractionType enum
     2. Create a handler class implementing InteractionHandler protocol
-    3. Register it via registry.register(type, handler)
+    3. Add a case for it in ``_create_handler()``
 
     Attributes:
         _handlers: Mapping from interaction types to handler instances.
@@ -49,12 +49,32 @@ class InteractionRegistry:
     def __init__(self) -> None:
         """Initialize registry with all built-in interaction handlers."""
         self._handlers = {}
-        # Register all built-in handlers
-        self.register(InteractionType.CLICK, ClickHandler())
-        self.register(InteractionType.TIMER, TimerHandler())
-        self.register(InteractionType.TOS, TosHandler())
-        self.register(InteractionType.TEXT_INPUT, TextInputHandler())
-        self.register(InteractionType.QUIZ, QuizHandler())
+        # Register all built-in handlers using exhaustive match
+        for interaction_type in InteractionType:
+            self.register(interaction_type, self._create_handler(interaction_type))
+
+    @staticmethod
+    def _create_handler(interaction_type: InteractionType, /) -> InteractionHandler:
+        """Create the handler for a given interaction type.
+
+        Uses exhaustive match with assert_never to ensure every
+        InteractionType enum member has a corresponding handler.
+        Adding a new enum value without updating this method will
+        cause a type checker error.
+        """
+        match interaction_type:
+            case InteractionType.CLICK:
+                return ClickHandler()
+            case InteractionType.TIMER:
+                return TimerHandler()
+            case InteractionType.TOS:
+                return TosHandler()
+            case InteractionType.TEXT_INPUT:
+                return TextInputHandler()
+            case InteractionType.QUIZ:
+                return QuizHandler()
+            case _ as unreachable:  # pyright: ignore[reportUnnecessaryComparison] -- exhaustiveness guard
+                assert_never(unreachable)
 
     def register(
         self,
