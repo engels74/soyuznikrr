@@ -211,6 +211,7 @@ async function handleInteractionValidate(
 ): Promise<{ valid: boolean; pending?: boolean; error?: string | null }> {
 	const step = currentStep;
 	if (!step) return { valid: false, error: "No current step" };
+	validationError = null;
 
 	// Build a temporary completions map including this pending response
 	const tempCompletions = new Map(
@@ -254,6 +255,7 @@ async function handleInteractionValidate(
 		const newMap = new Map(interactionCompletions);
 		newMap.delete(step.id);
 		interactionCompletions = newMap;
+		validationError = result.data?.error ?? "Incorrect answer";
 		return { valid: false, error: result.data?.error ?? "Incorrect answer" };
 	} catch {
 		return { valid: false, error: "Validation failed. Please try again." };

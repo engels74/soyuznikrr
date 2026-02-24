@@ -704,4 +704,40 @@ describe('QuizInteraction with onValidate', () => {
 
 		expect((onValidate as Mock).mock.calls.length).toBe(2);
 	});
+
+	it('should not show "Correct!" when onValidate returns valid with pending', async () => {
+		const onValidate = vi.fn().mockResolvedValue({ valid: true, pending: true });
+		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{
+				question: 'What is 2 + 2?',
+				options: ['3', '4', '5'],
+				correct_answer_index: 1
+			},
+			{ onComplete, onValidate }
+		);
+
+		render(QuizInteraction, { props });
+
+		const option = screen.getByRole('radio', { name: '4' });
+		await fireEvent.click(option);
+
+		const submitButton = screen.getByRole('button', { name: 'Submit Answer' });
+		await fireEvent.click(submitButton);
+
+		// Wait for async onValidate to resolve
+		await vi.waitFor(() => {
+			// isSubmitting should be false (finally block ran)
+			expect(screen.getByRole('button', { name: 'Submit Answer' })).toBeInTheDocument();
+		});
+
+		// "Correct!" should NOT appear — answer is pending backend validation
+		expect(screen.queryByText('Correct!')).not.toBeInTheDocument();
+
+		// Submit button should still be visible (feedbackState is not "correct")
+		expect(screen.getByRole('button', { name: 'Submit Answer' })).not.toBeDisabled();
+
+		// onComplete should not have been called
+		expect(onComplete).not.toHaveBeenCalled();
+	});
 });

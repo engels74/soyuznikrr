@@ -39,6 +39,8 @@ let cooldownInterval = $state<ReturnType<typeof setInterval> | null>(null);
 
 // Track previous completionData for transition detection (initial value intentionally undefined)
 let previousCompletionData: InteractionComponentProps["completionData"] ;
+// Flag to suppress $effect feedback after pending submission (multi-interaction step)
+let pendingSubmission = $state(false);
 
 // Sync local state with completionData transitions:
 // - null→non-null: restore "correct" feedback (navigating back to completed step)
@@ -55,7 +57,13 @@ $effect(() => {
 			cooldownInterval = null;
 		}
 	} else if (previousCompletionData == null && completionData != null) {
-		feedbackState = "correct";
+		if (pendingSubmission) {
+			// Multi-interaction step: answer stored locally but not yet backend-validated
+			pendingSubmission = false;
+		} else {
+			// Navigating back to a completed, backend-validated step
+			feedbackState = "correct";
+		}
 	}
 	previousCompletionData = completionData;
 });
@@ -112,17 +120,22 @@ async function handleSubmit() {
 
 	// Validate via backend
 	isSubmitting = true;
+	// Set flag BEFORE await so the $effect (which fires in the microtask gap)
+	// won't falsely show "Correct!" when completionData transitions null→non-null
+	pendingSubmission = true;
 	try {
 		const result = await onValidate(completionPayload);
 
 		if (result.valid && !result.pending) {
+			pendingSubmission = false;
 			feedbackState = "correct";
 			inlineError = null;
 		} else if (result.valid && result.pending) {
 			// Answer accepted but not yet validated by backend (multi-interaction step)
-			// Don't show "Correct!" — just accept silently
+			// Don't show "Correct!" — flag already set, $effect will see it
 			inlineError = null;
 		} else {
+			pendingSubmission = false;
 			wrongAttempts++;
 			feedbackState = "incorrect";
 			inlineError = result.error ?? "Incorrect answer";
