@@ -927,21 +927,21 @@ class PlexClient:
         _ = resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
         # Parse JSON to find matching userID
-        data: dict[str, object] = resp.json()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType]
-        shared_servers: list[dict[str, object]] = []  # pyright: ignore[reportExplicitAny]
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        shared_servers: list[dict[str, object]] = []
 
         # Response may be {"SharedServer": [...]} or similar structure
         if isinstance(data, dict):
             for key in ("SharedServer", "shared_servers"):
-                val = data.get(key)
+                val = data.get(key)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
                 if isinstance(val, list):
                     shared_servers = val  # pyright: ignore[reportUnknownVariableType]
                     break
 
-        for entry in shared_servers:  # pyright: ignore[reportUnknownVariableType]
-            entry_user_id = str(entry.get("userID", ""))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        for entry in shared_servers:
+            entry_user_id = str(entry.get("userID", ""))
             if entry_user_id == external_user_id:
-                shared_server_id = entry.get("id", "")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                shared_server_id = entry.get("id", "")
                 delete_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers/{shared_server_id}"
                 del_resp = self._account._session.delete(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
                     delete_url,
@@ -1018,7 +1018,7 @@ class PlexClient:
                     except Exception as shared_exc:
                         # If Path 1 succeeded, log warning but don't fail
                         if friend_deleted:
-                            log.warning(  # pyright: ignore[reportAny]
+                            log.warning(
                                 "plex_shared_server_cleanup_failed",
                                 url=self.url,
                                 user_id=external_user_id,

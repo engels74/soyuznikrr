@@ -1247,14 +1247,14 @@ class MockSessionForSharedServers:
         self.delete_called = False
         self.delete_url = None
 
-    def get(self, url: str, **kwargs: object) -> MockHTTPResponse:
+    def get(self, _url: str, **_kwargs: object) -> MockHTTPResponse:
         """Mock GET request."""
         self.get_called = True
         if self._get_error is not None:
             raise self._get_error
         return MockHTTPResponse(json_data=self._get_json)
 
-    def delete(self, url: str, **kwargs: object) -> MockHTTPResponse:
+    def delete(self, url: str, **_kwargs: object) -> MockHTTPResponse:
         """Mock DELETE request."""
         self.delete_called = True
         self.delete_url = url
@@ -1262,7 +1262,7 @@ class MockSessionForSharedServers:
             raise self._delete_error
         return MockHTTPResponse(json_data={})
 
-    def post(self, url: str, **kwargs: object) -> MockHTTPResponse:
+    def post(self, _url: str, **_kwargs: object) -> MockHTTPResponse:
         """Mock POST request (unused, for interface completeness)."""
         return MockHTTPResponse(json_data={})
 
