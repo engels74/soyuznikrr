@@ -56,6 +56,7 @@ export type UserListResponse = components['schemas']['UserListResponse'];
 export type IdentityResponse = components['schemas']['IdentityResponse'];
 
 export type MediaServerResponse = components['schemas']['MediaServerResponse'];
+export type PublicMediaServerResponse = components['schemas']['PublicMediaServerResponse'];
 export type MediaServerWithLibrariesResponse =
 	components['schemas']['MediaServerWithLibrariesResponse'];
 export type LibraryResponse = components['schemas']['LibraryResponse'];

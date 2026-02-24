@@ -323,6 +323,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/servers/env-credentials': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get detected environment credentials
+		 * @description Returns media server credentials detected from environment variables.
+		 */
+		get: operations['ApiV1ServersEnvCredentialsGetEnvCredentials'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/servers/{server_id}/sync': {
 		parameters: {
 			query?: never;
@@ -357,6 +377,50 @@ export interface paths {
 		 * @description Test connectivity and auto-detect server type. If server_type is omitted, probes all registered providers.
 		 */
 		post: operations['ApiV1ServersTestConnectionTestConnection'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/settings/csrf-origin': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get CSRF origin setting
+		 * @description Returns the current CSRF origin and whether it is locked by an environment variable.
+		 */
+		get: operations['ApiV1SettingsCsrfOriginGetCsrfOrigin'];
+		/**
+		 * Update CSRF origin setting
+		 * @description Set or clear the CSRF origin. Fails if the value is locked by an environment variable.
+		 */
+		put: operations['ApiV1SettingsCsrfOriginUpdateCsrfOrigin'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/settings/csrf-origin/test': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Test CSRF origin against browser
+		 * @description Compares the provided origin against the request's Origin header to verify they match.
+		 */
+		post: operations['ApiV1SettingsCsrfOriginTestTestCsrfOrigin'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -695,8 +759,10 @@ export interface components {
 		/** ConnectionTestRequest */
 		ConnectionTestRequest: {
 			url: string;
-			api_key: string;
+			api_key?: string | null;
 			server_type?: string | null;
+			/** @default false */
+			use_env_credentials: boolean;
 		};
 		/** ConnectionTestResponse */
 		ConnectionTestResponse: {
@@ -719,6 +785,40 @@ export interface components {
 			} | null;
 			pre_wizard_id?: string | null;
 			post_wizard_id?: string | null;
+		};
+		/** CsrfOriginResponse */
+		CsrfOriginResponse: {
+			csrf_origin?: string | null;
+			is_locked: boolean;
+		};
+		/** CsrfOriginTestRequest */
+		CsrfOriginTestRequest: {
+			origin: string;
+		};
+		/** CsrfOriginTestResponse */
+		CsrfOriginTestResponse: {
+			success: boolean;
+			message: string;
+			request_origin?: string | null;
+		};
+		/** CsrfOriginUpdate */
+		CsrfOriginUpdate: {
+			csrf_origin?: string | null;
+		};
+		/** EnvCredentialResponse */
+		EnvCredentialResponse: {
+			server_type: string;
+			display_name: string;
+			url?: string | null;
+			masked_api_key?: string | null;
+			/** @default false */
+			has_url: boolean;
+			/** @default false */
+			has_api_key: boolean;
+		};
+		/** EnvCredentialsResponse */
+		EnvCredentialsResponse: {
+			credentials: components['schemas']['EnvCredentialResponse'][];
 		};
 		/** ExternalLoginRequest */
 		ExternalLoginRequest: {
@@ -797,7 +897,7 @@ export interface components {
 		InvitationValidationResponse: {
 			valid: boolean;
 			failure_reason?: string | null;
-			target_servers?: components['schemas']['MediaServerResponse'][] | null;
+			target_servers?: components['schemas']['PublicMediaServerResponse'][] | null;
 			allowed_libraries?: components['schemas']['LibraryResponse'][] | null;
 			duration_days?: number | null;
 			pre_wizard?: components['schemas']['WizardDetailResponse'] | null;
@@ -824,7 +924,9 @@ export interface components {
 			name: string;
 			server_type: string;
 			url: string;
-			api_key: string;
+			api_key?: string | null;
+			/** @default false */
+			use_env_credentials: boolean;
 		};
 		/** MediaServerResponse */
 		MediaServerResponse: {
@@ -886,6 +988,12 @@ export interface components {
 			capabilities?: string[];
 			supported_permissions?: string[];
 			join_flow_type?: string | null;
+		};
+		/** PublicMediaServerResponse */
+		PublicMediaServerResponse: {
+			name: string;
+			server_type: string;
+			supported_permissions?: string[] | null;
 		};
 		/** RedeemInvitationRequest */
 		RedeemInvitationRequest: {
@@ -1935,6 +2043,26 @@ export interface operations {
 			};
 		};
 	};
+	ApiV1ServersEnvCredentialsGetEnvCredentials: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['EnvCredentialsResponse'];
+				};
+			};
+		};
+	};
 	ApiV1ServersServerIdSyncSyncServer: {
 		parameters: {
 			query?: never;
@@ -2000,6 +2128,110 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['ConnectionTestResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1SettingsCsrfOriginGetCsrfOrigin: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CsrfOriginResponse'];
+				};
+			};
+		};
+	};
+	ApiV1SettingsCsrfOriginUpdateCsrfOrigin: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CsrfOriginUpdate'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CsrfOriginResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1SettingsCsrfOriginTestTestCsrfOrigin: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CsrfOriginTestRequest'];
+			};
+		};
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CsrfOriginTestResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

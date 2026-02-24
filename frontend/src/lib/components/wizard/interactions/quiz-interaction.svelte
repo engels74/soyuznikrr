@@ -11,13 +11,14 @@
  */
 import { Check, X } from "@lucide/svelte";
 import { onDestroy } from "svelte";
-import { quizConfigSchema } from "$lib/schemas/wizard";
+import { quizDisplayConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionComponentProps } from "./registry";
 
 const { interactionId, config: rawConfig, onComplete, onValidate, disabled = false, completionData }: InteractionComponentProps = $props();
 
-// Validate config with Zod schema, falling back gracefully for partial configs
-const config = $derived(quizConfigSchema.safeParse(rawConfig).data);
+// Validate config with display schema (correct_answer_index is optional since
+// the backend strips it from public API responses to prevent answer leakage)
+const config = $derived(quizDisplayConfigSchema.safeParse(rawConfig).data);
 const question = $derived(config?.question ?? "");
 const options = $derived(config?.options ?? []);
 

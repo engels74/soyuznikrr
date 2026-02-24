@@ -13,7 +13,7 @@
  */
 
 import { CheckCircle, ExternalLink, Server, User } from "@lucide/svelte";
-import type { RedemptionResponse, UserResponse } from "$lib/api/client";
+import type { RedemptionResponse } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
 import {
 	Card,
@@ -23,29 +23,12 @@ import {
 	CardTitle,
 } from "$lib/components/ui/card";
 
-interface ServerUrlInfo {
-	url: string;
-	serverType: string;
-}
-
 interface Props {
 	response: RedemptionResponse;
-	serverUrls?: Record<string, ServerUrlInfo>;
+	hasPlexServer?: boolean;
 }
 
-const { response, serverUrls = {} }: Props = $props();
-
-/**
- * Get server URL for a user.
- * For Plex servers, always returns https://app.plex.tv since users access
- * Plex through the web app rather than direct server URLs.
- */
-function getServerUrl(user: UserResponse): string | undefined {
-	const info = serverUrls[user.media_server_id];
-	if (!info) return undefined;
-	if (info.serverType === "plex") return "https://app.plex.tv";
-	return info.url;
-}
+const { response, hasPlexServer = false }: Props = $props();
 </script>
 
 <div class="space-y-6" data-success-page>
@@ -81,31 +64,28 @@ function getServerUrl(user: UserResponse): string | undefined {
 			<CardContent class="space-y-3">
 				{#each response.users_created as user (user.id)}
 					<div
-						class="flex items-center justify-between rounded-lg border border-cr-border bg-cr-bg p-4"
+						class="flex items-center gap-3 rounded-lg border border-cr-border bg-cr-bg p-4"
 						data-created-user={user.id}
 					>
-						<div class="flex items-center gap-3">
-							<div class="rounded-full bg-cr-accent/15 p-2 text-cr-accent">
-								<Server class="size-4" />
-							</div>
-							<div>
-								<p class="font-medium text-cr-text">{user.username}</p>
-								<p class="text-sm text-cr-text-muted font-mono">{user.external_user_id}</p>
-							</div>
+						<div class="rounded-full bg-cr-accent/15 p-2 text-cr-accent">
+							<Server class="size-4" />
 						</div>
-						{#if getServerUrl(user)}
-							<Button
-								variant="outline"
-								size="sm"
-								class="border-cr-border bg-cr-surface hover:bg-cr-border text-cr-text"
-								onclick={() => window.open(getServerUrl(user), '_blank')}
-							>
-								<ExternalLink class="size-4 mr-2" />
-								Open Server
-							</Button>
-						{/if}
+						<div>
+							<p class="font-medium text-cr-text">{user.username}</p>
+							<p class="text-sm text-cr-text-muted font-mono">{user.external_user_id}</p>
+						</div>
 					</div>
 				{/each}
+				{#if hasPlexServer}
+					<Button
+						variant="outline"
+						class="w-full border-cr-border bg-cr-surface hover:bg-cr-border text-cr-text"
+						onclick={() => window.open('https://app.plex.tv', '_blank')}
+					>
+						<ExternalLink class="size-4 mr-2" />
+						Open Plex
+					</Button>
+				{/if}
 			</CardContent>
 		</Card>
 	{/if}

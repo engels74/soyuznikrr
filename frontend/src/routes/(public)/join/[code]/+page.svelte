@@ -100,16 +100,10 @@ let redemptionError = $state<RedemptionErrorResponse | null>(null);
 let preWizardCompleted = $state(false);
 let postWizardCompleted = $state(false);
 
-// Derive server URLs for success page
-const serverUrls = $derived.by(() => {
-	const urls: Record<string, { url: string; serverType: string }> = {};
-	if (data.validation?.target_servers) {
-		for (const server of data.validation.target_servers) {
-			urls[server.id] = { url: server.url, serverType: server.server_type };
-		}
-	}
-	return urls;
-});
+// Derive whether any target server is Plex (for success page)
+const hasPlexServer = $derived(
+	data.validation?.target_servers?.some((s) => s.server_type === "plex") ?? false,
+);
 
 // Determine join flow type from provider metadata
 const hasCredentialCreateServer = $derived(
@@ -554,7 +548,7 @@ function handleRegistrationRetry() {
 
 	<!-- Success state -->
 	{:else if currentStep === 'success' && redemptionResponse}
-		<SuccessPage response={redemptionResponse} {serverUrls} />
+		<SuccessPage response={redemptionResponse} {hasPlexServer} />
 
 	<!-- Registration error state -->
 	{:else if currentStep === 'error' && redemptionError}
@@ -687,14 +681,9 @@ function handleRegistrationRetry() {
 						</div>
 						<div class="space-y-2">
 							{#each data.validation.target_servers as server}
-								<div class="flex items-center justify-between rounded-lg border border-cr-border bg-cr-bg p-3">
-									<div>
-										<p class="font-medium text-cr-text">{server.name}</p>
-										<p class="text-sm text-cr-text-muted capitalize">{server.server_type}</p>
-									</div>
-									<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-400">
-										{server.enabled ? 'Online' : 'Offline'}
-									</span>
+								<div class="rounded-lg border border-cr-border bg-cr-bg p-3">
+									<p class="font-medium text-cr-text">{server.name}</p>
+									<p class="text-sm text-cr-text-muted capitalize">{server.server_type}</p>
 								</div>
 							{/each}
 						</div>

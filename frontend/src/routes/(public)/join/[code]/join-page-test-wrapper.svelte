@@ -128,14 +128,9 @@ function getFailureMessage(reason: string | null | undefined): string {
 						</div>
 						<div class="space-y-2">
 							{#each validation.target_servers as server}
-								<div data-server-item={server.id} class="flex items-center justify-between rounded-lg border border-cr-border bg-cr-bg p-3">
-									<div>
-										<p class="font-medium text-cr-text" data-server-name>{server.name}</p>
-										<p class="text-sm text-cr-text-muted capitalize" data-server-type>{server.server_type}</p>
-									</div>
-									<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-400">
-										{server.enabled ? 'Online' : 'Offline'}
-									</span>
+								<div data-server-item={server.name} class="rounded-lg border border-cr-border bg-cr-bg p-3">
+									<p class="font-medium text-cr-text" data-server-name>{server.name}</p>
+									<p class="text-sm text-cr-text-muted capitalize" data-server-type>{server.server_type}</p>
 								</div>
 							{/each}
 						</div>

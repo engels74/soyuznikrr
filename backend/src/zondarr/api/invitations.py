@@ -30,7 +30,7 @@ from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
 
-from .converters import wizard_step_to_response
+from .converters import public_wizard_step_to_response, wizard_step_to_response
 from .schemas import (
     CreateInvitationRequest,
     InvitationDetailResponse,
@@ -39,6 +39,7 @@ from .schemas import (
     InvitationValidationResponse,
     LibraryResponse,
     MediaServerResponse,
+    PublicMediaServerResponse,
     UpdateInvitationRequest,
     WizardDetailResponse,
     WizardResponse,
@@ -386,14 +387,9 @@ class InvitationController(Controller):
         invitation = await invitation_service.get_by_code(code)
 
         target_servers = [
-            MediaServerResponse(
-                id=server.id,
+            PublicMediaServerResponse(
                 name=server.name,
                 server_type=server.server_type,
-                url=server.url,
-                enabled=server.enabled,
-                created_at=server.created_at,
-                updated_at=server.updated_at,
                 supported_permissions=sorted(
                     registry.get_supported_permissions(server.server_type)
                 ),
@@ -413,9 +409,9 @@ class InvitationController(Controller):
             for lib in invitation.allowed_libraries
         ]
 
-        # Convert wizards to response format
-        pre_wizard = self._wizard_to_detail_response(invitation.pre_wizard)
-        post_wizard = self._wizard_to_detail_response(invitation.post_wizard)
+        # Convert wizards to public response format (strips quiz answers)
+        pre_wizard = self._public_wizard_to_detail_response(invitation.pre_wizard)
+        post_wizard = self._public_wizard_to_detail_response(invitation.post_wizard)
 
         return InvitationValidationResponse(
             valid=True,
@@ -558,6 +554,35 @@ class InvitationController(Controller):
             return None
 
         steps = [wizard_step_to_response(step) for step in wizard.steps]
+
+        return WizardDetailResponse(
+            id=wizard.id,
+            name=wizard.name,
+            enabled=wizard.enabled,
+            created_at=wizard.created_at,
+            steps=steps,
+            description=wizard.description,
+            updated_at=wizard.updated_at,
+        )
+
+    def _public_wizard_to_detail_response(
+        self, wizard: Wizard | None, /
+    ) -> WizardDetailResponse | None:
+        """Convert a Wizard entity to a public-safe WizardDetailResponse.
+
+        Uses public converters that strip sensitive fields like
+        ``correct_answer_index`` from quiz interaction configs.
+
+        Args:
+            wizard: The Wizard entity or None.
+
+        Returns:
+            WizardDetailResponse with sanitised steps, or None.
+        """
+        if wizard is None:
+            return None
+
+        steps = [public_wizard_step_to_response(step) for step in wizard.steps]
 
         return WizardDetailResponse(
             id=wizard.id,

@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type {
 	InvitationValidationResponse,
 	LibraryResponse,
-	MediaServerResponse
+	PublicMediaServerResponse
 } from '$lib/api/client';
 import JoinPageTestWrapper from './join-page-test-wrapper.svelte';
 
@@ -40,14 +40,13 @@ const invitationCodeArb = fc.stringMatching(/^[a-zA-Z0-9]{4,20}$/);
 /**
  * Arbitrary for generating valid media server responses.
  */
-const mediaServerResponseArb: fc.Arbitrary<MediaServerResponse> = fc.record({
-	id: fc.uuid(),
+const mediaServerResponseArb: fc.Arbitrary<PublicMediaServerResponse> = fc.record({
 	name: fc.string({ minLength: 1, maxLength: 50 }).filter((s) => s.trim().length > 0),
 	server_type: fc.constantFrom('jellyfin' as const, 'plex' as const),
-	url: fc.webUrl(),
-	enabled: fc.boolean(),
-	created_at: isoDateArb,
-	updated_at: fc.option(isoDateArb, { nil: null })
+	supported_permissions: fc.option(
+		fc.array(fc.constantFrom('allow_download', 'allow_sync'), { minLength: 0, maxLength: 2 }),
+		{ nil: null }
+	)
 });
 
 /**
@@ -129,14 +128,17 @@ describe('Property 27: Valid Code Display', () => {
 				expect(targetServers).not.toBeNull();
 
 				// Should display each server
-				for (const server of validation.target_servers ?? []) {
-					const serverItem = container.querySelector(`[data-server-item="${server.id}"]`);
-					expect(serverItem).not.toBeNull();
+				const serverItems = container.querySelectorAll('[data-server-item]');
+				expect(serverItems.length).toBe((validation.target_servers ?? []).length);
 
-					const serverName = serverItem?.querySelector('[data-server-name]');
+				for (let i = 0; i < (validation.target_servers ?? []).length; i++) {
+					const server = validation.target_servers![i]!;
+					const serverItem = serverItems[i]!;
+
+					const serverName = serverItem.querySelector('[data-server-name]');
 					expect(serverName?.textContent).toBe(server.name);
 
-					const serverType = serverItem?.querySelector('[data-server-type]');
+					const serverType = serverItem.querySelector('[data-server-type]');
 					expect(serverType?.textContent).toBe(server.server_type);
 				}
 

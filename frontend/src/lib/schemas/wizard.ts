@@ -160,6 +160,31 @@ export const quizConfigSchema = z
 
 export type QuizConfig = z.infer<typeof quizConfigSchema>;
 
+/**
+ * Schema for displaying quiz interactions (public join page).
+ *
+ * Same as quizConfigSchema but with correct_answer_index optional,
+ * since the backend strips it from public API responses to prevent
+ * answer leakage.
+ *
+ * Requirements: 8.2
+ */
+export const quizDisplayConfigSchema = z.object({
+	question: z
+		.string()
+		.min(1, 'Question is required')
+		.max(500, 'Question must be at most 500 characters'),
+	options: z
+		.array(
+			z.string().min(1, 'Option cannot be empty').max(200, 'Option must be at most 200 characters')
+		)
+		.min(2, 'Quiz must have at least 2 options')
+		.max(10, 'Quiz must have at most 10 options'),
+	correct_answer_index: z.number().int().min(0).optional()
+});
+
+export type QuizDisplayConfig = z.infer<typeof quizDisplayConfigSchema>;
+
 // =============================================================================
 // Wizard Step Schema
 // =============================================================================

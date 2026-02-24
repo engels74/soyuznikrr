@@ -222,6 +222,23 @@ class MediaServerResponse(msgspec.Struct, omit_defaults=True):
     supported_permissions: list[str] | None = None
 
 
+class PublicMediaServerResponse(msgspec.Struct, omit_defaults=True):
+    """Public-facing media server response for unauthenticated endpoints.
+
+    Strips sensitive fields (id, url, enabled, timestamps) to prevent
+    exposure of internal network topology.
+
+    Attributes:
+        name: Human-readable name for the server.
+        server_type: Type of media server (e.g., "plex", "jellyfin").
+        supported_permissions: List of supported permission types.
+    """
+
+    name: str
+    server_type: str
+    supported_permissions: list[str] | None = None
+
+
 # =============================================================================
 # Library Schemas
 # =============================================================================
@@ -720,7 +737,7 @@ class InvitationValidationResponse(msgspec.Struct, omit_defaults=True):
 
     valid: bool
     failure_reason: str | None = None
-    target_servers: list[MediaServerResponse] | None = None
+    target_servers: list[PublicMediaServerResponse] | None = None
     allowed_libraries: list[LibraryResponse] | None = None
     duration_days: int | None = None
     pre_wizard: WizardDetailResponse | None = None
