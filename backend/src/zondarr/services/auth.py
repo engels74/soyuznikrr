@@ -4,6 +4,7 @@ Orchestrates admin account creation, credential verification,
 external auth (via provider registry), and refresh token lifecycle.
 """
 
+import asyncio
 import hashlib
 import secrets
 from collections.abc import Mapping
@@ -27,6 +28,9 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright
 # Refresh token defaults
 REFRESH_TOKEN_EXPIRY_DAYS = 7
 REFRESH_TOKEN_BYTES = 32
+
+# Serializes concurrent setup attempts within a single process
+_setup_lock = asyncio.Lock()
 
 
 def _hash_token(token: str) -> str:
@@ -94,6 +98,49 @@ class AuthService:
             enabled=True,
         )
         return await self.admin_repo.create(admin)
+
+    async def setup_admin(
+        self,
+        username: str,
+        password: str,
+        *,
+        email: str | None = None,
+    ) -> AdminAccount:
+        """Atomically create the first admin account.
+
+        Uses an asyncio lock to serialize concurrent attempts (avoids
+        wasted Argon2 work) and an atomic INSERT ... WHERE NOT EXISTS
+        at the DB level for correctness.
+
+        Args:
+            username: Admin username.
+            password: Plaintext password (will be hashed).
+            email: Optional email address.
+
+        Returns:
+            The created AdminAccount.
+
+        Raises:
+            AuthenticationError: If an admin already exists.
+        """
+        async with _setup_lock:
+            pw_hash = hash_password(password)
+            admin = await self.admin_repo.create_first_admin(
+                username=username,
+                password_hash=pw_hash,
+                email=email,
+                auth_method="local",
+            )
+            if admin is None:
+                raise AuthenticationError(
+                    "Setup already completed", "SETUP_NOT_REQUIRED"
+                )
+            logger.info(
+                "admin_setup_completed",
+                admin_id=str(admin.id),
+                username=admin.username,
+            )
+            return admin
 
     async def authenticate_local(self, username: str, password: str) -> AdminAccount:
         """Authenticate with username and password.

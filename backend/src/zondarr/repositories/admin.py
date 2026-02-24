@@ -2,8 +2,9 @@
 
 from datetime import datetime
 from typing import override
+from uuid import uuid4
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, exists, func, insert, literal, select
 
 from zondarr.core.exceptions import RepositoryError
 from zondarr.models.admin import AdminAccount, RefreshToken
@@ -78,6 +79,62 @@ class AdminAccountRepository(Repository[AdminAccount]):
             raise RepositoryError(
                 "Failed to count AdminAccounts",
                 operation="count",
+                original=e,
+            ) from e
+
+    async def create_first_admin(
+        self,
+        *,
+        username: str,
+        password_hash: str,
+        email: str | None,
+        auth_method: str,
+    ) -> AdminAccount | None:
+        """Atomically create the first admin account.
+
+        Uses INSERT ... SELECT ... WHERE NOT EXISTS to guarantee only one
+        admin row is ever inserted, regardless of concurrent requests.
+
+        Args:
+            username: Admin username.
+            password_hash: Pre-hashed password.
+            email: Optional email address.
+            auth_method: Authentication method (e.g. "local").
+
+        Returns:
+            The created AdminAccount, or None if an admin already exists.
+        """
+        try:
+            admin_id = uuid4()
+            columns = [
+                AdminAccount.__table__.c.id,
+                AdminAccount.__table__.c.username,
+                AdminAccount.__table__.c.password_hash,
+                AdminAccount.__table__.c.email,
+                AdminAccount.__table__.c.auth_method,
+                AdminAccount.__table__.c.enabled,
+            ]
+            values = select(
+                literal(admin_id.hex).label("id"),
+                literal(username).label("username"),
+                literal(password_hash).label("password_hash"),
+                literal(email).label("email"),
+                literal(auth_method).label("auth_method"),
+                literal(True).label("enabled"),
+            ).where(~exists(select(AdminAccount.id)))
+
+            table = AdminAccount.__table__
+            stmt = insert(table).from_select(columns, values)  # pyright: ignore[reportArgumentType]
+            result = await self.session.execute(stmt)
+
+            if result.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                return None
+
+            return await self.get_by_id(admin_id)
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to create first admin",
+                operation="create_first_admin",
                 original=e,
             ) from e
 
