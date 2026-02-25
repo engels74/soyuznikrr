@@ -93,6 +93,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     external_user_id: Mapped[str] = mapped_column(String(255))
     username: Mapped[str] = mapped_column(String(255))
+    external_user_type: Mapped[str | None] = mapped_column(String(50), default=None)
     expires_at: Mapped[datetime | None] = mapped_column(default=None)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 

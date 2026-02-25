@@ -84,3 +84,4 @@ class ExternalUser(msgspec.Struct, omit_defaults=True, kw_only=True):
     external_user_id: str
     username: str
     email: str | None = None
+    user_type: str | None = None

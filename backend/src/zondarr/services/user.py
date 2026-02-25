@@ -120,6 +120,7 @@ class UserService:
                 invitation_id=invitation_id,
                 external_user_id=external_user.external_user_id,
                 username=external_user.username,
+                external_user_type=external_user.user_type,
                 expires_at=expires_at,
                 enabled=True,
             )
@@ -320,8 +321,14 @@ class UserService:
 
         try:
             async with client:
-                # delete_user returns False if user not found, which is acceptable
-                _ = await client.delete_user(user.external_user_id)
+                deleted_from_server = await client.delete_user(user.external_user_id)
+                if not deleted_from_server:
+                    log.warning(  # pyright: ignore[reportAny]
+                        "user_not_found_on_media_server_during_delete",
+                        user_id=str(user.id),
+                        external_user_id=user.external_user_id,
+                        server_name=server.name,
+                    )
         except MediaClientError as e:
             raise ValidationError(
                 f"Failed to delete user from media server: {e}",

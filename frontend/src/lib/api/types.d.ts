@@ -1109,6 +1109,7 @@ export interface components {
 			created_at: string;
 			identity: components['schemas']['IdentityResponse'];
 			media_server: components['schemas']['MediaServerResponse'];
+			external_user_type?: string | null;
 			expires_at?: string | null;
 			updated_at?: string | null;
 			invitation_id?: string | null;
@@ -1135,6 +1136,7 @@ export interface components {
 			enabled: boolean;
 			/** Format: date-time */
 			created_at: string;
+			external_user_type?: string | null;
 			expires_at?: string | null;
 			updated_at?: string | null;
 		};
