@@ -222,6 +222,7 @@ class JoinController(Controller):
                     username=user.username,
                     enabled=user.enabled,
                     created_at=user.created_at,
+                    external_user_type=user.external_user_type,
                     expires_at=user.expires_at,
                     updated_at=user.updated_at,
                 )

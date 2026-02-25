@@ -915,7 +915,11 @@ class PlexClient:
         assert self._server is not None  # noqa: S101
 
         machine_id: str = self._server.machineIdentifier  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-        headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+        base_headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+        headers: dict[str, str] = {
+            **base_headers,
+            "Accept": "application/json",
+        }
 
         # GET shared servers for this machine
         sharing_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers"

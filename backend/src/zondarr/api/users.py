@@ -476,6 +476,7 @@ class UserController(Controller):
             created_at=user.created_at,
             identity=identity_response,
             media_server=media_server_response,
+            external_user_type=user.external_user_type,
             expires_at=user.expires_at,
             updated_at=user.updated_at,
             invitation_id=user.invitation_id,
