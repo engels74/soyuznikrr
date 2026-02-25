@@ -63,11 +63,11 @@ const deleteDescription = $derived.by(() => {
 	if (!data.user?.external_user_type) return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
 	switch (data.user.external_user_type) {
 		case "friend":
-			return "Are you sure you want to delete this user? This will remove the friend relationship and shared library access on Plex, as well as the local database record. This action cannot be undone.";
+			return "Are you sure you want to delete this user? This will remove the friend connection on Plex, as well as the local database record. This action cannot be undone.";
 		case "shared":
 			return "Are you sure you want to delete this user? This will remove shared library access on Plex, as well as the local database record. This action cannot be undone.";
 		case "home":
-			return "Are you sure you want to delete this user? This will remove this managed user from Plex Home, as well as the local database record. This action cannot be undone.";
+			return "Are you sure you want to delete this user? This will remove this user from Plex Home, as well as the local database record. This action cannot be undone.";
 		default:
 			return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
 	}
@@ -271,6 +271,19 @@ function viewLinkedUser(userId: string) {
 		</div>
 		{#if data.user}
 			<StatusBadge {status} label={statusLabel} />
+			{#if data.user.external_user_type === "friend"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+					Friend
+				</span>
+			{:else if data.user.external_user_type === "shared"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">
+					Shared
+				</span>
+			{:else if data.user.external_user_type === "home"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 border border-teal-500/30">
+					Home
+				</span>
+			{/if}
 		{/if}
 	</div>
 
@@ -298,6 +311,34 @@ function viewLinkedUser(userId: string) {
 					<div class="space-y-1" data-field="username">
 						<Label class="text-cr-text-muted text-xs uppercase tracking-wide">Username</Label>
 						<div class="font-medium text-lg text-cr-text">{data.user.username}</div>
+					</div>
+
+					<!-- User Type -->
+					<div class="space-y-1" data-field="user_type">
+						<Label class="text-cr-text-muted text-xs uppercase tracking-wide">User Type</Label>
+						<div class="flex flex-col gap-1">
+							{#if data.user.external_user_type === "friend"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+									Friend
+								</span>
+								<span class="text-xs text-cr-text-muted">No shared libraries on this server</span>
+							{:else if data.user.external_user_type === "shared"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">
+									Shared
+								</span>
+								<span class="text-xs text-cr-text-muted">Has shared library access</span>
+							{:else if data.user.external_user_type === "home"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 border border-teal-500/30">
+									Home
+								</span>
+								<span class="text-xs text-cr-text-muted">Plex Home member</span>
+							{:else}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-zinc-500/15 text-zinc-500 border border-zinc-500/30">
+									Unknown
+								</span>
+								<span class="text-xs text-cr-text-dim">Type not yet determined — run a sync to detect</span>
+							{/if}
+						</div>
 					</div>
 
 					<!-- External User ID -->

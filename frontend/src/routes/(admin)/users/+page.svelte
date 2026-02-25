@@ -47,11 +47,11 @@ const deleteDescription = $derived.by(() => {
 	if (!targetUser?.external_user_type) return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
 	switch (targetUser.external_user_type) {
 		case "friend":
-			return "Are you sure you want to delete this user? This will remove the friend relationship and shared library access on Plex, as well as the local database record. This action cannot be undone.";
+			return "Are you sure you want to delete this user? This will remove the friend connection on Plex, as well as the local database record. This action cannot be undone.";
 		case "shared":
 			return "Are you sure you want to delete this user? This will remove shared library access on Plex, as well as the local database record. This action cannot be undone.";
 		case "home":
-			return "Are you sure you want to delete this user? This will remove this managed user from Plex Home, as well as the local database record. This action cannot be undone.";
+			return "Are you sure you want to delete this user? This will remove this user from Plex Home, as well as the local database record. This action cannot be undone.";
 		default:
 			return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
 	}

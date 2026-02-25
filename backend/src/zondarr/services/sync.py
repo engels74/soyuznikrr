@@ -124,7 +124,22 @@ class SyncService:
         # Stale: in local DB but not on server (Requirement 20.4)
         stale_ids = local_ids - external_ids
         # Matched: exist in both places
-        matched_count = len(external_ids & local_ids)
+        matched_ids = external_ids & local_ids
+        matched_count = len(matched_ids)
+
+        # Update external_user_type for matched users whose type is missing or changed
+        if matched_ids and not dry_run:
+            local_user_map = {u.external_user_id: u for u in local_users}
+            for ext_id in matched_ids:
+                local_user = local_user_map.get(ext_id)
+                ext_user = external_map[ext_id]
+                if (
+                    local_user is not None
+                    and ext_user.user_type is not None
+                    and local_user.external_user_type != ext_user.user_type
+                ):
+                    local_user.external_user_type = ext_user.user_type
+                    _ = await self.user_repo.update(local_user)
 
         # Import orphaned users when not a dry run
         imported_count = 0
@@ -159,6 +174,7 @@ class SyncService:
                 user.media_server_id = server.id
                 user.external_user_id = ext_user.external_user_id
                 user.username = ext_user.username
+                user.external_user_type = ext_user.user_type
                 user.enabled = True
                 _ = await self.user_repo.create(user)
 
