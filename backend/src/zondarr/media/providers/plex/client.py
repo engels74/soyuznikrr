@@ -1414,6 +1414,9 @@ class PlexClient:
 
             def _list_users() -> list[ExternalUser]:
                 assert self._account is not None  # noqa: S101
+                assert self._server is not None  # noqa: S101
+
+                machine_id: str = self._server.machineIdentifier  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
                 # Get all users (Friends and Home Users)
                 users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
@@ -1424,14 +1427,29 @@ class PlexClient:
                     username: str = getattr(user, "username", "") or ""  # pyright: ignore[reportUnknownArgumentType]
                     email: str | None = getattr(user, "email", None)  # pyright: ignore[reportUnknownArgumentType]
 
-                    if user_id:
-                        result.append(
-                            ExternalUser(
-                                external_user_id=user_id,
-                                username=username,
-                                email=email,
-                            )
+                    if not user_id:
+                        continue
+
+                    # Classify user type based on home status and server shares
+                    is_home: bool = getattr(user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
+                    if is_home:
+                        user_type = "home"
+                    else:
+                        user_servers = getattr(user, "servers", []) or []  # pyright: ignore[reportUnknownArgumentType]
+                        has_server_access = any(
+                            getattr(s, "machineIdentifier", None) == machine_id  # pyright: ignore[reportUnknownArgumentType, reportAny]
+                            for s in user_servers  # pyright: ignore[reportAny]
                         )
+                        user_type = "shared" if has_server_access else "friend"
+
+                    result.append(
+                        ExternalUser(
+                            external_user_id=user_id,
+                            username=username,
+                            email=email,
+                            user_type=user_type,
+                        )
+                    )
 
                 return result
 

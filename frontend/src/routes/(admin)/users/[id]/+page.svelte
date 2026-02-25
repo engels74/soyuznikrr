@@ -271,6 +271,19 @@ function viewLinkedUser(userId: string) {
 		</div>
 		{#if data.user}
 			<StatusBadge {status} label={statusLabel} />
+			{#if data.user.external_user_type === "friend"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+					Friend
+				</span>
+			{:else if data.user.external_user_type === "shared"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">
+					Shared
+				</span>
+			{:else if data.user.external_user_type === "home"}
+				<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 border border-teal-500/30">
+					Home
+				</span>
+			{/if}
 		{/if}
 	</div>
 
@@ -298,6 +311,34 @@ function viewLinkedUser(userId: string) {
 					<div class="space-y-1" data-field="username">
 						<Label class="text-cr-text-muted text-xs uppercase tracking-wide">Username</Label>
 						<div class="font-medium text-lg text-cr-text">{data.user.username}</div>
+					</div>
+
+					<!-- User Type -->
+					<div class="space-y-1" data-field="user_type">
+						<Label class="text-cr-text-muted text-xs uppercase tracking-wide">User Type</Label>
+						<div class="flex flex-col gap-1">
+							{#if data.user.external_user_type === "friend"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+									Friend
+								</span>
+								<span class="text-xs text-cr-text-muted">Friend only — no library access</span>
+							{:else if data.user.external_user_type === "shared"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30">
+									Shared
+								</span>
+								<span class="text-xs text-cr-text-muted">Has shared library access</span>
+							{:else if data.user.external_user_type === "home"}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-teal-500/15 text-teal-400 border border-teal-500/30">
+									Home
+								</span>
+								<span class="text-xs text-cr-text-muted">Plex Home managed user</span>
+							{:else}
+								<span class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-xs font-medium bg-zinc-500/15 text-zinc-500 border border-zinc-500/30">
+									Unknown
+								</span>
+								<span class="text-xs text-cr-text-dim">Type not yet determined — run a sync to detect</span>
+							{/if}
+						</div>
 					</div>
 
 					<!-- External User ID -->

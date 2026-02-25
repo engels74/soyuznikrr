@@ -1311,10 +1311,20 @@ class MockMyPlexAccountWithUserManagement:
         return {"X-Plex-Token": "mock-token"}
 
 
+class MockMyPlexServerShare:
+    """Mock MyPlexServerShare for user server access classification."""
+
+    machineIdentifier: str
+
+    def __init__(self, *, machine_identifier: str) -> None:
+        self.machineIdentifier = machine_identifier
+
+
 class MockMyPlexUserWithHome(MockMyPlexUser):
     """Mock MyPlexUser with home attribute for Home Users."""
 
     home: bool
+    servers: list[MockMyPlexServerShare]
 
     def __init__(
         self,
@@ -1323,9 +1333,11 @@ class MockMyPlexUserWithHome(MockMyPlexUser):
         username: str,
         email: str | None = None,
         home: bool = False,
+        servers: list[MockMyPlexServerShare] | None = None,
     ) -> None:
         super().__init__(user_id=user_id, username=username, email=email)
         self.home = home
+        self.servers = servers or []
 
 
 class MockPlexServerWithUserManagement:
@@ -2201,6 +2213,7 @@ class MockPlexServerWithUserList:
     url: str
     token: str
     friendlyName: str
+    machineIdentifier: str
     library: MockLibrary
     _account: MockMyPlexAccountWithUserList
 
@@ -2210,11 +2223,13 @@ class MockPlexServerWithUserList:
         token: str,
         *,
         friendly_name: str = "Test Server",
+        machine_identifier: str = "test-machine-id",
         account: MockMyPlexAccountWithUserList | None = None,
     ) -> None:
         self.url = url
         self.token = token
         self.friendlyName = friendly_name
+        self.machineIdentifier = machine_identifier
         self.library = MockLibrary()
         self._account = account or MockMyPlexAccountWithUserList()
 

@@ -35,6 +35,9 @@ username_strategy = st.text(
     max_size=20,
 ).filter(lambda x: x.strip() and x[0].isalpha())
 
+# Strategy for generating user types
+user_type_strategy = st.sampled_from(["friend", "shared", "home"])
+
 
 @st.composite
 def user_sets_strategy(
@@ -73,6 +76,7 @@ def user_sets_strategy(
             external_user_id=uid,
             username=draw(username_strategy),
             email=None,
+            user_type=draw(user_type_strategy),
         )
         for uid in orphaned_ids
     ]
@@ -82,6 +86,7 @@ def user_sets_strategy(
             external_user_id=uid,
             username=draw(username_strategy),
             email=None,
+            user_type=draw(user_type_strategy),
         )
         for uid in stale_ids
     ]
@@ -91,6 +96,7 @@ def user_sets_strategy(
             external_user_id=uid,
             username=draw(username_strategy),
             email=None,
+            user_type=draw(user_type_strategy),
         )
         for uid in matched_ids
     ]
@@ -820,12 +826,18 @@ class TestSyncImportsOrphanedUsers:
                 f"Expected {len(orphaned_users)} imported, got {result.imported_users}"
             )
 
-            # Verify all orphaned users now exist in the DB
+            # Verify all orphaned users now exist in the DB with correct user_type
             all_users = await user_repo.get_by_server(server.id)
             all_external_ids = {u.external_user_id for u in all_users}
+            user_by_ext_id = {u.external_user_id: u for u in all_users}
             for orphaned in orphaned_users:
                 assert orphaned.external_user_id in all_external_ids, (
                     f"Orphaned user {orphaned.username} was not imported"
+                )
+                imported_user = user_by_ext_id[orphaned.external_user_id]
+                assert imported_user.external_user_type == orphaned.user_type, (
+                    f"Imported user {orphaned.username} has type "
+                    f"{imported_user.external_user_type!r}, expected {orphaned.user_type!r}"
                 )
 
     @given(user_sets=user_sets_strategy())
