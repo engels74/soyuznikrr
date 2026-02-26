@@ -1015,18 +1015,38 @@ class PlexClient:
                         self._account.removeHomeUser(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
                         friend_deleted = True
                     else:
-                        # For friends: call removeFriend (v2 sharings API)
-                        self._account.removeFriend(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                        # For friends: remove via v2 friends API
+                        # NOTE: plexapi's removeFriend() uses /api/v2/sharings/
+                        # which only removes library sharing, NOT the friend
+                        # relationship. The correct endpoint is /api/v2/friends/.
+                        friends_url = f"https://plex.tv/api/v2/friends/{external_user_id}"
+                        base_headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+                        del_resp = self._account._session.delete(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                            friends_url,
+                            headers=base_headers,
+                            timeout=30,
+                        )
+                        _ = del_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        log.info(
+                            "plex_friend_removed_via_v2_friends_api",
+                            url=self.url,
+                            user_id=external_user_id,
+                        )
+                        friend_deleted = True
 
-                        # Verify removal by re-fetching the users list.
-                        # Best-effort: a transient API failure here should not
-                        # fail the deletion when removeFriend() already succeeded.
+                        # Best-effort verification
                         try:
                             verify_users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
                             still_present = any(
                                 str(getattr(u, "id", "")) == external_user_id  # pyright: ignore[reportUnknownArgumentType]
                                 for u in verify_users  # pyright: ignore[reportUnknownVariableType]
                             )
+                            if still_present:
+                                log.warning(
+                                    "plex_friend_may_persist_in_api_cache",
+                                    url=self.url,
+                                    user_id=external_user_id,
+                                )
                         except Exception as verify_exc:
                             log.warning(
                                 "plex_post_remove_verification_failed",
@@ -1034,74 +1054,6 @@ class PlexClient:
                                 user_id=external_user_id,
                                 error=str(verify_exc),
                             )
-                            still_present = False
-
-                        if not still_present:
-                            friend_deleted = True
-                            log.info(
-                                "plex_friend_removed_via_sharings_api",
-                                url=self.url,
-                                user_id=external_user_id,
-                            )
-                        else:
-                            # Fallback: try v1 friends endpoint for friend-only users
-                            log.info(
-                                "plex_friend_still_present_after_remove_trying_v1_fallback",
-                                url=self.url,
-                                user_id=external_user_id,
-                            )
-                            try:
-                                friends_url = (
-                                    f"https://plex.tv/api/friends/{external_user_id}"
-                                )
-                                base_headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
-                                del_resp = self._account._session.delete(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
-                                    friends_url,
-                                    headers=base_headers,
-                                    timeout=30,
-                                )
-                                _ = del_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                                log.info(
-                                    "plex_friend_removed_via_v1_friends_api",
-                                    url=self.url,
-                                    user_id=external_user_id,
-                                )
-                            except Exception as v1_exc:
-                                log.warning(
-                                    "plex_v1_friends_fallback_failed",
-                                    url=self.url,
-                                    user_id=external_user_id,
-                                    error=str(v1_exc),
-                                )
-
-                            # Verify again after fallback (best-effort)
-                            try:
-                                verify_users_2 = self._account.users()  # pyright: ignore[reportUnknownVariableType]
-                                still_present_2 = any(
-                                    str(getattr(u, "id", "")) == external_user_id  # pyright: ignore[reportUnknownArgumentType]
-                                    for u in verify_users_2  # pyright: ignore[reportUnknownVariableType]
-                                )
-                            except Exception as verify_exc_2:
-                                log.warning(
-                                    "plex_post_fallback_verification_failed",
-                                    url=self.url,
-                                    user_id=external_user_id,
-                                    error=str(verify_exc_2),
-                                )
-                                still_present_2 = False
-
-                            if not still_present_2:
-                                friend_deleted = True
-                            else:
-                                # Known Plex API caching bug: user may persist in
-                                # the v1 users API even after successful removal.
-                                # Treat as success with warning.
-                                log.warning(
-                                    "plex_friend_persists_after_removal_likely_api_cache",
-                                    url=self.url,
-                                    user_id=external_user_id,
-                                )
-                                friend_deleted = True
 
                 # Path 2: Remove shared server access (only for users with server access)
                 shared_deleted = False

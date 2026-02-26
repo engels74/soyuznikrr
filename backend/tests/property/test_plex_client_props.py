@@ -1224,14 +1224,16 @@ class MockHTTPResponse:
 
 
 class MockSessionForSharedServers:
-    """Mock HTTP session for shared_servers API calls."""
+    """Mock HTTP session for shared_servers and v2 friends API calls."""
 
     _get_json: dict[str, object]
     _get_error: Exception | None
     _delete_error: Exception | None
+    _friends_delete_error: Exception | None
     get_called: bool
     delete_called: bool
     delete_url: str | None
+    delete_urls: list[str]
 
     def __init__(
         self,
@@ -1239,13 +1241,16 @@ class MockSessionForSharedServers:
         get_json: dict[str, object] | None = None,
         get_error: Exception | None = None,
         delete_error: Exception | None = None,
+        friends_delete_error: Exception | None = None,
     ) -> None:
         self._get_json = get_json or {"SharedServer": []}
         self._get_error = get_error
         self._delete_error = delete_error
+        self._friends_delete_error = friends_delete_error
         self.get_called = False
         self.delete_called = False
         self.delete_url = None
+        self.delete_urls = []
 
     def get(self, _url: str, **_kwargs: object) -> MockHTTPResponse:
         """Mock GET request."""
@@ -1258,7 +1263,12 @@ class MockSessionForSharedServers:
         """Mock DELETE request."""
         self.delete_called = True
         self.delete_url = url
-        if self._delete_error is not None:
+        self.delete_urls.append(url)
+        # Route errors: friends_delete_error for v2 friends API,
+        # delete_error for everything else (shared server removal)
+        if "/api/v2/friends/" in url and self._friends_delete_error is not None:
+            raise self._friends_delete_error
+        if "/api/v2/friends/" not in url and self._delete_error is not None:
             raise self._delete_error
         return MockHTTPResponse(json_data={})
 
@@ -1417,7 +1427,9 @@ class TestDeleteUserReturnValueCorrectness:
                 result = await client.delete_user(str(user_id))
 
                 assert result is True
-                assert str(user_id) in mock_account.removed_users
+                # Friend removal now uses v2 friends API via session.delete()
+                friends_url = f"https://plex.tv/api/v2/friends/{user_id}"
+                assert any(friends_url in u for u in mock_account._session.delete_urls)
 
     @settings(max_examples=100)
     @given(
@@ -1576,7 +1588,9 @@ class TestDeleteUserReturnValueCorrectness:
                 result = await client.delete_user(str(user_id))
 
                 assert result is True
-                assert str(user_id) in mock_account.removed_users
+                # Friend removal via v2 friends API + shared server removal
+                friends_url = f"https://plex.tv/api/v2/friends/{user_id}"
+                assert any(friends_url in u for u in mock_session.delete_urls)
                 assert mock_session.delete_called is True
 
     @settings(max_examples=25)
@@ -1632,13 +1646,16 @@ class TestDeleteUserReturnValueCorrectness:
         from zondarr.core.exceptions import ExternalServiceError
         from zondarr.media.providers.plex.client import PlexClient
 
-        # Create a Friend user that will fail to delete
+        # Create a Friend user that will fail to delete via v2 friends API
         mock_user = MockMyPlexUserWithHome(
             user_id=user_id, username=username, email=f"{username}@test.com", home=False
         )
+        mock_session = MockSessionForSharedServers(
+            friends_delete_error=RuntimeError(error_message),
+        )
         mock_account = MockMyPlexAccountWithUserManagement(
             users=[mock_user],
-            remove_friend_error=RuntimeError(error_message),
+            session=mock_session,
         )
         mock_server = MockPlexServerWithUserManagement(
             url, api_key, account=mock_account
