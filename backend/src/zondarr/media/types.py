@@ -35,6 +35,7 @@ class Capability(StrEnum):
     ENABLE_DISABLE_USER = "enable_disable_user"
     LIBRARY_ACCESS = "library_access"
     DOWNLOAD_PERMISSION = "download_permission"
+    REMOVE_SHARED_ACCESS = "remove_shared_access"
 
 
 class LibraryInfo(msgspec.Struct, omit_defaults=True, kw_only=True):

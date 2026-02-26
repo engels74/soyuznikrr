@@ -325,6 +325,18 @@ export async function deleteUser(userId: string, client: ApiClient = api) {
 	});
 }
 
+/**
+ * Remove shared library access without removing the friend relationship.
+ *
+ * @param userId - UUID of the user
+ * @returns Updated user detail response
+ */
+export async function removeSharedAccess(userId: string, client: ApiClient = api) {
+	return client.POST('/api/v1/users/{user_id}/remove-shares', {
+		params: { path: { user_id: userId } }
+	});
+}
+
 /** User permissions update request */
 export interface UpdateUserPermissions {
 	can_download?: boolean;

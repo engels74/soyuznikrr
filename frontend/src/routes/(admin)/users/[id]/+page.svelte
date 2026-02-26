@@ -30,14 +30,15 @@ import {
 	deleteUser,
 	disableUser,
 	enableUser,
+	removeSharedAccess,
 	withErrorHandling,
 } from "$lib/api/client";
 import { asErrorResponse, getErrorMessage } from "$lib/api/errors";
-import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import StatusBadge, {
 	type StatusBadgeStatus,
 } from "$lib/components/status-badge.svelte";
+import SteppedDeleteDialog from "$lib/components/stepped-delete-dialog.svelte";
 import { Button } from "$lib/components/ui/button";
 import * as Card from "$lib/components/ui/card";
 import { Label } from "$lib/components/ui/label";
@@ -55,23 +56,6 @@ let deleting = $state(false);
 
 // Delete confirmation dialog
 let showDeleteDialog = $state(false);
-
-/**
- * Get context-aware deletion description based on user type.
- */
-const deleteDescription = $derived.by(() => {
-	if (!data.user?.external_user_type) return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
-	switch (data.user.external_user_type) {
-		case "friend":
-			return "Are you sure you want to delete this user? This will remove the friend connection on Plex, as well as the local database record. This action cannot be undone.";
-		case "shared":
-			return "Are you sure you want to delete this user? This will remove shared library access on Plex, as well as the local database record. This action cannot be undone.";
-		case "home":
-			return "Are you sure you want to delete this user? This will remove this user from Plex Home, as well as the local database record. This action cannot be undone.";
-		default:
-			return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
-	}
-});
 
 /**
  * Check if user is expired based on expires_at.
@@ -205,33 +189,43 @@ async function handleDisable() {
 }
 
 /**
- * Handle delete user confirmation.
+ * Handle removing shared access (step 1 for shared users).
+ */
+async function handleRemoveShares() {
+	if (!data.user) return;
+	const userId = data.user.id;
+
+	const result = await withErrorHandling(() => removeSharedAccess(userId), {
+		showErrorToast: false,
+	});
+
+	if (result.error) {
+		const errorBody = asErrorResponse(result.error);
+		throw new Error(errorBody?.detail ?? "Failed to remove shared access");
+	}
+
+	showSuccess("Shared access removed");
+	await invalidateAll();
+}
+
+/**
+ * Handle delete user confirmation (final step).
  */
 async function handleDelete() {
 	if (!data.user) return;
 	const userId = data.user.id;
 
-	deleting = true;
-	try {
-		const result = await withErrorHandling(() => deleteUser(userId), {
-			showErrorToast: false,
-		});
+	const result = await withErrorHandling(() => deleteUser(userId), {
+		showErrorToast: false,
+	});
 
-		if (result.error) {
-			const errorBody = asErrorResponse(result.error);
-			showError(
-				"Failed to delete user",
-				errorBody?.detail ?? "An error occurred",
-			);
-			return;
-		}
-
-		showSuccess("User deleted successfully");
-		goto("/users");
-	} finally {
-		deleting = false;
-		showDeleteDialog = false;
+	if (result.error) {
+		const errorBody = asErrorResponse(result.error);
+		throw new Error(errorBody?.detail ?? "Failed to delete user");
 	}
+
+	showSuccess("User deleted successfully");
+	goto("/users");
 }
 
 /**
@@ -648,14 +642,11 @@ function viewLinkedUser(userId: string) {
 	{/if}
 </div>
 
-<!-- Delete Confirmation Dialog -->
-<ConfirmDialog
+<!-- Stepped Delete Dialog -->
+<SteppedDeleteDialog
 	bind:open={showDeleteDialog}
-	title="Delete User"
-	description={deleteDescription}
-	confirmLabel="Delete"
-	variant="destructive"
-	loading={deleting}
-	onConfirm={handleDelete}
+	userType={data.user?.external_user_type as "friend" | "shared" | "home" | null | undefined}
+	onRemoveShares={handleRemoveShares}
+	onDelete={handleDelete}
 	onCancel={() => (showDeleteDialog = false)}
 />

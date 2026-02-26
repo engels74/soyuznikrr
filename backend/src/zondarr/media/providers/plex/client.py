@@ -244,6 +244,7 @@ class PlexClient:
             Capability.CREATE_USER,
             Capability.DELETE_USER,
             Capability.LIBRARY_ACCESS,
+            Capability.REMOVE_SHARED_ACCESS,
         }
 
     @classmethod
@@ -931,7 +932,12 @@ class PlexClient:
         _ = resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
         # Parse JSON to find matching userID
-        data: dict[str, object] = resp.json()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        # Friend-only users may return an empty body (no shared server entries)
+        try:
+            data: dict[str, object] = resp.json()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        except (ValueError, TypeError):
+            # Empty or non-JSON response — no shared server entries exist
+            return False
         shared_servers: list[dict[str, object]] = []
 
         # Response may be {"SharedServer": [...]} or similar structure
@@ -1003,33 +1009,74 @@ class PlexClient:
                         break
 
                 if target_user is not None:
-                    # Determine if this is a Home User or Friend
                     is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
 
                     if is_home_user:
                         self._account.removeHomeUser(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
+                        friend_deleted = True
                     else:
-                        self._account.removeFriend(target_user)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnusedCallResult]
-                    friend_deleted = True
-
-                # Path 2: Remove shared server access (direct-share users)
-                shared_deleted = False
-                if self._server is not None:
-                    try:
-                        shared_deleted = self._remove_shared_server_access_sync(
-                            external_user_id
+                        # For friends: remove via v2 friends API
+                        # NOTE: plexapi's removeFriend() uses /api/v2/sharings/
+                        # which only removes library sharing, NOT the friend
+                        # relationship. The correct endpoint is /api/v2/friends/.
+                        friends_url = f"https://plex.tv/api/v2/friends/{external_user_id}"
+                        base_headers: dict[str, str] = self._account._headers()  # pyright: ignore[reportUnknownMemberType, reportAssignmentType, reportPrivateUsage, reportUnknownVariableType]
+                        del_resp = self._account._session.delete(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                            friends_url,
+                            headers=base_headers,
+                            timeout=30,
                         )
-                    except Exception as shared_exc:
-                        # If Path 1 succeeded, log warning but don't fail
-                        if friend_deleted:
+                        _ = del_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        log.info(
+                            "plex_friend_removed_via_v2_friends_api",
+                            url=self.url,
+                            user_id=external_user_id,
+                        )
+                        friend_deleted = True
+
+                        # Best-effort verification
+                        try:
+                            verify_users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+                            still_present = any(
+                                str(getattr(u, "id", "")) == external_user_id  # pyright: ignore[reportUnknownArgumentType]
+                                for u in verify_users  # pyright: ignore[reportUnknownVariableType]
+                            )
+                            if still_present:
+                                log.warning(
+                                    "plex_friend_may_persist_in_api_cache",
+                                    url=self.url,
+                                    user_id=external_user_id,
+                                )
+                        except Exception as verify_exc:
                             log.warning(
-                                "plex_shared_server_cleanup_failed",
+                                "plex_post_remove_verification_failed",
                                 url=self.url,
                                 user_id=external_user_id,
-                                error=str(shared_exc),
+                                error=str(verify_exc),
                             )
-                        else:
-                            raise
+
+                # Path 2: Remove shared server access (only for users with server access)
+                shared_deleted = False
+                if self._server is not None:
+                    # Only attempt shared server removal when the user has server access
+                    has_shared_access = target_user is not None and bool(
+                        getattr(target_user, "servers", None)  # pyright: ignore[reportUnknownArgumentType]
+                    )
+                    if has_shared_access or target_user is None:
+                        try:
+                            shared_deleted = self._remove_shared_server_access_sync(
+                                external_user_id
+                            )
+                        except Exception as shared_exc:
+                            if friend_deleted:
+                                log.warning(
+                                    "plex_shared_server_cleanup_failed",
+                                    url=self.url,
+                                    user_id=external_user_id,
+                                    error=str(shared_exc),
+                                )
+                            else:
+                                raise
 
                 return friend_deleted or shared_deleted
 
@@ -1077,6 +1124,56 @@ class PlexClient:
             # service error — the Plex API call itself failed.
             raise _create_external_service_error(
                 f"Failed to delete user: {exc}",
+                server_url=self.url,
+                original_error=exc,
+            ) from exc
+
+    async def remove_shared_access(self, external_user_id: str, /) -> bool:
+        """Remove shared library access without removing the friend relationship.
+
+        Calls _remove_shared_server_access_sync to delete the shared server
+        entry for this user. The friend relationship is left intact.
+
+        Args:
+            external_user_id: The user's numeric Plex user ID (positional-only).
+
+        Returns:
+            True if shared access was found and removed, False otherwise.
+
+        Raises:
+            MediaClientError: If the client is not initialized or operation fails.
+        """
+        if self._account is None or self._server is None:
+            raise _create_media_client_error(
+                "Client not initialized - use async context manager",
+                operation="remove_shared_access",
+                server_url=self.url,
+                cause="API client is None - __aenter__ was not called",
+                error_code=PlexErrorCode.CLIENT_NOT_INITIALIZED,
+            )
+
+        try:
+            removed = await asyncio.to_thread(
+                self._remove_shared_server_access_sync, external_user_id
+            )
+            if removed:
+                log.info(
+                    "plex_shared_access_removed",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+            else:
+                log.info(
+                    "plex_no_shared_access_found",
+                    url=self.url,
+                    user_id=external_user_id,
+                )
+            return removed
+        except MediaClientError:
+            raise
+        except Exception as exc:
+            raise _create_external_service_error(
+                f"Failed to remove shared access: {exc}",
                 server_url=self.url,
                 original_error=exc,
             ) from exc

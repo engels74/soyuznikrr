@@ -511,6 +511,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/users/{user_id}/remove-shares': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Remove shared access
+		 * @description Remove shared library access without removing friend relationship.
+		 */
+		post: operations['ApiV1UsersUserIdRemoveSharesRemoveSharedAccess'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/users/{user_id}/permissions': {
 		parameters: {
 			query?: never;
@@ -2451,6 +2471,47 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['UserListResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1UsersUserIdRemoveSharesRemoveSharedAccess: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description User UUID */
+				user_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Document created, URL follows */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['UserDetailResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

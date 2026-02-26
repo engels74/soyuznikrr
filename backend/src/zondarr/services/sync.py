@@ -17,6 +17,7 @@ from zondarr.media.registry import registry
 from zondarr.models.identity import Identity, User
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
+from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.user import UserRepository
 
 log = structlog.get_logger()  # pyright: ignore[reportAny]  # structlog lacks stubs
@@ -43,6 +44,7 @@ class SyncService:
     server_repo: MediaServerRepository
     user_repo: UserRepository
     identity_repo: IdentityRepository
+    sync_exclusion_repo: SyncExclusionRepository | None
 
     def __init__(
         self,
@@ -50,6 +52,8 @@ class SyncService:
         user_repo: UserRepository,
         identity_repo: IdentityRepository,
         /,
+        *,
+        sync_exclusion_repo: SyncExclusionRepository | None = None,
     ) -> None:
         """Initialize the SyncService with required repositories.
 
@@ -57,10 +61,12 @@ class SyncService:
             server_repo: Repository for MediaServer operations (positional-only).
             user_repo: Repository for User operations (positional-only).
             identity_repo: Repository for Identity operations (positional-only).
+            sync_exclusion_repo: Optional repository for sync exclusions (keyword-only).
         """
         self.server_repo = server_repo
         self.user_repo = user_repo
         self.identity_repo = identity_repo
+        self.sync_exclusion_repo = sync_exclusion_repo
 
     async def sync_server(
         self,
@@ -140,6 +146,20 @@ class SyncService:
                 ):
                     local_user.external_user_type = ext_user.user_type
                     _ = await self.user_repo.update(local_user)
+
+        # Filter orphaned users against sync exclusions to prevent
+        # re-import of deleted users (Plex API caching bug workaround)
+        if orphaned_ids and self.sync_exclusion_repo is not None:
+            excluded_ids = await self.sync_exclusion_repo.get_excluded_ids(server_id)
+            excluded_matches = orphaned_ids & excluded_ids
+            if excluded_matches:
+                log.info(  # pyright: ignore[reportAny]
+                    "sync_skipping_excluded_users",
+                    server_name=server.name,
+                    excluded_count=len(excluded_matches),
+                    excluded_ids=sorted(excluded_matches),
+                )
+                orphaned_ids -= excluded_matches
 
         # Import orphaned users when not a dry run
         imported_count = 0
