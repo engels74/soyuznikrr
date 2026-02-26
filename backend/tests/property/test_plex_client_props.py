@@ -231,12 +231,12 @@ class TestCapabilitiesDeclaration:
         capabilities = PlexClient.capabilities()
         assert Capability.DOWNLOAD_PERMISSION not in capabilities
 
-    def test_capabilities_returns_exactly_three(self) -> None:
-        """PlexClient declares exactly 3 capabilities."""
+    def test_capabilities_returns_expected_count(self) -> None:
+        """PlexClient declares exactly 4 capabilities."""
         from zondarr.media.providers.plex.client import PlexClient
 
         capabilities = PlexClient.capabilities()
-        assert len(capabilities) == 3
+        assert len(capabilities) == 4
 
 
 class MockPlexServerWithError:

@@ -13,12 +13,12 @@
 
 import { goto, invalidateAll } from "$app/navigation";
 import { page } from "$app/state";
-import { deleteUser, disableUser, enableUser, type ListUsersParams, withErrorHandling } from "$lib/api/client";
+import { deleteUser, disableUser, enableUser, type ListUsersParams, removeSharedAccess, withErrorHandling } from "$lib/api/client";
 import { getErrorMessage, isNetworkError } from "$lib/api/errors";
-import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import EmptyState from "$lib/components/empty-state.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
 import Pagination from "$lib/components/pagination.svelte";
+import SteppedDeleteDialog from "$lib/components/stepped-delete-dialog.svelte";
 import UserFilters from "$lib/components/users/user-filters.svelte";
 import UserListSkeleton from "$lib/components/users/user-list-skeleton.svelte";
 import UserTable from "$lib/components/users/user-table.svelte";
@@ -39,22 +39,12 @@ let deleting = $state(false);
 const currentParams = $derived(data.params);
 
 /**
- * Get context-aware deletion description based on user type.
+ * Get the user type of the delete target for the stepped dialog.
  */
-const deleteDescription = $derived.by(() => {
-	if (!deleteTarget || !data.users) return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
+const deleteTargetType = $derived.by(() => {
+	if (!deleteTarget || !data.users) return null;
 	const targetUser = data.users.items.find((u) => u.id === deleteTarget);
-	if (!targetUser?.external_user_type) return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
-	switch (targetUser.external_user_type) {
-		case "friend":
-			return "Are you sure you want to delete this user? This will remove the friend connection on Plex, as well as the local database record. This action cannot be undone.";
-		case "shared":
-			return "Are you sure you want to delete this user? This will remove shared library access on Plex, as well as the local database record. This action cannot be undone.";
-		case "home":
-			return "Are you sure you want to delete this user? This will remove this user from Plex Home, as well as the local database record. This action cannot be undone.";
-		default:
-			return "Are you sure you want to delete this user? This will remove the user from both the local database and the media server. This action cannot be undone.";
-	}
+	return (targetUser?.external_user_type as "friend" | "shared" | "home" | null) ?? null;
 });
 
 /**
@@ -130,23 +120,36 @@ function handleDeleteRequest(id: string) {
 }
 
 /**
- * Confirm and execute user deletion.
+ * Handle removing shared access (step 1 for shared users).
+ */
+async function handleRemoveShares() {
+	if (!deleteTarget) return;
+	const result = await withErrorHandling(() => removeSharedAccess(deleteTarget!), {
+		showErrorToast: false,
+	});
+	if (result.error) {
+		throw new Error("Failed to remove shared access");
+	}
+	showSuccess("Shared access removed");
+	await invalidateAll();
+}
+
+/**
+ * Confirm and execute user deletion (final step).
  */
 async function handleDeleteConfirm() {
 	if (!deleteTarget) return;
 	const target = deleteTarget;
-	deleting = true;
-	try {
-		const result = await withErrorHandling(() => deleteUser(target));
-		if (!result.error) {
-			showSuccess("User deleted");
-			await invalidateAll();
-		}
-	} finally {
-		deleting = false;
-		showDeleteDialog = false;
-		deleteTarget = null;
+	const result = await withErrorHandling(() => deleteUser(target), {
+		showErrorToast: false,
+	});
+	if (result.error) {
+		throw new Error("Failed to delete user");
 	}
+	showSuccess("User deleted");
+	showDeleteDialog = false;
+	deleteTarget = null;
+	await invalidateAll();
 }
 </script>
 
@@ -203,13 +206,10 @@ async function handleDeleteConfirm() {
 	{/if}
 </div>
 
-<ConfirmDialog
-	open={showDeleteDialog}
-	title="Delete User"
-	description={deleteDescription}
-	confirmLabel={deleting ? 'Deleting...' : 'Delete'}
-	variant="destructive"
-	loading={deleting}
-	onConfirm={handleDeleteConfirm}
+<SteppedDeleteDialog
+	bind:open={showDeleteDialog}
+	userType={deleteTargetType}
+	onRemoveShares={handleRemoveShares}
+	onDelete={handleDeleteConfirm}
 	onCancel={() => { showDeleteDialog = false; deleteTarget = null; }}
 />

@@ -29,6 +29,7 @@ from zondarr.media.types import ExternalUser
 from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
+from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.user import UserRepository
 
 log = structlog.get_logger()  # pyright: ignore[reportAny]  # structlog lacks stubs
@@ -56,12 +57,15 @@ class UserService:
 
     user_repository: UserRepository
     identity_repository: IdentityRepository
+    sync_exclusion_repository: SyncExclusionRepository | None
 
     def __init__(
         self,
         user_repository: UserRepository,
         identity_repository: IdentityRepository,
         /,
+        *,
+        sync_exclusion_repository: SyncExclusionRepository | None = None,
     ) -> None:
         """Initialize the UserService.
 
@@ -69,9 +73,12 @@ class UserService:
             user_repository: The UserRepository for user data access (positional-only).
             identity_repository: The IdentityRepository for identity data access
                 (positional-only).
+            sync_exclusion_repository: Optional SyncExclusionRepository to record
+                exclusions when users are deleted (keyword-only).
         """
         self.user_repository = user_repository
         self.identity_repository = identity_repository
+        self.sync_exclusion_repository = sync_exclusion_repository
 
     async def create_identity_with_users(
         self,
@@ -335,6 +342,19 @@ class UserService:
                 field_errors={"user_id": [str(e)]},
             ) from e
 
+        # Record sync exclusion before deleting local record to prevent
+        # the background sync from re-importing "ghost" users (Plex API
+        # caching bug where removed users still appear in the users list)
+        if self.sync_exclusion_repository is not None:
+            _ = await self.sync_exclusion_repository.add_exclusion(
+                user.external_user_id, user.media_server_id
+            )
+            log.info(  # pyright: ignore[reportAny]
+                "sync_exclusion_created",
+                external_user_id=user.external_user_id,
+                media_server_id=str(user.media_server_id),
+            )
+
         # Delete local user record after successful external operation
         await self.user_repository.delete(user)
 
@@ -533,3 +553,45 @@ class UserService:
             ) from e
 
         return user
+
+    async def remove_shared_access(self, user_id: UUID, /) -> User:
+        """Remove shared library access for a user without removing the friend relationship.
+
+        Calls the media server client to remove shared server entries, then
+        updates the local user's external_user_type from "shared" to "friend".
+
+        Args:
+            user_id: The UUID of the user (positional-only).
+
+        Returns:
+            The updated User entity with external_user_type changed to "friend".
+
+        Raises:
+            NotFoundError: If the user does not exist.
+            ValidationError: If the media server operation fails.
+        """
+        user = await self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError("User", str(user_id))
+
+        server = user.media_server
+        client = registry.create_client_for_server(server)
+
+        try:
+            async with client:
+                removed = await client.remove_shared_access(user.external_user_id)
+                if not removed:
+                    log.info(  # pyright: ignore[reportAny]
+                        "no_shared_access_to_remove",
+                        user_id=str(user.id),
+                        external_user_id=user.external_user_id,
+                    )
+        except MediaClientError as e:
+            raise ValidationError(
+                f"Failed to remove shared access on media server: {e}",
+                field_errors={"user_id": [str(e)]},
+            ) from e
+
+        # Update local user type from "shared" to "friend"
+        user.external_user_type = "friend"
+        return await self.user_repository.update(user)

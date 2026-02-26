@@ -278,6 +278,25 @@ class MediaClient(Protocol):
         """
         ...
 
+    async def remove_shared_access(self, external_user_id: str, /) -> bool:
+        """Remove shared library access for a user without removing the friend relationship.
+
+        For Plex: removes shared server entries while keeping the friend connection.
+        For providers that don't support this distinction, returns False.
+
+        Args:
+            external_user_id: The user's unique identifier on the media server
+                (positional-only).
+
+        Returns:
+            True if shared access was found and removed, False if not applicable
+            or no shared access existed.
+
+        Raises:
+            MediaClientError: If the operation fails due to server error.
+        """
+        ...
+
     async def list_users(self) -> Sequence[ExternalUser]:
         """List all users from the media server.
 

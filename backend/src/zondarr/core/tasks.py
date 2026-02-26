@@ -26,6 +26,7 @@ from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
+from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
 from zondarr.services.sync import SyncService
@@ -261,7 +262,13 @@ class BackgroundTaskManager:
                     server_repo = MediaServerRepository(session)
                     user_repo = UserRepository(session)
                     identity_repo = IdentityRepository(session)
-                    sync_service = SyncService(server_repo, user_repo, identity_repo)
+                    sync_exclusion_repo = SyncExclusionRepository(session)
+                    sync_service = SyncService(
+                        server_repo,
+                        user_repo,
+                        identity_repo,
+                        sync_exclusion_repo=sync_exclusion_repo,
+                    )
                     result = await sync_service.sync_server(server_id, dry_run=False)
                     await session.commit()
                 logger.info(
