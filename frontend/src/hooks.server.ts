@@ -5,7 +5,7 @@ import { env as publicEnv } from '$env/dynamic/public';
 
 const SSR_API_URL = env.INTERNAL_API_URL ?? publicEnv.PUBLIC_API_URL ?? 'http://localhost:8000';
 
-const PUBLIC_PATHS = ['/login', '/setup', '/join'];
+const PUBLIC_PATHS = ['/login', '/setup', '/join', '/api', '/health'];
 
 function isPublicPath(pathname: string): boolean {
 	return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
