@@ -1,34 +1,80 @@
 <script lang="ts">
 import { goto } from '$app/navigation';
+import {
+	advanceOnboarding,
+	getErrorDetail,
+	type OnboardingStep
+} from '$lib/api/auth';
 import StepAdmin from './step-admin.svelte';
 import StepCsrf from './step-csrf.svelte';
 import StepIndicator from './step-indicator.svelte';
 import StepServer from './step-server.svelte';
 
+interface Props {
+	initialStep?: OnboardingStep;
+}
+
+const { initialStep = 'account' }: Props = $props();
+
+function onboardingStepToUiStep(step: OnboardingStep): number {
+	if (step === 'account') return 1;
+	if (step === 'security') return 2;
+	return 3;
+}
+
 let currentStep = $state(1);
-let adminCreated = $state(false);
+let stepInitialized = $state(false);
+let advancing = $state(false);
+
+$effect(() => {
+	if (stepInitialized) return;
+	currentStep = onboardingStepToUiStep(initialStep);
+	stepInitialized = true;
+});
 
 const stepLabels = ['Account', 'Security', 'Server'];
 
 function handleAdminComplete() {
-	adminCreated = true;
 	currentStep = 2;
 }
 
-function handleServerComplete() {
-	goto('/dashboard');
+async function advanceStep(): Promise<boolean> {
+	if (advancing) return false;
+	advancing = true;
+	try {
+		const response = await advanceOnboarding();
+		if (response.error) {
+			console.warn('[setup wizard] failed to advance onboarding:', getErrorDetail(response.error));
+			return false;
+		}
+		return true;
+	} finally {
+		advancing = false;
+	}
 }
 
-function handleServerSkip() {
-	goto('/dashboard');
+async function handleServerComplete() {
+	// The backend already advances onboarding from "server" → "complete" during
+	// server creation (complete_server_step), so we navigate directly without
+	// calling the skip endpoint again — a redundant call that could block
+	// navigation on transient failure even though onboarding is already complete.
+	await goto('/dashboard');
+}
+
+async function handleServerSkip() {
+	const ok = await advanceStep();
+	if (!ok) return;
+	await goto('/dashboard');
 }
 
 function handleCsrfComplete() {
 	currentStep = 3;
 }
 
-function handleCsrfSkip() {
-	goto('/dashboard');
+async function handleCsrfSkip() {
+	const ok = await advanceStep();
+	if (!ok) return;
+	currentStep = 3;
 }
 </script>
 

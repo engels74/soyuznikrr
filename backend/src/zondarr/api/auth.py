@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zondarr.config import Settings
 from zondarr.core.auth import AdminUser
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
+from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.services.auth import AuthService
 
 from .schemas import (
@@ -32,6 +33,7 @@ from .schemas import (
     AuthTokenResponse,
     ExternalLoginRequest,
     LoginRequest,
+    OnboardingStatusResponse,
     ProviderAuthInfo,
     RefreshRequest,
 )
@@ -50,6 +52,7 @@ class AuthController(Controller):
         return AuthService(
             admin_repo=AdminAccountRepository(session),
             token_repo=RefreshTokenRepository(session),
+            app_setting_repo=AppSettingRepository(session),
         )
 
     def _create_access_token(
@@ -87,7 +90,9 @@ class AuthController(Controller):
         methods, descriptors = await service.get_auth_methods_with_providers(
             settings=settings
         )
-        setup = await service.setup_required()
+        setup, onboarding_required, onboarding_step = (
+            await service.get_setup_and_onboarding_status()
+        )
 
         # Map provider descriptors to response schema
         provider_auth = [
@@ -112,6 +117,8 @@ class AuthController(Controller):
         return AuthMethodsResponse(
             methods=methods,
             setup_required=setup,
+            onboarding_required=onboarding_required,
+            onboarding_step=onboarding_step,
             provider_auth=provider_auth,
         )
 
@@ -132,6 +139,7 @@ class AuthController(Controller):
         admin = await service.setup_admin(
             data.username, data.password, email=data.email
         )
+        await service.initialize_onboarding()
 
         # Issue tokens
         secret_key = settings.secret_key
@@ -147,6 +155,20 @@ class AuthController(Controller):
             cookies=[access_cookie],
         )
         return response
+
+    @post(
+        "/onboarding/advance",
+        status_code=HTTP_200_OK,
+        summary="Advance onboarding step",
+    )
+    async def advance_onboarding(self, session: AsyncSession) -> OnboardingStatusResponse:
+        """Advance onboarding by one step for explicit skip actions."""
+        service = self._create_auth_service(session)
+        onboarding_required, onboarding_step = await service.advance_onboarding()
+        return OnboardingStatusResponse(
+            onboarding_required=onboarding_required,
+            onboarding_step=onboarding_step,
+        )
 
     @post(
         "/login",
@@ -287,12 +309,20 @@ class AuthController(Controller):
         status_code=HTTP_200_OK,
         summary="Get current admin info",
     )
-    async def me(self, request: Request[AdminUser, Token, State]) -> AdminMeResponse:
+    async def me(
+        self,
+        request: Request[AdminUser, Token, State],
+        session: AsyncSession,
+    ) -> AdminMeResponse:
         """Return current authenticated admin's info."""
         user: AdminUser = request.user
+        service = self._create_auth_service(session)
+        onboarding_required, onboarding_step = await service.get_onboarding_status()
         return AdminMeResponse(
             id=user.id,
             username=user.username,
             email=user.email,
             auth_method=user.auth_method,
+            onboarding_required=onboarding_required,
+            onboarding_step=onboarding_step,
         )

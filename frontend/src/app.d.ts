@@ -9,6 +9,8 @@ declare global {
 				username: string;
 				email: string | null;
 				auth_method: string;
+				onboarding_required: boolean;
+				onboarding_step: 'account' | 'security' | 'server' | 'complete';
 			} | null;
 		}
 		// interface PageData {}

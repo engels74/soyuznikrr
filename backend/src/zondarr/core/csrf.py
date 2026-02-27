@@ -37,6 +37,7 @@ _CSRF_EXCLUDE_PATHS_BASE = frozenset(
         "/api/auth/refresh",
         "/api/auth/logout",
         "/api/auth/methods",
+        "/api/auth/onboarding/advance",
         "/api/health",
         "/health",
         "/api/v1/settings/csrf-origin",
@@ -127,7 +128,7 @@ class CSRFMiddleware:
         # Server-side requests (SvelteKit API proxy, curl) don't send
         # Origin/Referer. Browsers ALWAYS send Origin on mutating requests,
         # so missing headers means this isn't a CSRF attack — allow through.
-        headers: list[tuple[bytes, bytes]] = scope.get("headers", [])  # pyright: ignore[reportUnknownMemberType]
+        headers = list(scope.get("headers", []))  # pyright: ignore[reportUnknownMemberType]
         has_origin_or_referer = any(
             name.lower() in (b"origin", b"referer") for name, _ in headers
         )

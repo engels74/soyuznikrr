@@ -17,6 +17,8 @@ from zondarr.core.exceptions import AuthenticationError
 from zondarr.media.registry import registry
 from zondarr.models.admin import AdminAccount, RefreshToken
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
+from zondarr.repositories.app_setting import AppSettingRepository
+from zondarr.services.onboarding import OnboardingService, OnboardingStep
 from zondarr.services.password import hash_password, needs_rehash, verify_password
 
 if TYPE_CHECKING:
@@ -44,18 +46,24 @@ class AuthService:
     Attributes:
         admin_repo: Repository for admin accounts.
         token_repo: Repository for refresh tokens.
+        app_setting_repo: Repository for app-level key/value settings.
     """
 
     admin_repo: AdminAccountRepository
     token_repo: RefreshTokenRepository
+    app_setting_repo: AppSettingRepository
+    onboarding_service: OnboardingService
 
     def __init__(
         self,
         admin_repo: AdminAccountRepository,
         token_repo: RefreshTokenRepository,
+        app_setting_repo: AppSettingRepository,
     ) -> None:
         self.admin_repo = admin_repo
         self.token_repo = token_repo
+        self.app_setting_repo = app_setting_repo
+        self.onboarding_service = OnboardingService(admin_repo, app_setting_repo)
 
     async def setup_required(self) -> bool:
         """Check if initial admin setup is needed.
@@ -65,6 +73,30 @@ class AuthService:
         """
         count = await self.admin_repo.count()
         return count == 0
+
+    async def get_onboarding_status(self) -> tuple[bool, OnboardingStep]:
+        """Get onboarding requirement and current step."""
+        return await self.onboarding_service.get_status()
+
+    async def get_setup_and_onboarding_status(
+        self,
+    ) -> tuple[bool, bool, OnboardingStep]:
+        """Get setup and onboarding status in one call.
+
+        Returns:
+            A tuple of (setup_required, onboarding_required, onboarding_step).
+        """
+        onboarding_required, onboarding_step = await self.get_onboarding_status()
+        return onboarding_step == "account", onboarding_required, onboarding_step
+
+    async def initialize_onboarding(self) -> None:
+        """Initialize onboarding state right after first admin setup."""
+        await self.onboarding_service.initialize_after_admin_setup()
+
+    async def advance_onboarding(self) -> tuple[bool, OnboardingStep]:
+        """Advance onboarding by one skip step and return updated status."""
+        onboarding_step = await self.onboarding_service.advance_skip_step()
+        return onboarding_step != "complete", onboarding_step
 
     async def create_admin(
         self,

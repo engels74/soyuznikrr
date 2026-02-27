@@ -14,7 +14,8 @@ vi.mock('$lib/api/auth', async () => {
 	const actual = await vi.importActual('$lib/api/auth');
 	return {
 		...actual,
-		setupAdmin: vi.fn()
+		setupAdmin: vi.fn(),
+		advanceOnboarding: vi.fn()
 	};
 });
 
@@ -33,6 +34,7 @@ vi.mock('$lib/api/client', async () => {
 
 import * as authApi from '$lib/api/auth';
 import * as apiClient from '$lib/api/client';
+import { setProviders } from '$lib/stores/providers.svelte';
 import SetupWizard from './setup-wizard.svelte';
 
 function findButton(container: HTMLElement, text: string): HTMLButtonElement | undefined {
@@ -90,6 +92,13 @@ describe('SetupWizard', () => {
 			data: { refresh_token: 'token' },
 			error: undefined
 		});
+		vi.mocked(authApi.advanceOnboarding).mockResolvedValue({
+			data: {
+				onboarding_required: true,
+				onboarding_step: 'server'
+			},
+			error: undefined
+		});
 
 		vi.mocked(apiClient.withErrorHandling)
 			.mockResolvedValueOnce({
@@ -125,5 +134,66 @@ describe('SetupWizard', () => {
 
 		await user.click(findButton(container, 'Skip for now')!);
 		expect(mockGoto).toHaveBeenCalledWith('/dashboard');
+	});
+
+	it('navigates to dashboard without calling advanceOnboarding when server step is completed', async () => {
+		// The backend already advances onboarding during server creation
+		// (complete_server_step), so the frontend must NOT call the skip endpoint.
+		const user = userEvent.setup();
+
+		// Register providers so form validation passes
+		setProviders([
+			{
+				server_type: 'plex',
+				display_name: 'Plex',
+				color: '#e5a00d',
+				icon_svg: ''
+			}
+		]);
+
+		// Start directly at the server step to isolate the assertion
+		vi.mocked(apiClient.withErrorHandling)
+			.mockResolvedValueOnce({ data: { credentials: [] }, error: undefined }) // getEnvCredentials
+			.mockResolvedValueOnce({
+				data: { success: true, server_type: 'plex', server_name: 'My Plex', version: '1.0' },
+				error: undefined
+			}) // testConnection
+			.mockResolvedValueOnce({ data: { id: 'srv-1' }, error: undefined }); // createServer
+
+		const { container } = render(SetupWizard, { props: { initialStep: 'server' } });
+
+		await waitFor(() => {
+			expect(container.textContent).toContain('Connect a Media Server');
+		});
+
+		// Fill in server name, URL, and API key (canTest requires url + api_key)
+		const nameInput = container.querySelector('#server-name') as HTMLInputElement;
+		const urlInput = container.querySelector('#server-url') as HTMLInputElement;
+		const apiKeyInput = container.querySelector('#server-api-key') as HTMLInputElement;
+		await user.type(nameInput, 'Test Server');
+		await user.type(urlInput, 'http://localhost:8096');
+		await user.type(apiKeyInput, 'test-api-key');
+		await user.click(findButton(container, 'Test Connection')!);
+
+		await waitFor(() => {
+			expect(container.textContent).toContain('Connected');
+		});
+
+		await user.click(findButton(container, 'Add Server & Finish')!);
+
+		await waitFor(() => {
+			expect(mockGoto).toHaveBeenCalledWith('/dashboard');
+		});
+
+		// The skip/advance endpoint must NOT have been called — backend already advanced
+		expect(authApi.advanceOnboarding).not.toHaveBeenCalled();
+	});
+
+	it('starts at the security step when initialStep is security', () => {
+		const { container } = render(SetupWizard, {
+			props: { initialStep: 'security' }
+		});
+
+		expect(container.textContent).toContain('Security Configuration');
 	});
 });

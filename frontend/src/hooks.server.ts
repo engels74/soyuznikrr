@@ -22,7 +22,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			id: '00000000-0000-0000-0000-000000000000',
 			username: 'dev-admin',
 			email: null,
-			auth_method: 'dev-skip'
+			auth_method: 'dev-skip',
+			onboarding_required: false,
+			onboarding_step: 'complete'
 		};
 	} else if (accessToken) {
 		const controller = new AbortController();
@@ -48,9 +50,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const { pathname } = event.url;
+	const isOnboardingBypassPath =
+		pathname.startsWith('/api') || pathname === '/health' || pathname.startsWith('/health/');
+
+	// Enforce onboarding flow before allowing access to normal app routes.
+	if (
+		event.locals.user?.onboarding_required &&
+		pathname !== '/setup' &&
+		!isOnboardingBypassPath
+	) {
+		redirect(302, '/setup');
+	}
 
 	// Redirect authenticated users away from auth pages
-	if (event.locals.user && (pathname === '/login' || pathname === '/setup')) {
+	if (
+		event.locals.user &&
+		!event.locals.user.onboarding_required &&
+		(pathname === '/login' || pathname === '/setup')
+	) {
 		redirect(302, '/dashboard');
 	}
 

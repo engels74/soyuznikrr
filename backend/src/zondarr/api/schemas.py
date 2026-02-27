@@ -22,7 +22,7 @@ Response structs use:
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 import msgspec
@@ -1186,6 +1186,9 @@ AdminUsername = Annotated[
 # Admin password: 15+ chars for strong security
 AdminPassword = Annotated[str, msgspec.Meta(min_length=15, max_length=128)]
 
+# Onboarding flow steps for initial installation.
+OnboardingStep = Literal["account", "security", "server", "complete"]
+
 
 class AuthFieldInfo(msgspec.Struct, kw_only=True):
     """Auth field descriptor for frontend form rendering.
@@ -1229,12 +1232,28 @@ class AuthMethodsResponse(msgspec.Struct, kw_only=True):
     Attributes:
         methods: List of available auth method names ("local" plus any configured external providers).
         setup_required: True if no admin accounts exist yet.
+        onboarding_required: True if setup/admin onboarding is not yet complete.
+        onboarding_step: Current onboarding step to resume.
         provider_auth: Metadata for each external auth provider.
     """
 
     methods: list[str]
     setup_required: bool
+    onboarding_required: bool
+    onboarding_step: OnboardingStep
     provider_auth: list[ProviderAuthInfo] = []
+
+
+class OnboardingStatusResponse(msgspec.Struct, kw_only=True):
+    """Onboarding status response.
+
+    Attributes:
+        onboarding_required: True if onboarding is still in progress.
+        onboarding_step: Current onboarding step to resume.
+    """
+
+    onboarding_required: bool
+    onboarding_step: OnboardingStep
 
 
 class AdminSetupRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -1294,10 +1313,14 @@ class AdminMeResponse(msgspec.Struct, kw_only=True):
         username: Admin username.
         email: Optional email address.
         auth_method: Authentication method used.
+        onboarding_required: True if onboarding is still in progress.
+        onboarding_step: Current onboarding step to resume.
     """
 
     id: UUID
     username: str
+    onboarding_required: bool
+    onboarding_step: OnboardingStep
     email: str | None = None
     auth_method: str = "local"
 
