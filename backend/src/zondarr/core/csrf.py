@@ -39,6 +39,8 @@ _CSRF_EXCLUDE_PATHS_BASE = frozenset(
         "/api/auth/methods",
         "/api/health",
         "/health",
+        "/api/v1/settings/csrf-origin",
+        "/api/v1/settings/csrf-origin/test",
     }
 )
 
@@ -53,7 +55,7 @@ _CSRF_EXCLUDE_PATHS_DOCS = frozenset(
 )
 
 # Prefixes excluded from CSRF checks
-CSRF_EXCLUDE_PREFIXES = ("/api/v1/join/",)
+CSRF_EXCLUDE_PREFIXES = ("/api/v1/join/", "/api/auth/login/")
 
 # Cache TTL for DB-sourced CSRF origin (seconds)
 _CACHE_TTL = 60
@@ -122,7 +124,18 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Resolve trusted origin
+        # Server-side requests (SvelteKit API proxy, curl) don't send
+        # Origin/Referer. Browsers ALWAYS send Origin on mutating requests,
+        # so missing headers means this isn't a CSRF attack — allow through.
+        headers: list[tuple[bytes, bytes]] = scope.get("headers", [])  # pyright: ignore[reportUnknownMemberType]
+        has_origin_or_referer = any(
+            name.lower() in (b"origin", b"referer") for name, _ in headers
+        )
+        if not has_origin_or_referer:
+            await self.app(scope, receive, send)
+            return
+
+        # Browser request (has Origin/Referer) — resolve trusted origin
         trusted_origin = await self._get_trusted_origin(scope)
         if trusted_origin is None:
             if is_debug:

@@ -203,7 +203,8 @@ class TestCSRFOriginValidation:
             await engine.dispose()
 
     @pytest.mark.asyncio
-    async def test_missing_origin_header_returns_403(self) -> None:
+    async def test_missing_origin_header_allows_request(self) -> None:
+        """Requests with no Origin/Referer are server-side (proxy, curl) — not CSRF."""
         engine = await create_test_engine()
         try:
             sf = async_sessionmaker(engine, expire_on_commit=False)
@@ -213,7 +214,7 @@ class TestCSRFOriginValidation:
 
             with TestClient(app) as client:
                 response = client.post("/test-post", json={})
-                assert response.status_code == 403
+                assert response.status_code == 201
         finally:
             await engine.dispose()
 

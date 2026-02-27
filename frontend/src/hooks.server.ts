@@ -3,7 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 
-const API_BASE_URL = publicEnv.PUBLIC_API_URL ?? '';
+const SSR_API_URL = env.INTERNAL_API_URL ?? publicEnv.PUBLIC_API_URL ?? '';
 
 const PUBLIC_PATHS = ['/login', '/setup', '/join'];
 
@@ -28,7 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), 2000);
 		try {
-			const response = await event.fetch(`${API_BASE_URL}/api/auth/me`, {
+			const response = await fetch(`${SSR_API_URL}/api/auth/me`, {
 				headers: { Cookie: `zondarr_access_token=${accessToken}` },
 				signal: controller.signal
 			});
