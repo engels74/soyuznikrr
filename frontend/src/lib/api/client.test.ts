@@ -201,21 +201,25 @@ describe('Property 3: API Error Transformation', () => {
 			'Failed to fetch',
 			'fetch failed',
 			'Network request failed',
-			'network error'
+			'network error',
+			'Unable to connect',
+			'Connection refused',
+			'ECONNREFUSED'
 		];
 
+		// Both TypeError and plain Error should be recognized (Bun throws plain Error)
 		for (const msg of networkErrorMessages) {
-			const error = new TypeError(msg);
-			expect(isNetworkError(error)).toBe(true);
+			expect(isNetworkError(new TypeError(msg))).toBe(true);
+			expect(isNetworkError(new Error(msg))).toBe(true);
 		}
 
-		// Non-network TypeErrors should return false
+		// Non-network errors should return false
 		const nonNetworkError = new TypeError("Cannot read property 'x' of null");
 		expect(isNetworkError(nonNetworkError)).toBe(false);
 
-		// Non-TypeError errors should return false
-		const regularError = new Error('Failed to fetch');
-		expect(isNetworkError(regularError)).toBe(false);
+		// Non-Error values should return false
+		expect(isNetworkError('Failed to fetch')).toBe(false);
+		expect(isNetworkError(null)).toBe(false);
 	});
 });
 

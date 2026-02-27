@@ -148,12 +148,15 @@ export function getErrorMessage(error: unknown): string {
  * @returns True if this is a network error
  */
 export function isNetworkError(error: unknown): boolean {
-	if (error instanceof TypeError) {
+	if (error instanceof Error) {
 		const message = error.message.toLowerCase();
 		return (
 			message.includes('fetch') ||
 			message.includes('network') ||
-			message.includes('failed to fetch')
+			message.includes('failed to fetch') ||
+			message.includes('unable to connect') ||
+			message.includes('connection refused') ||
+			message.includes('econnrefused')
 		);
 	}
 	return false;
