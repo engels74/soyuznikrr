@@ -302,6 +302,7 @@ class TestCsrfOriginTestEndpoint:
                 assert data["success"] is False
                 assert data["request_origin"] is None
                 assert "could not determine" in str(data["message"]).lower()
+                assert "forwards origin and referer" in str(data["message"]).lower()
         finally:
             await engine.dispose()
 

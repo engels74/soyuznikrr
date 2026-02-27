@@ -99,7 +99,11 @@ class SettingsController(Controller):
         if request_origin is None:
             return CsrfOriginTestResponse(
                 success=False,
-                message="Could not determine your browser's origin. No Origin or Referer header was sent.",
+                message=(
+                    "Could not determine your browser's origin. No Origin or Referer "
+                    "header was sent. If you are using a proxy, ensure it forwards "
+                    "Origin and Referer headers."
+                ),
                 request_origin=None,
             )
 
