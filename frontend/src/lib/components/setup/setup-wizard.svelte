@@ -8,7 +8,7 @@ import StepServer from './step-server.svelte';
 let currentStep = $state(1);
 let adminCreated = $state(false);
 
-const stepLabels = ['Account', 'Server', 'Security'];
+const stepLabels = ['Account', 'Security', 'Server'];
 
 function handleAdminComplete() {
 	adminCreated = true;
@@ -16,15 +16,15 @@ function handleAdminComplete() {
 }
 
 function handleServerComplete() {
-	currentStep = 3;
+	goto('/dashboard');
 }
 
 function handleServerSkip() {
-	currentStep = 3;
+	goto('/dashboard');
 }
 
 function handleCsrfComplete() {
-	goto('/dashboard');
+	currentStep = 3;
 }
 
 function handleCsrfSkip() {
@@ -57,9 +57,9 @@ function handleCsrfSkip() {
 			{#if currentStep === 1}
 				<StepAdmin onComplete={handleAdminComplete} />
 			{:else if currentStep === 2}
-				<StepServer onComplete={handleServerComplete} onSkip={handleServerSkip} />
-			{:else}
 				<StepCsrf onComplete={handleCsrfComplete} onSkip={handleCsrfSkip} />
+			{:else}
+				<StepServer onComplete={handleServerComplete} onSkip={handleServerSkip} />
 			{/if}
 		</div>
 	{/key}

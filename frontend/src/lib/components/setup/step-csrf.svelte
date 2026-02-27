@@ -221,11 +221,11 @@ async function handleSubmit() {
 							class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
 						></span>
 						Saving...
-					{:else}
-						Save & Finish
-					{/if}
-				</Button>
-			</div>
+						{:else}
+							Save & Continue
+						{/if}
+					</Button>
+				</div>
 		</div>
 
 		<p class="mt-3 text-center text-xs text-cr-text-dim">

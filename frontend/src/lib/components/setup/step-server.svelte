@@ -441,11 +441,11 @@ async function handleSubmit(event: Event) {
 							class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
 						></span>
 						Adding server...
-					{:else}
-						Add Server & Continue
-					{/if}
-				</Button>
-			</div>
+						{:else}
+							Add Server & Finish
+						{/if}
+					</Button>
+				</div>
 		</form>
 	</Card.Content>
 </Card.Root>
