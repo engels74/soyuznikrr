@@ -82,6 +82,7 @@ def redemption_error_handler(
             success=False,
             error_code=exc.redemption_error_code,
             message=exc.message,
+            correlation_id=correlation_id,
             failed_server=exc.failed_server,
         ),
         status_code=HTTP_400_BAD_REQUEST,

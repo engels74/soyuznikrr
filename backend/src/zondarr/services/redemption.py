@@ -133,7 +133,7 @@ class RedemptionService:
         if not reserved:
             raise RedemptionError(
                 self._failure_message(failure),
-                redemption_error_code="INVALID_INVITATION",
+                redemption_error_code=self._failure_error_code(failure),
             )
 
         # Step 2: Fetch the invitation for target_servers / libraries
@@ -193,6 +193,32 @@ class RedemptionService:
                         permissions=permissions,
                     )
 
+            # Step 6: Calculate expiration from duration_days (Requirement 14.9)
+            expires_at: datetime | None = None
+            if invitation.duration_days is not None:
+                expires_at = datetime.now(UTC) + timedelta(
+                    days=invitation.duration_days
+                )
+
+            # Step 6.5: Clean up stale local users (e.g. sync-imported duplicates)
+            cleaned = await self.user_service.cleanup_stale_local_users(
+                created_external_users
+            )
+            if cleaned > 0:
+                log.info(  # pyright: ignore[reportAny]
+                    "Cleaned stale local users before creating new records",
+                    cleaned_count=cleaned,
+                )
+
+            # Step 7: Create local Identity and User records (Requirement 14.7)
+            identity, users = await self.user_service.create_identity_with_users(
+                display_name=username,
+                email=email,
+                expires_at=expires_at,
+                external_users=created_external_users,
+                invitation_id=invitation.id,
+            )
+
         except MediaClientError as e:
             # Roll back external users (HTTP calls, outside DB transaction)
             log.warning(  # pyright: ignore[reportAny]
@@ -212,6 +238,9 @@ class RedemptionService:
                 redemption_error_code=error_code,
                 failed_server=e.server_url or "media server",
             ) from e
+        except RedemptionError:
+            # Already a RedemptionError (e.g. from reservation) — just re-raise
+            raise
         except Exception as e:
             log.error(  # pyright: ignore[reportAny]
                 "Unexpected error during redemption, rolling back",
@@ -223,30 +252,6 @@ class RedemptionService:
                 f"Redemption failed: {e}",
                 redemption_error_code="SERVER_ERROR",
             ) from e
-
-        # Step 6: Calculate expiration from duration_days (Requirement 14.9)
-        expires_at: datetime | None = None
-        if invitation.duration_days is not None:
-            expires_at = datetime.now(UTC) + timedelta(days=invitation.duration_days)
-
-        # Step 6.5: Clean up stale local users (e.g. sync-imported duplicates)
-        cleaned = await self.user_service.cleanup_stale_local_users(
-            created_external_users
-        )
-        if cleaned > 0:
-            log.info(  # pyright: ignore[reportAny]
-                "Cleaned stale local users before creating new records",
-                cleaned_count=cleaned,
-            )
-
-        # Step 7: Create local Identity and User records (Requirement 14.7)
-        identity, users = await self.user_service.create_identity_with_users(
-            display_name=username,
-            email=email,
-            expires_at=expires_at,
-            external_users=created_external_users,
-            invitation_id=invitation.id,
-        )
 
         log.info(  # pyright: ignore[reportAny]
             "Redemption completed successfully",
@@ -318,3 +323,23 @@ class RedemptionService:
             None: "Invalid invitation",
         }
         return messages.get(failure, "Invalid invitation")
+
+    def _failure_error_code(
+        self, failure: InvitationValidationFailure | None
+    ) -> str:
+        """Convert failure enum to machine-readable error code.
+
+        Args:
+            failure: The validation failure reason.
+
+        Returns:
+            A machine-readable error code string.
+        """
+        codes: dict[InvitationValidationFailure | None, str] = {
+            InvitationValidationFailure.NOT_FOUND: "INVITATION_NOT_FOUND",
+            InvitationValidationFailure.DISABLED: "INVITATION_DISABLED",
+            InvitationValidationFailure.EXPIRED: "INVITATION_EXPIRED",
+            InvitationValidationFailure.MAX_USES_REACHED: "MAX_USES_REACHED",
+            None: "INVALID_INVITATION",
+        }
+        return codes.get(failure, "INVALID_INVITATION")

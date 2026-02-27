@@ -1034,6 +1034,7 @@ class RedemptionErrorResponse(msgspec.Struct, kw_only=True):
     success: bool = False
     error_code: str
     message: str
+    correlation_id: str | None = None
     failed_server: str | None = None
     partial_users: list[UserResponse] | None = None
 

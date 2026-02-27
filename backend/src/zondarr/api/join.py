@@ -12,6 +12,7 @@ from typing import Annotated
 
 from litestar import Controller, Response, post
 from litestar.di import Provide
+from litestar.openapi.datastructures import ResponseSpec
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_200_OK
 from litestar.types import AnyCallable
@@ -27,6 +28,7 @@ from zondarr.services.user import UserService
 
 from .schemas import (
     RedeemInvitationRequest,
+    RedemptionErrorResponse,
     RedemptionResponse,
     UserResponse,
 )
@@ -167,6 +169,12 @@ class JoinController(Controller):
         summary="Redeem invitation",
         description="Redeem an invitation code to create user accounts on target media servers.",
         exclude_from_auth=True,
+        responses={
+            400: ResponseSpec(
+                data_container=RedemptionErrorResponse,
+                description="Redemption failed due to invalid invitation or server error.",
+            ),
+        },
     )
     async def redeem_invitation(
         self,
