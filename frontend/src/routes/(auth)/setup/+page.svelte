@@ -1,5 +1,8 @@
 <script lang="ts">
 import SetupWizard from '$lib/components/setup/setup-wizard.svelte';
+import type { PageData } from './$types';
+
+const { data }: { data: PageData } = $props();
 </script>
 
-<SetupWizard />
+<SetupWizard initialStep={data.onboardingStep} />

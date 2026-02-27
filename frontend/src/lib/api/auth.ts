@@ -29,17 +29,28 @@ export type AuthMethodsResponse = Omit<
 	'provider_auth'
 > & {
 	provider_auth: ProviderAuthInfo[];
+	onboarding_required: boolean;
+	onboarding_step: OnboardingStep;
 };
+
+export type OnboardingStep = 'account' | 'security' | 'server' | 'complete';
 
 export interface AdminMeResponse {
 	id: string;
 	username: string;
 	email: string | null;
 	auth_method: string;
+	onboarding_required: boolean;
+	onboarding_step: OnboardingStep;
 }
 
 export interface AuthTokenResponse {
 	refresh_token: string;
+}
+
+export interface OnboardingStatusResponse {
+	onboarding_required: boolean;
+	onboarding_step: OnboardingStep;
 }
 
 // =============================================================================
@@ -77,7 +88,9 @@ export async function getAuthMethods(
 	if (
 		data == null ||
 		typeof data !== 'object' ||
-		typeof (data as Record<string, unknown>).setup_required !== 'boolean'
+		typeof (data as Record<string, unknown>).setup_required !== 'boolean' ||
+		typeof (data as Record<string, unknown>).onboarding_required !== 'boolean' ||
+		typeof (data as Record<string, unknown>).onboarding_step !== 'string'
 	) {
 		throw new Error('Invalid auth methods response');
 	}
@@ -177,6 +190,21 @@ export async function logout(
 			: {}),
 		credentials: 'include'
 	});
+}
+
+export async function advanceOnboarding(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: OnboardingStatusResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/onboarding/advance`, {
+		method: 'POST',
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	const result = (await response.json()) as OnboardingStatusResponse;
+	return { data: result };
 }
 
 export async function getMe(

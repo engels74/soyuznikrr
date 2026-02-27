@@ -27,11 +27,14 @@ from zondarr.config import Settings
 from zondarr.core.exceptions import ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
+from zondarr.repositories.admin import AdminAccountRepository
+from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
+from zondarr.services.onboarding import OnboardingService
 from zondarr.services.sync import SyncService
 
 from .schemas import (
@@ -344,6 +347,7 @@ class ServerController(Controller):
         data: MediaServerCreate,
         media_server_service: MediaServerService,
         settings: Settings,
+        session: AsyncSession,
     ) -> MediaServerWithLibrariesResponse:
         """Create a new media server.
 
@@ -394,6 +398,12 @@ class ServerController(Controller):
                 server_id=str(server.id),
                 error=str(exc),
             )
+
+        onboarding_service = OnboardingService(
+            admin_repo=AdminAccountRepository(session),
+            app_setting_repo=AppSettingRepository(session),
+        )
+        _ = await onboarding_service.complete_server_step()
 
         return MediaServerWithLibrariesResponse(
             id=server.id,

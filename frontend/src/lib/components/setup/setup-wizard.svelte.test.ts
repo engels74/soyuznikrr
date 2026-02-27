@@ -14,7 +14,8 @@ vi.mock('$lib/api/auth', async () => {
 	const actual = await vi.importActual('$lib/api/auth');
 	return {
 		...actual,
-		setupAdmin: vi.fn()
+		setupAdmin: vi.fn(),
+		advanceOnboarding: vi.fn()
 	};
 });
 
@@ -90,6 +91,13 @@ describe('SetupWizard', () => {
 			data: { refresh_token: 'token' },
 			error: undefined
 		});
+		vi.mocked(authApi.advanceOnboarding).mockResolvedValue({
+			data: {
+				onboarding_required: true,
+				onboarding_step: 'server'
+			},
+			error: undefined
+		});
 
 		vi.mocked(apiClient.withErrorHandling)
 			.mockResolvedValueOnce({
@@ -125,5 +133,13 @@ describe('SetupWizard', () => {
 
 		await user.click(findButton(container, 'Skip for now')!);
 		expect(mockGoto).toHaveBeenCalledWith('/dashboard');
+	});
+
+	it('starts at the security step when initialStep is security', () => {
+		const { container } = render(SetupWizard, {
+			props: { initialStep: 'security' }
+		});
+
+		expect(container.textContent).toContain('Security Configuration');
 	});
 });

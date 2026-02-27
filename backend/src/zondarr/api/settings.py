@@ -21,7 +21,9 @@ from zondarr.api.schemas import (
 )
 from zondarr.config import Settings
 from zondarr.core.exceptions import ValidationError
+from zondarr.repositories.admin import AdminAccountRepository
 from zondarr.repositories.app_setting import AppSettingRepository
+from zondarr.services.onboarding import OnboardingService
 from zondarr.services.settings import SettingsService
 
 
@@ -70,6 +72,8 @@ class SettingsController(Controller):
         self,
         data: CsrfOriginUpdate,
         settings_service: SettingsService,
+        app_setting_repository: AppSettingRepository,
+        session: AsyncSession,
     ) -> CsrfOriginResponse:
         """Update the CSRF origin in the database."""
         # Check if locked by env var
@@ -81,6 +85,11 @@ class SettingsController(Controller):
             )
 
         _ = await settings_service.set_csrf_origin(data.csrf_origin)
+        onboarding_service = OnboardingService(
+            admin_repo=AdminAccountRepository(session),
+            app_setting_repo=app_setting_repository,
+        )
+        _ = await onboarding_service.complete_security_step()
         origin, locked = await settings_service.get_csrf_origin()
         return CsrfOriginResponse(csrf_origin=origin, is_locked=locked)
 
