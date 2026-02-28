@@ -151,7 +151,7 @@ class DashboardController(Controller):
             await session.scalars(
                 select(SyncRun)
                 .where(SyncRun.status == "success")
-                .order_by(SyncRun.created_at.desc())
+                .order_by(SyncRun.finished_at.desc())
                 .limit(10)
             )
         ).all()
@@ -160,7 +160,7 @@ class DashboardController(Controller):
                 RecentActivityItem(
                     type="sync_completed",
                     description=f"Sync ({sr.sync_type}) completed",
-                    timestamp=sr.created_at,
+                    timestamp=sr.finished_at,
                 )
             )
 
