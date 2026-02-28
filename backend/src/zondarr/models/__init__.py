@@ -11,6 +11,7 @@ from zondarr.models.invitation import (
 )
 from zondarr.models.media_server import Library, MediaServer
 from zondarr.models.sync_exclusion import SyncExclusion
+from zondarr.models.sync_run import SyncRun
 from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "RefreshToken",
     "StepInteraction",
     "SyncExclusion",
+    "SyncRun",
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",
     "User",

@@ -1,11 +1,13 @@
 <script lang="ts">
+
 /**
  * Server detail page.
  *
  * Displays server details with:
  * - Server information (name, type, url, enabled)
  * - Library list
- * - Sync button with results dialog
+ * - Sync status indicators
+ * - Sync actions with results dialogs
  *
  * @module routes/(admin)/servers/[id]/+page
  */
@@ -13,22 +15,28 @@
 import {
 	ArrowLeft,
 	Calendar,
+	Clock3,
 	Database,
 	ExternalLink,
 	RefreshCw,
 	Server,
 	Trash2,
 } from "@lucide/svelte";
+import { onMount } from "svelte";
 import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteServer,
+	type LibrarySyncResult,
+	type SyncChannelStatus,
 	type SyncResult,
 	syncServer,
+	syncServerLibraries,
 	withErrorHandling,
 } from "$lib/api/client";
 import { asErrorResponse, getErrorMessage } from "$lib/api/errors";
 import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import ErrorState from "$lib/components/error-state.svelte";
+import LibrarySyncResultsDialog from "$lib/components/servers/library-sync-results-dialog.svelte";
 import SyncResultsDialog from "$lib/components/servers/sync-results-dialog.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { Button } from "$lib/components/ui/button";
@@ -41,9 +49,15 @@ import type { PageData } from "./$types";
 const { data }: { data: PageData } = $props();
 
 // Sync state
-let syncing = $state(false);
-let syncResult = $state<SyncResult | null>(null);
-let showSyncDialog = $state(false);
+let syncingUsers = $state(false);
+let syncingLibraries = $state(false);
+let userSyncResult = $state<SyncResult | null>(null);
+let librarySyncResult = $state<LibrarySyncResult | null>(null);
+let showUserSyncDialog = $state(false);
+let showLibrarySyncDialog = $state(false);
+
+// Status refresh state
+let nowMs = $state(Date.now());
 
 // Delete state
 let deleting = $state(false);
@@ -51,14 +65,36 @@ let showDeleteDialog = $state(false);
 
 const badgeStyle = $derived(data.server ? getProviderBadgeStyle(data.server.server_type) : '');
 const serverTypeLabel = $derived(data.server ? getProviderLabel(data.server.server_type) : '');
+const librariesStatus = $derived<SyncChannelStatus | null>(
+	data.server?.sync_status?.libraries ?? null,
+);
+const usersStatus = $derived<SyncChannelStatus | null>(
+	data.server?.sync_status?.users ?? null,
+);
+const actionBusy = $derived(syncingUsers || syncingLibraries || deleting);
+
+onMount(() => {
+	const countdownTimer = setInterval(() => {
+		nowMs = Date.now();
+	}, 1000);
+	const pollTimer = setInterval(() => {
+		void invalidateAll();
+	}, 15000);
+
+	return () => {
+		clearInterval(countdownTimer);
+		clearInterval(pollTimer);
+	};
+});
 
 /**
  * Format date for display.
  */
-function formatDate(dateString: string | null | undefined): string {
-	if (!dateString) return "—";
+function formatDate(dateInput: string | Date | null | undefined): string {
+	if (!dateInput) return "—";
 	try {
-		const date = new Date(dateString);
+		const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+		if (Number.isNaN(date.getTime())) return "—";
 		return date.toLocaleDateString("en-US", {
 			month: "short",
 			day: "numeric",
@@ -72,13 +108,48 @@ function formatDate(dateString: string | null | undefined): string {
 }
 
 /**
- * Handle sync button click.
+ * Parse ISO date string safely.
  */
-async function handleSync() {
+function parseDate(dateString: string | null | undefined): Date | null {
+	if (!dateString) return null;
+	const parsed = new Date(dateString);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * Format time-until countdown label.
+ */
+function formatCountdown(
+	nextScheduledAt: string | null | undefined,
+	inProgress: boolean,
+): string {
+	if (inProgress) return "Syncing now...";
+	const target = parseDate(nextScheduledAt);
+	if (!target) return "Not scheduled";
+
+	const diffMs = target.getTime() - nowMs;
+	if (diffMs <= 0) return "Due now";
+
+	const totalSeconds = Math.floor(diffMs / 1000);
+	const days = Math.floor(totalSeconds / 86400);
+	const hours = Math.floor((totalSeconds % 86400) / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+
+	if (days > 0) return `in ${days}d ${hours}h`;
+	if (hours > 0) return `in ${hours}h ${minutes}m`;
+	if (minutes > 0) return `in ${minutes}m ${seconds}s`;
+	return `in ${seconds}s`;
+}
+
+/**
+ * Handle user sync button click.
+ */
+async function handleUserSync() {
 	if (!data.server) return;
 	const serverId = data.server.id;
 
-	syncing = true;
+	syncingUsers = true;
 	try {
 		const result = await withErrorHandling(
 			() => syncServer(serverId, false),
@@ -92,12 +163,44 @@ async function handleSync() {
 		}
 
 		if (result.data) {
-			syncResult = result.data as SyncResult;
-			showSyncDialog = true;
-			showSuccess("Sync completed successfully");
+			userSyncResult = result.data as SyncResult;
+			showUserSyncDialog = true;
+			showSuccess("User sync completed successfully");
+			await invalidateAll();
 		}
 	} finally {
-		syncing = false;
+		syncingUsers = false;
+	}
+}
+
+/**
+ * Handle library sync button click.
+ */
+async function handleLibrarySync() {
+	if (!data.server) return;
+	const serverId = data.server.id;
+
+	syncingLibraries = true;
+	try {
+		const result = await withErrorHandling(
+			() => syncServerLibraries(serverId),
+			{ showErrorToast: false },
+		);
+
+		if (result.error) {
+			const errorBody = asErrorResponse(result.error);
+			showError("Library sync failed", errorBody?.detail ?? "An error occurred");
+			return;
+		}
+
+		if (result.data) {
+			librarySyncResult = result.data as LibrarySyncResult;
+			showLibrarySyncDialog = true;
+			showSuccess("Library sync completed successfully");
+			await invalidateAll();
+		}
+	} finally {
+		syncingLibraries = false;
 	}
 }
 
@@ -109,10 +212,17 @@ async function handleRetry() {
 }
 
 /**
- * Close sync results dialog.
+ * Close user sync results dialog.
  */
-function closeSyncDialog() {
-	showSyncDialog = false;
+function closeUserSyncDialog() {
+	showUserSyncDialog = false;
+}
+
+/**
+ * Close library sync results dialog.
+ */
+function closeLibrarySyncDialog() {
+	showLibrarySyncDialog = false;
 }
 
 /**
@@ -298,6 +408,85 @@ async function handleDelete() {
 				</Card.Content>
 			</Card.Root>
 
+			<!-- Sync Status Card -->
+			<Card.Root class="border-cr-border bg-cr-surface lg:col-span-2" data-sync-status>
+				<Card.Header>
+					<Card.Title class="text-cr-text flex items-center gap-2">
+						<Clock3 class="size-5 text-cr-accent" />
+						Sync Status
+					</Card.Title>
+					<Card.Description class="text-cr-text-muted">
+						Automatic synchronization schedule and current activity.
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<div class="grid gap-3 md:grid-cols-2">
+						<div
+							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							data-sync-channel="libraries"
+						>
+							<div class="flex items-center justify-between gap-3">
+								<div>
+									<div class="font-medium text-cr-text">Libraries</div>
+									<div class="text-xs text-cr-text-muted">Media library sync</div>
+								</div>
+								<div class="text-right">
+									{#if syncingLibraries || librariesStatus?.in_progress}
+										<div class="inline-flex items-center gap-2 text-amber-300 text-sm">
+											<span class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+											Syncing now...
+										</div>
+									{:else}
+										<div class="text-sm text-cr-text">
+											Next: {formatDate(librariesStatus?.next_scheduled_at)}
+										</div>
+										<div class="text-xs text-cr-text-muted">
+											{formatCountdown(
+												librariesStatus?.next_scheduled_at,
+												false,
+											)}
+										</div>
+									{/if}
+								</div>
+							</div>
+							<div class="text-xs text-cr-text-muted">
+								Last completed: {formatDate(librariesStatus?.last_completed_at)}
+							</div>
+						</div>
+
+						<div
+							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							data-sync-channel="users"
+						>
+							<div class="flex items-center justify-between gap-3">
+								<div>
+									<div class="font-medium text-cr-text">Users</div>
+									<div class="text-xs text-cr-text-muted">Account state sync</div>
+								</div>
+								<div class="text-right">
+									{#if syncingUsers || usersStatus?.in_progress}
+										<div class="inline-flex items-center gap-2 text-amber-300 text-sm">
+											<span class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+											Syncing now...
+										</div>
+									{:else}
+										<div class="text-sm text-cr-text">
+											Next: {formatDate(usersStatus?.next_scheduled_at)}
+										</div>
+										<div class="text-xs text-cr-text-muted">
+											{formatCountdown(usersStatus?.next_scheduled_at, false)}
+										</div>
+									{/if}
+								</div>
+							</div>
+							<div class="text-xs text-cr-text-muted">
+								Last completed: {formatDate(usersStatus?.last_completed_at)}
+							</div>
+						</div>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
 			<!-- Actions Card -->
 			<Card.Root class="border-cr-border bg-cr-surface lg:col-span-2" data-actions>
 				<Card.Header>
@@ -308,30 +497,50 @@ async function handleDelete() {
 				</Card.Header>
 				<Card.Content>
 					<div class="flex flex-wrap items-center gap-3">
-						<!-- Sync Button -->
+						<!-- Sync Users Button -->
 						<Button
-							onclick={handleSync}
-							disabled={syncing || deleting}
+							onclick={handleUserSync}
+							disabled={actionBusy}
 							class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 							data-action-sync
+							data-action-sync-users
 						>
-							{#if syncing}
+							{#if syncingUsers}
 								<span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-								Syncing...
+								Syncing Users...
 							{:else}
 								<RefreshCw class="size-4" />
 								Sync Users
 							{/if}
 						</Button>
+
+						<!-- Sync Libraries Button -->
+						<Button
+							variant="outline"
+							onclick={handleLibrarySync}
+							disabled={actionBusy}
+							class="border-cr-accent/60 text-cr-accent hover:bg-cr-accent/10 hover:border-cr-accent"
+							data-action-sync-libraries
+						>
+							{#if syncingLibraries}
+								<span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+								Syncing Libraries...
+							{:else}
+								<Database class="size-4" />
+								Sync Libraries
+							{/if}
+						</Button>
+
 						<p class="text-sm text-cr-text-muted flex-1">
-							Synchronize local user records with the media server to identify discrepancies.
+							Run immediate synchronization for users and libraries. Automatic sync status is
+							shown above.
 						</p>
 
 						<!-- Delete Button -->
 						<Button
 							variant="outline"
 							onclick={() => (showDeleteDialog = true)}
-							disabled={syncing || deleting}
+							disabled={actionBusy}
 							class="border-rose-500/50 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500"
 							data-action-delete
 						>
@@ -347,9 +556,16 @@ async function handleDelete() {
 
 <!-- Sync Results Dialog -->
 <SyncResultsDialog
-	bind:open={showSyncDialog}
-	result={syncResult}
-	onClose={closeSyncDialog}
+	bind:open={showUserSyncDialog}
+	result={userSyncResult}
+	onClose={closeUserSyncDialog}
+/>
+
+<!-- Library Sync Results Dialog -->
+<LibrarySyncResultsDialog
+	bind:open={showLibrarySyncDialog}
+	result={librarySyncResult}
+	onClose={closeLibrarySyncDialog}
 />
 
 <!-- Delete Confirmation Dialog -->

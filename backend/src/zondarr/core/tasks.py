@@ -13,8 +13,9 @@ Uses asyncio tasks with graceful shutdown support.
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import cast
+from uuid import UUID
 
 import structlog
 from litestar import Litestar
@@ -22,11 +23,13 @@ from litestar.datastructures import State
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.config import Settings
+from zondarr.models.sync_run import SyncRun
 from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.sync_exclusion import SyncExclusionRepository
+from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
 from zondarr.services.sync import SyncService
@@ -46,6 +49,9 @@ class BackgroundTaskManager:
 
     _tasks: list[asyncio.Task[None]]
     _running: bool
+    _next_sync_run_at: datetime | None
+    _libraries_sync_in_progress: set[UUID]
+    _users_sync_in_progress: set[UUID]
     settings: Settings
 
     def __init__(self, settings: Settings, /) -> None:
@@ -56,6 +62,9 @@ class BackgroundTaskManager:
         """
         self._tasks = []
         self._running = False
+        self._next_sync_run_at = None
+        self._libraries_sync_in_progress = set()
+        self._users_sync_in_progress = set()
         self.settings = settings
 
     async def start(self, state: State, /) -> None:
@@ -103,8 +112,23 @@ class BackgroundTaskManager:
 
         _ = await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks.clear()
+        self._next_sync_run_at = None
+        self._libraries_sync_in_progress.clear()
+        self._users_sync_in_progress.clear()
 
         logger.info("Background tasks stopped")
+
+    def get_next_sync_run_at(self) -> datetime | None:
+        """Return next scheduled automatic sync timestamp, if available."""
+        return self._next_sync_run_at
+
+    def is_libraries_sync_in_progress(self, server_id: UUID, /) -> bool:
+        """Return whether a library sync is currently running for a server."""
+        return server_id in self._libraries_sync_in_progress
+
+    def is_users_sync_in_progress(self, server_id: UUID, /) -> bool:
+        """Return whether a user sync is currently running for a server."""
+        return server_id in self._users_sync_in_progress
 
     async def _run_expiration_task(self, state: State, /) -> None:
         """Periodically check and disable expired invitations.
@@ -138,14 +162,17 @@ class BackgroundTaskManager:
 
         # Delay initial sync to avoid blocking web requests at startup,
         # especially important for SQLite's single-writer limitation
+        self._next_sync_run_at = datetime.now(UTC) + timedelta(seconds=15)
         await asyncio.sleep(15)
 
         while self._running:
             try:
+                self._next_sync_run_at = datetime.now(UTC)
                 await self._sync_all_servers(state)
             except Exception as exc:
                 logger.exception("Sync task error", exc_info=exc)
 
+            self._next_sync_run_at = datetime.now(UTC) + timedelta(seconds=interval)
             await asyncio.sleep(interval)
 
     async def check_expired_invitations(self, state: State, /) -> None:
@@ -236,27 +263,50 @@ class BackgroundTaskManager:
 
         # Sync libraries per server, each with its own session
         for server_id, server_name in server_ids_and_names:
+            started_at = datetime.now(UTC)
+            self._libraries_sync_in_progress.add(server_id)
             try:
                 async with session_factory() as session:
                     server_repo = MediaServerRepository(session)
                     media_server_service = MediaServerService(server_repo)
                     _ = await media_server_service.sync_libraries(server_id)
                     await session.commit()
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="libraries",
+                    trigger="automatic",
+                    status="success",
+                    started_at=started_at,
+                )
                 logger.info(
                     "Library sync completed",
                     server_id=str(server_id),
                     server_name=server_name,
                 )
             except Exception as exc:
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="libraries",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=str(exc),
+                )
                 logger.warning(
                     "Library sync failed",
                     server_id=str(server_id),
                     server_name=server_name,
                     error=str(exc),
                 )
+            finally:
+                self._libraries_sync_in_progress.discard(server_id)
 
         # Sync users per server, each with its own session
         for server_id, server_name in server_ids_and_names:
+            started_at = datetime.now(UTC)
+            self._users_sync_in_progress.add(server_id)
             try:
                 async with session_factory() as session:
                     server_repo = MediaServerRepository(session)
@@ -271,6 +321,14 @@ class BackgroundTaskManager:
                     )
                     result = await sync_service.sync_server(server_id, dry_run=False)
                     await session.commit()
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="automatic",
+                    status="success",
+                    started_at=started_at,
+                )
                 logger.info(
                     "Server sync completed",
                     server_id=str(server_id),
@@ -281,12 +339,67 @@ class BackgroundTaskManager:
                     imported=result.imported_users,
                 )
             except Exception as exc:
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=str(exc),
+                )
                 logger.warning(
                     "Server sync failed",
                     server_id=str(server_id),
                     server_name=server_name,
                     error=str(exc),
                 )
+            finally:
+                self._users_sync_in_progress.discard(server_id)
+
+    async def _record_sync_run(
+        self,
+        state: State,
+        /,
+        *,
+        media_server_id: UUID,
+        sync_type: str,
+        trigger: str,
+        status: str,
+        started_at: datetime,
+        error_message: str | None = None,
+    ) -> None:
+        """Persist a sync run record in a dedicated short-lived session."""
+        session_factory = cast(
+            async_sessionmaker[AsyncSession],
+            state.session_factory,
+        )
+        finished_at = datetime.now(UTC)
+
+        try:
+            async with session_factory() as session:
+                repo = SyncRunRepository(session)
+                _ = await repo.create(
+                    SyncRun(
+                        media_server_id=media_server_id,
+                        sync_type=sync_type,
+                        trigger=trigger,
+                        status=status,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        error_message=error_message,
+                    )
+                )
+                await session.commit()
+        except Exception as exc:
+            logger.warning(
+                "Failed to persist sync run record",
+                media_server_id=str(media_server_id),
+                sync_type=sync_type,
+                trigger=trigger,
+                status=status,
+                error=str(exc),
+            )
 
     async def _run_token_cleanup_task(self, state: State, /) -> None:
         """Periodically clean up expired refresh tokens.
@@ -334,6 +447,7 @@ async def background_tasks_lifespan(app: Litestar):
     """
     settings = cast(Settings, app.state.settings)
     manager = BackgroundTaskManager(settings)
+    app.state.background_task_manager = manager
 
     await manager.start(app.state)
 
