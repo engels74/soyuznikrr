@@ -9,6 +9,7 @@ import StepAdmin from './step-admin.svelte';
 import StepCsrf from './step-csrf.svelte';
 import StepIndicator from './step-indicator.svelte';
 import StepServer from './step-server.svelte';
+import StepTotp from './step-totp.svelte';
 
 interface Props {
 	initialStep?: OnboardingStep;
@@ -16,10 +17,12 @@ interface Props {
 
 const { initialStep = 'account' }: Props = $props();
 
+// UI steps: 1=Account, 2=Two-Factor, 3=Security, 4=Server
+// Backend onboarding states map to UI steps, skipping TOTP (frontend-only)
 function onboardingStepToUiStep(step: OnboardingStep): number {
 	if (step === 'account') return 1;
-	if (step === 'security') return 2;
-	return 3;
+	if (step === 'security') return 3;
+	return 4;
 }
 
 let currentStep = $state(1);
@@ -32,10 +35,18 @@ $effect(() => {
 	stepInitialized = true;
 });
 
-const stepLabels = ['Account', 'Security', 'Server'];
+const stepLabels = ['Account', 'Two-Factor', 'Security', 'Server'];
 
 function handleAdminComplete() {
 	currentStep = 2;
+}
+
+function handleTotpComplete() {
+	currentStep = 3;
+}
+
+function handleTotpSkip() {
+	currentStep = 3;
 }
 
 async function advanceStep(): Promise<boolean> {
@@ -68,13 +79,13 @@ async function handleServerSkip() {
 }
 
 function handleCsrfComplete() {
-	currentStep = 3;
+	currentStep = 4;
 }
 
 async function handleCsrfSkip() {
 	const ok = await advanceStep();
 	if (!ok) return;
-	currentStep = 3;
+	currentStep = 4;
 }
 </script>
 
@@ -96,13 +107,15 @@ async function handleCsrfSkip() {
 </style>
 
 <div class="flex flex-col gap-4">
-	<StepIndicator {currentStep} totalSteps={3} {stepLabels} />
+	<StepIndicator {currentStep} totalSteps={4} {stepLabels} />
 
 	{#key currentStep}
 		<div class="step-content">
 			{#if currentStep === 1}
 				<StepAdmin onComplete={handleAdminComplete} />
 			{:else if currentStep === 2}
+				<StepTotp onComplete={handleTotpComplete} onSkip={handleTotpSkip} />
+			{:else if currentStep === 3}
 				<StepCsrf onComplete={handleCsrfComplete} onSkip={handleCsrfSkip} />
 			{:else}
 				<StepServer onComplete={handleServerComplete} onSkip={handleServerSkip} />
