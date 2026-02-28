@@ -11,6 +11,7 @@ SHALL NOT persist the server and SHALL raise a validation error.
 
 import asyncio
 from collections.abc import Sequence
+from dataclasses import dataclass
 from uuid import UUID
 
 import structlog
@@ -22,6 +23,16 @@ from zondarr.models.media_server import Library, MediaServer
 from zondarr.repositories.media_server import MediaServerRepository
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
+
+
+@dataclass(slots=True)
+class LibrarySyncSummary:
+    """Detailed result of a library synchronization run."""
+
+    libraries: Sequence[Library]
+    added_count: int
+    updated_count: int
+    removed_count: int
 
 
 class MediaServerService:
@@ -408,6 +419,11 @@ class MediaServerService:
             ValidationError: If the connection to the server fails.
             RepositoryError: If the database operation fails.
         """
+        result = await self.sync_libraries_detailed(server_id)
+        return result.libraries
+
+    async def sync_libraries_detailed(self, server_id: UUID, /) -> LibrarySyncSummary:
+        """Sync libraries and return change counts for reporting/UI feedback."""
         server = await self.repository.get_by_id(server_id)
         if server is None:
             raise NotFoundError("MediaServer", str(server_id))
@@ -435,17 +451,25 @@ class MediaServerService:
         # Track which external_ids we've seen from remote
         seen_external_ids: set[str] = set()
 
+        added_count = 0
+        updated_count = 0
+
         # Update or create libraries
-        updated_libraries: list[Library] = []
         for remote_lib in remote_libraries:
             seen_external_ids.add(remote_lib.external_id)
 
             if remote_lib.external_id in existing_by_external_id:
-                # Update existing library
+                # Update existing library (count only when fields changed)
                 existing = existing_by_external_id[remote_lib.external_id]
-                existing.name = remote_lib.name
-                existing.library_type = remote_lib.library_type
-                updated_libraries.append(existing)
+                changed = False
+                if existing.name != remote_lib.name:
+                    existing.name = remote_lib.name
+                    changed = True
+                if existing.library_type != remote_lib.library_type:
+                    existing.library_type = remote_lib.library_type
+                    changed = True
+                if changed:
+                    updated_count += 1
             else:
                 # Create new library
                 new_library = Library(
@@ -455,14 +479,21 @@ class MediaServerService:
                     library_type=remote_lib.library_type,
                 )
                 server.libraries.append(new_library)
-                updated_libraries.append(new_library)
+                added_count += 1
 
         # Remove libraries that no longer exist on the server
+        removed_count = 0
         for external_id, library in existing_by_external_id.items():
             if external_id not in seen_external_ids:
                 server.libraries.remove(library)
+                removed_count += 1
 
         # Flush changes
         await self.repository.session.flush()
 
-        return server.libraries
+        return LibrarySyncSummary(
+            libraries=server.libraries,
+            added_count=added_count,
+            updated_count=updated_count,
+            removed_count=removed_count,
+        )

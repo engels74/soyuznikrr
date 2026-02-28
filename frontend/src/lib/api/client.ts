@@ -75,6 +75,31 @@ export interface SyncResult {
 	imported_users: number;
 }
 
+export interface SyncChannelStatus {
+	in_progress: boolean;
+	last_completed_at?: string | null;
+	next_scheduled_at?: string | null;
+}
+
+export interface ServerSyncStatus {
+	libraries: SyncChannelStatus;
+	users: SyncChannelStatus;
+}
+
+export interface MediaServerDetailResponse extends MediaServerWithLibrariesResponse {
+	sync_status: ServerSyncStatus;
+}
+
+export interface LibrarySyncResult {
+	server_id: string;
+	server_name: string;
+	synced_at: string;
+	total_libraries: number;
+	added_count: number;
+	updated_count: number;
+	removed_count: number;
+}
+
 export type RedeemInvitationRequest = components['schemas']['RedeemInvitationRequest'];
 export type RedemptionResponse = components['schemas']['RedemptionResponse'];
 export type RedemptionErrorResponse = components['schemas']['RedemptionErrorResponse'];
@@ -393,6 +418,27 @@ export async function syncServer(serverId: string, dryRun = false, client: ApiCl
 	});
 }
 
+/**
+ * Sync libraries between local database and media server.
+ *
+ * @param serverId - UUID of the server to sync
+ * @returns Library sync result with change counts
+ */
+export async function syncServerLibraries(
+	serverId: string,
+	client: ApiClient = api
+): Promise<{ data?: LibrarySyncResult; error?: unknown }> {
+	const untypedClient = client as unknown as {
+		POST: (
+			path: string,
+			init?: { params?: { path?: { server_id: string } } }
+		) => Promise<{ data?: LibrarySyncResult; error?: unknown }>;
+	};
+	return untypedClient.POST('/api/v1/servers/{server_id}/sync-libraries', {
+		params: { path: { server_id: serverId } }
+	});
+}
+
 /** Create server request */
 export interface CreateServerRequest {
 	name: string;
@@ -416,10 +462,23 @@ export async function createServer(data: CreateServerRequest, client: ApiClient 
  * Get a single media server by ID.
  *
  * @param serverId - UUID of the server
- * @returns Media server response
+ * @returns Media server detail response
  */
-export async function getServer(serverId: string, client: ApiClient = api) {
-	return client.GET('/api/v1/servers/{server_id}', {
+export async function getServer(
+	serverId: string,
+	client: ApiClient = api
+): Promise<{ data?: MediaServerDetailResponse; error?: unknown; response?: Response }> {
+	const untypedClient = client as unknown as {
+		GET: (
+			path: string,
+			init?: { params?: { path?: { server_id: string } } }
+		) => Promise<{
+			data?: MediaServerDetailResponse;
+			error?: unknown;
+			response?: Response;
+		}>;
+	};
+	return untypedClient.GET('/api/v1/servers/{server_id}', {
 		params: { path: { server_id: serverId } }
 	});
 }

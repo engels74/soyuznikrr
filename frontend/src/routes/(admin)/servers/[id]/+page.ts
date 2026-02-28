@@ -1,18 +1,12 @@
 /**
  * Server detail page load function.
  *
- * Fetches a single server by ID from the servers list.
- * Since there's no individual server endpoint, we fetch all servers
- * and filter by ID.
+ * Fetches a single server by ID from the detail endpoint.
  *
  * @module routes/(admin)/servers/[id]/+page
  */
 
-import {
-	createScopedClient,
-	getServers,
-	type MediaServerWithLibrariesResponse
-} from '$lib/api/client';
+import { createScopedClient, getServer, type MediaServerDetailResponse } from '$lib/api/client';
 import { ApiError, asErrorResponse } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
@@ -21,23 +15,12 @@ export const load: PageLoad = async ({ fetch, params }) => {
 	const { id } = params;
 
 	try {
-		// Fetch all servers and find the one with matching ID
-		const result = await getServers(undefined, client);
+		const result = await getServer(id, client);
 
 		if (result.data) {
-			const server = result.data.find((s) => s.id === id);
-
-			if (server) {
-				return {
-					server,
-					error: null as Error | null
-				};
-			}
-
-			// Server not found
 			return {
-				server: null as MediaServerWithLibrariesResponse | null,
-				error: new ApiError(404, 'NOT_FOUND', 'Server not found')
+				server: result.data,
+				error: null as Error | null
 			};
 		}
 
@@ -45,7 +28,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 		const status = result.response?.status ?? 500;
 		const errorBody = asErrorResponse(result.error);
 		return {
-			server: null as MediaServerWithLibrariesResponse | null,
+			server: null as MediaServerDetailResponse | null,
 			error: new ApiError(
 				status,
 				errorBody?.error_code ?? 'UNKNOWN_ERROR',
@@ -55,7 +38,7 @@ export const load: PageLoad = async ({ fetch, params }) => {
 	} catch (err) {
 		// Handle network errors
 		return {
-			server: null as MediaServerWithLibrariesResponse | null,
+			server: null as MediaServerDetailResponse | null,
 			error: err instanceof Error ? err : new Error('Failed to load server')
 		};
 	}

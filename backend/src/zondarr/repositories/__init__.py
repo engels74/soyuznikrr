@@ -9,6 +9,7 @@ from zondarr.repositories.base import Repository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
+from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
@@ -18,6 +19,7 @@ __all__ = [
     "InvitationRepository",
     "MediaServerRepository",
     "Repository",
+    "SyncRunRepository",
     "UserRepository",
     "WizardRepository",
     "WizardStepRepository",

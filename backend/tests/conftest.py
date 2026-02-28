@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import ConnectionPoolEntry
 
+import zondarr.models as _zondarr_models  # Ensure all model tables are registered
 from zondarr.models.base import Base
+
+_ = _zondarr_models
 
 # =============================================================================
 # Hypothesis Profile Configuration
@@ -125,6 +128,8 @@ async def create_test_engine() -> AsyncEngine:
 # Tables in deletion order (children before parents) to respect FK constraints.
 _TRUNCATE_ORDER: list[str] = [
     "refresh_tokens",
+    "sync_runs",
+    "sync_exclusions",
     "admin_accounts",
     "wizard_steps",
     "wizards",

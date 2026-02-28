@@ -4,18 +4,20 @@ Provides REST endpoints for media server operations including:
 - POST /api/v1/servers - Create a new media server
 - GET /api/v1/servers/{id} - Get media server details
 - DELETE /api/v1/servers/{id} - Delete a media server
+- POST /api/v1/servers/{id}/sync-libraries - Synchronize libraries with media server
 - POST /api/v1/servers/{id}/sync - Synchronize users with media server
 
 Uses Litestar Controller pattern with dependency injection for services.
 """
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
-from typing import Annotated
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, cast
 from uuid import UUID, uuid4
 
 import structlog
-from litestar import Controller, Response, delete, get, post
+from litestar import Controller, Request, Response, delete, get, post
+from litestar.datastructures import State
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_503_SERVICE_UNAVAILABLE
@@ -24,13 +26,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
 from zondarr.core.exceptions import ValidationError
+from zondarr.core.tasks import BackgroundTaskManager
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
+from zondarr.models.sync_run import SyncRun
 from zondarr.repositories.admin import AdminAccountRepository
 from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.sync_exclusion import SyncExclusionRepository
+from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
 from zondarr.services.onboarding import OnboardingService
@@ -43,9 +48,12 @@ from .schemas import (
     EnvCredentialsResponse,
     ErrorResponse,
     LibraryResponse,
+    LibrarySyncResult,
     MediaServerCreate,
-    MediaServerResponse,
+    MediaServerDetailResponse,
     MediaServerWithLibrariesResponse,
+    ServerSyncStatusResponse,
+    SyncChannelStatusResponse,
     SyncRequest,
     SyncResult,
 )
@@ -123,6 +131,13 @@ async def provide_sync_exclusion_repository(
     return SyncExclusionRepository(session)
 
 
+async def provide_sync_run_repository(
+    session: AsyncSession,
+) -> SyncRunRepository:
+    """Provide SyncRunRepository instance."""
+    return SyncRunRepository(session)
+
+
 async def provide_sync_service(
     server_repository: MediaServerRepository,
     user_repository: UserRepository,
@@ -177,6 +192,7 @@ class ServerController(Controller):
         "user_repository": Provide(provide_user_repository),
         "identity_repository": Provide(provide_identity_repository),
         "sync_exclusion_repository": Provide(provide_sync_exclusion_repository),
+        "sync_run_repository": Provide(provide_sync_run_repository),
         "sync_service": Provide(provide_sync_service),
         "media_server_service": Provide(provide_media_server_service),
     }
@@ -229,6 +245,134 @@ class ServerController(Controller):
                 field_errors={"api_key": ["API key is required"]},
             )
         return api_key
+
+    @staticmethod
+    def _to_library_response(
+        library_id: UUID,
+        name: str,
+        library_type: str,
+        external_id: str,
+        created_at: datetime,
+        updated_at: datetime | None,
+    ) -> LibraryResponse:
+        """Build a LibraryResponse from model field values."""
+        return LibraryResponse(
+            id=library_id,
+            name=name,
+            library_type=library_type,
+            external_id=external_id,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+
+    @staticmethod
+    def _resolve_next_scheduled_at(
+        manager: BackgroundTaskManager | None,
+        *,
+        last_completed_at: datetime | None,
+        settings: Settings,
+    ) -> datetime | None:
+        """Resolve next scheduled sync time from runtime state or fallback."""
+        if manager is not None:
+            next_run = manager.get_next_sync_run_at()
+            if next_run is not None:
+                return next_run
+
+        if last_completed_at is None:
+            return None
+        return last_completed_at + timedelta(seconds=settings.sync_interval_seconds)
+
+    async def _build_sync_status(
+        self,
+        *,
+        server_id: UUID,
+        settings: Settings,
+        sync_run_repository: SyncRunRepository,
+        manager: BackgroundTaskManager | None,
+    ) -> ServerSyncStatusResponse:
+        """Build server sync status response for users and libraries."""
+        libraries_success = await sync_run_repository.get_latest_success_by_type(
+            server_id, "libraries"
+        )
+        users_success = await sync_run_repository.get_latest_success_by_type(
+            server_id, "users"
+        )
+
+        libraries_last_completed = (
+            libraries_success.finished_at if libraries_success is not None else None
+        )
+        users_last_completed = (
+            users_success.finished_at if users_success is not None else None
+        )
+
+        libraries_in_progress = (
+            manager.is_libraries_sync_in_progress(server_id)
+            if manager is not None
+            else False
+        )
+        users_in_progress = (
+            manager.is_users_sync_in_progress(server_id)
+            if manager is not None
+            else False
+        )
+
+        libraries_next = self._resolve_next_scheduled_at(
+            manager,
+            last_completed_at=libraries_last_completed,
+            settings=settings,
+        )
+        users_next = self._resolve_next_scheduled_at(
+            manager,
+            last_completed_at=users_last_completed,
+            settings=settings,
+        )
+
+        return ServerSyncStatusResponse(
+            libraries=SyncChannelStatusResponse(
+                in_progress=libraries_in_progress,
+                last_completed_at=libraries_last_completed,
+                next_scheduled_at=libraries_next,
+            ),
+            users=SyncChannelStatusResponse(
+                in_progress=users_in_progress,
+                last_completed_at=users_last_completed,
+                next_scheduled_at=users_next,
+            ),
+        )
+
+    async def _record_sync_run(
+        self,
+        *,
+        sync_run_repository: SyncRunRepository,
+        media_server_id: UUID,
+        sync_type: str,
+        trigger: str,
+        status: str,
+        started_at: datetime,
+        error_message: str | None = None,
+    ) -> None:
+        """Persist a sync run row without bubbling failures to callers."""
+        try:
+            _ = await sync_run_repository.create(
+                SyncRun(
+                    media_server_id=media_server_id,
+                    sync_type=sync_type,
+                    trigger=trigger,
+                    status=status,
+                    started_at=started_at,
+                    finished_at=datetime.now(UTC),
+                    error_message=error_message,
+                )
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to persist sync run",
+                media_server_id=str(media_server_id),
+                sync_type=sync_type,
+                trigger=trigger,
+                status=status,
+                error=str(exc),
+            )
 
     @get(
         "/env-credentials",
@@ -345,6 +489,7 @@ class ServerController(Controller):
         self,
         data: MediaServerCreate,
         media_server_service: MediaServerService,
+        sync_run_repository: SyncRunRepository,
         settings: Settings,
         session: AsyncSession,
     ) -> MediaServerWithLibrariesResponse:
@@ -378,20 +523,38 @@ class ServerController(Controller):
 
         # Sync libraries after creation (best-effort — don't fail server creation)
         libraries: list[LibraryResponse] = []
+        started_at = datetime.now(UTC)
         try:
-            synced = await media_server_service.sync_libraries(server.id)
+            sync_result = await media_server_service.sync_libraries_detailed(server.id)
             libraries = [
-                LibraryResponse(
-                    id=lib.id,
-                    name=lib.name,
-                    library_type=lib.library_type,
-                    external_id=lib.external_id,
-                    created_at=lib.created_at,
-                    updated_at=lib.updated_at,
+                self._to_library_response(
+                    lib.id,
+                    lib.name,
+                    lib.library_type,
+                    lib.external_id,
+                    lib.created_at,
+                    lib.updated_at,
                 )
-                for lib in synced
+                for lib in sync_result.libraries
             ]
+            await self._record_sync_run(
+                sync_run_repository=sync_run_repository,
+                media_server_id=server.id,
+                sync_type="libraries",
+                trigger="onboarding",
+                status="success",
+                started_at=started_at,
+            )
         except Exception as exc:
+            await self._record_sync_run(
+                sync_run_repository=sync_run_repository,
+                media_server_id=server.id,
+                sync_type="libraries",
+                trigger="onboarding",
+                status="failed",
+                started_at=started_at,
+                error_message=str(exc),
+            )
             logger.warning(
                 "Failed to sync libraries after server creation",
                 server_id=str(server.id),
@@ -429,8 +592,11 @@ class ServerController(Controller):
             UUID,
             Parameter(description="Media server UUID"),
         ],
+        request: Request[object, object, State],
+        settings: Settings,
+        sync_run_repository: SyncRunRepository,
         media_server_service: MediaServerService,
-    ) -> MediaServerResponse:
+    ) -> MediaServerDetailResponse:
         """Get media server details by ID.
 
         Args:
@@ -445,7 +611,18 @@ class ServerController(Controller):
         """
         server = await media_server_service.get_by_id(server_id)
 
-        return MediaServerResponse(
+        manager = cast(
+            BackgroundTaskManager | None,
+            getattr(request.app.state, "background_task_manager", None),
+        )
+        sync_status = await self._build_sync_status(
+            server_id=server_id,
+            settings=settings,
+            sync_run_repository=sync_run_repository,
+            manager=manager,
+        )
+
+        return MediaServerDetailResponse(
             id=server.id,
             name=server.name,
             server_type=server.server_type,
@@ -453,6 +630,18 @@ class ServerController(Controller):
             enabled=server.enabled,
             created_at=server.created_at,
             updated_at=server.updated_at,
+            libraries=[
+                self._to_library_response(
+                    lib.id,
+                    lib.name,
+                    lib.library_type,
+                    lib.external_id,
+                    lib.created_at,
+                    lib.updated_at,
+                )
+                for lib in server.libraries
+            ],
+            sync_status=sync_status,
             supported_permissions=sorted(
                 registry.get_supported_permissions(server.server_type)
             ),
@@ -543,6 +732,57 @@ class ServerController(Controller):
         )
 
     @post(
+        "/{server_id:uuid}/sync-libraries",
+        status_code=200,
+        summary="Sync libraries with media server",
+        description="Synchronize server libraries immediately and return change counts.",
+    )
+    async def sync_libraries(
+        self,
+        server_id: Annotated[
+            UUID,
+            Parameter(description="Media server UUID"),
+        ],
+        media_server_service: MediaServerService,
+        sync_run_repository: SyncRunRepository,
+    ) -> LibrarySyncResult:
+        """Sync libraries between local database and media server immediately."""
+        server = await media_server_service.get_by_id(server_id)
+        started_at = datetime.now(UTC)
+
+        try:
+            result = await media_server_service.sync_libraries_detailed(server_id)
+            synced_at = datetime.now(UTC)
+            await self._record_sync_run(
+                sync_run_repository=sync_run_repository,
+                media_server_id=server_id,
+                sync_type="libraries",
+                trigger="manual",
+                status="success",
+                started_at=started_at,
+            )
+            return LibrarySyncResult(
+                server_id=server_id,
+                server_name=server.name,
+                synced_at=synced_at,
+                total_libraries=len(result.libraries),
+                added_count=result.added_count,
+                updated_count=result.updated_count,
+                removed_count=result.removed_count,
+            )
+        except Exception as exc:
+            await self._record_sync_run(
+                sync_run_repository=sync_run_repository,
+                media_server_id=server_id,
+                sync_type="libraries",
+                trigger="manual",
+                status="failed",
+                started_at=started_at,
+                error_message=str(exc),
+            )
+            raise
+
+    @post(
         "/{server_id:uuid}/sync",
         summary="Sync users with media server",
         description="Synchronize local user records with the actual state of users on the media server.",
@@ -555,6 +795,7 @@ class ServerController(Controller):
         ],
         data: SyncRequest,
         sync_service: SyncService,
+        sync_run_repository: SyncRunRepository,
     ) -> Response[SyncResult] | Response[ErrorResponse]:
         """Sync users between local database and media server.
 
@@ -577,13 +818,33 @@ class ServerController(Controller):
         Raises:
             NotFoundError: If the server does not exist.
         """
+        started_at = datetime.now(UTC)
         try:
             result = await sync_service.sync_server(
                 server_id,
                 dry_run=data.dry_run,
             )
+            if not data.dry_run:
+                await self._record_sync_run(
+                    sync_run_repository=sync_run_repository,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="manual",
+                    status="success",
+                    started_at=started_at,
+                )
             return Response(result)
         except MediaClientError as e:
+            if not data.dry_run:
+                await self._record_sync_run(
+                    sync_run_repository=sync_run_repository,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="manual",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=e.message,
+                )
             # Return 503 if server is unreachable
             correlation_id = str(uuid4())
 
@@ -604,3 +865,15 @@ class ServerController(Controller):
                 ),
                 status_code=HTTP_503_SERVICE_UNAVAILABLE,
             )
+        except Exception as exc:
+            if not data.dry_run:
+                await self._record_sync_run(
+                    sync_run_repository=sync_run_repository,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="manual",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=str(exc),
+                )
+            raise

@@ -289,6 +289,36 @@ class MediaServerWithLibrariesResponse(msgspec.Struct, omit_defaults=True):
     supported_permissions: list[str] | None = None
 
 
+class SyncChannelStatusResponse(msgspec.Struct, kw_only=True, omit_defaults=True):
+    """Sync status details for a single sync channel."""
+
+    in_progress: bool
+    last_completed_at: datetime | None = None
+    next_scheduled_at: datetime | None = None
+
+
+class ServerSyncStatusResponse(msgspec.Struct, kw_only=True):
+    """Sync status for all server sync channels."""
+
+    libraries: SyncChannelStatusResponse
+    users: SyncChannelStatusResponse
+
+
+class MediaServerDetailResponse(msgspec.Struct, omit_defaults=True):
+    """Detailed media server response including libraries and sync status."""
+
+    id: UUID
+    name: str
+    server_type: str
+    url: str
+    enabled: bool
+    created_at: datetime
+    libraries: list[LibraryResponse]
+    sync_status: ServerSyncStatusResponse
+    updated_at: datetime | None = None
+    supported_permissions: list[str] | None = None
+
+
 # =============================================================================
 # Wizard Schemas
 # =============================================================================
@@ -1358,6 +1388,18 @@ class SyncResult(msgspec.Struct, kw_only=True):
     stale_users: list[str]
     matched_users: int
     imported_users: int = 0
+
+
+class LibrarySyncResult(msgspec.Struct, kw_only=True):
+    """Result of a manual library synchronization operation."""
+
+    server_id: UUID
+    server_name: str
+    synced_at: datetime
+    total_libraries: int
+    added_count: int
+    updated_count: int
+    removed_count: int
 
 
 # =============================================================================
