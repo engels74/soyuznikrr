@@ -7,7 +7,7 @@ can expose last successful sync times and troubleshooting context.
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from zondarr.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -45,12 +45,26 @@ class SyncRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     error_message: Mapped[str | None] = mapped_column(Text, default=None)
 
-    __table_args__: tuple[Index, ...] = (
+    __table_args__: tuple[
+        Index, Index, CheckConstraint, CheckConstraint, CheckConstraint
+    ] = (
         Index("ix_sync_runs_media_server_id", "media_server_id"),
         Index(
             "ix_sync_runs_server_type_started",
             "media_server_id",
             "sync_type",
             "started_at",
+        ),
+        CheckConstraint(
+            "sync_type IN ('libraries', 'users')",
+            name="ck_sync_runs_sync_type",
+        ),
+        CheckConstraint(
+            "trigger IN ('automatic', 'manual', 'onboarding')",
+            name="ck_sync_runs_trigger",
+        ),
+        CheckConstraint(
+            "status IN ('success', 'failed')",
+            name="ck_sync_runs_status",
         ),
     )
