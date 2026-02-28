@@ -167,7 +167,7 @@ class BackgroundTaskManager:
 
         while self._running:
             try:
-                self._next_sync_run_at = datetime.now(UTC)
+                self._next_sync_run_at = None
                 await self._sync_all_servers(state)
             except Exception as exc:
                 logger.exception("Sync task error", exc_info=exc)

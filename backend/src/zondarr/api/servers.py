@@ -865,3 +865,15 @@ class ServerController(Controller):
                 ),
                 status_code=HTTP_503_SERVICE_UNAVAILABLE,
             )
+        except Exception as exc:
+            if not data.dry_run:
+                await self._record_sync_run(
+                    sync_run_repository=sync_run_repository,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="manual",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=str(exc),
+                )
+            raise
