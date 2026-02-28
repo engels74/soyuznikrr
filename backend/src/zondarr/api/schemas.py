@@ -1594,3 +1594,46 @@ class OAuthCheckResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     auth_token: str | None = None
     email: str | None = None
     error: str | None = None
+
+
+# =============================================================================
+# Dashboard Schemas
+# =============================================================================
+
+
+class RecentActivityItem(msgspec.Struct, kw_only=True):
+    """A single recent activity event for the dashboard.
+
+    Attributes:
+        type: Event type identifier (e.g., "user_created", "invitation_created").
+        description: Human-readable description of the event.
+        timestamp: When the event occurred.
+    """
+
+    type: str
+    description: str
+    timestamp: datetime
+
+
+class DashboardStatsResponse(msgspec.Struct, kw_only=True):
+    """Aggregated dashboard statistics.
+
+    Attributes:
+        total_invitations: Total number of invitations.
+        active_invitations: Invitations that are enabled, not expired, and have uses remaining.
+        total_users: Total number of media server user accounts.
+        active_users: Users that are enabled and not expired.
+        total_servers: Total number of configured media servers.
+        enabled_servers: Media servers that are currently enabled.
+        pending_invitations: Active invitations with zero redemptions so far.
+        recent_activity: Last 10 activity events across all entity types.
+    """
+
+    total_invitations: int
+    active_invitations: int
+    total_users: int
+    active_users: int
+    total_servers: int
+    enabled_servers: int
+    pending_invitations: int
+    recent_activity: list[RecentActivityItem]
