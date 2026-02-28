@@ -15,7 +15,8 @@ interface Props {
 
 let { me }: Props = $props();
 
-// Email state
+// Email state — intentionally captures initial prop value for local editing
+// svelte-ignore state_referenced_locally
 let email = $state(me.email ?? '');
 let savingEmail = $state(false);
 

@@ -22,6 +22,7 @@ interface Props {
 
 let { csrfOrigin, isLocked }: Props = $props();
 
+// svelte-ignore state_referenced_locally — intentionally captures initial value for editing
 let origin = $state(csrfOrigin ?? '');
 let saving = $state(false);
 let testing = $state(false);

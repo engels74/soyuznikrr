@@ -770,12 +770,15 @@ class RedeemInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
         email: Optional email address for the identity.
         auth_token: Optional OAuth auth token from the provider (e.g. Plex auth token).
             Used for direct library sharing without creating a friend relationship.
+        pre_wizard_token: Signed wizard completion token proving the pre-wizard
+            was completed. Required when the invitation has a pre_wizard_id configured.
     """
 
     username: Username
     password: Password
     email: EmailStr | None = None
     auth_token: str | None = None
+    pre_wizard_token: str | None = None
 
 
 # =============================================================================

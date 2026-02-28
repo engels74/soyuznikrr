@@ -17,7 +17,7 @@ import WizardProgress from "./wizard-progress.svelte";
 
 interface Props {
 	wizard: WizardDetailResponse;
-	onComplete: () => void;
+	onComplete: (completionToken?: string | null) => void;
 	onCancel?: () => void;
 	mode?: "preview" | "join";
 }
@@ -173,7 +173,7 @@ async function handleNext() {
 			if (browser && mode !== "preview") {
 				sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
 			}
-			onComplete();
+			onComplete(result.data?.completion_token);
 		} else {
 			currentStepIndex++;
 		}

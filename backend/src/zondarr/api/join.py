@@ -17,6 +17,7 @@ from litestar.status_codes import HTTP_200_OK
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.config import Settings
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
@@ -182,6 +183,7 @@ class JoinController(Controller):
         ],
         data: RedeemInvitationRequest,
         redemption_service: RedemptionService,
+        settings: Settings,
     ) -> Response[RedemptionResponse]:
         """Redeem an invitation code to create user accounts.
 
@@ -192,7 +194,8 @@ class JoinController(Controller):
         This endpoint is publicly accessible without authentication.
 
         The redemption request requires username and password, with optional
-        email.
+        email. If the invitation has a pre-wizard configured,
+        ``pre_wizard_token`` must contain a valid signed completion token.
 
         On failure, ``RedemptionError`` propagates to the DI layer which
         rolls back the DB transaction, then the registered
@@ -203,6 +206,7 @@ class JoinController(Controller):
             code: The invitation code to redeem.
             data: The redemption request with username, password, and optional email.
             redemption_service: RedemptionService from DI.
+            settings: Application settings from DI.
 
         Returns:
             RedemptionResponse on success with identity_id and users_created.
@@ -213,6 +217,8 @@ class JoinController(Controller):
             password=data.password,
             email=data.email,
             auth_token=data.auth_token,
+            pre_wizard_token=data.pre_wizard_token,
+            secret_key=settings.secret_key,
         )
 
         users_created = [

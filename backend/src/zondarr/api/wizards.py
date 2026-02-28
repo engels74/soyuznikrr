@@ -30,6 +30,7 @@ from litestar.status_codes import HTTP_201_CREATED, HTTP_204_NO_CONTENT
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr.config import Settings
 from zondarr.models.wizard import Wizard
 from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
@@ -599,17 +600,23 @@ class WizardController(Controller):
         self,
         data: StepValidationRequest,
         wizard_service: WizardService,
+        settings: Settings,
     ) -> StepValidationResponse:
         """Validate a step completion.
 
         Validates all interaction responses for a step (AND logic).
         Empty interactions list = informational step, always valid.
 
+        When the validated step is the final step of its wizard, the
+        returned ``completion_token`` is an HMAC-signed wizard completion
+        token (used to prove completion during invitation redemption).
+
         This endpoint is publicly accessible without authentication.
 
         Args:
             data: The validation request with step_id and interactions.
             wizard_service: WizardService from DI.
+            settings: Application settings from DI.
 
         Returns:
             Validation result with completion token if valid.
@@ -625,6 +632,7 @@ class WizardController(Controller):
         is_valid, error, token = await wizard_service.validate_step(
             data.step_id,
             interaction_tuples,
+            secret_key=settings.secret_key,
         )
 
         return StepValidationResponse(

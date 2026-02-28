@@ -97,6 +97,7 @@ let redemptionError = $state<RedemptionErrorResponse | null>(null);
 // Wizard state
 let preWizardCompleted = $state(false);
 let postWizardCompleted = $state(false);
+let preWizardToken = $state<string | null>(null);
 
 // Derive whether any target server is Plex (for success page)
 const hasPlexServer = $derived(
@@ -151,6 +152,7 @@ $effect(() => {
 				const parsed = JSON.parse(saved);
 				preWizardCompleted = parsed.preWizardCompleted ?? false;
 				postWizardCompleted = parsed.postWizardCompleted ?? false;
+				preWizardToken = parsed.preWizardToken ?? null;
 				// Restore redemption response if we were in post-wizard
 				if (parsed.redemptionResponse) {
 					redemptionResponse = parsed.redemptionResponse;
@@ -170,6 +172,7 @@ $effect(() => {
 			JSON.stringify({
 				preWizardCompleted,
 				postWizardCompleted,
+				preWizardToken,
 				redemptionResponse: redemptionResponse,
 			}),
 		);
@@ -237,8 +240,9 @@ function handleBack() {
 /**
  * Handle pre-wizard completion.
  */
-function handlePreWizardComplete() {
+function handlePreWizardComplete(completionToken?: string | null) {
 	preWizardCompleted = true;
+	preWizardToken = completionToken ?? null;
 	// Proceed to registration
 	if (hasOAuthLinkServer && !hasCredentialCreateServer) {
 		currentStep = "oauth";
@@ -264,6 +268,7 @@ function handlePreWizardCancel() {
 	}
 	// Reset state
 	preWizardCompleted = false;
+	preWizardToken = null;
 	currentStep = "validation";
 }
 
@@ -319,7 +324,10 @@ async function handleRegistrationSubmit() {
 	isSubmitting = true;
 
 	try {
-		const apiData = transformRegistrationFormData(result.data);
+		const apiData = {
+			...transformRegistrationFormData(result.data),
+			pre_wizard_token: preWizardToken ?? undefined,
+		};
 		const response = await redeemInvitation(data.code, apiData);
 
 		if (response.error) {
@@ -382,6 +390,7 @@ async function handleOAuthAuthenticated(email: string, authToken: string) {
 			password: "oauth_placeholder", // Placeholder - backend handles OAuth auth differently
 			email: email,
 			auth_token: authToken,
+			pre_wizard_token: preWizardToken ?? undefined,
 		});
 
 		if (response.error) {

@@ -4,3152 +4,3552 @@
  */
 
 export interface paths {
-	'/api/auth/methods': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get available authentication methods */
-		get: operations['ApiAuthMethodsGetMethods'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/login': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Login with username and password */
-		post: operations['ApiAuthLoginLogin'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/login/{method}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Login with external provider */
-		post: operations['ApiAuthLoginMethodLoginExternal'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/logout': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Logout and revoke tokens */
-		post: operations['ApiAuthLogoutLogout'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/me': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Get current admin info */
-		get: operations['ApiAuthMeMe'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/refresh': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Refresh access token */
-		post: operations['ApiAuthRefreshRefresh'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/auth/setup': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/** Create first admin account */
-		post: operations['ApiAuthSetupSetup'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/invitations': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List invitations
-		 * @description List invitations with pagination, filtering, and sorting.
-		 */
-		get: operations['ApiV1InvitationsListInvitations'];
-		put?: never;
-		/**
-		 * Create invitation
-		 * @description Create a new invitation with configurable settings.
-		 */
-		post: operations['ApiV1InvitationsCreateInvitation'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/invitations/{invitation_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get invitation details
-		 * @description Retrieve complete details for a specific invitation.
-		 */
-		get: operations['ApiV1InvitationsInvitationIdGetInvitation'];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete invitation
-		 * @description Delete an invitation without affecting users created from it.
-		 */
-		delete: operations['ApiV1InvitationsInvitationIdDeleteInvitation'];
-		options?: never;
-		head?: never;
-		/**
-		 * Update invitation
-		 * @description Update mutable fields of an invitation.
-		 */
-		patch: operations['ApiV1InvitationsInvitationIdUpdateInvitation'];
-		trace?: never;
-	};
-	'/api/v1/invitations/validate/{code}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Validate invitation code
-		 * @description Validate an invitation code without redeeming it. Public endpoint.
-		 */
-		get: operations['ApiV1InvitationsValidateCodeValidateInvitation'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/join/{code}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Redeem invitation
-		 * @description Redeem an invitation code to create user accounts on target media servers.
-		 */
-		post: operations['ApiV1JoinCodeRedeemInvitation'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/join/{provider}/oauth/pin/{pin_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Check OAuth PIN status
-		 * @description Check if a PIN has been authenticated. Returns the user's email if authentication is complete.
-		 */
-		get: operations['ApiV1JoinProviderOauthPinPinIdCheckPin'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/join/{provider}/oauth/pin': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create OAuth PIN
-		 * @description Generate a PIN for OAuth authentication. The user should be directed to the auth_url to complete authentication.
-		 */
-		post: operations['ApiV1JoinProviderOauthPinCreatePin'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/providers': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List registered providers
-		 * @description Returns metadata for all registered media server providers.
-		 */
-		get: operations['ApiV1ProvidersListProviders'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/servers': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List media servers
-		 * @description List all media servers with their libraries.
-		 */
-		get: operations['ApiV1ServersListServers'];
-		put?: never;
-		/**
-		 * Create media server
-		 * @description Add a new media server with connection validation.
-		 */
-		post: operations['ApiV1ServersCreateServer'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/servers/{server_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get media server
-		 * @description Retrieve details for a specific media server.
-		 */
-		get: operations['ApiV1ServersServerIdGetServer'];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete media server
-		 * @description Remove a media server and all associated data.
-		 */
-		delete: operations['ApiV1ServersServerIdDeleteServer'];
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/servers/env-credentials': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get detected environment credentials
-		 * @description Returns media server credentials detected from environment variables.
-		 */
-		get: operations['ApiV1ServersEnvCredentialsGetEnvCredentials'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/servers/{server_id}/sync': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Sync users with media server
-		 * @description Synchronize local user records with the actual state of users on the media server.
-		 */
-		post: operations['ApiV1ServersServerIdSyncSyncServer'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/servers/test-connection': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Test media server connection
-		 * @description Test connectivity and auto-detect server type. If server_type is omitted, probes all registered providers.
-		 */
-		post: operations['ApiV1ServersTestConnectionTestConnection'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/settings/csrf-origin': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get CSRF origin setting
-		 * @description Returns the current CSRF origin and whether it is locked by an environment variable.
-		 */
-		get: operations['ApiV1SettingsCsrfOriginGetCsrfOrigin'];
-		/**
-		 * Update CSRF origin setting
-		 * @description Set or clear the CSRF origin. Fails if the value is locked by an environment variable.
-		 */
-		put: operations['ApiV1SettingsCsrfOriginUpdateCsrfOrigin'];
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/settings/csrf-origin/test': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Test CSRF origin against browser
-		 * @description Compares the provided origin against the request's Origin header to verify they match.
-		 */
-		post: operations['ApiV1SettingsCsrfOriginTestTestCsrfOrigin'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users/{user_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get user details
-		 * @description Retrieve complete details for a specific user.
-		 */
-		get: operations['ApiV1UsersUserIdGetUser'];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete user
-		 * @description Delete a user from both local database and media server.
-		 */
-		delete: operations['ApiV1UsersUserIdDeleteUser'];
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users/{user_id}/disable': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Disable user
-		 * @description Disable a user account on both local database and media server.
-		 */
-		post: operations['ApiV1UsersUserIdDisableDisableUser'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users/{user_id}/enable': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Enable user
-		 * @description Enable a user account on both local database and media server.
-		 */
-		post: operations['ApiV1UsersUserIdEnableEnableUser'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List users
-		 * @description List users with pagination, filtering, and sorting.
-		 */
-		get: operations['ApiV1UsersListUsers'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users/{user_id}/remove-shares': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Remove shared access
-		 * @description Remove shared library access without removing friend relationship.
-		 */
-		post: operations['ApiV1UsersUserIdRemoveSharesRemoveSharedAccess'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/users/{user_id}/permissions': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		/**
-		 * Update user permissions
-		 * @description Update user permissions on the media server.
-		 */
-		patch: operations['ApiV1UsersUserIdPermissionsUpdatePermissions'];
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Add interaction
-		 * @description Add an interaction type to a wizard step.
-		 */
-		post: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}/steps': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Create step
-		 * @description Create a new step in a wizard.
-		 */
-		post: operations['ApiV1WizardsWizardIdStepsCreateStep'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/wizards': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * List wizards
-		 * @description List wizards with pagination and filtering.
-		 */
-		get: operations['ApiV1WizardsListWizards'];
-		put?: never;
-		/**
-		 * Create wizard
-		 * @description Create a new wizard with configurable settings.
-		 */
-		post: operations['ApiV1WizardsCreateWizard'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}/steps/{step_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		/**
-		 * Delete step
-		 * @description Delete a wizard step and normalize remaining step orders.
-		 */
-		delete: operations['ApiV1WizardsWizardIdStepsStepIdDeleteStep'];
-		options?: never;
-		head?: never;
-		/**
-		 * Update step
-		 * @description Update mutable fields of a wizard step.
-		 */
-		patch: operations['ApiV1WizardsWizardIdStepsStepIdUpdateStep'];
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Get wizard details
-		 * @description Retrieve complete details for a wizard including all steps.
-		 */
-		get: operations['ApiV1WizardsWizardIdGetWizard'];
-		put?: never;
-		post?: never;
-		/**
-		 * Delete wizard
-		 * @description Delete a wizard and all its steps.
-		 */
-		delete: operations['ApiV1WizardsWizardIdDeleteWizard'];
-		options?: never;
-		head?: never;
-		/**
-		 * Update wizard
-		 * @description Update mutable fields of a wizard.
-		 */
-		patch: operations['ApiV1WizardsWizardIdUpdateWizard'];
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions/{interaction_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		post?: never;
-		/**
-		 * Remove interaction
-		 * @description Remove an interaction from a wizard step.
-		 */
-		delete: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction'];
-		options?: never;
-		head?: never;
-		/**
-		 * Update interaction
-		 * @description Update a step interaction's configuration.
-		 */
-		patch: operations['ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction'];
-		trace?: never;
-	};
-	'/api/v1/wizards/{wizard_id}/steps/{step_id}/reorder': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Reorder step
-		 * @description Move a step to a new position in the wizard.
-		 */
-		post: operations['ApiV1WizardsWizardIdStepsStepIdReorderReorderStep'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/v1/wizards/validate-step': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Validate step completion
-		 * @description Validate a step completion response. Public endpoint.
-		 */
-		post: operations['ApiV1WizardsValidateStepValidateStep'];
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
+    "/api/auth/onboarding/advance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Advance onboarding step */
+        post: operations["ApiAuthOnboardingAdvanceAdvanceOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change admin password */
+        post: operations["ApiAuthMeChangePasswordChangePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get available authentication methods */
+        get: operations["ApiAuthMethodsGetMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login with username and password */
+        post: operations["ApiAuthLoginLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login/{method}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login with external provider */
+        post: operations["ApiAuthLoginMethodLoginExternal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout and revoke tokens */
+        post: operations["ApiAuthLogoutLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current admin info */
+        get: operations["ApiAuthMeMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update admin profile */
+        patch: operations["ApiAuthMeUpdateProfile"];
+        trace?: never;
+    };
+    "/api/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh access token */
+        post: operations["ApiAuthRefreshRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create first admin account */
+        post: operations["ApiAuthSetupSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List invitations
+         * @description List invitations with pagination, filtering, and sorting.
+         */
+        get: operations["ApiV1InvitationsListInvitations"];
+        put?: never;
+        /**
+         * Create invitation
+         * @description Create a new invitation with configurable settings.
+         */
+        post: operations["ApiV1InvitationsCreateInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get invitation details
+         * @description Retrieve complete details for a specific invitation.
+         */
+        get: operations["ApiV1InvitationsInvitationIdGetInvitation"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete invitation
+         * @description Delete an invitation without affecting users created from it.
+         */
+        delete: operations["ApiV1InvitationsInvitationIdDeleteInvitation"];
+        options?: never;
+        head?: never;
+        /**
+         * Update invitation
+         * @description Update mutable fields of an invitation.
+         */
+        patch: operations["ApiV1InvitationsInvitationIdUpdateInvitation"];
+        trace?: never;
+    };
+    "/api/v1/invitations/validate/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Validate invitation code
+         * @description Validate an invitation code without redeeming it. Public endpoint.
+         */
+        get: operations["ApiV1InvitationsValidateCodeValidateInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem invitation
+         * @description Redeem an invitation code to create user accounts on target media servers.
+         */
+        post: operations["ApiV1JoinCodeRedeemInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join/{provider}/oauth/pin/{pin_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check OAuth PIN status
+         * @description Check if a PIN has been authenticated. Returns the user's email if authentication is complete.
+         */
+        get: operations["ApiV1JoinProviderOauthPinPinIdCheckPin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join/{provider}/oauth/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create OAuth PIN
+         * @description Generate a PIN for OAuth authentication. The user should be directed to the auth_url to complete authentication.
+         */
+        post: operations["ApiV1JoinProviderOauthPinCreatePin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List registered providers
+         * @description Returns metadata for all registered media server providers.
+         */
+        get: operations["ApiV1ProvidersListProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List media servers
+         * @description List all media servers with their libraries.
+         */
+        get: operations["ApiV1ServersListServers"];
+        put?: never;
+        /**
+         * Create media server
+         * @description Add a new media server with connection validation.
+         */
+        post: operations["ApiV1ServersCreateServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get media server
+         * @description Retrieve details for a specific media server.
+         */
+        get: operations["ApiV1ServersServerIdGetServer"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete media server
+         * @description Remove a media server and all associated data.
+         */
+        delete: operations["ApiV1ServersServerIdDeleteServer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/env-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get detected environment credentials
+         * @description Returns media server credentials detected from environment variables.
+         */
+        get: operations["ApiV1ServersEnvCredentialsGetEnvCredentials"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/sync-libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync libraries with media server
+         * @description Synchronize server libraries immediately and return change counts.
+         */
+        post: operations["ApiV1ServersServerIdSyncLibrariesSyncLibraries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/{server_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync users with media server
+         * @description Synchronize local user records with the actual state of users on the media server.
+         */
+        post: operations["ApiV1ServersServerIdSyncSyncServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servers/test-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test media server connection
+         * @description Test connectivity and auto-detect server type. If server_type is omitted, probes all registered providers.
+         */
+        post: operations["ApiV1ServersTestConnectionTestConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/about": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get system information
+         * @description Returns read-only system information for the about page.
+         */
+        get: operations["ApiV1SettingsAboutGetAbout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all settings
+         * @description Returns all application settings with their lock status.
+         */
+        get: operations["ApiV1SettingsGetAllSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/csrf-origin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get CSRF origin setting
+         * @description Returns the current CSRF origin and whether it is locked by an environment variable.
+         */
+        get: operations["ApiV1SettingsCsrfOriginGetCsrfOrigin"];
+        /**
+         * Update CSRF origin setting
+         * @description Set or clear the CSRF origin. Fails if the value is locked by an environment variable.
+         */
+        put: operations["ApiV1SettingsCsrfOriginUpdateCsrfOrigin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/csrf-origin/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test CSRF origin against browser
+         * @description Compares the provided origin against the request's Origin header to verify they match.
+         */
+        post: operations["ApiV1SettingsCsrfOriginTestTestCsrfOrigin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/expiration-interval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update expiration check interval
+         * @description Set the invitation expiration check interval. Fails if locked by environment variable.
+         */
+        put: operations["ApiV1SettingsExpirationIntervalUpdateExpirationInterval"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/sync-interval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update sync interval
+         * @description Set the media server sync interval. Fails if locked by environment variable.
+         */
+        put: operations["ApiV1SettingsSyncIntervalUpdateSyncInterval"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user details
+         * @description Retrieve complete details for a specific user.
+         */
+        get: operations["ApiV1UsersUserIdGetUser"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete user
+         * @description Delete a user from both local database and media server.
+         */
+        delete: operations["ApiV1UsersUserIdDeleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable user
+         * @description Disable a user account on both local database and media server.
+         */
+        post: operations["ApiV1UsersUserIdDisableDisableUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable user
+         * @description Enable a user account on both local database and media server.
+         */
+        post: operations["ApiV1UsersUserIdEnableEnableUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List users
+         * @description List users with pagination, filtering, and sorting.
+         */
+        get: operations["ApiV1UsersListUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/remove-shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove shared access
+         * @description Remove shared library access without removing friend relationship.
+         */
+        post: operations["ApiV1UsersUserIdRemoveSharesRemoveSharedAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update user permissions
+         * @description Update user permissions on the media server.
+         */
+        patch: operations["ApiV1UsersUserIdPermissionsUpdatePermissions"];
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add interaction
+         * @description Add an interaction type to a wizard step.
+         */
+        post: operations["ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create step
+         * @description Create a new step in a wizard.
+         */
+        post: operations["ApiV1WizardsWizardIdStepsCreateStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wizards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List wizards
+         * @description List wizards with pagination and filtering.
+         */
+        get: operations["ApiV1WizardsListWizards"];
+        put?: never;
+        /**
+         * Create wizard
+         * @description Create a new wizard with configurable settings.
+         */
+        post: operations["ApiV1WizardsCreateWizard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}/steps/{step_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete step
+         * @description Delete a wizard step and normalize remaining step orders.
+         */
+        delete: operations["ApiV1WizardsWizardIdStepsStepIdDeleteStep"];
+        options?: never;
+        head?: never;
+        /**
+         * Update step
+         * @description Update mutable fields of a wizard step.
+         */
+        patch: operations["ApiV1WizardsWizardIdStepsStepIdUpdateStep"];
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get wizard details
+         * @description Retrieve complete details for a wizard including all steps.
+         */
+        get: operations["ApiV1WizardsWizardIdGetWizard"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete wizard
+         * @description Delete a wizard and all its steps.
+         */
+        delete: operations["ApiV1WizardsWizardIdDeleteWizard"];
+        options?: never;
+        head?: never;
+        /**
+         * Update wizard
+         * @description Update mutable fields of a wizard.
+         */
+        patch: operations["ApiV1WizardsWizardIdUpdateWizard"];
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}/steps/{step_id}/interactions/{interaction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove interaction
+         * @description Remove an interaction from a wizard step.
+         */
+        delete: operations["ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction"];
+        options?: never;
+        head?: never;
+        /**
+         * Update interaction
+         * @description Update a step interaction's configuration.
+         */
+        patch: operations["ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction"];
+        trace?: never;
+    };
+    "/api/v1/wizards/{wizard_id}/steps/{step_id}/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reorder step
+         * @description Move a step to a new position in the wizard.
+         */
+        post: operations["ApiV1WizardsWizardIdStepsStepIdReorderReorderStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wizards/validate-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate step completion
+         * @description Validate a step completion response. Public endpoint.
+         */
+        post: operations["ApiV1WizardsValidateStepValidateStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-	schemas: {
-		/** AdminMeResponse */
-		AdminMeResponse: {
-			/** Format: uuid */
-			id: string;
-			username: string;
-			email?: string | null;
-			/** @default local */
-			auth_method: string;
-		};
-		/** AdminSetupRequest */
-		AdminSetupRequest: {
-			username: string;
-			password: string;
-			email?: string | null;
-		};
-		/** AuthFieldInfo */
-		AuthFieldInfo: {
-			name: string;
-			label: string;
-			field_type: string;
-			/** @default  */
-			placeholder: string;
-			/** @default true */
-			required: boolean;
-		};
-		/**
-		 * AuthFlowType
-		 * @description Admin authentication flow types.
-		 * @enum {string}
-		 */
-		AuthFlowType: 'oauth' | 'credentials';
-		/** AuthMethodsResponse */
-		AuthMethodsResponse: {
-			methods: string[];
-			setup_required: boolean;
-			provider_auth?: components['schemas']['ProviderAuthInfo'][];
-		};
-		/** AuthTokenResponse */
-		AuthTokenResponse: {
-			refresh_token: string;
-		};
-		/** ConnectionTestRequest */
-		ConnectionTestRequest: {
-			url: string;
-			api_key?: string | null;
-			server_type?: string | null;
-			/** @default false */
-			use_env_credentials: boolean;
-		};
-		/** ConnectionTestResponse */
-		ConnectionTestResponse: {
-			success: boolean;
-			message: string;
-			server_type?: string | null;
-			server_name?: string | null;
-			version?: string | null;
-		};
-		/** CreateInvitationRequest */
-		CreateInvitationRequest: {
-			server_ids: string[];
-			code?: string | null;
-			expires_at?: string | null;
-			max_uses?: number | null;
-			duration_days?: number | null;
-			library_ids?: string[] | null;
-			permissions?: {
-				[key: string]: boolean;
-			} | null;
-			pre_wizard_id?: string | null;
-			post_wizard_id?: string | null;
-		};
-		/** CsrfOriginResponse */
-		CsrfOriginResponse: {
-			csrf_origin?: string | null;
-			is_locked: boolean;
-		};
-		/** CsrfOriginTestRequest */
-		CsrfOriginTestRequest: {
-			origin: string;
-		};
-		/** CsrfOriginTestResponse */
-		CsrfOriginTestResponse: {
-			success: boolean;
-			message: string;
-			request_origin?: string | null;
-		};
-		/** CsrfOriginUpdate */
-		CsrfOriginUpdate: {
-			csrf_origin?: string | null;
-		};
-		/** EnvCredentialResponse */
-		EnvCredentialResponse: {
-			server_type: string;
-			display_name: string;
-			url?: string | null;
-			masked_api_key?: string | null;
-			/** @default false */
-			has_url: boolean;
-			/** @default false */
-			has_api_key: boolean;
-		};
-		/** EnvCredentialsResponse */
-		EnvCredentialsResponse: {
-			credentials: components['schemas']['EnvCredentialResponse'][];
-		};
-		/** ExternalLoginRequest */
-		ExternalLoginRequest: {
-			credentials: {
-				[key: string]: string;
-			};
-		};
-		/** IdentityResponse */
-		IdentityResponse: {
-			/** Format: uuid */
-			id: string;
-			display_name: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			email?: string | null;
-			expires_at?: string | null;
-			updated_at?: string | null;
-		};
-		/** InteractionResponseData */
-		InteractionResponseData: {
-			/** Format: uuid */
-			interaction_id: string;
-			response: {
-				[key: string]: string | number | boolean | null;
-			};
-			started_at?: string | null;
-		};
-		/** InvitationDetailResponse */
-		InvitationDetailResponse: {
-			/** Format: uuid */
-			id: string;
-			code: string;
-			use_count: number;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			is_active: boolean;
-			target_servers: components['schemas']['MediaServerResponse'][];
-			allowed_libraries: components['schemas']['LibraryResponse'][];
-			expires_at?: string | null;
-			max_uses?: number | null;
-			duration_days?: number | null;
-			created_by?: string | null;
-			updated_at?: string | null;
-			remaining_uses?: number | null;
-			pre_wizard?: components['schemas']['WizardResponse'] | null;
-			post_wizard?: components['schemas']['WizardResponse'] | null;
-		};
-		/** InvitationListResponse */
-		InvitationListResponse: {
-			items: components['schemas']['InvitationResponse'][];
-			total: number;
-			page: number;
-			page_size: number;
-			has_next: boolean;
-		};
-		/** InvitationResponse */
-		InvitationResponse: {
-			/** Format: uuid */
-			id: string;
-			code: string;
-			use_count: number;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			is_active: boolean;
-			expires_at?: string | null;
-			max_uses?: number | null;
-			duration_days?: number | null;
-			created_by?: string | null;
-			updated_at?: string | null;
-			remaining_uses?: number | null;
-		};
-		/** InvitationValidationResponse */
-		InvitationValidationResponse: {
-			valid: boolean;
-			failure_reason?: string | null;
-			target_servers?: components['schemas']['PublicMediaServerResponse'][] | null;
-			allowed_libraries?: components['schemas']['LibraryResponse'][] | null;
-			duration_days?: number | null;
-			pre_wizard?: components['schemas']['WizardDetailResponse'] | null;
-			post_wizard?: components['schemas']['WizardDetailResponse'] | null;
-		};
-		/** LibraryResponse */
-		LibraryResponse: {
-			/** Format: uuid */
-			id: string;
-			name: string;
-			library_type: string;
-			external_id: string;
-			/** Format: date-time */
-			created_at: string;
-			updated_at?: string | null;
-		};
-		/** LoginRequest */
-		LoginRequest: {
-			username: string;
-			password: string;
-		};
-		/** MediaServerCreate */
-		MediaServerCreate: {
-			name: string;
-			server_type: string;
-			url: string;
-			api_key?: string | null;
-			/** @default false */
-			use_env_credentials: boolean;
-		};
-		/** MediaServerResponse */
-		MediaServerResponse: {
-			/** Format: uuid */
-			id: string;
-			name: string;
-			server_type: string;
-			url: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			updated_at?: string | null;
-			supported_permissions?: string[] | null;
-		};
-		/** MediaServerWithLibrariesResponse */
-		MediaServerWithLibrariesResponse: {
-			/** Format: uuid */
-			id: string;
-			name: string;
-			server_type: string;
-			url: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			libraries: components['schemas']['LibraryResponse'][];
-			updated_at?: string | null;
-			supported_permissions?: string[] | null;
-		};
-		/** OAuthCheckResponse */
-		OAuthCheckResponse: {
-			authenticated: boolean;
-			auth_token?: string | null;
-			email?: string | null;
-			error?: string | null;
-		};
-		/** OAuthPinResponse */
-		OAuthPinResponse: {
-			pin_id: number;
-			code: string;
-			auth_url: string;
-			/** Format: date-time */
-			expires_at: string;
-		};
-		/** ProviderAuthInfo */
-		ProviderAuthInfo: {
-			method_name: string;
-			display_name: string;
-			flow_type: components['schemas']['AuthFlowType'];
-			fields?: components['schemas']['AuthFieldInfo'][];
-		};
-		/** ProviderMetadataResponse */
-		ProviderMetadataResponse: {
-			server_type: string;
-			display_name: string;
-			color: string;
-			icon_svg: string;
-			/** @default  */
-			api_key_help_text: string;
-			capabilities?: string[];
-			supported_permissions?: string[];
-			join_flow_type?: string | null;
-		};
-		/** PublicMediaServerResponse */
-		PublicMediaServerResponse: {
-			name: string;
-			server_type: string;
-			supported_permissions?: string[] | null;
-		};
-		/** RedeemInvitationRequest */
-		RedeemInvitationRequest: {
-			username: string;
-			password: string;
-			email?: string | null;
-			auth_token?: string | null;
-		};
-		/** RedemptionErrorResponse */
-		RedemptionErrorResponse: {
-			/** @default false */
-			success: boolean;
-			error_code: string;
-			message: string;
-			failed_server?: string | null;
-			partial_users?: components['schemas']['UserResponse'][] | null;
-		};
-		/** RedemptionResponse */
-		RedemptionResponse: {
-			success: boolean;
-			/** Format: uuid */
-			identity_id: string;
-			users_created: components['schemas']['UserResponse'][];
-			message?: string | null;
-		};
-		/** RefreshRequest */
-		RefreshRequest: {
-			refresh_token: string;
-		};
-		/** StepInteractionCreate */
-		StepInteractionCreate: {
-			interaction_type: string;
-			config?: {
-				[key: string]: string | number | boolean | string[] | null;
-			};
-			display_order?: number | null;
-		};
-		/** StepInteractionResponse */
-		StepInteractionResponse: {
-			/** Format: uuid */
-			id: string;
-			/** Format: uuid */
-			step_id: string;
-			interaction_type: string;
-			config: {
-				[key: string]: string | number | boolean | string[] | null;
-			};
-			display_order: number;
-			/** Format: date-time */
-			created_at: string;
-			updated_at?: string | null;
-		};
-		/** StepInteractionUpdate */
-		StepInteractionUpdate: {
-			config?: {
-				[key: string]: string | number | boolean | string[] | null;
-			} | null;
-		};
-		/** StepReorderRequest */
-		StepReorderRequest: {
-			new_order: number;
-		};
-		/** StepValidationRequest */
-		StepValidationRequest: {
-			/** Format: uuid */
-			step_id: string;
-			interactions?: components['schemas']['InteractionResponseData'][];
-		};
-		/** StepValidationResponse */
-		StepValidationResponse: {
-			valid: boolean;
-			completion_token?: string | null;
-			error?: string | null;
-		};
-		/** SyncRequest */
-		SyncRequest: {
-			/** @default true */
-			dry_run: boolean;
-		};
-		/** UpdateInvitationRequest */
-		UpdateInvitationRequest: {
-			expires_at?: string | null;
-			max_uses?: number | null;
-			duration_days?: number | null;
-			enabled?: boolean | null;
-			server_ids?: string[] | null;
-			library_ids?: string[] | null;
-			permissions?: {
-				[key: string]: boolean;
-			} | null;
-			pre_wizard_id?: string | null;
-			post_wizard_id?: string | null;
-		};
-		/** UpdatePermissionsRequest */
-		UpdatePermissionsRequest: {
-			can_download?: boolean | null;
-			can_stream?: boolean | null;
-			can_sync?: boolean | null;
-			can_transcode?: boolean | null;
-		};
-		/** UserDetailResponse */
-		UserDetailResponse: {
-			/** Format: uuid */
-			id: string;
-			/** Format: uuid */
-			identity_id: string;
-			/** Format: uuid */
-			media_server_id: string;
-			external_user_id: string;
-			username: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			identity: components['schemas']['IdentityResponse'];
-			media_server: components['schemas']['MediaServerResponse'];
-			external_user_type?: string | null;
-			expires_at?: string | null;
-			updated_at?: string | null;
-			invitation_id?: string | null;
-			invitation?: components['schemas']['InvitationResponse'] | null;
-		};
-		/** UserListResponse */
-		UserListResponse: {
-			items: components['schemas']['UserDetailResponse'][];
-			total: number;
-			page: number;
-			page_size: number;
-			has_next: boolean;
-		};
-		/** UserResponse */
-		UserResponse: {
-			/** Format: uuid */
-			id: string;
-			/** Format: uuid */
-			identity_id: string;
-			/** Format: uuid */
-			media_server_id: string;
-			external_user_id: string;
-			username: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			external_user_type?: string | null;
-			expires_at?: string | null;
-			updated_at?: string | null;
-		};
-		/** WizardCreate */
-		WizardCreate: {
-			name: string;
-			description?: string | null;
-			/** @default true */
-			enabled: boolean;
-		};
-		/** WizardDetailResponse */
-		WizardDetailResponse: {
-			/** Format: uuid */
-			id: string;
-			name: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			steps: components['schemas']['WizardStepResponse'][];
-			description?: string | null;
-			updated_at?: string | null;
-		};
-		/** WizardListResponse */
-		WizardListResponse: {
-			items: components['schemas']['WizardResponse'][];
-			total: number;
-			page: number;
-			page_size: number;
-			has_next: boolean;
-		};
-		/** WizardResponse */
-		WizardResponse: {
-			/** Format: uuid */
-			id: string;
-			name: string;
-			enabled: boolean;
-			/** Format: date-time */
-			created_at: string;
-			description?: string | null;
-			updated_at?: string | null;
-		};
-		/** WizardStepCreate */
-		WizardStepCreate: {
-			title: string;
-			content_markdown: string;
-			step_order?: number | null;
-		};
-		/** WizardStepResponse */
-		WizardStepResponse: {
-			/** Format: uuid */
-			id: string;
-			/** Format: uuid */
-			wizard_id: string;
-			step_order: number;
-			title: string;
-			content_markdown: string;
-			interactions: components['schemas']['StepInteractionResponse'][];
-			/** Format: date-time */
-			created_at: string;
-			updated_at?: string | null;
-		};
-		/** WizardStepUpdate */
-		WizardStepUpdate: {
-			title?: string | null;
-			content_markdown?: string | null;
-		};
-		/** WizardUpdate */
-		WizardUpdate: {
-			name?: string | null;
-			description?: string | null;
-			enabled?: boolean | null;
-		};
-	};
-	responses: never;
-	parameters: never;
-	requestBodies: never;
-	headers: never;
-	pathItems: never;
+    schemas: {
+        /** AboutResponse */
+        AboutResponse: {
+            app_version: string;
+            python_version: string;
+            db_engine: string;
+            os_info: string;
+        };
+        /** AdminEmailUpdate */
+        AdminEmailUpdate: {
+            email?: string | null;
+        };
+        /** AdminMeResponse */
+        AdminMeResponse: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            onboarding_required: boolean;
+            /** @enum {string} */
+            onboarding_step: "account" | "security" | "server" | "complete";
+            email?: string | null;
+            /** @default local */
+            auth_method: string;
+        };
+        /** AdminPasswordChange */
+        AdminPasswordChange: {
+            current_password: string;
+            new_password: string;
+        };
+        /** AdminProfileResponse */
+        AdminProfileResponse: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            email?: string | null;
+            /** @default local */
+            auth_method: string;
+        };
+        /** AdminSetupRequest */
+        AdminSetupRequest: {
+            username: string;
+            password: string;
+            email?: string | null;
+        };
+        /** AllSettingsResponse */
+        AllSettingsResponse: {
+            csrf_origin: components["schemas"]["SettingValue"];
+            sync_interval_seconds: components["schemas"]["SettingValue"];
+            expiration_check_interval_seconds: components["schemas"]["SettingValue"];
+        };
+        /** AuthFieldInfo */
+        AuthFieldInfo: {
+            name: string;
+            label: string;
+            field_type: string;
+            /** @default  */
+            placeholder: string;
+            /** @default true */
+            required: boolean;
+        };
+        /**
+         * AuthFlowType
+         * @description Admin authentication flow types.
+         * @enum {string}
+         */
+        AuthFlowType: "oauth" | "credentials";
+        /** AuthMethodsResponse */
+        AuthMethodsResponse: {
+            methods: string[];
+            setup_required: boolean;
+            onboarding_required: boolean;
+            /** @enum {string} */
+            onboarding_step: "account" | "security" | "server" | "complete";
+            provider_auth?: components["schemas"]["ProviderAuthInfo"][];
+        };
+        /** AuthTokenResponse */
+        AuthTokenResponse: {
+            refresh_token: string;
+        };
+        /** ConnectionTestRequest */
+        ConnectionTestRequest: {
+            url: string;
+            api_key?: string | null;
+            server_type?: string | null;
+            /** @default false */
+            use_env_credentials: boolean;
+        };
+        /** ConnectionTestResponse */
+        ConnectionTestResponse: {
+            success: boolean;
+            message: string;
+            server_type?: string | null;
+            server_name?: string | null;
+            version?: string | null;
+        };
+        /** CreateInvitationRequest */
+        CreateInvitationRequest: {
+            server_ids: string[];
+            code?: string | null;
+            expires_at?: string | null;
+            max_uses?: number | null;
+            duration_days?: number | null;
+            library_ids?: string[] | null;
+            permissions?: {
+                [key: string]: boolean;
+            } | null;
+            pre_wizard_id?: string | null;
+            post_wizard_id?: string | null;
+        };
+        /** CsrfOriginResponse */
+        CsrfOriginResponse: {
+            csrf_origin?: string | null;
+            is_locked: boolean;
+        };
+        /** CsrfOriginTestRequest */
+        CsrfOriginTestRequest: {
+            origin: string;
+        };
+        /** CsrfOriginTestResponse */
+        CsrfOriginTestResponse: {
+            success: boolean;
+            message: string;
+            request_origin?: string | null;
+        };
+        /** CsrfOriginUpdate */
+        CsrfOriginUpdate: {
+            csrf_origin?: string | null;
+        };
+        /** EnvCredentialResponse */
+        EnvCredentialResponse: {
+            server_type: string;
+            display_name: string;
+            url?: string | null;
+            masked_api_key?: string | null;
+            /** @default false */
+            has_url: boolean;
+            /** @default false */
+            has_api_key: boolean;
+        };
+        /** EnvCredentialsResponse */
+        EnvCredentialsResponse: {
+            credentials: components["schemas"]["EnvCredentialResponse"][];
+        };
+        /** ExpirationIntervalUpdate */
+        ExpirationIntervalUpdate: {
+            expiration_check_interval_seconds: number;
+        };
+        /** ExternalLoginRequest */
+        ExternalLoginRequest: {
+            credentials: {
+                [key: string]: string;
+            };
+        };
+        /** IdentityResponse */
+        IdentityResponse: {
+            /** Format: uuid */
+            id: string;
+            display_name: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            email?: string | null;
+            expires_at?: string | null;
+            updated_at?: string | null;
+        };
+        /** InteractionResponseData */
+        InteractionResponseData: {
+            /** Format: uuid */
+            interaction_id: string;
+            response: {
+                [key: string]: string | number | boolean | null;
+            };
+            started_at?: string | null;
+        };
+        /** InvitationDetailResponse */
+        InvitationDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            use_count: number;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            is_active: boolean;
+            target_servers: components["schemas"]["MediaServerResponse"][];
+            allowed_libraries: components["schemas"]["LibraryResponse"][];
+            expires_at?: string | null;
+            max_uses?: number | null;
+            duration_days?: number | null;
+            created_by?: string | null;
+            updated_at?: string | null;
+            remaining_uses?: number | null;
+            pre_wizard?: components["schemas"]["WizardResponse"] | null;
+            post_wizard?: components["schemas"]["WizardResponse"] | null;
+        };
+        /** InvitationListResponse */
+        InvitationListResponse: {
+            items: components["schemas"]["InvitationResponse"][];
+            total: number;
+            page: number;
+            page_size: number;
+            has_next: boolean;
+        };
+        /** InvitationResponse */
+        InvitationResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            use_count: number;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            is_active: boolean;
+            expires_at?: string | null;
+            max_uses?: number | null;
+            duration_days?: number | null;
+            created_by?: string | null;
+            updated_at?: string | null;
+            remaining_uses?: number | null;
+        };
+        /** InvitationValidationResponse */
+        InvitationValidationResponse: {
+            valid: boolean;
+            failure_reason?: string | null;
+            target_servers?: components["schemas"]["PublicMediaServerResponse"][] | null;
+            allowed_libraries?: components["schemas"]["LibraryResponse"][] | null;
+            duration_days?: number | null;
+            pre_wizard?: components["schemas"]["WizardDetailResponse"] | null;
+            post_wizard?: components["schemas"]["WizardDetailResponse"] | null;
+        };
+        /** LibraryResponse */
+        LibraryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            library_type: string;
+            external_id: string;
+            /** Format: date-time */
+            created_at: string;
+            updated_at?: string | null;
+        };
+        /** LibrarySyncResult */
+        LibrarySyncResult: {
+            /** Format: uuid */
+            server_id: string;
+            server_name: string;
+            /** Format: date-time */
+            synced_at: string;
+            total_libraries: number;
+            added_count: number;
+            updated_count: number;
+            removed_count: number;
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            username: string;
+            password: string;
+        };
+        /** MediaServerCreate */
+        MediaServerCreate: {
+            name: string;
+            server_type: string;
+            url: string;
+            api_key?: string | null;
+            /** @default false */
+            use_env_credentials: boolean;
+        };
+        /** MediaServerDetailResponse */
+        MediaServerDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            server_type: string;
+            url: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            libraries: components["schemas"]["LibraryResponse"][];
+            sync_status: components["schemas"]["ServerSyncStatusResponse"];
+            updated_at?: string | null;
+            supported_permissions?: string[] | null;
+        };
+        /** MediaServerResponse */
+        MediaServerResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            server_type: string;
+            url: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            updated_at?: string | null;
+            supported_permissions?: string[] | null;
+        };
+        /** MediaServerWithLibrariesResponse */
+        MediaServerWithLibrariesResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            server_type: string;
+            url: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            libraries: components["schemas"]["LibraryResponse"][];
+            updated_at?: string | null;
+            supported_permissions?: string[] | null;
+        };
+        /** OAuthCheckResponse */
+        OAuthCheckResponse: {
+            authenticated: boolean;
+            auth_token?: string | null;
+            email?: string | null;
+            error?: string | null;
+        };
+        /** OAuthPinResponse */
+        OAuthPinResponse: {
+            pin_id: number;
+            code: string;
+            auth_url: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        /** OnboardingStatusResponse */
+        OnboardingStatusResponse: {
+            onboarding_required: boolean;
+            /** @enum {string} */
+            onboarding_step: "account" | "security" | "server" | "complete";
+        };
+        /** PasswordChangeResponse */
+        PasswordChangeResponse: {
+            success: boolean;
+            message: string;
+        };
+        /** ProviderAuthInfo */
+        ProviderAuthInfo: {
+            method_name: string;
+            display_name: string;
+            flow_type: components["schemas"]["AuthFlowType"];
+            fields?: components["schemas"]["AuthFieldInfo"][];
+        };
+        /** ProviderMetadataResponse */
+        ProviderMetadataResponse: {
+            server_type: string;
+            display_name: string;
+            color: string;
+            icon_svg: string;
+            /** @default  */
+            api_key_help_text: string;
+            capabilities?: string[];
+            supported_permissions?: string[];
+            join_flow_type?: string | null;
+        };
+        /** PublicMediaServerResponse */
+        PublicMediaServerResponse: {
+            name: string;
+            server_type: string;
+            supported_permissions?: string[] | null;
+        };
+        /** RedeemInvitationRequest */
+        RedeemInvitationRequest: {
+            username: string;
+            password: string;
+            email?: string | null;
+            auth_token?: string | null;
+            pre_wizard_token?: string | null;
+        };
+        /**
+         * RedemptionErrorResponse
+         * @example {
+         *       "success": false,
+         *       "error_code": "AsuEshTKFLZjQQrDxkwh",
+         *       "message": "WjGDYPstccqXcjHsjXcF",
+         *       "correlation_id": null,
+         *       "failed_server": null,
+         *       "partial_users": [
+         *         {
+         *           "id": "c2713ce2-5868-405b-93e6-d9036dc3ccee",
+         *           "identity_id": "2b1acaa9-29ad-405f-bddd-cc7231e6ff39",
+         *           "media_server_id": "f69b0ae6-c099-4c4c-8f10-8ed367d731e1",
+         *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
+         *           "username": "VGFBaiJKfHyEulsYjSBd",
+         *           "enabled": true,
+         *           "created_at": "1996-09-05T17:20:01.921080",
+         *           "expires_at": "2021-04-11T18:31:52.723815",
+         *           "updated_at": "2006-04-26T06:57:20.944409"
+         *         }
+         *       ]
+         *     }
+         */
+        RedemptionErrorResponse: {
+            /**
+             * @default false
+             * @example false
+             */
+            success: boolean;
+            /** @example bzayzoQbzdXMsvhsvQnj */
+            error_code: string;
+            /** @example psxSmwtEmkVBOmIxyHqA */
+            message: string;
+            /** @example xJhBSnpIXjjOrlCcUmnv */
+            correlation_id?: string | null;
+            /** @example RTwdshFRPhSOVrnPxrBB */
+            failed_server?: string | null;
+            /**
+             * @example [
+             *       {
+             *         "id": "4133e4d7-5916-4281-8e24-d9ccd2ea3f17",
+             *         "identity_id": "c2680192-6c96-4b0e-b4f5-add55c37849a",
+             *         "media_server_id": "4850e927-bfdb-43be-a0fb-c247319115d0",
+             *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
+             *         "username": "EMpEHdutFmqCQcDdvDZV",
+             *         "enabled": false,
+             *         "created_at": "1996-08-23T03:29:02.852486",
+             *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
+             *         "updated_at": "1997-02-04T11:54:21.373028"
+             *       }
+             *     ]
+             */
+            partial_users?: components["schemas"]["UserResponse"][] | null;
+        };
+        /** RedemptionResponse */
+        RedemptionResponse: {
+            success: boolean;
+            /** Format: uuid */
+            identity_id: string;
+            users_created: components["schemas"]["UserResponse"][];
+            message?: string | null;
+        };
+        /** RefreshRequest */
+        RefreshRequest: {
+            refresh_token: string;
+        };
+        /** ServerSyncStatusResponse */
+        ServerSyncStatusResponse: {
+            libraries: components["schemas"]["SyncChannelStatusResponse"];
+            users: components["schemas"]["SyncChannelStatusResponse"];
+        };
+        /** SettingValue */
+        SettingValue: {
+            value?: string | null;
+            is_locked: boolean;
+        };
+        /** StepInteractionCreate */
+        StepInteractionCreate: {
+            interaction_type: string;
+            config?: {
+                [key: string]: string | number | boolean | string[] | null;
+            };
+            display_order?: number | null;
+        };
+        /** StepInteractionResponse */
+        StepInteractionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            step_id: string;
+            interaction_type: string;
+            config: {
+                [key: string]: string | number | boolean | string[] | null;
+            };
+            display_order: number;
+            /** Format: date-time */
+            created_at: string;
+            updated_at?: string | null;
+        };
+        /** StepInteractionUpdate */
+        StepInteractionUpdate: {
+            config?: {
+                [key: string]: string | number | boolean | string[] | null;
+            } | null;
+        };
+        /** StepReorderRequest */
+        StepReorderRequest: {
+            new_order: number;
+        };
+        /** StepValidationRequest */
+        StepValidationRequest: {
+            /** Format: uuid */
+            step_id: string;
+            interactions?: components["schemas"]["InteractionResponseData"][];
+        };
+        /** StepValidationResponse */
+        StepValidationResponse: {
+            valid: boolean;
+            completion_token?: string | null;
+            error?: string | null;
+        };
+        /** SyncChannelStatusResponse */
+        SyncChannelStatusResponse: {
+            in_progress: boolean;
+            last_completed_at?: string | null;
+            next_scheduled_at?: string | null;
+        };
+        /** SyncIntervalUpdate */
+        SyncIntervalUpdate: {
+            sync_interval_seconds: number;
+        };
+        /** SyncRequest */
+        SyncRequest: {
+            /** @default true */
+            dry_run: boolean;
+        };
+        /** UpdateInvitationRequest */
+        UpdateInvitationRequest: {
+            expires_at?: string | null;
+            max_uses?: number | null;
+            duration_days?: number | null;
+            enabled?: boolean | null;
+            server_ids?: string[] | null;
+            library_ids?: string[] | null;
+            permissions?: {
+                [key: string]: boolean;
+            } | null;
+            pre_wizard_id?: string | null;
+            post_wizard_id?: string | null;
+        };
+        /** UpdatePermissionsRequest */
+        UpdatePermissionsRequest: {
+            can_download?: boolean | null;
+            can_stream?: boolean | null;
+            can_sync?: boolean | null;
+            can_transcode?: boolean | null;
+        };
+        /** UserDetailResponse */
+        UserDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            identity_id: string;
+            /** Format: uuid */
+            media_server_id: string;
+            external_user_id: string;
+            username: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            identity: components["schemas"]["IdentityResponse"];
+            media_server: components["schemas"]["MediaServerResponse"];
+            external_user_type?: string | null;
+            expires_at?: string | null;
+            updated_at?: string | null;
+            invitation_id?: string | null;
+            invitation?: components["schemas"]["InvitationResponse"] | null;
+        };
+        /** UserListResponse */
+        UserListResponse: {
+            items: components["schemas"]["UserDetailResponse"][];
+            total: number;
+            page: number;
+            page_size: number;
+            has_next: boolean;
+        };
+        /** UserResponse */
+        UserResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            identity_id: string;
+            /** Format: uuid */
+            media_server_id: string;
+            external_user_id: string;
+            username: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            external_user_type?: string | null;
+            expires_at?: string | null;
+            updated_at?: string | null;
+        };
+        /** WizardCreate */
+        WizardCreate: {
+            name: string;
+            description?: string | null;
+            /** @default true */
+            enabled: boolean;
+        };
+        /** WizardDetailResponse */
+        WizardDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            steps: components["schemas"]["WizardStepResponse"][];
+            description?: string | null;
+            updated_at?: string | null;
+        };
+        /** WizardListResponse */
+        WizardListResponse: {
+            items: components["schemas"]["WizardResponse"][];
+            total: number;
+            page: number;
+            page_size: number;
+            has_next: boolean;
+        };
+        /** WizardResponse */
+        WizardResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            description?: string | null;
+            updated_at?: string | null;
+        };
+        /** WizardStepCreate */
+        WizardStepCreate: {
+            title: string;
+            content_markdown: string;
+            step_order?: number | null;
+        };
+        /** WizardStepResponse */
+        WizardStepResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            wizard_id: string;
+            step_order: number;
+            title: string;
+            content_markdown: string;
+            interactions: components["schemas"]["StepInteractionResponse"][];
+            /** Format: date-time */
+            created_at: string;
+            updated_at?: string | null;
+        };
+        /** WizardStepUpdate */
+        WizardStepUpdate: {
+            title?: string | null;
+            content_markdown?: string | null;
+        };
+        /** WizardUpdate */
+        WizardUpdate: {
+            name?: string | null;
+            description?: string | null;
+            enabled?: boolean | null;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-	ApiAuthMethodsGetMethods: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AuthMethodsResponse'];
-				};
-			};
-		};
-	};
-	ApiAuthLoginLogin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['LoginRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiAuthLoginMethodLoginExternal: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				method: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['ExternalLoginRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiAuthLogoutLogout: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RefreshRequest'] | null;
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						[key: string]: boolean;
-					};
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiAuthMeMe: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AdminMeResponse'];
-				};
-			};
-		};
-	};
-	ApiAuthRefreshRefresh: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RefreshRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiAuthSetupSetup: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['AdminSetupRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsListInvitations: {
-		parameters: {
-			query?: {
-				/** @description Page number (1-indexed) */
-				page?: number;
-				/** @description Number of items per page (max 100) */
-				page_size?: number;
-				/** @description Filter by enabled status */
-				enabled?: boolean | null;
-				/** @description Filter by expiration status */
-				expired?: boolean | null;
-				/** @description Field to sort by (created_at, expires_at, use_count) */
-				sort_by?: string;
-				/** @description Sort order (asc, desc) */
-				sort_order?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['InvitationListResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsCreateInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['CreateInvitationRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['InvitationDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsInvitationIdGetInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Invitation UUID */
-				invitation_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['InvitationDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsInvitationIdDeleteInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Invitation UUID */
-				invitation_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsInvitationIdUpdateInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Invitation UUID */
-				invitation_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['UpdateInvitationRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['InvitationDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1InvitationsValidateCodeValidateInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Invitation code to validate */
-				code: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['InvitationValidationResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1JoinCodeRedeemInvitation: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Invitation code to redeem */
-				code: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RedeemInvitationRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json':
-						| components['schemas']['RedemptionResponse']
-						| components['schemas']['RedemptionErrorResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1JoinProviderOauthPinPinIdCheckPin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider name */
-				provider: string;
-				/** @description PIN ID to check */
-				pin_id: number;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['OAuthCheckResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1JoinProviderOauthPinCreatePin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Provider name */
-				provider: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['OAuthPinResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ProvidersListProviders: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['ProviderMetadataResponse'][];
-				};
-			};
-		};
-	};
-	ApiV1ServersListServers: {
-		parameters: {
-			query?: {
-				/** @description Filter by enabled status */
-				enabled?: boolean | null;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['MediaServerWithLibrariesResponse'][];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ServersCreateServer: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['MediaServerCreate'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['MediaServerWithLibrariesResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ServersServerIdGetServer: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Media server UUID */
-				server_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['MediaServerResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ServersServerIdDeleteServer: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Media server UUID */
-				server_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ServersEnvCredentialsGetEnvCredentials: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['EnvCredentialsResponse'];
-				};
-			};
-		};
-	};
-	ApiV1ServersServerIdSyncSyncServer: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Media server UUID */
-				server_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['SyncRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': unknown;
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1ServersTestConnectionTestConnection: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['ConnectionTestRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['ConnectionTestResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1SettingsCsrfOriginGetCsrfOrigin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['CsrfOriginResponse'];
-				};
-			};
-		};
-	};
-	ApiV1SettingsCsrfOriginUpdateCsrfOrigin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['CsrfOriginUpdate'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['CsrfOriginResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1SettingsCsrfOriginTestTestCsrfOrigin: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['CsrfOriginTestRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['CsrfOriginTestResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdGetUser: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdDeleteUser: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdDisableDisableUser: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdEnableEnableUser: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersListUsers: {
-		parameters: {
-			query?: {
-				/** @description Page number (1-indexed) */
-				page?: number;
-				/** @description Number of items per page (default 50, max 100) */
-				page_size?: number;
-				/** @description Filter by media server ID */
-				server_id?: string | null;
-				/** @description Filter by invitation ID */
-				invitation_id?: string | null;
-				/** @description Filter by enabled status */
-				enabled?: boolean | null;
-				/** @description Filter by expiration status */
-				expired?: boolean | null;
-				/** @description Field to sort by (created_at, username, expires_at) */
-				sort_by?: string;
-				/** @description Sort order (asc, desc) */
-				sort_order?: string;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserListResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdRemoveSharesRemoveSharedAccess: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1UsersUserIdPermissionsUpdatePermissions: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description User UUID */
-				user_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['UpdatePermissionsRequest'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['StepInteractionCreate'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['StepInteractionResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsCreateStep: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['WizardStepCreate'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardStepResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsListWizards: {
-		parameters: {
-			query?: {
-				/** @description Page number (1-indexed) */
-				page?: number;
-				/** @description Number of items per page (max 100) */
-				page_size?: number;
-				/** @description Filter by enabled status */
-				enabled?: boolean | null;
-			};
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardListResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsCreateWizard: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['WizardCreate'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdDeleteStep: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdUpdateStep: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['WizardStepUpdate'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardStepResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdGetWizard: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardDetailResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdDeleteWizard: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdUpdateWizard: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['WizardUpdate'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-				/** @description Interaction UUID */
-				interaction_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Request fulfilled, nothing follows */
-			204: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content?: never;
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-				/** @description Interaction UUID */
-				interaction_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['StepInteractionUpdate'];
-			};
-		};
-		responses: {
-			/** @description Request fulfilled, document follows */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['StepInteractionResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsWizardIdStepsStepIdReorderReorderStep: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path: {
-				/** @description Wizard UUID */
-				wizard_id: string;
-				/** @description Step UUID */
-				step_id: string;
-			};
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['StepReorderRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['WizardStepResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
-	ApiV1WizardsValidateStepValidateStep: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['StepValidationRequest'];
-			};
-		};
-		responses: {
-			/** @description Document created, URL follows */
-			201: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': components['schemas']['StepValidationResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
-				};
-			};
-		};
-	};
+    ApiAuthOnboardingAdvanceAdvanceOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+        };
+    };
+    ApiAuthMeChangePasswordChangePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordChangeResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthMethodsGetMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethodsResponse"];
+                };
+            };
+        };
+    };
+    ApiAuthLoginLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokenResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthLoginMethodLoginExternal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                method: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExternalLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokenResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthLogoutLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthMeMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMeResponse"];
+                };
+            };
+        };
+    };
+    ApiAuthMeUpdateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminEmailUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProfileResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthRefreshRefresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokenResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiAuthSetupSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokenResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsListInvitations: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page (max 100) */
+                page_size?: number;
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+                /** @description Filter by expiration status */
+                expired?: boolean | null;
+                /** @description Field to sort by (created_at, expires_at, use_count) */
+                sort_by?: string;
+                /** @description Sort order (asc, desc) */
+                sort_order?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationListResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsCreateInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsInvitationIdGetInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation UUID */
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsInvitationIdDeleteInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation UUID */
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsInvitationIdUpdateInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation UUID */
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1InvitationsValidateCodeValidateInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation code to validate */
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationValidationResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1JoinCodeRedeemInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation code to redeem */
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RedemptionResponse"];
+                };
+            };
+            /** @description Redemption failed due to invalid invitation or server error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RedemptionErrorResponse"];
+                };
+            };
+        };
+    };
+    ApiV1JoinProviderOauthPinPinIdCheckPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider name */
+                provider: string;
+                /** @description PIN ID to check */
+                pin_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthCheckResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1JoinProviderOauthPinCreatePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider name */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthPinResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ProvidersListProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderMetadataResponse"][];
+                };
+            };
+        };
+    };
+    ApiV1ServersListServers: {
+        parameters: {
+            query?: {
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaServerWithLibrariesResponse"][];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersCreateServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaServerCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaServerWithLibrariesResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersServerIdGetServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media server UUID */
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaServerDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersServerIdDeleteServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media server UUID */
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersEnvCredentialsGetEnvCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvCredentialsResponse"];
+                };
+            };
+        };
+    };
+    ApiV1ServersServerIdSyncLibrariesSyncLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media server UUID */
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySyncResult"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersServerIdSyncSyncServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media server UUID */
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1ServersTestConnectionTestConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionTestResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1SettingsAboutGetAbout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AboutResponse"];
+                };
+            };
+        };
+    };
+    ApiV1SettingsGetAllSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllSettingsResponse"];
+                };
+            };
+        };
+    };
+    ApiV1SettingsCsrfOriginGetCsrfOrigin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfOriginResponse"];
+                };
+            };
+        };
+    };
+    ApiV1SettingsCsrfOriginUpdateCsrfOrigin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsrfOriginUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfOriginResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1SettingsCsrfOriginTestTestCsrfOrigin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsrfOriginTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfOriginTestResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1SettingsExpirationIntervalUpdateExpirationInterval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpirationIntervalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingValue"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1SettingsSyncIntervalUpdateSyncInterval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncIntervalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingValue"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdGetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdDeleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdDisableDisableUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdEnableEnableUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersListUsers: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page (default 50, max 100) */
+                page_size?: number;
+                /** @description Filter by media server ID */
+                server_id?: string | null;
+                /** @description Filter by invitation ID */
+                invitation_id?: string | null;
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+                /** @description Filter by expiration status */
+                expired?: boolean | null;
+                /** @description Field to sort by (created_at, username, expires_at) */
+                sort_by?: string;
+                /** @description Sort order (asc, desc) */
+                sort_order?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserListResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdRemoveSharesRemoveSharedAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1UsersUserIdPermissionsUpdatePermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User UUID */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePermissionsRequest"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdInteractionsAddInteraction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepInteractionCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepInteractionResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsCreateStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WizardStepCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardStepResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsListWizards: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page (max 100) */
+                page_size?: number;
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardListResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsCreateWizard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WizardCreate"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdDeleteStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdUpdateStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WizardStepUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardStepResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdGetWizard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardDetailResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdDeleteWizard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdUpdateWizard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WizardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdRemoveInteraction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+                /** @description Interaction UUID */
+                interaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, nothing follows */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdInteractionsInteractionIdUpdateInteraction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+                /** @description Interaction UUID */
+                interaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepInteractionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepInteractionResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsWizardIdStepsStepIdReorderReorderStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Wizard UUID */
+                wizard_id: string;
+                /** @description Step UUID */
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WizardStepResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
+    ApiV1WizardsValidateStepValidateStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepValidationRequest"];
+            };
+        };
+        responses: {
+            /** @description Document created, URL follows */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepValidationResponse"];
+                };
+            };
+            /** @description Bad request syntax or unsupported method */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status_code: number;
+                        detail: string;
+                        extra?: null | {
+                            [key: string]: unknown;
+                        } | unknown[];
+                    };
+                };
+            };
+        };
+    };
 }

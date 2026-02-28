@@ -33,6 +33,7 @@ from datetime import UTC, datetime, timedelta
 import structlog
 
 from zondarr.core.exceptions import RedemptionError
+from zondarr.core.wizard_token import verify_wizard_completion
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
 from zondarr.media.types import ExternalUser
@@ -99,6 +100,8 @@ class RedemptionService:
         password: str,
         email: str | None = None,
         auth_token: str | None = None,
+        pre_wizard_token: str | None = None,
+        secret_key: str | None = None,
     ) -> tuple[Identity, Sequence[User]]:
         """Redeem an invitation code and create user accounts.
 
@@ -112,12 +115,18 @@ class RedemptionService:
         explicitly before re-raising because those side-effects are
         outside the DB transaction.
 
+        When the invitation has a ``pre_wizard_id`` configured,
+        ``pre_wizard_token`` must contain a valid signed wizard completion
+        token matching that wizard. Without it, redemption is rejected.
+
         Args:
             code: The invitation code to redeem (positional-only).
             username: Username for the new accounts (keyword-only).
             password: Password for the new accounts (keyword-only).
             email: Optional email address (keyword-only).
             auth_token: Optional auth token for OAuth flows (keyword-only).
+            pre_wizard_token: Signed wizard completion token (keyword-only).
+            secret_key: App secret key for verifying wizard tokens (keyword-only).
 
         Returns:
             Tuple of (Identity, list of Users created).
@@ -136,6 +145,23 @@ class RedemptionService:
 
         # Step 2: Fetch the invitation for target_servers / libraries
         invitation = await self.invitation_service.get_by_code(code)
+
+        # Step 2.5: Verify pre-wizard completion if required
+        if invitation.pre_wizard_id is not None:
+            if (
+                pre_wizard_token is None
+                or secret_key is None
+                or not verify_wizard_completion(
+                    pre_wizard_token,
+                    invitation.pre_wizard_id,
+                    secret_key,
+                )
+            ):
+                raise RedemptionError(
+                    "Pre-wizard completion is required before redeeming "
+                    "this invitation",
+                    redemption_error_code="WIZARD_REQUIRED",
+                )
 
         # Step 3: Create users on each target server
         created_external_users: list[tuple[MediaServer, ExternalUser]] = []

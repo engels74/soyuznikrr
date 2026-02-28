@@ -16,6 +16,8 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from uuid import UUID
 
+from zondarr.core.wizard_token import sign_wizard_completion
+
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
 from zondarr.repositories.step_interaction import StepInteractionRepository
@@ -508,6 +510,8 @@ class WizardService:
         step_id: UUID,
         interactions: list[tuple[UUID, InputConfig, datetime | None]],
         /,
+        *,
+        secret_key: str | None = None,
     ) -> tuple[bool, str | None, str | None]:
         """Validate step completion with all interactions.
 
@@ -516,9 +520,15 @@ class WizardService:
         Steps with zero DB interactions are informational and always valid.
         All interactions must pass (AND logic).
 
+        When ``secret_key`` is provided and the step is the **last step**
+        of its wizard, returns a signed wizard completion token instead of
+        a random per-step token. This token proves the entire wizard was
+        completed and is verified during invitation redemption.
+
         Args:
             step_id: The UUID of the step (positional-only).
             interactions: List of (interaction_id, response, started_at) tuples (positional-only).
+            secret_key: App secret key for signing wizard completion tokens (keyword-only).
 
         Returns:
             A tuple of (is_valid, error_message, completion_token).
@@ -537,9 +547,13 @@ class WizardService:
         expected_ids = {i.id for i in db_interactions}
         submitted_ids = {iid for iid, _, _ in interactions}
 
+        # Determine if this is the last step of the wizard (needed for token signing)
+        wizard_steps = await self.step_repo.get_by_wizard_id(step.wizard_id)
+        is_last_step = bool(wizard_steps) and step.id == wizard_steps[-1].id
+
         # Informational step: only valid when DB truly has zero interactions
         if not expected_ids:
-            token = secrets.token_urlsafe(32)
+            token = self._make_completion_token(step, secret_key, is_last_step)
             return True, None, token
 
         # Enforce exact match between submitted and expected interaction IDs
@@ -579,8 +593,30 @@ class WizardService:
             if not is_valid:
                 return False, error, None
 
-        token = secrets.token_urlsafe(32)
+        token = self._make_completion_token(step, secret_key, is_last_step)
         return True, None, token
+
+    @staticmethod
+    def _make_completion_token(
+        step: WizardStep, secret_key: str | None, is_last_step: bool
+    ) -> str:
+        """Generate a completion token for a validated step.
+
+        Returns a signed wizard completion token for the final step of a
+        wizard (when ``secret_key`` is provided), or a random per-step
+        token otherwise.
+
+        Args:
+            step: The validated wizard step.
+            secret_key: App secret key for signing, or None.
+            is_last_step: Whether this step is the last step of its wizard.
+
+        Returns:
+            A completion token string.
+        """
+        if secret_key is not None and is_last_step:
+            return sign_wizard_completion(step.wizard_id, secret_key)
+        return secrets.token_urlsafe(32)
 
     # ==================== Validation Helpers ====================
 

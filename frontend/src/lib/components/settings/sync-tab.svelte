@@ -19,7 +19,9 @@ interface Props {
 
 let { syncInterval, expirationInterval }: Props = $props();
 
+// svelte-ignore state_referenced_locally — intentionally captures initial values for editing
 let syncValue = $state(Number(syncInterval.value ?? '900'));
+// svelte-ignore state_referenced_locally
 let expValue = $state(Number(expirationInterval.value ?? '3600'));
 let savingSync = $state(false);
 let savingExp = $state(false);
