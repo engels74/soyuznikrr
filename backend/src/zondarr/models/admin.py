@@ -8,7 +8,7 @@ Provides:
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String
+from sqlalchemy import Boolean, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from zondarr.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -29,6 +29,9 @@ class AdminAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         external_id: External service identifier for the auth provider.
         enabled: Whether this admin can log in.
         last_login_at: Timestamp of last successful login.
+        totp_enabled: Whether TOTP two-factor authentication is active.
+        totp_secret_encrypted: Fernet-encrypted TOTP secret (base32).
+        totp_backup_codes: JSON array of argon2-hashed backup codes.
     """
 
     __tablename__: str = "admin_accounts"
@@ -40,6 +43,11 @@ class AdminAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     external_id: Mapped[str | None] = mapped_column(String(255), default=None)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(default=None)
+
+    # TOTP two-factor authentication
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(Text, default=None)
+    totp_backup_codes: Mapped[str | None] = mapped_column(Text, default=None)
 
     # Relationships
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(

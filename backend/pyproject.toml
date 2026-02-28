@@ -22,6 +22,9 @@ dependencies = [
     "jellyfin-sdk>=0.3",
     "argon2-cffi>=23.1",
     "pyjwt>=2.11.0",
+    "pyotp>=2.9",
+    "segno>=1.6",
+    "cryptography>=46.0",
 ]
 
 [project.optional-dependencies]
