@@ -169,7 +169,7 @@ class TOTPService:
             admin: The admin account.
         """
         admin.totp_failed_attempts += 1
-        admin.totp_last_failed_at = datetime.now(UTC)
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
     def reset_failed_attempts(self, admin: AdminAccount) -> None:
         """Reset failed attempt counter after successful verification.

@@ -555,7 +555,7 @@ class TestTOTPServiceRateLimiting:
                 # Simulate MAX_FAILED_ATTEMPTS failures.
                 # Use naive datetime to match what SQLite returns.
                 admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore[assignment]
+                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
                 with pytest.raises(AuthenticationError, match="Too many failed"):
                     service.check_rate_limit(admin)
@@ -575,7 +575,7 @@ class TestTOTPServiceRateLimiting:
                 # Set failed attempts with expired window.
                 # Use naive datetime to match what SQLite returns.
                 admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = (  # type: ignore[assignment]
+                admin.totp_last_failed_at = (
                     datetime.now(UTC).replace(tzinfo=None)
                     - timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS + 1)
                 )
@@ -599,7 +599,7 @@ class TestTOTPServiceRateLimiting:
 
                 # Use naive datetime to match what SQLite returns.
                 admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS - 1
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore[assignment]
+                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
                 # Should not raise
                 service.check_rate_limit(admin)
@@ -623,14 +623,14 @@ class TestTOTPServiceRateLimiting:
 
                 # Simulate what SQLite returns: a naive datetime (no tzinfo)
                 admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore[assignment]
+                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
                 # Should raise rate limit, NOT TypeError
                 with pytest.raises(AuthenticationError, match="Too many failed"):
                     service.check_rate_limit(admin)
 
                 # Also test window expiry with a naive datetime
-                admin.totp_last_failed_at = (  # type: ignore[assignment]
+                admin.totp_last_failed_at = (
                     datetime.now(UTC).replace(tzinfo=None)
                     - timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS + 1)
                 )
