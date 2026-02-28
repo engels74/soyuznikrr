@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Properties: 8, 9
-Validates: Requirements 5.2, 5.3, 5.4, 5.5, 5.6
 """
 
 from datetime import UTC, datetime
@@ -56,8 +55,6 @@ class TestRepositoryCRUDRoundTrip:
     *For any* valid entity (MediaServer, Invitation, Identity, User),
     creating it via the repository and then retrieving it by ID SHALL
     return an equivalent entity with all fields preserved.
-
-    **Validates: Requirements 5.2, 5.3, 5.4, 5.5**
     """
 
     @settings(
@@ -309,8 +306,6 @@ class TestRepositoryWrapsErrors:
     *For any* database operation that raises a SQLAlchemy exception,
     the repository SHALL catch it and raise a RepositoryError that
     wraps the original exception and includes the operation context.
-
-    **Validates: Requirements 5.6**
     """
 
     @pytest.mark.asyncio

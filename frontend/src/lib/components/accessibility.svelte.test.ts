@@ -6,8 +6,6 @@
  *
  * Tests keyboard navigation and ARIA attributes to meet WCAG 2.1 AA compliance.
  *
- * **Validates: Requirements 13.8**
- *
  * @module $lib/components/accessibility.svelte.test
  */
 
@@ -21,7 +19,6 @@ import StatusBadge from './status-badge.svelte';
 
 // =============================================================================
 // Property 34: Accessibility Compliance
-// Validates: Requirements 13.8
 // =============================================================================
 
 describe('Property 34: Accessibility Compliance', () => {
@@ -37,8 +34,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any interactive element, the element SHALL have appropriate
 		 * ARIA attributes for screen reader accessibility.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have role="status" on empty state for screen readers', () => {
 			fc.assert(
@@ -66,8 +61,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any error state, the element SHALL have role="alert" and
 		 * aria-live for dynamic content announcements.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have role="alert" and aria-live on error state', () => {
 			fc.assert(
@@ -95,8 +88,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any status badge, the element SHALL have appropriate
 		 * data attributes for status identification.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have data-status attribute on status badges', () => {
 			fc.assert(
@@ -134,8 +125,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any button element, the button SHALL be focusable and
 		 * have appropriate type attribute.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have focusable buttons in empty state', () => {
 			fc.assert(
@@ -171,8 +160,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any retry button in error state, the button SHALL be
 		 * focusable and have appropriate type attribute.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have focusable retry button in error state', () => {
 			fc.assert(
@@ -207,8 +194,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any form with validation errors, the errors SHALL be
 		 * associated with their respective fields for screen readers.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have data-field-error attributes for validation errors', async () => {
 			// Test the Jellyfin registration form
@@ -244,8 +229,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any form input, the input SHALL have appropriate
 		 * autocomplete attributes for accessibility.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have autocomplete attributes on form inputs', async () => {
 			const { default: RegistrationForm } = await import('./join/registration-form.svelte');
@@ -280,8 +263,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any password toggle button, the button SHALL have
 		 * aria-label for screen reader accessibility.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have aria-label on password visibility toggle', async () => {
 			const { default: RegistrationForm } = await import('./join/registration-form.svelte');
@@ -318,8 +299,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any confirm dialog, the dialog SHALL have appropriate
 		 * title and description for screen readers.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have title and description in confirm dialog', () => {
 			fc.assert(
@@ -363,8 +342,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any status badge, the badge SHALL use distinct colors
 		 * for different statuses to aid visual identification.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should use distinct colors for different status values', () => {
 			const statusColors: Record<string, string[]> = {};
@@ -400,8 +377,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any error state, the error SHALL use rose/red colors
 		 * to indicate error condition visually.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should use rose colors for error states', () => {
 			fc.assert(
@@ -434,8 +409,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any interactive component, focus styles SHALL be visible
 		 * for keyboard navigation.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should have focus-visible styles on buttons', async () => {
 			const { default: Button } = await import('./ui/button/button.svelte');
@@ -464,8 +437,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any heading in components, the heading SHALL use
 		 * appropriate heading level (h1-h6).
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should use semantic heading elements', () => {
 			fc.assert(
@@ -489,8 +460,6 @@ describe('Property 34: Accessibility Compliance', () => {
 		/**
 		 * For any error state, the error message SHALL use
 		 * paragraph element for proper semantics.
-		 *
-		 * **Validates: Requirements 13.8**
 		 */
 		it('should use semantic paragraph elements for messages', () => {
 			fc.assert(

@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Properties: 1, 2
-Validates: Requirements 1.3, 1.5, 1.6
 """
 
 import os
@@ -45,8 +44,6 @@ class TestConfigurationLoadingWithDefaults:
     """
     Feature: zondarr-foundation
     Property 1: Configuration Loading with Defaults
-
-    **Validates: Requirements 1.3**
     """
 
     @settings(max_examples=25)
@@ -123,8 +120,6 @@ class TestConfigurationValidationFailsFast:
     """
     Feature: zondarr-foundation
     Property 2: Configuration Validation Fails Fast
-
-    **Validates: Requirements 1.5, 1.6**
     """
 
     @settings(max_examples=25)

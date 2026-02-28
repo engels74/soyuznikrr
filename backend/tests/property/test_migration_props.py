@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Property: 14
-Validates: Requirements 10.4, 10.5
 """
 
 from uuid import uuid4
@@ -68,8 +67,6 @@ class TestMigrationsPreserveData:
     """
     Feature: zondarr-foundation
     Property 14: Migrations Preserve Data
-
-    **Validates: Requirements 10.4, 10.5**
     """
 
     @given(

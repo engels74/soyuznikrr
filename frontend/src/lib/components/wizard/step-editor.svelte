@@ -5,8 +5,6 @@
  * Renders step metadata form (title, content) and registry-driven
  * interaction toggles. Interactions are managed via direct API calls.
  *
- * Requirements: 13.3
- *
  * @module $lib/components/wizard/step-editor
  */
 

@@ -2,7 +2,6 @@
 
 Feature: phase-6-polish
 Properties: 1, 2
-Validates: Requirements 1.1, 1.2, 1.5
 """
 
 from datetime import UTC, datetime, timedelta
@@ -38,8 +37,6 @@ class TestExpiredInvitationDisabling:
     For any set of invitations where some have expires_at in the past,
     running the expiration task SHALL result in all expired invitations
     having enabled=false, while non-expired invitations remain unchanged.
-
-    **Validates: Requirements 1.1, 1.2**
     """
 
     @given(
@@ -165,8 +162,6 @@ class TestExpirationTaskErrorResilience:
     For any batch of invitations being processed for expiration,
     if processing one invitation throws an error, the remaining
     invitations SHALL still be processed.
-
-    **Validates: Requirements 1.5**
     """
 
     @given(

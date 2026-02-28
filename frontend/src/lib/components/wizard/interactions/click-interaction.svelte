@@ -4,8 +4,6 @@
  *
  * Renders a confirmation button with configurable text.
  * Calls onComplete with acknowledgment data when clicked.
- *
- * Requirements: 4.1, 4.2, 4.3, 12.1
  */
 import { clickConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionCompletionData, InteractionComponentProps } from "./registry";

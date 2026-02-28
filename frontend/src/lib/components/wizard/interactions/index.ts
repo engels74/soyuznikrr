@@ -3,8 +3,6 @@
  *
  * Exports interaction components, registry, and types.
  *
- * Requirements: 12.1-12.5
- *
  * @module $lib/components/wizard/interactions
  */
 

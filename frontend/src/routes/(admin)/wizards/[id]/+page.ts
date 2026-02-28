@@ -3,8 +3,6 @@
  *
  * Fetches a single wizard with all its steps for editing.
  *
- * Requirements: 13.1-13.6
- *
  * @module routes/(admin)/wizards/[id]/+page
  */
 

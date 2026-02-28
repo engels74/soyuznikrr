@@ -5,8 +5,6 @@
  * - Property 30: Username Validation
  * - Property 31: Password Validation
  *
- * **Validates: Requirements 11.2, 11.3**
- *
  * @module $lib/schemas/join.test
  */
 
@@ -16,15 +14,12 @@ import { registrationSchema, sanitizeEmailToUsername } from './join';
 
 // =============================================================================
 // Property 30: Username Validation
-// Validates: Requirements 11.2
 // =============================================================================
 
 describe('Property 30: Username Validation', () => {
 	/**
 	 * For any username string, the Zod schema SHALL reject usernames that are
 	 * less than 3 characters.
-	 *
-	 * **Validates: Requirements 11.2**
 	 */
 	it('should reject usernames shorter than 3 characters', () => {
 		fc.assert(
@@ -49,8 +44,6 @@ describe('Property 30: Username Validation', () => {
 	/**
 	 * For any username string, the Zod schema SHALL reject usernames that are
 	 * more than 32 characters.
-	 *
-	 * **Validates: Requirements 11.2**
 	 */
 	it('should reject usernames longer than 32 characters', () => {
 		fc.assert(
@@ -82,8 +75,6 @@ describe('Property 30: Username Validation', () => {
 	/**
 	 * For any username string, the Zod schema SHALL reject usernames that
 	 * don't start with a lowercase letter.
-	 *
-	 * **Validates: Requirements 11.2**
 	 */
 	it('should reject usernames not starting with a lowercase letter', () => {
 		fc.assert(
@@ -118,8 +109,6 @@ describe('Property 30: Username Validation', () => {
 	/**
 	 * For any username string, the Zod schema SHALL reject usernames that
 	 * contain characters other than lowercase letters, numbers, and underscores.
-	 *
-	 * **Validates: Requirements 11.2**
 	 */
 	it('should reject usernames with invalid characters', () => {
 		fc.assert(
@@ -158,8 +147,6 @@ describe('Property 30: Username Validation', () => {
 	/**
 	 * For any valid username (3-32 chars, lowercase, starts with letter,
 	 * alphanumeric + underscores), the Zod schema SHALL accept it.
-	 *
-	 * **Validates: Requirements 11.2**
 	 */
 	it('should accept valid usernames', () => {
 		fc.assert(
@@ -178,15 +165,12 @@ describe('Property 30: Username Validation', () => {
 
 // =============================================================================
 // Property 31: Password Validation
-// Validates: Requirements 11.3
 // =============================================================================
 
 describe('Property 31: Password Validation', () => {
 	/**
 	 * For any password string shorter than 8 characters, the Zod schema
 	 * SHALL reject it with an appropriate error message.
-	 *
-	 * **Validates: Requirements 11.3**
 	 */
 	it('should reject passwords shorter than 8 characters', () => {
 		fc.assert(
@@ -213,8 +197,6 @@ describe('Property 31: Password Validation', () => {
 	/**
 	 * For any password string of 8 or more characters (up to 128), the Zod
 	 * schema SHALL accept it.
-	 *
-	 * **Validates: Requirements 11.3**
 	 */
 	it('should accept passwords of 8 or more characters', () => {
 		fc.assert(
@@ -233,8 +215,6 @@ describe('Property 31: Password Validation', () => {
 	/**
 	 * For any password string longer than 128 characters, the Zod schema
 	 * SHALL reject it.
-	 *
-	 * **Validates: Requirements 11.3**
 	 */
 	it('should reject passwords longer than 128 characters', () => {
 		fc.assert(

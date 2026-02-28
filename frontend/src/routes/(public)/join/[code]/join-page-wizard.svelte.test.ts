@@ -1,13 +1,6 @@
 /**
  * Integration tests for Join Page wizard flow.
  *
- * Tests the following requirements:
- * - Requirement 14.1: Pre-wizard display before registration
- * - Requirement 14.2: Post-wizard display after registration
- * - Requirement 14.3: Pre-wizard completion before registration
- * - Requirement 14.4: Post-wizard completion before success
- * - Requirement 14.5: No accounts created if pre-wizard abandoned
- *
  * @module routes/(public)/join/[code]/join-page-wizard.svelte.test
  */
 
@@ -190,15 +183,13 @@ afterEach(() => {
 });
 
 // =============================================================================
-// Requirement 14.1: Pre-wizard display before registration
+// Pre-wizard display before registration
 // =============================================================================
 
 describe('Requirement 14.1: Pre-wizard display before registration', () => {
 	/**
 	 * For any valid invitation with a pre_wizard, the join flow SHALL display
 	 * a notice indicating additional steps are required.
-	 *
-	 * **Validates: Requirement 14.1**
 	 */
 	it('should indicate additional steps when pre-wizard exists', () => {
 		fc.assert(
@@ -219,8 +210,6 @@ describe('Requirement 14.1: Pre-wizard display before registration', () => {
 	/**
 	 * For any valid invitation with a pre_wizard, the continue button text
 	 * SHALL indicate that additional steps are required.
-	 *
-	 * **Validates: Requirement 14.1**
 	 */
 	it('should have pre-wizard steps with valid structure', () => {
 		fc.assert(
@@ -243,15 +232,13 @@ describe('Requirement 14.1: Pre-wizard display before registration', () => {
 });
 
 // =============================================================================
-// Requirement 14.2: Post-wizard display after registration
+// Post-wizard display after registration
 // =============================================================================
 
 describe('Requirement 14.2: Post-wizard display after registration', () => {
 	/**
 	 * For any valid invitation with a post_wizard, the wizard data SHALL be
 	 * available in the validation response.
-	 *
-	 * **Validates: Requirement 14.2**
 	 */
 	it('should have post-wizard data available in validation response', () => {
 		fc.assert(
@@ -268,8 +255,6 @@ describe('Requirement 14.2: Post-wizard display after registration', () => {
 	/**
 	 * For any valid invitation with a post_wizard, the wizard steps SHALL have
 	 * valid configuration.
-	 *
-	 * **Validates: Requirement 14.2**
 	 */
 	it('should have post-wizard steps with valid configuration', () => {
 		fc.assert(
@@ -286,15 +271,13 @@ describe('Requirement 14.2: Post-wizard display after registration', () => {
 });
 
 // =============================================================================
-// Requirement 14.3: Pre-wizard completion before registration
+// Pre-wizard completion before registration
 // =============================================================================
 
 describe('Requirement 14.3: Pre-wizard completion before registration', () => {
 	/**
 	 * For any valid invitation with a pre_wizard, the wizard steps SHALL be
 	 * ordered by step_order.
-	 *
-	 * **Validates: Requirement 14.3**
 	 */
 	it('should have pre-wizard steps in correct order', () => {
 		fc.assert(
@@ -318,8 +301,6 @@ describe('Requirement 14.3: Pre-wizard completion before registration', () => {
 	/**
 	 * For any valid invitation with a pre_wizard, each step SHALL have
 	 * content_markdown for display.
-	 *
-	 * **Validates: Requirement 14.3**
 	 */
 	it('should have content for each pre-wizard step', () => {
 		fc.assert(
@@ -335,15 +316,13 @@ describe('Requirement 14.3: Pre-wizard completion before registration', () => {
 });
 
 // =============================================================================
-// Requirement 14.4: Post-wizard completion before success
+// Post-wizard completion before success
 // =============================================================================
 
 describe('Requirement 14.4: Post-wizard completion before success', () => {
 	/**
 	 * For any valid invitation with a post_wizard, the wizard SHALL be
 	 * enabled for display.
-	 *
-	 * **Validates: Requirement 14.4**
 	 */
 	it('should have enabled post-wizard', () => {
 		fc.assert(
@@ -357,8 +336,6 @@ describe('Requirement 14.4: Post-wizard completion before success', () => {
 	/**
 	 * For any valid invitation with a post_wizard, each step SHALL have
 	 * a valid interaction type.
-	 *
-	 * **Validates: Requirement 14.4**
 	 */
 	it('should have valid interaction types for post-wizard steps', () => {
 		fc.assert(
@@ -377,14 +354,12 @@ describe('Requirement 14.4: Post-wizard completion before success', () => {
 });
 
 // =============================================================================
-// Requirement 14.5: No accounts created if pre-wizard abandoned
+// No accounts created if pre-wizard abandoned
 // =============================================================================
 
 describe('Requirement 14.5: No accounts created if pre-wizard abandoned', () => {
 	/**
 	 * Session storage key generation SHALL be consistent for wizard progress.
-	 *
-	 * **Validates: Requirement 14.5**
 	 */
 	it('should generate consistent session storage keys', () => {
 		fc.assert(
@@ -399,8 +374,6 @@ describe('Requirement 14.5: No accounts created if pre-wizard abandoned', () => 
 
 	/**
 	 * Session storage key generation SHALL be consistent for join flow state.
-	 *
-	 * **Validates: Requirement 14.5**
 	 */
 	it('should generate consistent join flow storage keys', () => {
 		fc.assert(
@@ -416,8 +389,6 @@ describe('Requirement 14.5: No accounts created if pre-wizard abandoned', () => 
 	/**
 	 * For any valid invitation with both pre and post wizards, both SHALL
 	 * be available in the validation response.
-	 *
-	 * **Validates: Requirement 14.5**
 	 */
 	it('should support both pre and post wizards simultaneously', () => {
 		fc.assert(
@@ -432,14 +403,12 @@ describe('Requirement 14.5: No accounts created if pre-wizard abandoned', () => 
 });
 
 // =============================================================================
-// Requirement 14.6: Session persistence
+// Session persistence
 // =============================================================================
 
 describe('Requirement 14.6: Session persistence', () => {
 	/**
 	 * Join flow state SHALL be serializable to JSON.
-	 *
-	 * **Validates: Requirement 14.6**
 	 */
 	it('should serialize join flow state to JSON', () => {
 		fc.assert(
@@ -462,8 +431,6 @@ describe('Requirement 14.6: Session persistence', () => {
 
 	/**
 	 * Wizard progress state SHALL be serializable to JSON.
-	 *
-	 * **Validates: Requirement 14.6**
 	 */
 	it('should serialize wizard progress to JSON', () => {
 		fc.assert(

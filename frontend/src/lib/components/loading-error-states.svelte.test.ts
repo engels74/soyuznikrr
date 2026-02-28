@@ -5,8 +5,6 @@
  * - Property 35: Loading State Display
  * - Property 36: API Error Toast Display
  *
- * **Validates: Requirements 14.1, 14.2**
- *
  * @module $lib/components/loading-error-states.svelte.test
  */
 
@@ -17,7 +15,6 @@ import ErrorState from './error-state.svelte';
 
 // =============================================================================
 // Property 35: Loading State Display
-// Validates: Requirements 14.1
 // =============================================================================
 
 describe('Property 35: Loading State Display', () => {
@@ -31,8 +28,6 @@ describe('Property 35: Loading State Display', () => {
 	 *
 	 * This test verifies that skeleton components have the correct structure
 	 * and animation classes for loading indication.
-	 *
-	 * **Validates: Requirements 14.1**
 	 */
 	it('should display skeleton loaders with animation during loading', async () => {
 		// Import skeleton dynamically to test its structure
@@ -69,8 +64,6 @@ describe('Property 35: Loading State Display', () => {
 	/**
 	 * For any loading state, skeleton loaders SHALL have consistent styling
 	 * that indicates loading is in progress.
-	 *
-	 * **Validates: Requirements 14.1**
 	 */
 	it('should maintain consistent skeleton styling across renders', async () => {
 		const { default: Skeleton } = await import('./ui/skeleton/skeleton.svelte');
@@ -100,8 +93,6 @@ describe('Property 35: Loading State Display', () => {
 	/**
 	 * For any list skeleton, the skeleton SHALL display multiple placeholder
 	 * rows to indicate loading content.
-	 *
-	 * **Validates: Requirements 14.1**
 	 */
 	it('should display multiple skeleton rows in list skeletons', async () => {
 		// Test invitation list skeleton
@@ -125,8 +116,6 @@ describe('Property 35: Loading State Display', () => {
 	/**
 	 * For any card-based skeleton, the skeleton SHALL display placeholder
 	 * cards with appropriate structure.
-	 *
-	 * **Validates: Requirements 14.1**
 	 */
 	it('should display skeleton cards in server list skeleton', async () => {
 		const { default: ServerListSkeleton } = await import('./servers/server-list-skeleton.svelte');
@@ -143,7 +132,6 @@ describe('Property 35: Loading State Display', () => {
 
 // =============================================================================
 // Property 36: API Error Toast Display
-// Validates: Requirements 14.2
 // =============================================================================
 
 describe('Property 36: API Error Toast Display', () => {
@@ -154,8 +142,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any failed API request, the UI SHALL display an error state
 	 * with the error message from the response.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should display error message for any error string', () => {
 		fc.assert(
@@ -185,8 +171,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state, the UI SHALL display a title indicating
 	 * something went wrong.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should display error title for any error', () => {
 		fc.assert(
@@ -226,8 +210,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state with retry callback, the UI SHALL display
 	 * a retry button.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should display retry button when onRetry is provided', () => {
 		fc.assert(
@@ -261,8 +243,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state without retry callback, the UI SHALL NOT
 	 * display a retry button.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should not display retry button when onRetry is not provided', () => {
 		fc.assert(
@@ -291,8 +271,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state, the component SHALL have proper accessibility
 	 * attributes including role="alert" and aria-live.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should have proper accessibility attributes for error states', () => {
 		fc.assert(
@@ -323,8 +301,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state, the component SHALL have consistent error
 	 * styling with rose/red color scheme.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should have consistent error styling', () => {
 		fc.assert(
@@ -355,8 +331,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * Error state display should be consistent across multiple renders
 	 * with the same props.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should maintain consistent display across renders', () => {
 		fc.assert(
@@ -389,8 +363,6 @@ describe('Property 36: API Error Toast Display', () => {
 	/**
 	 * For any error state, the icon container SHALL have rose/red
 	 * color styling to indicate error.
-	 *
-	 * **Validates: Requirements 14.2**
 	 */
 	it('should display error icon with appropriate styling', () => {
 		fc.assert(

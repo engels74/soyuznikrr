@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Property: 12
-Validates: Requirements 8.4, 8.5, 8.6, 8.7
 """
 
 from collections.abc import AsyncGenerator
@@ -37,8 +36,6 @@ class TestHealthEndpointsReturnCorrectStatus:
     """
     Feature: zondarr-foundation
     Property 12: Health Endpoints Return Correct Status
-
-    **Validates: Requirements 8.4, 8.5, 8.6, 8.7**
     """
 
     @pytest.mark.asyncio

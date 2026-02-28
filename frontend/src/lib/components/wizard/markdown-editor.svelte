@@ -5,8 +5,6 @@
  * Implements textarea with markdown input, formatting toolbar, and live preview
  * with sanitized HTML.
  *
- * Requirements: 13.4, 15.4
- *
  * @module $lib/components/wizard/markdown-editor
  */
 

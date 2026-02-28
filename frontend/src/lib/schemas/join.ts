@@ -16,8 +16,6 @@ import { z } from 'zod';
  * - username: 3-32 chars, lowercase, starts with letter, alphanumeric + underscores
  * - password: minimum 8 characters, maximum 128 characters
  * - email: optional valid email address
- *
- * Requirements: 11.2, 11.3, 11.4, 11.5
  */
 export const registrationSchema = z.object({
 	username: z

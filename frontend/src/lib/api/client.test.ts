@@ -31,7 +31,6 @@ const isoDateArb = fc
 
 // =============================================================================
 // Property 3: API Error Transformation
-// Validates: Requirements 2.4, 2.5
 // =============================================================================
 
 describe('Property 3: API Error Transformation', () => {
@@ -225,7 +224,6 @@ describe('Property 3: API Error Transformation', () => {
 
 // =============================================================================
 // Property 4: Pagination Parameter Passing
-// Validates: Requirements 2.6, 4.7, 7.6
 // =============================================================================
 
 describe('Property 4: Pagination Parameter Passing', () => {
@@ -319,7 +317,6 @@ describe('Property 4: Pagination Parameter Passing', () => {
 
 // =============================================================================
 // Property 5: Filter Parameter Passing
-// Validates: Requirements 2.7
 // =============================================================================
 
 describe('Property 5: Filter Parameter Passing', () => {

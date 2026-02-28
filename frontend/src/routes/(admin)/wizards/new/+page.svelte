@@ -4,8 +4,6 @@
  *
  * Displays the wizard builder for creating a new wizard.
  *
- * Requirements: 13.1
- *
  * @module routes/(admin)/wizards/new/+page
  */
 

@@ -4,8 +4,6 @@
  *
  * Renders Back/Next/Complete buttons with loading state.
  * Applies floating navigation styling with backdrop blur.
- *
- * Requirements: 11.3, 11.4, 11.5
  */
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "@lucide/svelte";
 

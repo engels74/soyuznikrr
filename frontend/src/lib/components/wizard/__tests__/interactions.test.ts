@@ -8,8 +8,6 @@
  * - Text input validation
  * - Quiz option selection
  *
- * Requirements: 4.1-4.3, 5.1-5.5, 6.1-6.4, 7.1-7.5, 8.1-8.5
- *
  * @module $lib/components/wizard/__tests__/interactions.test
  */
 
@@ -42,7 +40,6 @@ function createInteractionProps(
 
 // =============================================================================
 // Click Interaction Tests
-// Requirements: 4.1, 4.2, 4.3, 12.1
 // =============================================================================
 
 describe('ClickInteraction', () => {
@@ -96,7 +93,6 @@ describe('ClickInteraction', () => {
 
 // =============================================================================
 // Timer Interaction Tests
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 12.2
 // =============================================================================
 
 describe('TimerInteraction', () => {
@@ -178,7 +174,6 @@ describe('TimerInteraction', () => {
 
 // =============================================================================
 // TOS Interaction Tests
-// Requirements: 6.1, 6.2, 6.3, 6.4, 12.3
 // =============================================================================
 
 describe('TosInteraction', () => {
@@ -255,7 +250,6 @@ describe('TosInteraction', () => {
 
 // =============================================================================
 // Text Input Interaction Tests
-// Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.4
 // =============================================================================
 
 describe('TextInputInteraction', () => {
@@ -369,7 +363,6 @@ describe('TextInputInteraction', () => {
 
 // =============================================================================
 // Quiz Interaction Tests
-// Requirements: 8.1, 8.2, 8.3, 12.5
 // =============================================================================
 
 describe('QuizInteraction', () => {
@@ -484,7 +477,6 @@ describe('QuizInteraction', () => {
 
 // =============================================================================
 // Quiz Interaction Tests — onValidate (backend validation)
-// Requirements: 8.4, 8.5
 // =============================================================================
 
 describe('QuizInteraction with onValidate', () => {

@@ -5,8 +5,6 @@
  * Main orchestrator for wizard flows. Manages step sequencing, progress tracking,
  * and session persistence. Renders markdown content with XSS sanitization.
  * Interactions are rendered internally via the interaction type registry.
- *
- * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 14.6, 15.1, 15.3
  */
 import DOMPurify from "dompurify";
 import { marked } from "marked";

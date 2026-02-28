@@ -4,8 +4,6 @@
  * Fetches wizards with pagination from URL params.
  * Supports server-side rendering and client-side navigation.
  *
- * Requirements: 13.1
- *
  * @module routes/(admin)/wizards/+page
  */
 

@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 38: Empty State Display
  *
- * **Validates: Requirements 14.6**
- *
  * @module $lib/components/empty-state.svelte.test
  */
 
@@ -16,7 +14,6 @@ import EmptyState from './empty-state.svelte';
 
 // =============================================================================
 // Property 38: Empty State Display
-// Validates: Requirements 14.6
 // =============================================================================
 
 describe('Property 38: Empty State Display', () => {
@@ -27,8 +24,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any list view with zero items, the UI SHALL display an empty state
 	 * message with helpful guidance.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should display empty state with title for any valid title', () => {
 		fc.assert(
@@ -55,8 +50,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state with a description, the UI SHALL display the
 	 * description as helpful guidance.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should display description when provided', () => {
 		fc.assert(
@@ -86,8 +79,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state without a description, the UI SHALL NOT display
 	 * a description paragraph.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should not display description when not provided', () => {
 		fc.assert(
@@ -113,8 +104,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state with an action, the UI SHALL display an action
 	 * button with the correct label.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should display action button when action is provided', () => {
 		fc.assert(
@@ -149,8 +138,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state without an action, the UI SHALL NOT display
 	 * an action button.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should not display action button when action is not provided', () => {
 		fc.assert(
@@ -175,8 +162,6 @@ describe('Property 38: Empty State Display', () => {
 
 	/**
 	 * For any empty state, the UI SHALL include an icon element.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should display default icon when no custom icon provided', () => {
 		fc.assert(
@@ -206,8 +191,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state, the component SHALL have proper accessibility
 	 * attributes including role="status" and aria-label.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should have proper accessibility attributes', () => {
 		fc.assert(
@@ -235,8 +218,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state with both title and description, the UI SHALL
 	 * display both elements in the correct order (title first, then description).
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should display title and description in correct order', () => {
 		fc.assert(
@@ -274,8 +255,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * For any empty state, the component SHALL have consistent styling
 	 * with dashed border and centered content.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should have consistent empty state styling', () => {
 		fc.assert(
@@ -309,8 +288,6 @@ describe('Property 38: Empty State Display', () => {
 	/**
 	 * Empty state display should be consistent across multiple renders
 	 * with the same props.
-	 *
-	 * **Validates: Requirements 14.6**
 	 */
 	it('should maintain consistent display across renders', () => {
 		fc.assert(

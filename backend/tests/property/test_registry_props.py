@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Properties: 5, 6, 7
-Validates: Requirements 4.2, 4.3, 4.4, 4.5
 """
 
 from unittest.mock import MagicMock
@@ -64,8 +63,6 @@ class TestRegistryReturnsCorrectClient:
     """
     Feature: zondarr-foundation
     Property 5: Registry Returns Correct Client
-
-    **Validates: Requirements 4.2, 4.3**
     """
 
     @settings(max_examples=50)
@@ -117,8 +114,6 @@ class TestRegistryRaisesErrorForUnknownTypes:
     """
     Feature: zondarr-foundation
     Property 6: Registry Raises Error for Unknown Types
-
-    **Validates: Requirements 4.4**
     """
 
     @settings(max_examples=25)
@@ -169,8 +164,6 @@ class TestRegistrySingletonBehavior:
     """
     Feature: zondarr-foundation
     Property 7: Registry Singleton Behavior
-
-    **Validates: Requirements 4.5**
     """
 
     @settings(max_examples=25)

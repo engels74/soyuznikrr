@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 12: Status Badge Color Mapping
  *
- * **Validates: Requirements 4.5, 7.5, 13.4**
- *
  * @module $lib/components/status-badge.svelte.test
  */
 
@@ -16,7 +14,6 @@ import StatusBadge from './status-badge.svelte';
 
 // =============================================================================
 // Property 12: Status Badge Color Mapping
-// Validates: Requirements 4.5, 7.5, 13.4
 // =============================================================================
 
 describe('Property 12: Status Badge Color Mapping', () => {
@@ -28,8 +25,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	 * For any status value (active/enabled → green, pending/limited → amber,
 	 * disabled/expired → red), the StatusBadge component SHALL apply the
 	 * correct color class.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should apply correct color class for any status value', () => {
 		fc.assert(
@@ -83,8 +78,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any green status (active/enabled), the StatusBadge SHALL display
 	 * emerald/green color styling.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should apply green color for active/enabled statuses', () => {
 		fc.assert(
@@ -110,8 +103,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any amber status (pending/limited), the StatusBadge SHALL display
 	 * amber color styling.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should apply amber color for pending/limited statuses', () => {
 		fc.assert(
@@ -137,8 +128,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any red status (disabled/expired), the StatusBadge SHALL display
 	 * rose/red color styling.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should apply red color for disabled/expired statuses', () => {
 		fc.assert(
@@ -164,8 +153,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any status value, the StatusBadge SHALL display the correct label
 	 * (capitalized status name by default).
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should display capitalized status label by default', () => {
 		fc.assert(
@@ -198,8 +185,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any status value with a custom label, the StatusBadge SHALL display
 	 * the custom label instead of the default.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should display custom label when provided', () => {
 		fc.assert(
@@ -235,8 +220,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 	/**
 	 * For any status value, the StatusBadge SHALL include a status indicator dot
 	 * with a glow effect matching the status color.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should include status indicator dot with glow effect', () => {
 		fc.assert(
@@ -272,8 +255,6 @@ describe('Property 12: Status Badge Color Mapping', () => {
 
 	/**
 	 * StatusBadge color mapping should be consistent across multiple renders.
-	 *
-	 * **Validates: Requirements 4.5, 7.5, 13.4**
 	 */
 	it('should maintain consistent color mapping across renders', () => {
 		fc.assert(

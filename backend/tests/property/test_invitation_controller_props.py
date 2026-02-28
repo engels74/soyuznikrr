@@ -2,7 +2,6 @@
 
 Feature: jellyfin-integration
 Properties: 13, 14
-Validates: Requirements 13.2, 13.4, 13.6
 """
 
 from datetime import UTC, datetime, timedelta
@@ -23,8 +22,6 @@ code_strategy = st.uuids().map(lambda u: str(u).replace("-", "")[:12].upper())
 
 class TestValidationChecksAllConditions:
     """Property 13: Validation Checks All Conditions.
-
-    **Validates: Requirements 13.2, 13.4**
 
     For any invitation validation attempt, the service SHALL check:
     (1) code exists, (2) enabled status, (3) expiration time, (4) use count vs max_uses.
@@ -153,8 +150,6 @@ class TestValidationChecksAllConditions:
 
 class TestValidationDoesNotIncrementUseCount:
     """Property 14: Validation Does Not Increment Use Count.
-
-    **Validates: Requirements 13.6**
 
     For any invitation validation attempt, the use_count SHALL NOT be incremented.
     Only redemption should increment the use count.

@@ -7,7 +7,6 @@ Provides REST endpoints for media server operations including:
 - POST /api/v1/servers/{id}/sync - Synchronize users with media server
 
 Uses Litestar Controller pattern with dependency injection for services.
-Implements Requirements 20.1, 20.5, 20.8.
 """
 
 from collections.abc import Mapping, Sequence
@@ -564,9 +563,7 @@ class ServerController(Controller):
         local) and stale users (local but not on server).
 
         The sync operation is read-only and idempotent - it only reports
-        discrepancies without modifying any data (Requirement 20.7).
-
-        Implements Requirements 20.1, 20.5, 20.8.
+        discrepancies without modifying any data.
 
         Args:
             server_id: The UUID of the media server to sync.
@@ -587,7 +584,7 @@ class ServerController(Controller):
             )
             return Response(result)
         except MediaClientError as e:
-            # Return 503 if server is unreachable (Requirement 20.8)
+            # Return 503 if server is unreachable
             correlation_id = str(uuid4())
 
             logger.warning(

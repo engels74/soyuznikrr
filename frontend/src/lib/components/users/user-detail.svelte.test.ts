@@ -8,8 +8,6 @@
  * - Property 24: Disable Button Visibility
  * - Property 37: Confirmation Dialog Display
  *
- * **Validates: Requirements 8.2, 8.3, 8.4, 8.5, 14.4**
- *
  * @module $lib/components/users/user-detail.svelte.test
  */
 
@@ -174,7 +172,6 @@ const disabledUserArb = userDetailResponseArb.map((user) => ({
 
 // =============================================================================
 // Property 21: User Detail Relationship Display
-// Validates: Requirements 8.2
 // =============================================================================
 
 describe('Property 21: User Detail Relationship Display', () => {
@@ -190,8 +187,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 	 * Note: This tests the data structure requirements. The actual page
 	 * component requires SvelteKit routing context, so we test the data
 	 * model properties here.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have identity information in user detail response', () => {
 		fc.assert(
@@ -210,8 +205,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 	/**
 	 * For any user in the detail view, the media_server information SHALL
 	 * be present with all required fields.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have media server information in user detail response', () => {
 		fc.assert(
@@ -231,8 +224,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 	/**
 	 * For any user with an invitation, the invitation information SHALL
 	 * be present with all required fields.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have invitation information when user has invitation', () => {
 		fc.assert(
@@ -251,8 +242,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 
 	/**
 	 * For any user without an invitation, the invitation field SHALL be null.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have null invitation when user has no invitation', () => {
 		fc.assert(
@@ -266,8 +255,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 
 	/**
 	 * For any user, the identity_id SHALL match the identity.id.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have consistent identity_id and identity.id', () => {
 		fc.assert(
@@ -280,8 +267,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 
 	/**
 	 * For any user, the media_server_id SHALL match the media_server.id.
-	 *
-	 * **Validates: Requirements 8.2**
 	 */
 	it('should have consistent media_server_id and media_server.id', () => {
 		fc.assert(
@@ -295,7 +280,6 @@ describe('Property 21: User Detail Relationship Display', () => {
 
 // =============================================================================
 // Property 22: Linked Users Display
-// Validates: Requirements 8.3
 // =============================================================================
 
 describe('Property 22: Linked Users Display', () => {
@@ -309,8 +293,6 @@ describe('Property 22: Linked Users Display', () => {
 	 *
 	 * Note: This tests the data model for linked users. The actual filtering
 	 * happens in the page load function.
-	 *
-	 * **Validates: Requirements 8.3**
 	 */
 	it('should identify linked users by matching identity_id', () => {
 		fc.assert(
@@ -350,8 +332,6 @@ describe('Property 22: Linked Users Display', () => {
 	/**
 	 * For any user, linked users SHALL be from different media servers
 	 * (same identity, different servers).
-	 *
-	 * **Validates: Requirements 8.3**
 	 */
 	it('should allow linked users from different media servers', () => {
 		fc.assert(
@@ -401,8 +381,6 @@ describe('Property 22: Linked Users Display', () => {
 
 	/**
 	 * For any user without linked users, the linked users list SHALL be empty.
-	 *
-	 * **Validates: Requirements 8.3**
 	 */
 	it('should return empty linked users when user is alone in identity', () => {
 		fc.assert(
@@ -423,7 +401,6 @@ describe('Property 22: Linked Users Display', () => {
 
 // =============================================================================
 // Property 23: Enable Button Visibility
-// Validates: Requirements 8.4
 // =============================================================================
 
 describe('Property 23: Enable Button Visibility', () => {
@@ -437,8 +414,6 @@ describe('Property 23: Enable Button Visibility', () => {
 	 *
 	 * Note: This tests the visibility logic. The actual button rendering
 	 * is tested via the data model.
-	 *
-	 * **Validates: Requirements 8.4**
 	 */
 	it('should show enable button for disabled users', () => {
 		fc.assert(
@@ -460,8 +435,6 @@ describe('Property 23: Enable Button Visibility', () => {
 	/**
 	 * For any disabled user, the enable button visibility logic SHALL
 	 * be consistent.
-	 *
-	 * **Validates: Requirements 8.4**
 	 */
 	it('should have consistent enable button visibility for disabled users', () => {
 		fc.assert(
@@ -488,7 +461,6 @@ describe('Property 23: Enable Button Visibility', () => {
 
 // =============================================================================
 // Property 24: Disable Button Visibility
-// Validates: Requirements 8.5
 // =============================================================================
 
 describe('Property 24: Disable Button Visibility', () => {
@@ -499,8 +471,6 @@ describe('Property 24: Disable Button Visibility', () => {
 	/**
 	 * For any user with enabled=true, the detail view SHALL display a
 	 * Disable button and NOT display an Enable button.
-	 *
-	 * **Validates: Requirements 8.5**
 	 */
 	it('should show disable button for enabled users', () => {
 		fc.assert(
@@ -522,8 +492,6 @@ describe('Property 24: Disable Button Visibility', () => {
 	/**
 	 * For any enabled user, the disable button visibility logic SHALL
 	 * be consistent.
-	 *
-	 * **Validates: Requirements 8.5**
 	 */
 	it('should have consistent disable button visibility for enabled users', () => {
 		fc.assert(
@@ -550,8 +518,6 @@ describe('Property 24: Disable Button Visibility', () => {
 	/**
 	 * For any user, enable and disable button visibility SHALL be mutually
 	 * exclusive.
-	 *
-	 * **Validates: Requirements 8.4, 8.5**
 	 */
 	it('should have mutually exclusive enable/disable button visibility', () => {
 		fc.assert(
@@ -573,7 +539,6 @@ describe('Property 24: Disable Button Visibility', () => {
 
 // =============================================================================
 // Property 37: Confirmation Dialog Display
-// Validates: Requirements 14.4
 // =============================================================================
 
 describe('Property 37: Confirmation Dialog Display', () => {
@@ -587,8 +552,6 @@ describe('Property 37: Confirmation Dialog Display', () => {
 	 *
 	 * Note: This tests the confirmation dialog requirement. The actual
 	 * dialog rendering is handled by the ConfirmDialog component.
-	 *
-	 * **Validates: Requirements 14.4**
 	 */
 	it('should require confirmation for delete action', () => {
 		fc.assert(
@@ -624,8 +587,6 @@ describe('Property 37: Confirmation Dialog Display', () => {
 	/**
 	 * For any user, the delete confirmation dialog SHALL be consistent
 	 * in its configuration.
-	 *
-	 * **Validates: Requirements 14.4**
 	 */
 	it('should have consistent delete confirmation dialog configuration', () => {
 		fc.assert(
@@ -655,8 +616,6 @@ describe('Property 37: Confirmation Dialog Display', () => {
 	/**
 	 * For any destructive action, the confirmation dialog SHALL use the
 	 * destructive variant styling.
-	 *
-	 * **Validates: Requirements 14.4**
 	 */
 	it('should use destructive variant for delete confirmation', () => {
 		fc.assert(

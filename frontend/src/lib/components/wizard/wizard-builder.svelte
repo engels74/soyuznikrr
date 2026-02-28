@@ -6,8 +6,6 @@
  * Provides wizard metadata form, step list with reorder capability,
  * and simplified step creation (no type selection).
  *
- * Requirements: 13.1, 13.2, 13.3
- *
  * @module $lib/components/wizard/wizard-builder
  */
 

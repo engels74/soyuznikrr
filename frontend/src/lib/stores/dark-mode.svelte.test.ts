@@ -12,7 +12,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // =============================================================================
 // Property 7: Dark Mode Persistence
-// Validates: Requirements 3.4
 // =============================================================================
 
 describe('Property 7: Dark Mode Persistence', () => {
@@ -42,8 +41,6 @@ describe('Property 7: Dark Mode Persistence', () => {
 	/**
 	 * For any dark mode preference set by the user, the preference SHALL be
 	 * persisted to localStorage.
-	 *
-	 * **Validates: Requirements 3.4**
 	 */
 	it('should persist any dark mode preference to localStorage', () => {
 		// mode-watcher uses 'mode-watcher-mode' as the localStorage key
@@ -65,8 +62,6 @@ describe('Property 7: Dark Mode Persistence', () => {
 	/**
 	 * For any dark mode preference stored in localStorage, the preference
 	 * SHALL be restored on subsequent page loads.
-	 *
-	 * **Validates: Requirements 3.4**
 	 */
 	it('should restore any dark mode preference from localStorage', () => {
 		const STORAGE_KEY = 'mode-watcher-mode';
@@ -88,8 +83,6 @@ describe('Property 7: Dark Mode Persistence', () => {
 
 	/**
 	 * The localStorage key used for dark mode persistence should be consistent.
-	 *
-	 * **Validates: Requirements 3.4**
 	 */
 	it('should use consistent localStorage key for mode persistence', () => {
 		const STORAGE_KEY = 'mode-watcher-mode';
@@ -117,8 +110,6 @@ describe('Property 7: Dark Mode Persistence', () => {
 
 	/**
 	 * Dark mode preference should survive page reload simulation.
-	 *
-	 * **Validates: Requirements 3.4**
 	 */
 	it('should survive simulated page reload', () => {
 		const STORAGE_KEY = 'mode-watcher-mode';
@@ -145,8 +136,6 @@ describe('Property 7: Dark Mode Persistence', () => {
 
 	/**
 	 * Only valid mode values should be accepted.
-	 *
-	 * **Validates: Requirements 3.4**
 	 */
 	it('should only accept valid mode values', () => {
 		const VALID_MODES = ['light', 'dark', 'system'] as const;

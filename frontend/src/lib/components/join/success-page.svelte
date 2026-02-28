@@ -7,8 +7,6 @@
  * - Server access instructions
  * - List of created user accounts
  *
- * Requirements: 11.7
- *
  * @module $lib/components/join/success-page
  */
 

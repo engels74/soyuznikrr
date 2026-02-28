@@ -7,8 +7,6 @@
  * - Property 19: User Sort Application
  * - Property 20: User Invitation Code Display
  *
- * **Validates: Requirements 7.2, 7.3, 7.4, 7.7**
- *
  * @module $lib/components/users/user-list.svelte.test
  */
 
@@ -157,7 +155,6 @@ const userWithoutInvitationArb = userDetailResponseArb.map((user) => ({
 
 // =============================================================================
 // Property 17: User Field Display
-// Validates: Requirements 7.2
 // =============================================================================
 
 describe('Property 17: User Field Display', () => {
@@ -169,8 +166,6 @@ describe('Property 17: User Field Display', () => {
 	 * For any user in the list view, the rendered output SHALL contain
 	 * username, media_server name, enabled status, expires_at (if set),
 	 * and created_at.
-	 *
-	 * **Validates: Requirements 7.2**
 	 */
 	it('should display all required user fields', () => {
 		fc.assert(
@@ -206,8 +201,6 @@ describe('Property 17: User Field Display', () => {
 
 	/**
 	 * For any user, the server type badge SHALL be displayed with the provider label.
-	 *
-	 * **Validates: Requirements 7.2**
 	 */
 	it('should display server type badge with correct styling', () => {
 		fc.assert(
@@ -239,8 +232,6 @@ describe('Property 17: User Field Display', () => {
 
 	/**
 	 * For any disabled user, the status badge SHALL show "Disabled" status.
-	 *
-	 * **Validates: Requirements 7.2, 7.5**
 	 */
 	it('should show disabled status for disabled users', () => {
 		fc.assert(
@@ -263,8 +254,6 @@ describe('Property 17: User Field Display', () => {
 	/**
 	 * For any enabled user without expiration, the status badge SHALL show
 	 * "Active" status.
-	 *
-	 * **Validates: Requirements 7.2, 7.5**
 	 */
 	it('should show active status for enabled users without expiration', () => {
 		fc.assert(
@@ -291,7 +280,6 @@ describe('Property 17: User Field Display', () => {
 
 // =============================================================================
 // Property 18: User Filter Application
-// Validates: Requirements 7.3
 // =============================================================================
 
 describe('Property 18: User Filter Application', () => {
@@ -307,8 +295,6 @@ describe('Property 18: User Filter Application', () => {
 	 * Note: This tests the filter logic at the component level. The actual
 	 * filtering happens server-side, but we verify the UI correctly displays
 	 * filtered results.
-	 *
-	 * **Validates: Requirements 7.3**
 	 */
 	it('should display only users matching enabled filter', () => {
 		fc.assert(
@@ -346,8 +332,6 @@ describe('Property 18: User Filter Application', () => {
 	/**
 	 * For any server_id filter, the user list SHALL only display users
 	 * from that server.
-	 *
-	 * **Validates: Requirements 7.3**
 	 */
 	it('should display only users matching server_id filter', () => {
 		fc.assert(
@@ -379,7 +363,6 @@ describe('Property 18: User Filter Application', () => {
 
 // =============================================================================
 // Property 19: User Sort Application
-// Validates: Requirements 7.4
 // =============================================================================
 
 describe('Property 19: User Sort Application', () => {
@@ -394,8 +377,6 @@ describe('Property 19: User Sort Application', () => {
 	 *
 	 * Note: Sorting happens server-side. This test verifies the UI correctly
 	 * displays pre-sorted data in the order received.
-	 *
-	 * **Validates: Requirements 7.4**
 	 */
 	it('should display users in the order provided (sorted by created_at)', () => {
 		fc.assert(
@@ -434,8 +415,6 @@ describe('Property 19: User Sort Application', () => {
 	/**
 	 * For users sorted by username, the list SHALL maintain the specified
 	 * sort order.
-	 *
-	 * **Validates: Requirements 7.4**
 	 */
 	it('should display users in the order provided (sorted by username)', () => {
 		fc.assert(
@@ -473,7 +452,6 @@ describe('Property 19: User Sort Application', () => {
 
 // =============================================================================
 // Property 20: User Invitation Code Display
-// Validates: Requirements 7.7
 // =============================================================================
 
 describe('Property 20: User Invitation Code Display', () => {
@@ -484,8 +462,6 @@ describe('Property 20: User Invitation Code Display', () => {
 	/**
 	 * For any user with a non-null invitation relationship, the user display
 	 * SHALL show the source invitation code.
-	 *
-	 * **Validates: Requirements 7.7**
 	 */
 	it('should display invitation code when user has invitation', () => {
 		fc.assert(
@@ -505,8 +481,6 @@ describe('Property 20: User Invitation Code Display', () => {
 	/**
 	 * For any user without an invitation relationship, the user display
 	 * SHALL NOT show an invitation code (or show a placeholder).
-	 *
-	 * **Validates: Requirements 7.7**
 	 */
 	it('should not display invitation code when user has no invitation', () => {
 		fc.assert(
@@ -526,8 +500,6 @@ describe('Property 20: User Invitation Code Display', () => {
 	/**
 	 * For any user with an invitation, the invitation code SHALL be displayed
 	 * in monospace font.
-	 *
-	 * **Validates: Requirements 7.7, 13.3**
 	 */
 	it('should display invitation code in monospace font', () => {
 		fc.assert(
@@ -549,8 +521,6 @@ describe('Property 20: User Invitation Code Display', () => {
 	/**
 	 * For any user with an invitation, the invitation code display SHALL be
 	 * consistent across multiple renders.
-	 *
-	 * **Validates: Requirements 7.7**
 	 */
 	it('should maintain consistent invitation code display across renders', () => {
 		fc.assert(

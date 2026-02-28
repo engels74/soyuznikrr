@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 13: Markdown XSS Sanitization
  *
- * **Validates: Requirements 15.3**
- *
  * @module $lib/components/wizard/__tests__/sanitization.property.test
  */
 
@@ -82,15 +80,12 @@ function containsXSSVectors(html: string): boolean {
 
 // =============================================================================
 // Property 13: Markdown XSS Sanitization
-// Validates: Requirements 15.3
 // =============================================================================
 
 describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any markdown content containing script tags, the sanitized output
 	 * SHALL NOT contain any script tags.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should remove script tags from markdown content', () => {
 		fc.assert(
@@ -124,8 +119,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	 *
 	 * Note: If malicious content is escaped as text (not rendered as HTML),
 	 * it is considered safe because it won't execute.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should remove event handlers from HTML in markdown content', () => {
 		fc.assert(
@@ -162,8 +155,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any markdown content containing javascript: URLs, the sanitized output
 	 * SHALL NOT contain any javascript: URLs.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should remove javascript: URLs from markdown content', () => {
 		fc.assert(
@@ -193,8 +184,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any markdown content containing iframe, object, or embed tags,
 	 * the sanitized output SHALL NOT contain these tags.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should remove iframe, object, and embed tags from markdown content', () => {
 		fc.assert(
@@ -221,8 +210,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any markdown content containing style tags or inline styles with
 	 * expressions, the sanitized output SHALL NOT contain these.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should remove style tags from markdown content', () => {
 		fc.assert(
@@ -248,8 +235,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any valid markdown content (headings, paragraphs, lists, links, code),
 	 * the sanitized output SHALL preserve the semantic structure.
-	 *
-	 * **Validates: Requirements 15.1, 15.2**
 	 */
 	it('should preserve valid markdown structure', () => {
 		fc.assert(
@@ -288,8 +273,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any arbitrary string input, the sanitized output SHALL NOT contain
 	 * any XSS vectors.
-	 *
-	 * **Validates: Requirements 15.3**
 	 */
 	it('should never produce output with XSS vectors for arbitrary input', () => {
 		fc.assert(
@@ -304,8 +287,6 @@ describe('Property 13: Markdown XSS Sanitization', () => {
 	/**
 	 * For any combination of valid markdown and XSS payloads, the sanitized
 	 * output SHALL preserve valid content while removing malicious content.
-	 *
-	 * **Validates: Requirements 15.1, 15.3**
 	 */
 	it('should handle mixed valid and malicious content', () => {
 		fc.assert(

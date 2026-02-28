@@ -3,7 +3,6 @@
 Feature: jellyfin-integration
 
 Property 25: Page Size Is Capped
-**Validates: Requirements 16.6**
 
 Tests that for any list_users request:
 - If page_size > 100, the actual page_size used is capped at 100
@@ -115,8 +114,6 @@ async def create_test_users(
 class TestPageSizeIsCapped:
     """Property 25: Page Size Is Capped.
 
-    **Validates: Requirements 16.6**
-
     For any list_users request with page_size P:
     - If P > 100, the actual page_size used should be 100
     - If P <= 100, the actual page_size used should be P
@@ -132,8 +129,6 @@ class TestPageSizeIsCapped:
         page_size: int,
     ) -> None:
         """Page size values above 100 are capped to 100.
-
-        **Validates: Requirements 16.6**
 
         Property: For any page_size P > 100, the actual page_size used
         in the query and returned in the response should be 100.
@@ -169,8 +164,6 @@ class TestPageSizeIsCapped:
         page_size: int,
     ) -> None:
         """Page size values at or below 100 are used as requested.
-
-        **Validates: Requirements 16.6**
 
         Property: For any page_size P <= 100, the actual page_size used
         should be P (not capped).
@@ -213,8 +206,6 @@ class TestPageSizeIsCapped:
         num_users: int,
     ) -> None:
         """Page size capping works correctly with varying user counts.
-
-        **Validates: Requirements 16.6**
 
         Property: For any page_size P and user count N:
         - The capped page_size is min(P, 100)
@@ -259,8 +250,6 @@ class TestPageSizeIsCapped:
     ) -> None:
         """Page size cap limits the number of returned items to 100.
 
-        **Validates: Requirements 16.6**
-
         Property: For any page_size P > 100 with more than 100 users,
         the returned items count should be exactly 100.
         """
@@ -300,8 +289,6 @@ class TestPageSizeIsCapped:
         page: int,
     ) -> None:
         """Page size cap applies consistently across all pages.
-
-        **Validates: Requirements 16.6**
 
         Property: For any page_size P > 100 and any page number,
         the capped page_size of 100 should be used for pagination.
@@ -343,8 +330,6 @@ class TestPageSizeIsCapped:
     ) -> None:
         """Page size of exactly 100 is used as-is (boundary test).
 
-        **Validates: Requirements 16.6**
-
         Property: page_size=100 should not be capped (it's at the limit).
         """
         await db.clean()
@@ -373,8 +358,6 @@ class TestPageSizeIsCapped:
         db: TestDB,
     ) -> None:
         """Page size of 101 is capped to 100 (boundary test).
-
-        **Validates: Requirements 16.6**
 
         Property: page_size=101 should be capped to 100.
         """

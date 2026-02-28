@@ -6,8 +6,6 @@
  * - Property 15: Invitation Detail Field Display
  * - Property 16: Immutable Field Protection
  *
- * **Validates: Requirements 5.9, 6.2, 6.4, 14.3**
- *
  * @module $lib/components/invitations/invitation-form.svelte.test
  */
 
@@ -95,7 +93,6 @@ const validUpdateInputArb: fc.Arbitrary<UpdateInvitationInput> = fc.record({
 
 // =============================================================================
 // Property 14: Form Validation Error Display
-// Validates: Requirements 5.9, 14.3
 // =============================================================================
 
 describe('Property 14: Form Validation Error Display', () => {
@@ -106,8 +103,6 @@ describe('Property 14: Form Validation Error Display', () => {
 	/**
 	 * For any form field with a validation error, the form SHALL display
 	 * the error message inline below the field.
-	 *
-	 * **Validates: Requirements 5.9, 14.3**
 	 */
 	it('should produce validation errors for invalid create input', () => {
 		fc.assert(
@@ -134,8 +129,6 @@ describe('Property 14: Form Validation Error Display', () => {
 
 	/**
 	 * For any valid create input, the schema SHALL pass validation.
-	 *
-	 * **Validates: Requirements 5.9**
 	 */
 	it('should pass validation for valid create input', () => {
 		fc.assert(
@@ -149,8 +142,6 @@ describe('Property 14: Form Validation Error Display', () => {
 
 	/**
 	 * For any invalid code format, the schema SHALL produce a validation error.
-	 *
-	 * **Validates: Requirements 5.9**
 	 */
 	it('should reject invalid code formats', () => {
 		fc.assert(
@@ -181,8 +172,6 @@ describe('Property 14: Form Validation Error Display', () => {
 
 	/**
 	 * For any negative max_uses value, the schema SHALL produce a validation error.
-	 *
-	 * **Validates: Requirements 5.9**
 	 */
 	it('should reject negative max_uses values', () => {
 		fc.assert(
@@ -205,8 +194,6 @@ describe('Property 14: Form Validation Error Display', () => {
 
 	/**
 	 * For any negative duration_days value, the schema SHALL produce a validation error.
-	 *
-	 * **Validates: Requirements 5.9**
 	 */
 	it('should reject negative duration_days values', () => {
 		fc.assert(
@@ -230,7 +217,6 @@ describe('Property 14: Form Validation Error Display', () => {
 
 // =============================================================================
 // Property 15: Invitation Detail Field Display
-// Validates: Requirements 6.2
 // =============================================================================
 
 describe('Property 15: Invitation Detail Field Display', () => {
@@ -244,8 +230,6 @@ describe('Property 15: Invitation Detail Field Display', () => {
 	 *
 	 * Note: This tests the data structure requirements. Component rendering
 	 * tests would require the full component setup with mock data.
-	 *
-	 * **Validates: Requirements 6.2**
 	 */
 	it('should validate update input with all mutable fields', () => {
 		fc.assert(
@@ -274,8 +258,6 @@ describe('Property 15: Invitation Detail Field Display', () => {
 
 	/**
 	 * For any update with server_ids, the array SHALL contain valid UUIDs.
-	 *
-	 * **Validates: Requirements 6.2**
 	 */
 	it('should validate server_ids as UUIDs', () => {
 		fc.assert(
@@ -293,8 +275,6 @@ describe('Property 15: Invitation Detail Field Display', () => {
 
 	/**
 	 * For any update with invalid server_ids (non-UUIDs), validation SHALL fail.
-	 *
-	 * **Validates: Requirements 6.2**
 	 */
 	it('should reject invalid server_ids', () => {
 		fc.assert(
@@ -323,7 +303,6 @@ describe('Property 15: Invitation Detail Field Display', () => {
 
 // =============================================================================
 // Property 16: Immutable Field Protection
-// Validates: Requirements 6.4
 // =============================================================================
 
 describe('Property 16: Immutable Field Protection', () => {
@@ -334,8 +313,6 @@ describe('Property 16: Immutable Field Protection', () => {
 	/**
 	 * For any immutable invitation field (code, use_count, created_at, created_by),
 	 * the update schema SHALL NOT include these fields.
-	 *
-	 * **Validates: Requirements 6.4**
 	 */
 	it('should not include immutable fields in update schema', () => {
 		// Get the shape of the update schema
@@ -359,8 +336,6 @@ describe('Property 16: Immutable Field Protection', () => {
 	/**
 	 * For any attempt to include immutable fields in update input,
 	 * the schema SHALL strip them from the output.
-	 *
-	 * **Validates: Requirements 6.4**
 	 */
 	it('should strip unknown fields from update input', () => {
 		fc.assert(
@@ -396,8 +371,6 @@ describe('Property 16: Immutable Field Protection', () => {
 
 	/**
 	 * For any valid update input, only mutable fields SHALL be present in output.
-	 *
-	 * **Validates: Requirements 6.4**
 	 */
 	it('should only output mutable fields', () => {
 		fc.assert(
@@ -429,8 +402,6 @@ describe('Property 16: Immutable Field Protection', () => {
 
 	/**
 	 * The create schema SHALL include code field (mutable at creation time).
-	 *
-	 * **Validates: Requirements 6.4**
 	 */
 	it('should include code in create schema but not update schema', () => {
 		const createShape = createInvitationSchema.shape;

@@ -70,9 +70,6 @@ class IdentityRepository(Repository[Identity]):
         Uses selectinload to eagerly fetch all User records associated
         with the identity in a single query, avoiding N+1 query issues.
 
-        Validates: Requirement 17.2 - WHEN returning user details THEN
-        the System SHALL include the parent Identity with all linked Users.
-
         Args:
             identity_id: The UUID of the identity to retrieve (positional-only).
 
@@ -102,9 +99,6 @@ class IdentityRepository(Repository[Identity]):
         Checks if the identity has any linked User records. If no users
         exist, the identity is deleted. This implements the cascade logic
         for cleaning up orphaned identities.
-
-        Validates: Requirement 19.5 - WHEN the last User for an Identity
-        is deleted THEN the System SHALL also delete the Identity.
 
         Args:
             identity_id: The UUID of the identity to check and delete

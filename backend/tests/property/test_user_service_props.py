@@ -3,14 +3,12 @@
 Feature: jellyfin-integration
 
 Property 19: Enable/Disable Atomicity
-**Validates: Requirements 18.3, 18.4**
 
 Tests that for any user enable/disable operation:
 - If the Jellyfin API call succeeds, the local User.enabled field is updated
 - If the Jellyfin API call fails, the local User.enabled field remains unchanged
 
 Property 20: User Deletion Atomicity
-**Validates: Requirements 19.3, 19.4**
 
 Tests that for any user deletion operation:
 - If the Jellyfin API call succeeds, the local User record is deleted
@@ -232,8 +230,6 @@ async def create_test_user_with_server(
 class TestEnableDisableAtomicity:
     """Property 19: Enable/Disable Atomicity.
 
-    **Validates: Requirements 18.3, 18.4**
-
     For any user enable/disable operation:
     - If the Jellyfin API call succeeds, the local User.enabled field is updated
     - If the Jellyfin API call fails, the local User.enabled field remains unchanged
@@ -256,8 +252,6 @@ class TestEnableDisableAtomicity:
         target_enabled: bool,
     ) -> None:
         """When Jellyfin update succeeds, local User.enabled is updated.
-
-        **Validates: Requirements 18.3**
 
         Property: For any user with initial enabled state I and target state T,
         if the Jellyfin API call succeeds, the local User.enabled becomes T.
@@ -325,8 +319,6 @@ class TestEnableDisableAtomicity:
     ) -> None:
         """When Jellyfin update fails, local User.enabled remains unchanged.
 
-        **Validates: Requirements 18.4**
-
         Property: For any user with initial enabled state I and target state T,
         if the Jellyfin API call fails, the local User.enabled remains I.
         """
@@ -393,8 +385,6 @@ class TestEnableDisableAtomicity:
     ) -> None:
         """When user not found on Jellyfin, local User.enabled remains unchanged.
 
-        **Validates: Requirements 18.4**
-
         Property: For any user that exists locally but not on the media server,
         the set_enabled operation should fail and preserve the local state.
         """
@@ -457,8 +447,6 @@ class TestEnableDisableAtomicity:
     ) -> None:
         """Setting enabled to current value is idempotent.
 
-        **Validates: Requirements 18.3**
-
         Property: For any user with enabled state E, setting enabled to E
         should succeed and leave the state as E.
         """
@@ -514,8 +502,6 @@ class TestEnableDisableAtomicity:
     ) -> None:
         """Toggling enabled state works correctly.
 
-        **Validates: Requirements 18.3**
-
         Property: For any user with enabled state E, setting enabled to !E
         should result in the user having enabled state !E.
         """
@@ -568,8 +554,6 @@ class TestEnableDisableAtomicity:
 class TestUserDeletionAtomicity:
     """Property 20: User Deletion Atomicity.
 
-    **Validates: Requirements 19.3, 19.4**
-
     For any user deletion operation:
     - If the Jellyfin API call succeeds, the local User record is deleted (19.3)
     - If the Jellyfin API call fails, the local User record still exists (19.4)
@@ -590,8 +574,6 @@ class TestUserDeletionAtomicity:
         initial_enabled: bool,
     ) -> None:
         """When Jellyfin deletion succeeds, local User record is deleted.
-
-        **Validates: Requirements 19.3**
 
         Property: For any user, if the Jellyfin API delete_user call succeeds,
         the local User record is deleted from the database.
@@ -647,8 +629,6 @@ class TestUserDeletionAtomicity:
         initial_enabled: bool,
     ) -> None:
         """When Jellyfin deletion fails, local User record remains unchanged.
-
-        **Validates: Requirements 19.4**
 
         Property: For any user, if the Jellyfin API delete_user call fails
         with MediaClientError, the local User record still exists in the database.
@@ -715,8 +695,6 @@ class TestUserDeletionAtomicity:
     ) -> None:
         """When user not found on Jellyfin, local User record is still deleted.
 
-        **Validates: Requirements 19.3**
-
         Property: For any user that exists locally but not on the media server
         (delete_user returns False), the local User record should still be deleted.
         This handles the case where the user was already deleted externally.
@@ -770,8 +748,6 @@ class TestUserDeletionAtomicity:
         external_user_id: str,
     ) -> None:
         """Deletion is atomic - external deletion happens before local deletion.
-
-        **Validates: Requirements 19.3, 19.4**
 
         Property: The delete operation must attempt external deletion first.
         If external deletion fails, local deletion must not occur.
@@ -844,8 +820,6 @@ class TestUserDeletionAtomicity:
         external_user_id: str,
     ) -> None:
         """Delete operation uses the correct external_user_id.
-
-        **Validates: Requirements 19.2**
 
         Property: The delete operation must call the media client's delete_user
         method with the correct external_user_id from the User record.
@@ -970,8 +944,6 @@ async def create_multiple_users_for_identity(
 class TestIdentityCascade:
     """Property 21: Last User Deletion Cascades to Identity.
 
-    **Validates: Requirements 19.5**
-
     For any Identity with exactly one User, deleting that User should also
     delete the Identity. When other Users remain, the Identity is preserved.
     """
@@ -989,8 +961,6 @@ class TestIdentityCascade:
         external_user_id: str,
     ) -> None:
         """Deleting the last User for an Identity also deletes the Identity.
-
-        **Validates: Requirements 19.5**
 
         Property: For any Identity with exactly one User, when that User is
         deleted successfully, the Identity should also be deleted.
@@ -1055,8 +1025,6 @@ class TestIdentityCascade:
         external_user_id2: str,
     ) -> None:
         """Deleting a User when others remain does NOT delete the Identity.
-
-        **Validates: Requirements 19.5**
 
         Property: For any Identity with multiple Users, when one User is
         deleted, the Identity should remain because other Users still exist.
@@ -1137,8 +1105,6 @@ class TestIdentityCascade:
     ) -> None:
         """Identity cascade only happens after successful external deletion.
 
-        **Validates: Requirements 19.5**
-
         Property: For any Identity with exactly one User, if the external
         deletion fails, neither the User nor the Identity should be deleted.
         This ensures atomicity of the cascade operation.
@@ -1209,8 +1175,6 @@ class TestIdentityCascade:
         external_user_id2: str,
     ) -> None:
         """Deleting all users sequentially eventually cascades to Identity.
-
-        **Validates: Requirements 19.5**
 
         Property: For any Identity with N Users, deleting N-1 Users preserves
         the Identity, but deleting the Nth (last) User cascades to delete

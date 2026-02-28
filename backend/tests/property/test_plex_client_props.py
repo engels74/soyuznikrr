@@ -2,7 +2,6 @@
 
 Feature: plex-integration
 Properties: 1, 2, 3
-Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2
 """
 
 from unittest.mock import patch
@@ -94,8 +93,6 @@ class TestContextManagerRoundTrip:
     For any PlexClient instance with valid URL and API key, entering the async
     context and then exiting should result in the client being in a clean state
     with _server and _account set to None.
-
-    **Validates: Requirements 1.1, 1.2**
     """
 
     @settings(max_examples=25)
@@ -192,8 +189,6 @@ class TestCapabilitiesDeclaration:
 
     PlexClient declares CREATE_USER, DELETE_USER, and LIBRARY_ACCESS capabilities.
     It does NOT declare ENABLE_DISABLE_USER or DOWNLOAD_PERMISSION.
-
-    **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
     """
 
     def test_capabilities_includes_create_user(self) -> None:
@@ -271,8 +266,6 @@ class TestConnectionTestReturnValues:
     For any PlexClient instance, test_connection() should return True if and only
     if the server is reachable and the token is valid; otherwise it should return
     False without raising an exception.
-
-    **Validates: Requirements 1.3, 1.4, 1.5**
     """
 
     @settings(max_examples=25)
@@ -407,8 +400,6 @@ class TestLibraryRetrievalProducesValidStructs:
     For any connected PlexClient with accessible libraries, get_libraries()
     should return a sequence where each element is a valid LibraryInfo with
     non-empty external_id, name, and library_type fields.
-
-    **Validates: Requirements 3.1, 3.2**
     """
 
     @settings(max_examples=25)
@@ -630,8 +621,6 @@ class TestFriendCreationReturnsValidExternalUser:
     For any valid email address and connected PlexClient, creating a Friend
     user should return an ExternalUser where external_user_id is non-empty
     and email matches the input email.
-
-    **Validates: Requirements 4.1, 4.2**
     """
 
     @settings(max_examples=100)
@@ -828,8 +817,6 @@ class TestHomeUserCreationReturnsValidExternalUser:
     For any valid username and connected PlexClient, creating a Home User
     should return an ExternalUser where external_user_id is non-empty
     and username matches the input username.
-
-    **Validates: Requirements 5.1, 5.2**
     """
 
     @settings(max_examples=100)
@@ -1056,8 +1043,6 @@ class TestUserTypeRoutingCorrectness:
     For any call to create_user, if email is provided the Friend creation path
     is used (inviteFriend); if no email is provided, the Home User creation
     path is used (createHomeUser).
-
-    **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
     """
 
     @settings(max_examples=100)
@@ -1394,8 +1379,6 @@ class TestDeleteUserReturnValueCorrectness:
     For any connected PlexClient and user identifier, delete_user() should
     return True if the user existed and was deleted, False if the user was
     not found, and raise MediaClientError only for other failures.
-
-    **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
     """
 
     @settings(max_examples=100)
@@ -1763,8 +1746,6 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
     For any connected PlexClient, valid user identifier, and library ID list,
     set_library_access() should return True if the user exists and access was
     updated, False if the user was not found.
-
-    **Validates: Requirements 8.1, 8.2, 8.3, 9.1, 9.2, 9.3**
     """
 
     @settings(max_examples=100)
@@ -2036,8 +2017,6 @@ class TestPermissionUpdateMappingAndReturnValue:
     For any connected PlexClient, valid user identifier, and permissions dict
     containing can_download, update_permissions() should map can_download to
     the Plex allowSync setting and return True on success, False if user not found.
-
-    **Validates: Requirements 11.1, 11.2, 11.3, 11.5**
     """
 
     @settings(max_examples=100)
@@ -2268,8 +2247,6 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
     For any connected PlexClient, list_users() should return a sequence
     containing all Friends and Home Users, where each element is a valid
     ExternalUser with non-empty external_user_id and username.
-
-    **Validates: Requirements 12.1, 12.2, 12.3**
     """
 
     @settings(max_examples=100)
@@ -2488,8 +2465,6 @@ class TestErrorStructureContainsRequiredFields:
     For any MediaClientError raised by PlexClient, the error should contain
     non-empty operation field, and the server_url should match the client's
     configured URL.
-
-    **Validates: Requirements 17.1**
     """
 
     @settings(max_examples=100)

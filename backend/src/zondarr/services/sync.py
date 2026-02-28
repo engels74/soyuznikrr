@@ -125,9 +125,9 @@ class SyncService:
         local_names = {u.external_user_id: u.username for u in local_users}
 
         # Identify discrepancies by comparing external_user_id sets
-        # Orphaned: on server but not in local DB (Requirement 20.3)
+        # Orphaned: on server but not in local DB
         orphaned_ids = external_ids - local_ids
-        # Stale: in local DB but not on server (Requirement 20.4)
+        # Stale: in local DB but not on server
         stale_ids = local_ids - external_ids
         # Matched: exist in both places
         matched_ids = external_ids & local_ids

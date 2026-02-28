@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 25: Server Field Display
  *
- * **Validates: Requirements 9.2**
- *
  * @module $lib/components/servers/server-card.svelte.test
  */
 
@@ -54,7 +52,6 @@ const serverResponseArb: fc.Arbitrary<MediaServerWithLibrariesResponse> = fc.rec
 
 // =============================================================================
 // Property 25: Server Field Display
-// Validates: Requirements 9.2
 // =============================================================================
 
 describe('Property 25: Server Field Display', () => {
@@ -65,8 +62,6 @@ describe('Property 25: Server Field Display', () => {
 	/**
 	 * For any server in the list view, the rendered output SHALL contain
 	 * name, server_type, url, enabled status, and library count.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display all required server fields', () => {
 		fc.assert(
@@ -124,8 +119,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any server with enabled=true, the status badge SHALL show 'active' status.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display active status for enabled servers', () => {
 		fc.assert(
@@ -153,8 +146,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any server with enabled=false, the status badge SHALL show 'disabled' status.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display disabled status for disabled servers', () => {
 		fc.assert(
@@ -182,8 +173,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any Plex server, the type badge SHALL display the provider label.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display provider badge for Plex servers', () => {
 		fc.assert(
@@ -210,8 +199,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any Jellyfin server, the type badge SHALL display the provider label.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display provider badge for Jellyfin servers', () => {
 		fc.assert(
@@ -241,8 +228,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any server with zero libraries, the library count SHALL display "No libraries (sync to populate)".
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display correct count for servers with no libraries', () => {
 		fc.assert(
@@ -269,8 +254,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * For any server with exactly one library, the library count SHALL display "1 library" (singular).
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should display singular form for servers with one library', () => {
 		fc.assert(
@@ -299,8 +282,6 @@ describe('Property 25: Server Field Display', () => {
 
 	/**
 	 * Server field display should be consistent across multiple renders.
-	 *
-	 * **Validates: Requirements 9.2**
 	 */
 	it('should maintain consistent display across renders', () => {
 		fc.assert(

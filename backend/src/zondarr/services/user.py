@@ -396,11 +396,9 @@ class UserService:
         """Retrieve a user with all relationships loaded.
 
         Fetches a user with eager loading of:
-        - Parent Identity with all linked Users (Requirement 17.2)
-        - Source Invitation if available (Requirement 17.3)
-        - Media Server details (Requirement 17.4)
-
-        Validates: Requirements 17.1, 17.2, 17.3, 17.4
+        - Parent Identity with all linked Users
+        - Source Invitation if available
+        - Media Server details
 
         Args:
             user_id: The UUID of the user to retrieve (positional-only).
@@ -417,7 +415,7 @@ class UserService:
         if user is None:
             raise NotFoundError("User", str(user_id))
 
-        # Load the identity with all linked users for Requirement 17.2
+        # Load the identity with all linked users
         identity = await self.identity_repository.get_with_users(user.identity_id)
         if identity is not None:
             # Replace the user's identity with the fully loaded one
@@ -440,12 +438,8 @@ class UserService:
         """List users with pagination, filtering, and sorting.
 
         Supports filtering by media_server_id, invitation_id, enabled status,
-        and expiration status as required by Requirement 16.2.
-        Supports sorting by created_at, username, and expires_at as required
-        by Requirement 16.3.
-        Enforces page_size cap of 100 as required by Requirement 16.6.
-
-        Validates: Requirements 16.1, 16.2, 16.3, 16.6
+        and expiration status. Supports sorting by created_at, username, and
+        expires_at. Enforces page_size cap of 100.
 
         Args:
             page: Page number (1-indexed). Defaults to 1 (keyword-only).
@@ -466,7 +460,7 @@ class UserService:
         Raises:
             RepositoryError: If the database operation fails.
         """
-        # Enforce page_size cap (Requirement 16.6, Property 25)
+        # Enforce page_size cap
         capped_page_size = min(page_size, 100)
 
         users, total = await self.user_repository.list_paginated(
@@ -480,7 +474,7 @@ class UserService:
             sort_order=sort_order,
         )
 
-        # Load identities with all linked users for each user (Requirement 17.2)
+        # Load identities with all linked users for each user
         # This is needed for the UserDetailResponse which includes identity.users
         for user in users:
             identity = await self.identity_repository.get_with_users(user.identity_id)

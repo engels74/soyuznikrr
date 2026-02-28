@@ -305,8 +305,6 @@ StepOrder = Annotated[int, msgspec.Meta(ge=0)]
 class WizardCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to create a wizard.
 
-    Implements Requirements 2.1: Create wizard via API.
-
     Attributes:
         name: Human-readable name for the wizard.
         description: Optional detailed description.
@@ -322,7 +320,6 @@ class WizardUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to update a wizard.
 
     All fields are optional - only provided fields will be updated.
-    Implements Requirements 2.4: Update wizard via API.
 
     Attributes:
         name: Human-readable name for the wizard.
@@ -368,8 +365,6 @@ class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
 
 class StepReorderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to reorder a wizard step.
-
-    Implements Requirements 3.5: Reorder step via API.
 
     Attributes:
         new_order: The new position for the step (0-indexed).
@@ -480,8 +475,6 @@ class WizardStepResponse(msgspec.Struct, omit_defaults=True):
 class WizardResponse(msgspec.Struct, omit_defaults=True):
     """Wizard response (without steps).
 
-    Implements Requirements 2.2: Wizard list response schema.
-
     Attributes:
         id: Unique identifier for the wizard.
         name: Human-readable name for the wizard.
@@ -501,8 +494,6 @@ class WizardResponse(msgspec.Struct, omit_defaults=True):
 
 class WizardDetailResponse(msgspec.Struct, omit_defaults=True):
     """Wizard response with steps.
-
-    Implements Requirements 2.3: Wizard detail response schema.
 
     Attributes:
         id: Unique identifier for the wizard.
@@ -526,8 +517,6 @@ class WizardDetailResponse(msgspec.Struct, omit_defaults=True):
 class WizardListResponse(msgspec.Struct, kw_only=True):
     """Paginated wizard list response.
 
-    Implements Requirements 2.2: Paginated wizard list.
-
     Attributes:
         items: List of wizards for the current page.
         total: Total number of wizards matching the query.
@@ -545,8 +534,6 @@ class WizardListResponse(msgspec.Struct, kw_only=True):
 
 class StepValidationResponse(msgspec.Struct, kw_only=True):
     """Response from step validation endpoint.
-
-    Implements Requirements 9.5, 9.6: Validation response schema.
 
     Attributes:
         valid: Whether the step completion was valid.
@@ -855,8 +842,7 @@ class UserResponse(msgspec.Struct, omit_defaults=True):
 class UserDetailResponse(msgspec.Struct, omit_defaults=True):
     """Detailed user response with relationships.
 
-    Includes identity info, media server info, and invitation source
-    as required by Requirements 16.4 and 17.1.
+    Includes identity info, media server info, and invitation source.
 
     Attributes:
         id: Unique identifier for the user.
@@ -893,8 +879,6 @@ class UserDetailResponse(msgspec.Struct, omit_defaults=True):
 class UserListResponse(msgspec.Struct, kw_only=True):
     """Paginated user list response.
 
-    Supports pagination as required by Requirement 16.1.
-
     Attributes:
         items: List of users for the current page.
         total: Total number of users matching the query.
@@ -921,7 +905,7 @@ SortOrder = Annotated[str, msgspec.Meta(pattern=r"^(asc|desc)$")]
 # Page number (1-indexed, positive)
 PageNumber = Annotated[int, msgspec.Meta(ge=1)]
 
-# Page size (1-100, with default 50 as per Requirement 16.6)
+# Page size (1-100, with default 50)
 PageSize = Annotated[int, msgspec.Meta(ge=1, le=100)]
 
 
@@ -929,9 +913,8 @@ class UserListFilters(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Filters for user listing.
 
     Supports filtering by media_server_id, invitation_id, enabled status,
-    and expiration status as required by Requirement 16.2.
-    Supports sorting by created_at, username, and expires_at as required
-    by Requirement 16.3.
+    and expiration status. Supports sorting by created_at, username, and
+    expires_at.
 
     Attributes:
         media_server_id: Filter by media server ID.

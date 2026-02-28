@@ -7,8 +7,6 @@
  * - SERVER_ERROR: Shows failed server name and error message
  * - Other errors: Generic error display
  *
- * Requirements: 11.8, 11.9
- *
  * @module $lib/components/join/registration-error
  */
 

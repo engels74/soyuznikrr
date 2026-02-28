@@ -6,8 +6,6 @@
  * - Property 28: Invalid Code Error Display
  * - Property 29: Duration Display
  *
- * **Validates: Requirements 10.2, 10.3, 10.4**
- *
  * @module routes/(public)/join/[code]/join-page.svelte.test
  */
 
@@ -90,7 +88,6 @@ const invalidValidationResponseArb: fc.Arbitrary<InvitationValidationResponse> =
 
 // =============================================================================
 // Property 27: Valid Code Display
-// Validates: Requirements 10.2
 // =============================================================================
 
 describe('Property 27: Valid Code Display', () => {
@@ -101,8 +98,6 @@ describe('Property 27: Valid Code Display', () => {
 	/**
 	 * For any valid invitation code, the validation page SHALL display
 	 * the target_servers and allowed_libraries from the validation response.
-	 *
-	 * **Validates: Requirements 10.2**
 	 */
 	it('should display target servers for valid codes', () => {
 		fc.assert(
@@ -151,8 +146,6 @@ describe('Property 27: Valid Code Display', () => {
 	/**
 	 * For any valid invitation code with allowed libraries, the validation page
 	 * SHALL display the allowed_libraries from the validation response.
-	 *
-	 * **Validates: Requirements 10.2**
 	 */
 	it('should display allowed libraries when specified', () => {
 		fc.assert(
@@ -190,8 +183,6 @@ describe('Property 27: Valid Code Display', () => {
 	/**
 	 * For any valid invitation code without specific libraries, the validation page
 	 * SHALL display a message indicating access to all libraries.
-	 *
-	 * **Validates: Requirements 10.2**
 	 */
 	it('should display all libraries message when no specific libraries', () => {
 		fc.assert(
@@ -225,7 +216,6 @@ describe('Property 27: Valid Code Display', () => {
 
 // =============================================================================
 // Property 28: Invalid Code Error Display
-// Validates: Requirements 10.3
 // =============================================================================
 
 describe('Property 28: Invalid Code Error Display', () => {
@@ -237,8 +227,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 	 * For any invalid invitation code with a failure_reason (not_found, disabled,
 	 * expired, max_uses_reached), the validation page SHALL display a user-friendly
 	 * error message corresponding to the failure reason.
-	 *
-	 * **Validates: Requirements 10.3**
 	 */
 	it('should display appropriate error message for each failure reason', () => {
 		fc.assert(
@@ -290,8 +278,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 	/**
 	 * For any invalid code with 'not_found' failure reason, the error message
 	 * SHALL indicate the code does not exist.
-	 *
-	 * **Validates: Requirements 10.3**
 	 */
 	it('should display not found message for not_found failure', () => {
 		fc.assert(
@@ -320,8 +306,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 	/**
 	 * For any invalid code with 'disabled' failure reason, the error message
 	 * SHALL indicate the invitation has been disabled.
-	 *
-	 * **Validates: Requirements 10.3**
 	 */
 	it('should display disabled message for disabled failure', () => {
 		fc.assert(
@@ -350,8 +334,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 	/**
 	 * For any invalid code with 'expired' failure reason, the error message
 	 * SHALL indicate the invitation has expired.
-	 *
-	 * **Validates: Requirements 10.3**
 	 */
 	it('should display expired message for expired failure', () => {
 		fc.assert(
@@ -380,8 +362,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 	/**
 	 * For any invalid code with 'max_uses_reached' failure reason, the error message
 	 * SHALL indicate the invitation has reached its maximum uses.
-	 *
-	 * **Validates: Requirements 10.3**
 	 */
 	it('should display max uses message for max_uses_reached failure', () => {
 		fc.assert(
@@ -412,7 +392,6 @@ describe('Property 28: Invalid Code Error Display', () => {
 
 // =============================================================================
 // Property 29: Duration Display
-// Validates: Requirements 10.4
 // =============================================================================
 
 describe('Property 29: Duration Display', () => {
@@ -423,8 +402,6 @@ describe('Property 29: Duration Display', () => {
 	/**
 	 * For any valid invitation with a non-null duration_days value, the validation
 	 * page SHALL display the duration indicating how long access will last.
-	 *
-	 * **Validates: Requirements 10.4**
 	 */
 	it('should display duration when set', () => {
 		fc.assert(
@@ -460,8 +437,6 @@ describe('Property 29: Duration Display', () => {
 	/**
 	 * For any valid invitation without duration_days (null), the validation page
 	 * SHALL NOT display the duration section.
-	 *
-	 * **Validates: Requirements 10.4**
 	 */
 	it('should not display duration when not set', () => {
 		fc.assert(
@@ -490,8 +465,6 @@ describe('Property 29: Duration Display', () => {
 	/**
 	 * For any valid invitation with duration_days, the duration display SHALL
 	 * include the word "days" to indicate the unit.
-	 *
-	 * **Validates: Requirements 10.4**
 	 */
 	it('should display days unit in duration message', () => {
 		fc.assert(
@@ -521,8 +494,6 @@ describe('Property 29: Duration Display', () => {
 
 	/**
 	 * Duration display should be consistent across multiple renders.
-	 *
-	 * **Validates: Requirements 10.4**
 	 */
 	it('should maintain consistent duration display across renders', () => {
 		fc.assert(

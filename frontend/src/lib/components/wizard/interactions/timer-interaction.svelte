@@ -6,8 +6,6 @@
  * Disables button until timer completes.
  * Adds pulse animation on final 5 seconds.
  * Tracks startedAt timestamp for validation.
- *
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 12.2
  */
 import { onMount } from "svelte";
 import { timerConfigSchema } from "$lib/schemas/wizard";

@@ -5,8 +5,6 @@
  * Renders terms content and acceptance checkbox.
  * Requires checkbox before enabling proceed.
  * Records acceptance timestamp.
- *
- * Requirements: 6.1, 6.2, 6.3, 6.4, 12.3
  */
 import { Check } from "@lucide/svelte";
 import { tosConfigSchema } from "$lib/schemas/wizard";

@@ -8,8 +8,6 @@
  * **Property 12: Error Message Safety**
  * *For any* error displayed to users, the message SHALL NOT contain stack traces,
  * file paths, or internal implementation details.
- *
- * **Validates: Requirements 4.4, 5.1, 5.5**
  */
 
 import * as fc from 'fast-check';
@@ -84,8 +82,6 @@ describe('Toast Utilities', () => {
 	 *
 	 * For any error message containing internal details (stack traces, file paths,
 	 * internal error codes), sanitizeErrorMessage SHALL return a generic message.
-	 *
-	 * **Validates: Requirements 5.5**
 	 */
 	describe('Property 12: Error Message Safety', () => {
 		it('sanitizes messages containing stack traces', () => {
@@ -127,8 +123,6 @@ describe('Toast Utilities', () => {
 	 *
 	 * For any API error response with a detail field, showApiError SHALL
 	 * extract the error message, sanitize it, and display it via toast.error.
-	 *
-	 * **Validates: Requirements 4.4, 5.1**
 	 */
 	describe('Property 9: API Error Toast Display', () => {
 		it('extracts and sanitizes detail from API error objects', () => {

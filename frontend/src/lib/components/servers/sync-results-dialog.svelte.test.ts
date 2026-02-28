@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 26: Sync Result Display
  *
- * **Validates: Requirements 9.6**
- *
  * @module $lib/components/servers/sync-results-dialog.svelte.test
  */
 
@@ -55,7 +53,6 @@ const syncResultArb: fc.Arbitrary<SyncResult> = fc.record({
 
 // =============================================================================
 // Property 26: Sync Result Display
-// Validates: Requirements 9.6
 // =============================================================================
 
 describe('Property 26: Sync Result Display', () => {
@@ -66,8 +63,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result, the rendered output SHALL contain orphaned_users array,
 	 * stale_users array, and matched_users count.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display all sync result fields', async () => {
 		await fc.assert(
@@ -109,8 +104,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with orphaned/imported users, the imported users list SHALL
 	 * display all usernames.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display all imported usernames when present', async () => {
 		await fc.assert(
@@ -148,8 +141,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with stale users, the stale users list SHALL
 	 * display all usernames.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display all stale usernames when present', async () => {
 		await fc.assert(
@@ -187,8 +178,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with no imported users, the imported users list
 	 * SHALL NOT be displayed.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should not display imported users list when empty', async () => {
 		await fc.assert(
@@ -222,8 +211,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with no stale users, the stale users list
 	 * SHALL NOT be displayed.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should not display stale users list when empty', async () => {
 		await fc.assert(
@@ -257,8 +244,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with discrepancies (stale users only — orphaned users
 	 * are now imported, not a discrepancy), the dialog SHALL display a warning indicator.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display warning indicator when discrepancies exist', async () => {
 		await fc.assert(
@@ -289,8 +274,6 @@ describe('Property 26: Sync Result Display', () => {
 	/**
 	 * For any sync result with no discrepancies (no stale users),
 	 * the dialog SHALL display a success indicator.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display success indicator when no discrepancies', async () => {
 		await fc.assert(
@@ -323,8 +306,6 @@ describe('Property 26: Sync Result Display', () => {
 
 	/**
 	 * For any sync result, the matched users section SHALL have emerald/green styling.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display matched users with green styling', async () => {
 		await fc.assert(
@@ -354,8 +335,6 @@ describe('Property 26: Sync Result Display', () => {
 
 	/**
 	 * For any sync result, the imported users section SHALL have emerald styling.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display imported users with emerald styling', async () => {
 		await fc.assert(
@@ -385,8 +364,6 @@ describe('Property 26: Sync Result Display', () => {
 
 	/**
 	 * For any sync result, the stale users section SHALL have rose/red styling.
-	 *
-	 * **Validates: Requirements 9.6**
 	 */
 	it('should display stale users with red styling', async () => {
 		await fc.assert(

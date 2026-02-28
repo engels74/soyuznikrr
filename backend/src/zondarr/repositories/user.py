@@ -18,7 +18,7 @@ from zondarr.core.exceptions import RepositoryError
 from zondarr.models.identity import User
 from zondarr.repositories.base import Repository
 
-# Type alias for valid sort fields (Requirement 16.3)
+# Type alias for valid sort fields
 UserSortField = Literal["created_at", "username", "expires_at"]
 SortOrder = Literal["asc", "desc"]
 
@@ -166,9 +166,8 @@ class UserRepository(Repository[User]):
         """Retrieve users with pagination, filtering, and sorting.
 
         Supports filtering by media_server_id, invitation_id, enabled status,
-        and expiration status as required by Requirement 16.2.
-        Supports sorting by created_at, username, and expires_at as required
-        by Requirement 16.3.
+        and expiration status. Supports sorting by created_at, username, and
+        expires_at.
 
         Args:
             page: Page number (1-indexed). Defaults to 1.
@@ -252,19 +251,19 @@ class UserRepository(Repository[User]):
         """
         query = select(User)
 
-        # Filter by media server ID (Requirement 16.2)
+        # Filter by media server ID
         if media_server_id is not None:
             query = query.where(User.media_server_id == media_server_id)
 
-        # Filter by invitation ID (Requirement 16.2)
+        # Filter by invitation ID
         if invitation_id is not None:
             query = query.where(User.invitation_id == invitation_id)
 
-        # Filter by enabled status (Requirement 16.2)
+        # Filter by enabled status
         if enabled is not None:
             query = query.where(User.enabled == enabled)
 
-        # Filter by expiration status (Requirement 16.2)
+        # Filter by expiration status
         if expired is not None:
             now = datetime.now(UTC)
             if expired:

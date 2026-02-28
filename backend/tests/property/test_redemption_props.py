@@ -2,7 +2,6 @@
 
 Feature: jellyfin-integration
 Property 15: Redemption Creates Users on All Target Servers
-Validates: Requirements 14.4, 14.7
 
 Tests that for N target servers in an invitation, exactly N User records
 are created, each linked to the correct MediaServer, and all linked to
@@ -144,8 +143,6 @@ async def create_invitation_with_servers(
 class TestRedemptionCreatesUsersOnAllServers:
     """Property 15: Redemption Creates Users on All Target Servers.
 
-    **Validates: Requirements 14.4, 14.7**
-
     For any valid invitation with N target servers, successful redemption
     should create exactly N User records, one for each target server,
     all linked to the same Identity.
@@ -170,8 +167,6 @@ class TestRedemptionCreatesUsersOnAllServers:
         email: str | None,
     ) -> None:
         """For N target servers, exactly N User records are created.
-
-        **Validates: Requirements 14.4, 14.7**
 
         Property: For any invitation with N target servers (N >= 1),
         successful redemption creates exactly N User records.
@@ -262,8 +257,6 @@ class TestRedemptionCreatesUsersOnAllServers:
     ) -> None:
         """Each User record has the external_user_id from its media server.
 
-        **Validates: Requirements 14.4, 14.7**
-
         Property: For each target server, the created User record contains
         the external_user_id returned by that server's create_user call.
         """
@@ -341,8 +334,6 @@ class TestRedemptionCreatesUsersOnAllServers:
     ) -> None:
         """All created User records reference the same invitation.
 
-        **Validates: Requirements 14.7**
-
         Property: For any redemption, all created User records have
         the same invitation_id pointing to the redeemed invitation.
         """
@@ -413,8 +404,6 @@ class TestRedemptionCreatesUsersOnAllServers:
     ) -> None:
         """Created Identity has display_name matching the username.
 
-        **Validates: Requirements 14.7**
-
         Property: The Identity created during redemption has display_name
         equal to the username provided in the redemption request.
         """
@@ -470,8 +459,6 @@ class TestRedemptionCreatesUsersOnAllServers:
 class TestRedemptionIncrementsUseCount:
     """Property 16: Redemption Increments Use Count.
 
-    **Validates: Requirements 14.8**
-
     For any successful redemption of an invitation with use_count U,
     the invitation's use_count should become U + 1.
     """
@@ -495,8 +482,6 @@ class TestRedemptionIncrementsUseCount:
         email: str | None,
     ) -> None:
         """After successful redemption, use_count increases by exactly 1.
-
-        **Validates: Requirements 14.8**
 
         Property: For any invitation with use_count U, after successful
         redemption the use_count should be U + 1.
@@ -588,8 +573,6 @@ class TestRedemptionIncrementsUseCount:
     ) -> None:
         """Multiple redemptions increment use_count by the number of redemptions.
 
-        **Validates: Requirements 14.8**
-
         Property: For N successful redemptions, the use_count should
         increase by exactly N.
         """
@@ -674,8 +657,6 @@ class TestRedemptionIncrementsUseCount:
     ) -> None:
         """The use_count before redemption + 1 equals use_count after redemption.
 
-        **Validates: Requirements 14.8**
-
         Property: For any successful redemption, the invariant
         use_count_before + 1 == use_count_after holds.
         """
@@ -758,8 +739,6 @@ class TestRedemptionIncrementsUseCount:
 class TestDurationDaysSetsExpiration:
     """Property 17: Duration Days Sets Expiration.
 
-    **Validates: Requirements 14.9**
-
     For any invitation with duration_days D, successful redemption should
     create an Identity and Users with expires_at equal to (now + D days).
     When duration_days is None, expires_at should be None.
@@ -784,8 +763,6 @@ class TestDurationDaysSetsExpiration:
         email: str | None,
     ) -> None:
         """When duration_days is set, Identity has expires_at set correctly.
-
-        **Validates: Requirements 14.9**
 
         Property: For any invitation with duration_days D, the created
         Identity should have expires_at approximately equal to now + D days.
@@ -884,8 +861,6 @@ class TestDurationDaysSetsExpiration:
     ) -> None:
         """When duration_days is set, all User records have expires_at set.
 
-        **Validates: Requirements 14.9**
-
         Property: For any invitation with duration_days D and N target servers,
         all N created User records should have expires_at approximately equal
         to now + D days.
@@ -983,8 +958,6 @@ class TestDurationDaysSetsExpiration:
     ) -> None:
         """When duration_days is None, Identity has expires_at as None.
 
-        **Validates: Requirements 14.9**
-
         Property: For any invitation with duration_days=None, the created
         Identity should have expires_at=None.
         """
@@ -1062,8 +1035,6 @@ class TestDurationDaysSetsExpiration:
         password: str,
     ) -> None:
         """When duration_days is None, all User records have expires_at as None.
-
-        **Validates: Requirements 14.9**
 
         Property: For any invitation with duration_days=None and N target servers,
         all N created User records should have expires_at=None.
@@ -1145,8 +1116,6 @@ class TestDurationDaysSetsExpiration:
     ) -> None:
         """Identity and all Users have the same expires_at value.
 
-        **Validates: Requirements 14.9**
-
         Property: For any invitation with duration_days D, the created
         Identity and all User records should have the same expires_at value.
         """
@@ -1219,8 +1188,6 @@ class TestDurationDaysSetsExpiration:
 class TestRollbackOnFailure:
     """Property 18: Rollback on Failure.
 
-    **Validates: Requirements 15.1, 15.2, 15.3, 15.4**
-
     For any redemption that fails after creating users on some servers:
     - All created users should be deleted from their respective servers
     - No local Identity or User records should exist
@@ -1248,8 +1215,6 @@ class TestRollbackOnFailure:
         email: str | None,
     ) -> None:
         """When creation fails on server N, users on servers 1..N-1 are deleted.
-
-        **Validates: Requirements 15.1, 15.2**
 
         Property: For any redemption that fails on server N (N > 1),
         all users created on servers 1 through N-1 should be deleted
@@ -1385,8 +1350,6 @@ class TestRollbackOnFailure:
     ) -> None:
         """When redemption fails, use_count remains unchanged.
 
-        **Validates: Requirements 15.3**
-
         Property: For any redemption that fails, the invitation's use_count
         should remain at its original value.
         """
@@ -1514,8 +1477,6 @@ class TestRollbackOnFailure:
         email: str | None,
     ) -> None:
         """When redemption fails, no local Identity or User records are created.
-
-        **Validates: Requirements 15.4**
 
         Property: For any redemption that fails, no Identity or User records
         should exist in the database for this redemption attempt.
@@ -1654,8 +1615,6 @@ class TestRollbackOnFailure:
         password: str,
     ) -> None:
         """When creation fails on the first server, no users need rollback.
-
-        **Validates: Requirements 15.1, 15.2, 15.3, 15.4**
 
         Property: When the first server fails, no users have been created
         yet, so no rollback deletions should occur, and no local records
@@ -1801,8 +1760,6 @@ class TestRollbackOnFailure:
 class TestPlexRedemptionRollbackOnFailure:
     """Property 13: Redemption Rollback on Failure (Plex).
 
-    **Validates: Requirements 15.5**
-
     For any invitation targeting multiple servers where user creation succeeds
     on some servers but fails on a Plex server, all previously created users
     should be deleted and no local Identity/User records should be created.
@@ -1827,8 +1784,6 @@ class TestPlexRedemptionRollbackOnFailure:
         email: str | None,
     ) -> None:
         """When Plex creation fails, all previously created users are deleted.
-
-        **Validates: Requirements 15.5**
 
         Property: For any redemption with N Jellyfin servers and 1 Plex server,
         if user creation fails on the Plex server, all users created before
@@ -1993,8 +1948,6 @@ class TestPlexRedemptionRollbackOnFailure:
     ) -> None:
         """When Plex creation fails, no local Identity or User records are created.
 
-        **Validates: Requirements 15.5**
-
         Property: For any redemption that fails on a Plex server, no Identity
         or User records should exist in the database for this redemption attempt.
         """
@@ -2158,8 +2111,6 @@ class TestPlexRedemptionRollbackOnFailure:
         email: str | None,
     ) -> None:
         """Multi-server rollback works correctly with mixed Plex and Jellyfin servers.
-
-        **Validates: Requirements 15.5**
 
         Property: For any redemption with Jellyfin, Plex, and another Jellyfin
         server where the last server fails, users on all previous servers

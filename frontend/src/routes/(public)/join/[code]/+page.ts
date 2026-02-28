@@ -2,9 +2,8 @@
  * Join page load function.
  *
  * Validates the invitation code on page load and returns validation results.
+ * Loads wizard data with invitation validation.
  * Handles valid codes, invalid codes, and network errors.
- *
- * Requirements: 14.1, 14.2 - Load wizard data with invitation validation
  *
  * @module routes/(public)/join/[code]/+page
  */

@@ -8,8 +8,6 @@ Provides REST endpoints for user listing, detail retrieval, and management:
 - DELETE /api/v1/users/{id} - Delete a user
 
 Uses Litestar Controller pattern with dependency injection for services.
-Implements Requirements 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 17.1, 17.2, 17.3, 17.4, 17.5,
-18.1, 18.2, 18.5, 18.6, 19.1, 19.6, 19.7.
 """
 
 from collections.abc import Mapping, Sequence
@@ -180,7 +178,7 @@ class UserController(Controller):
 
         Supports filtering by media_server_id, invitation_id, enabled status,
         and expiration status. Supports sorting by created_at, username, and
-        expires_at. Enforces page_size max of 100 (Requirement 16.6).
+        expires_at. Enforces page_size max of 100.
 
         Args:
             user_service: UserService from DI.
@@ -196,7 +194,7 @@ class UserController(Controller):
         Returns:
             Paginated list of users with relationships.
         """
-        # Validate sort_by parameter (Requirement 16.3)
+        # Validate sort_by parameter
         valid_sort_fields = {"created_at", "username", "expires_at"}
         if sort_by not in valid_sort_fields:
             sort_by = "created_at"
@@ -205,7 +203,7 @@ class UserController(Controller):
         if sort_order not in {"asc", "desc"}:
             sort_order = "desc"
 
-        # Enforce page_size max of 100 (Requirement 16.6)
+        # Enforce page_size max of 100
         # The Parameter annotation already enforces le=100, but the service
         # also caps it for defense in depth
         capped_page_size = min(page_size, 100)
@@ -247,9 +245,9 @@ class UserController(Controller):
         """Get user details by ID.
 
         Returns complete user details including:
-        - Parent Identity with all linked Users (Requirement 17.2)
-        - Source Invitation if available (Requirement 17.3)
-        - Media Server details (Requirement 17.4)
+        - Parent Identity with all linked Users
+        - Source Invitation if available
+        - Media Server details
 
         Args:
             user_id: The UUID of the user.
@@ -259,7 +257,7 @@ class UserController(Controller):
             Complete user details including relationships.
 
         Raises:
-            NotFoundError: If the user does not exist (Requirement 17.5).
+            NotFoundError: If the user does not exist.
         """
         user = await user_service.get_user_detail(user_id)
         return self._to_detail_response(user)
@@ -282,8 +280,6 @@ class UserController(Controller):
         Enables the user on the external media server first, then updates
         the local record. Returns the updated user details.
 
-        Implements Requirements 18.1, 18.5, 18.6.
-
         Args:
             user_id: The UUID of the user to enable.
             user_service: UserService from DI.
@@ -292,7 +288,7 @@ class UserController(Controller):
             Updated user details including relationships.
 
         Raises:
-            NotFoundError: If the user does not exist (Requirement 18.6).
+            NotFoundError: If the user does not exist.
             ValidationError: If the media server operation fails.
         """
         user = await user_service.set_enabled(user_id, enabled=True)
@@ -318,8 +314,6 @@ class UserController(Controller):
         Disables the user on the external media server first, then updates
         the local record. Returns the updated user details.
 
-        Implements Requirements 18.2, 18.5, 18.6.
-
         Args:
             user_id: The UUID of the user to disable.
             user_service: UserService from DI.
@@ -328,7 +322,7 @@ class UserController(Controller):
             Updated user details including relationships.
 
         Raises:
-            NotFoundError: If the user does not exist (Requirement 18.6).
+            NotFoundError: If the user does not exist.
             ValidationError: If the media server operation fails.
         """
         user = await user_service.set_enabled(user_id, enabled=False)
@@ -437,8 +431,6 @@ class UserController(Controller):
         the local record. If this is the last user for an identity, the
         identity is also deleted.
 
-        Implements Requirements 19.1, 19.6, 19.7.
-
         Args:
             user_id: The UUID of the user to delete.
             user_service: UserService from DI.
@@ -447,7 +439,7 @@ class UserController(Controller):
             None (HTTP 204 No Content on success).
 
         Raises:
-            NotFoundError: If the user does not exist (Requirement 19.7).
+            NotFoundError: If the user does not exist.
             ValidationError: If the media server operation fails.
         """
         await user_service.delete(user_id)
@@ -461,7 +453,7 @@ class UserController(Controller):
         Returns:
             UserDetailResponse with all relationship data.
         """
-        # Build identity response (Requirement 17.2)
+        # Build identity response
         identity_response = IdentityResponse(
             id=user.identity.id,
             display_name=user.identity.display_name,
@@ -472,7 +464,7 @@ class UserController(Controller):
             updated_at=user.identity.updated_at,
         )
 
-        # Build media server response (Requirement 17.4)
+        # Build media server response
         media_server_response = MediaServerResponse(
             id=user.media_server.id,
             name=user.media_server.name,
@@ -486,7 +478,7 @@ class UserController(Controller):
             ),
         )
 
-        # Build invitation response if available (Requirement 17.3)
+        # Build invitation response if available
         invitation_response: InvitationResponse | None = None
         if user.invitation is not None:
             inv = user.invitation

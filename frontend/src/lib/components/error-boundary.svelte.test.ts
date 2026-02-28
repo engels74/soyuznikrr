@@ -5,8 +5,6 @@
  * - Property 11: Error Boundary Containment
  * - Property 12: Error Message Safety
  *
- * **Validates: Requirements 5.4, 5.5**
- *
  * @module $lib/components/error-boundary.svelte.test
  */
 
@@ -19,7 +17,6 @@ import ErrorBoundaryWrapper from './error-boundary-test-wrapper.svelte';
 
 // =============================================================================
 // Property 11: Error Boundary Containment
-// Validates: Requirements 5.4
 // =============================================================================
 
 describe('Property 11: Error Boundary Containment', () => {
@@ -31,8 +28,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary in its initial state (no error), the boundary
 	 * SHALL render its children content normally.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should render children when no error has occurred', () => {
 		fc.assert(
@@ -59,8 +54,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error caught by the error boundary, the boundary SHALL
 	 * display a fallback UI instead of crashing the application.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should display fallback UI when error is set via handleError', async () => {
 		await fc.assert(
@@ -97,8 +90,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary showing an error, clicking the reset button
 	 * SHALL clear the error state and re-render children.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should reset error state when reset button is clicked', async () => {
 		const user = userEvent.setup();
@@ -134,8 +125,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary, the error state SHALL have proper accessibility
 	 * attributes including role="alert" and aria-live.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should have proper accessibility attributes when showing error', async () => {
 		await fc.assert(
@@ -162,8 +151,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary, the error UI SHALL have consistent styling
 	 * with rose/red color scheme to indicate error state.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should have consistent error styling', async () => {
 		await fc.assert(
@@ -194,8 +181,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary, the error icon SHALL be displayed with
 	 * appropriate rose/red styling.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should display error icon with appropriate styling', async () => {
 		await fc.assert(
@@ -232,8 +217,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary, the error message displayed SHALL be a
 	 * generic user-friendly message, not the raw error message.
-	 *
-	 * **Validates: Requirements 5.4, 5.5**
 	 */
 	it('should display generic error message regardless of actual error', async () => {
 		await fc.assert(
@@ -262,8 +245,6 @@ describe('Property 11: Error Boundary Containment', () => {
 	/**
 	 * For any error boundary, errors SHALL be logged to console for debugging
 	 * while showing safe UI to users.
-	 *
-	 * **Validates: Requirements 5.4**
 	 */
 	it('should log errors to console for debugging', async () => {
 		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -295,7 +276,6 @@ describe('Property 11: Error Boundary Containment', () => {
 
 // =============================================================================
 // Property 12: Error Message Safety
-// Validates: Requirements 5.5
 // =============================================================================
 
 describe('Property 12: Error Message Safety', () => {
@@ -321,8 +301,6 @@ describe('Property 12: Error Message Safety', () => {
 	/**
 	 * For any error containing stack traces, file paths, or internal details,
 	 * the error boundary SHALL NOT expose these details to users.
-	 *
-	 * **Validates: Requirements 5.5**
 	 */
 	it('should not expose stack traces in error UI', async () => {
 		await fc.assert(
@@ -361,8 +339,6 @@ describe('Property 12: Error Message Safety', () => {
 	/**
 	 * For any error containing file paths, the error boundary SHALL NOT
 	 * expose file system structure to users.
-	 *
-	 * **Validates: Requirements 5.5**
 	 */
 	it('should not expose file paths in error UI', async () => {
 		const filePathErrors = [
@@ -394,8 +370,6 @@ describe('Property 12: Error Message Safety', () => {
 	/**
 	 * For any error containing SQL queries, the error boundary SHALL NOT
 	 * expose database structure to users.
-	 *
-	 * **Validates: Requirements 5.5**
 	 */
 	it('should not expose SQL queries in error UI', async () => {
 		const sqlErrors = [
@@ -430,8 +404,6 @@ describe('Property 12: Error Message Safety', () => {
 	/**
 	 * For any error, the error boundary SHALL only display a generic,
 	 * user-friendly message that does not reveal implementation details.
-	 *
-	 * **Validates: Requirements 5.5**
 	 */
 	it('should always display generic user-friendly message', async () => {
 		await fc.assert(

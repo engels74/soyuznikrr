@@ -2,7 +2,6 @@
 
 Feature: plex-integration
 Properties: 11, 12
-Validates: Requirements 13.1, 13.2, 14.1, 14.2, 14.3
 """
 
 from datetime import UTC, datetime, timedelta
@@ -56,8 +55,6 @@ class TestOAuthPinGenerationReturnsValidResponse:
     For any call to create_pin(), the response should contain a positive
     pin_id, a non-empty auth_url starting with "https://", and an
     expires_at in the future.
-
-    **Validates: Requirements 13.1, 13.2**
     """
 
     @settings(max_examples=100)
@@ -243,8 +240,6 @@ class TestOAuthPinVerificationRetrievesEmailOnSuccess:
     For any authenticated PIN, check_pin() should return a result with
     authenticated=True and a non-empty email field containing a valid
     email address.
-
-    **Validates: Requirements 14.1, 14.2, 14.3**
     """
 
     @settings(max_examples=100)

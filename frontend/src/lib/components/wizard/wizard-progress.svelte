@@ -4,8 +4,6 @@
  *
  * Displays current step / total steps with a progress bar.
  * Applies gold accent glow on completion.
- *
- * Requirements: 11.2
  */
 
 interface Props {

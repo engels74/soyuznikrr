@@ -5,8 +5,6 @@
  * Displays the wizard builder for editing an existing wizard.
  * Includes preview mode for testing the wizard flow.
  *
- * Requirements: 13.1-13.6
- *
  * @module routes/(admin)/wizards/[id]/+page
  */
 

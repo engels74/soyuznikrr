@@ -9,7 +9,6 @@ Provides REST endpoints for invitation CRUD operations:
 - GET /api/v1/invitations/validate/{code} - Validate an invitation code (public)
 
 Uses Litestar Controller pattern with dependency injection for services.
-Implements Requirements 9.1, 10.1, 10.4, 11.1, 12.1, 13.1-13.6.
 """
 
 from collections.abc import Mapping, Sequence

@@ -112,8 +112,6 @@ class RedemptionService:
         explicitly before re-raising because those side-effects are
         outside the DB transaction.
 
-        Implements Requirements 14.3-14.8, 15.1, 15.2.
-
         Args:
             code: The invitation code to redeem (positional-only).
             username: Username for the new accounts (keyword-only).
@@ -128,7 +126,7 @@ class RedemptionService:
             RedemptionError: If invitation is invalid or redemption fails.
             RepositoryError: If database operations fail.
         """
-        # Step 1: Atomically reserve one use (Requirement 14.3 / 14.8)
+        # Step 1: Atomically reserve one use
         reserved, failure = await self.invitation_service.reserve(code)
         if not reserved:
             raise RedemptionError(
@@ -139,7 +137,7 @@ class RedemptionService:
         # Step 2: Fetch the invitation for target_servers / libraries
         invitation = await self.invitation_service.get_by_code(code)
 
-        # Step 3: Create users on each target server (Requirement 14.4)
+        # Step 3: Create users on each target server
         created_external_users: list[tuple[MediaServer, ExternalUser]] = []
 
         try:
@@ -163,7 +161,7 @@ class RedemptionService:
                         external_user_id=external_user.external_user_id,
                     )
 
-                    # Step 4: Apply library restrictions (Requirement 14.5)
+                    # Step 4: Apply library restrictions
                     if invitation.allowed_libraries:
                         library_ids = [
                             lib.external_id
@@ -181,7 +179,7 @@ class RedemptionService:
                                 library_count=len(library_ids),
                             )
 
-                    # Step 5: Apply permissions (Requirement 14.6)
+                    # Step 5: Apply permissions
                     permissions = dict(DEFAULT_PERMISSIONS)
                     _ = await client.update_permissions(
                         external_user.external_user_id,
@@ -193,7 +191,7 @@ class RedemptionService:
                         permissions=permissions,
                     )
 
-            # Step 6: Calculate expiration from duration_days (Requirement 14.9)
+            # Step 6: Calculate expiration from duration_days
             expires_at: datetime | None = None
             if invitation.duration_days is not None:
                 expires_at = datetime.now(UTC) + timedelta(
@@ -210,7 +208,7 @@ class RedemptionService:
                     cleaned_count=cleaned,
                 )
 
-            # Step 7: Create local Identity and User records (Requirement 14.7)
+            # Step 7: Create local Identity and User records
             identity, users = await self.user_service.create_identity_with_users(
                 display_name=username,
                 email=email,
@@ -271,9 +269,6 @@ class RedemptionService:
         Best-effort cleanup: logs but does not raise on individual failures.
         This ensures we attempt to clean up all created users even if some
         deletions fail.
-
-        Implements Requirement 15.2: If a user is created on server A but
-        fails on server B, delete the user from server A.
 
         Args:
             created_users: List of (MediaServer, ExternalUser) tuples to delete.

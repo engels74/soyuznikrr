@@ -2,13 +2,12 @@
 
 Feature: zondarr-foundation
 Property: 13
-Validates: Requirements 9.2, 9.3, 9.4, 9.5, 9.6
 
 Phase 6 Polish additions:
-Property 5: Error Response Structure - Validates: Requirements 3.1
-Property 6: Validation Error Field Mapping - Validates: Requirements 3.3
-Property 7: NotFound Error Resource Identification - Validates: Requirements 3.4
-Property 8: External Service Error Mapping - Validates: Requirements 3.5
+Property 5: Error Response Structure
+Property 6: Validation Error Field Mapping
+Property 7: NotFound Error Resource Identification
+Property 8: External Service Error Mapping
 """
 
 import re
@@ -166,8 +165,6 @@ class TestErrorResponsesAreSafeAndTraceable:
     """
     Feature: zondarr-foundation
     Property 13: Error Responses Are Safe and Traceable
-
-    **Validates: Requirements 9.2, 9.3, 9.4, 9.5, 9.6**
     """
 
     @given(
@@ -305,8 +302,6 @@ class TestErrorResponseStructure:
 
     *For any* error returned by the API, the response body SHALL contain
     `detail` (string), `error_code` (string), and `timestamp` (ISO datetime string).
-
-    **Validates: Requirements 3.1**
     """
 
     @given(
@@ -388,8 +383,6 @@ class TestValidationErrorFieldMapping:
     *For any* validation error with field-level errors, the API response SHALL
     include a `field_errors` array where each entry contains the field name
     and associated error messages.
-
-    **Validates: Requirements 3.3**
     """
 
     @given(
@@ -480,8 +473,6 @@ class TestNotFoundErrorResourceIdentification:
 
     *For any* NotFoundError raised with a resource type and identifier,
     the API response SHALL include the resource type in the error detail message.
-
-    **Validates: Requirements 3.4**
     """
 
     @given(
@@ -572,8 +563,6 @@ class TestExternalServiceErrorMapping:
 
     *For any* ExternalServiceError raised with a service name, the API response
     SHALL return HTTP 502 and include the service name in the error detail.
-
-    **Validates: Requirements 3.5**
     """
 
     @given(service_name=service_name_strategy)

@@ -8,8 +8,6 @@
  * - Empty state when no wizards exist
  * - Card view with wizard details
  *
- * Requirements: 13.1
- *
  * @module routes/(admin)/wizards/+page
  */
 

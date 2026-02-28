@@ -2,7 +2,6 @@
 
 Feature: jellyfin-integration
 Properties: 22, 23, 24
-Validates: Requirements 20.3, 20.4, 20.6, 20.7
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -112,8 +111,6 @@ def user_sets_strategy(
 class TestSyncIdentifiesDiscrepanciesCorrectly:
     """Property 22: Sync Identifies Discrepancies Correctly.
 
-    **Validates: Requirements 20.3, 20.4**
-
     For any media server with Jellyfin users J and local users L:
     - orphaned_users = {u.username for u in J if u.external_user_id not in {l.external_user_id for l in L}}
     - stale_users = {l.username for l in L if l.external_user_id not in {j.external_user_id for j in J}}
@@ -126,10 +123,7 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
-        """Sync correctly identifies users on server but not in local DB (orphaned).
-
-        **Validates: Requirement 20.3**
-        """
+        """Sync correctly identifies users on server but not in local DB (orphaned)."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -194,10 +188,7 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
-        """Sync correctly identifies users in local DB but not on server (stale).
-
-        **Validates: Requirement 20.4**
-        """
+        """Sync correctly identifies users in local DB but not on server (stale)."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -262,10 +253,7 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
         db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
-        """Sync correctly counts users that exist in both places (matched).
-
-        **Validates: Requirements 20.3, 20.4**
-        """
+        """Sync correctly counts users that exist in both places (matched)."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -330,8 +318,6 @@ class TestSyncIdentifiesDiscrepanciesCorrectly:
 class TestSyncIsIdempotent:
     """Property 23: Sync Is Idempotent.
 
-    **Validates: Requirement 20.6**
-
     For any media server, running sync N times (N > 1) should produce
     the same orphaned_users, stale_users, and matched_users counts each time.
     """
@@ -347,10 +333,7 @@ class TestSyncIsIdempotent:
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
         num_runs: int,
     ) -> None:
-        """Running sync multiple times produces identical results.
-
-        **Validates: Requirement 20.6**
-        """
+        """Running sync multiple times produces identical results."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -431,8 +414,6 @@ class TestSyncIsIdempotent:
 class TestSyncDoesNotModifyUsers:
     """Property 24: Sync Does Not Modify Users.
 
-    **Validates: Requirement 20.7**
-
     For any sync operation, the count of local User records and Jellyfin users
     should remain unchanged before and after the sync.
     """
@@ -444,10 +425,7 @@ class TestSyncDoesNotModifyUsers:
         db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
-        """Sync does not create, delete, or modify local User records.
-
-        **Validates: Requirement 20.7**
-        """
+        """Sync does not create, delete, or modify local User records."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -527,10 +505,7 @@ class TestSyncDoesNotModifyUsers:
         db: TestDB,
         user_sets: tuple[list[ExternalUser], list[ExternalUser], list[ExternalUser]],
     ) -> None:
-        """Sync only calls list_users, not create/delete/update methods.
-
-        **Validates: Requirement 20.7**
-        """
+        """Sync only calls list_users, not create/delete/update methods."""
         orphaned_users, stale_users, matched_users = user_sets
 
         await db.clean()
@@ -605,8 +580,6 @@ class TestSyncTaskErrorResilience:
 
     For any set of media servers being synced, if syncing one server fails,
     the remaining servers SHALL still be synced.
-
-    **Validates: Requirements 2.5**
     """
 
     @given(
@@ -620,10 +593,7 @@ class TestSyncTaskErrorResilience:
         num_servers: int,
         failing_server_index: int,
     ) -> None:
-        """Sync task continues processing servers even when one fails.
-
-        **Validates: Requirement 2.5**
-        """
+        """Sync task continues processing servers even when one fails."""
         # Ensure failing index is within bounds
         failing_server_index = failing_server_index % num_servers
 
@@ -709,10 +679,7 @@ class TestSyncTaskErrorResilience:
         db: TestDB,
         num_servers: int,
     ) -> None:
-        """Sync task handles case when no servers are enabled.
-
-        **Validates: Requirement 2.5**
-        """
+        """Sync task handles case when no servers are enabled."""
         await db.clean()
 
         # Create disabled servers

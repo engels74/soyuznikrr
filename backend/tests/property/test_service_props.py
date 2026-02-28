@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Properties: 10, 11
-Validates: Requirements 6.3, 6.5, 6.6
 """
 
 from datetime import UTC, datetime, timedelta

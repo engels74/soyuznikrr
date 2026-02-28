@@ -4,8 +4,6 @@
  * Tests the following properties:
  * - Property 32: OAuth Polling
  *
- * **Validates: Requirements 12.4**
- *
  * @module $lib/components/join/oauth-join-flow.svelte.test
  */
 
@@ -55,7 +53,6 @@ const authenticatedCheckResponseArb = fc.record({
 
 // =============================================================================
 // Property 32: OAuth Polling
-// Validates: Requirements 12.4
 // =============================================================================
 
 describe('Property 32: OAuth Polling', () => {
@@ -66,8 +63,6 @@ describe('Property 32: OAuth Polling', () => {
 	/**
 	 * For any OAuth flow, the frontend SHALL poll the PIN status endpoint
 	 * at regular intervals until authenticated=true is returned.
-	 *
-	 * **Validates: Requirements 12.4**
 	 */
 	it('should poll PIN status at regular intervals until authenticated', async () => {
 		vi.clearAllMocks();
@@ -148,8 +143,6 @@ describe('Property 32: OAuth Polling', () => {
 	/**
 	 * For any OAuth flow, the frontend SHALL stop polling when the PIN
 	 * expires_at time is reached.
-	 *
-	 * **Validates: Requirements 12.4**
 	 */
 	it('should stop polling when PIN expires', async () => {
 		vi.clearAllMocks();
@@ -207,8 +200,6 @@ describe('Property 32: OAuth Polling', () => {
 
 	/**
 	 * For any OAuth flow, the frontend SHALL poll at 2 second intervals.
-	 *
-	 * **Validates: Requirements 12.4**
 	 */
 	it('should poll at 2 second intervals', async () => {
 		vi.clearAllMocks();

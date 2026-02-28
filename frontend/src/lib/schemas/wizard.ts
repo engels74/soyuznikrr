@@ -33,8 +33,6 @@ export type InteractionType = (typeof interactionTypes)[number];
  * - name: 1-255 characters, required
  * - description: optional, max 2000 characters
  * - enabled: boolean, defaults to true
- *
- * Requirements: 2.1, 2.4
  */
 export const wizardSchema = z.object({
 	name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
@@ -53,8 +51,6 @@ export type WizardInput = z.infer<typeof wizardSchema>;
  *
  * Validates:
  * - button_text: optional custom button text, max 100 characters
- *
- * Requirements: 4.3
  */
 export const clickConfigSchema = z.object({
 	button_text: z.string().max(100, 'Button text must be at most 100 characters').nullish()
@@ -67,8 +63,6 @@ export type ClickConfig = z.infer<typeof clickConfigSchema>;
  *
  * Validates:
  * - duration_seconds: required, 1-300 seconds
- *
- * Requirements: 5.4
  */
 export const timerConfigSchema = z.object({
 	duration_seconds: z
@@ -85,8 +79,6 @@ export type TimerConfig = z.infer<typeof timerConfigSchema>;
  *
  * Validates:
  * - checkbox_label: optional custom label, max 200 characters
- *
- * Requirements: 6.3
  */
 export const tosConfigSchema = z.object({
 	checkbox_label: z.string().max(200, 'Checkbox label must be at most 200 characters').nullish()
@@ -103,8 +95,6 @@ export type TosConfig = z.infer<typeof tosConfigSchema>;
  * - required: boolean, defaults to true
  * - min_length: optional, non-negative integer
  * - max_length: optional, positive integer
- *
- * Requirements: 7.2
  */
 export const textInputConfigSchema = z
 	.object({
@@ -133,8 +123,6 @@ export type TextInputConfig = z.infer<typeof textInputConfigSchema>;
  * - question: required, 1-500 characters
  * - options: required, 2-10 options, each 1-200 characters
  * - correct_answer_index: required, valid index into options array
- *
- * Requirements: 8.2, 8.3
  */
 export const quizConfigSchema = z
 	.object({
@@ -166,8 +154,6 @@ export type QuizConfig = z.infer<typeof quizConfigSchema>;
  * Same as quizConfigSchema but with correct_answer_index optional,
  * since the backend strips it from public API responses to prevent
  * answer leakage.
- *
- * Requirements: 8.2
  */
 export const quizDisplayConfigSchema = z.object({
 	question: z
@@ -198,8 +184,6 @@ export type QuizDisplayConfig = z.infer<typeof quizDisplayConfigSchema>;
  * - title: 1-255 characters
  * - content_markdown: required markdown content
  * - step_order: optional, non-negative integer
- *
- * Requirements: 3.1, 3.2
  */
 export const wizardStepSchema = z.object({
 	title: z.string().min(1, 'Title is required').max(255, 'Title must be at most 255 characters'),
@@ -264,8 +248,6 @@ export const interactionResponseDataSchema = z.object({
 
 /**
  * Schema for step validation request.
- *
- * Requirements: 9.1
  */
 export const stepValidationRequestSchema = z.object({
 	step_id: z.uuid('Invalid step ID'),

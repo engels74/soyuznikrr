@@ -13,8 +13,6 @@
  * - Post-wizard flow (if configured) after registration
  * - Success page after successful registration
  *
- * Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
- *
  * @module routes/(public)/join/[code]/+page
  */
 
@@ -251,7 +249,7 @@ function handlePreWizardComplete() {
 
 /**
  * Handle pre-wizard cancellation/abandonment.
- * Requirements: 14.5 - No accounts created if pre-wizard abandoned
+ * No accounts created if pre-wizard abandoned
  */
 function handlePreWizardCancel() {
 	// Clear wizard progress from session storage

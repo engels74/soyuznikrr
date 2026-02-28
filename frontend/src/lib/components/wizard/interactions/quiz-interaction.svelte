@@ -6,8 +6,6 @@
  * Applies border glow on hover, checkmark animation on selection.
  * Validates answer via onValidate (if provided) with inline feedback and cooldown.
  * Falls back to onComplete directly when onValidate is not provided (preview mode).
- *
- * Requirements: 8.1, 8.2, 8.3, 12.5
  */
 import { Check, X } from "@lucide/svelte";
 import { onDestroy } from "svelte";

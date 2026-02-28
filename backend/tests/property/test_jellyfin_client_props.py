@@ -2,7 +2,6 @@
 
 Feature: jellyfin-integration
 Properties: 2, 4, 5, 6, 7
-Validates: Requirements 2.2, 2.4, 5.2, 5.3, 6.2, 6.3, 7.3, 7.4, 7.5, 7.6, 8.3
 """
 
 from hypothesis import given, settings
@@ -10,7 +9,7 @@ from hypothesis import strategies as st
 
 from zondarr.media.types import LibraryInfo
 
-# Valid Jellyfin CollectionType values per Requirements 2.4
+# Valid Jellyfin CollectionType values
 VALID_COLLECTION_TYPES = [
     "movies",
     "tvshows",
@@ -85,8 +84,6 @@ class TestLibraryMappingPreservesFields:
     """
     Feature: jellyfin-integration
     Property 2: Library Mapping Preserves Fields
-
-    **Validates: Requirements 2.2, 2.4**
     """
 
     @settings(max_examples=25)
@@ -209,8 +206,6 @@ class TestEnableDisableMapsToIsDisabledCorrectly:
     """
     Feature: jellyfin-integration
     Property 4: Enable/Disable Maps to IsDisabled Correctly
-
-    **Validates: Requirements 5.2, 5.3**
     """
 
     @settings(max_examples=25)
@@ -319,8 +314,6 @@ class TestLibraryAccessConfiguration:
     """
     Feature: jellyfin-integration
     Property 5: Library Access Configuration
-
-    **Validates: Requirements 6.2, 6.3**
     """
 
     @settings(max_examples=25)
@@ -446,8 +439,6 @@ class TestPermissionMappingCorrectness:
     """
     Feature: jellyfin-integration
     Property 6: Permission Mapping Correctness
-
-    **Validates: Requirements 7.3, 7.4, 7.5, 7.6**
     """
 
     @settings(max_examples=25)

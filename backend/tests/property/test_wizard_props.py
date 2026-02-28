@@ -2,7 +2,6 @@
 
 Feature: wizard-system
 Properties: 3, 4
-Validates: Requirements 1.3, 1.4
 """
 
 from dataclasses import dataclass, field
@@ -61,8 +60,6 @@ class TestCascadeDeleteIntegrity:
 
     *For any* wizard with N steps (where N >= 0), deleting the wizard
     SHALL result in all N associated steps being deleted from the database.
-
-    **Validates: Requirements 1.3**
     """
 
     @settings(max_examples=10)
@@ -168,8 +165,6 @@ class TestStepOrderUniqueness:
 
     *For any* wizard, attempting to create two steps with the same step_order
     SHALL fail with a constraint violation error.
-
-    **Validates: Requirements 1.4**
     """
 
     @settings(max_examples=10)
@@ -294,8 +289,6 @@ class TestInteractionTypeValidation:
     *For any* step creation request, the interaction_type field SHALL only accept
     values from the set {click, timer, tos, text_input, quiz}. Any other value
     SHALL be rejected with a validation error.
-
-    **Validates: Requirements 1.5**
     """
 
     @settings(max_examples=10)
@@ -358,8 +351,6 @@ class TestStepOrderContiguity:
     *For any* wizard with steps, after any step deletion or reorder operation,
     the step_order values SHALL form a contiguous sequence starting from 0
     (i.e., 0, 1, 2, ..., N-1 for N steps).
-
-    **Validates: Requirements 3.4, 3.5**
     """
 
     @settings(max_examples=10)
@@ -430,8 +421,6 @@ class TestTimerDurationBounds:
     *For any* timer step configuration, the duration_seconds field SHALL be
     validated to be within the range [1, 300]. Values outside this range
     SHALL be rejected.
-
-    **Validates: Requirements 5.4**
     """
 
     @settings(max_examples=10)
@@ -499,8 +488,6 @@ class TestQuizConfigurationCompleteness:
     *For any* quiz step configuration, the config SHALL require: a non-empty
     question string, an options array with at least 2 elements, and a
     correct_answer_index that is a valid index into the options array.
-
-    **Validates: Requirements 8.2, 8.3**
     """
 
     @settings(max_examples=10)
@@ -623,8 +610,6 @@ class TestQuizAnswerValidation:
     *For any* quiz step and any answer submission, the validation endpoint
     SHALL return valid=true if and only if the submitted answer_index equals
     the correct_answer_index in the step config.
-
-    **Validates: Requirements 8.4, 8.5, 9.3**
     """
 
     @settings(max_examples=10)
@@ -718,8 +703,6 @@ class TestTextInputConstraintValidation:
     max_length), the validation endpoint SHALL return valid=false for: empty
     input when required=true, input shorter than min_length, or input longer
     than max_length.
-
-    **Validates: Requirements 7.3, 7.4, 9.4**
     """
 
     @settings(max_examples=10)
@@ -866,8 +849,6 @@ class TestTimerDurationValidation:
     *For any* timer step validation request, the validation endpoint SHALL
     return valid=true if and only if the elapsed time (current_time - started_at)
     is greater than or equal to duration_seconds.
-
-    **Validates: Requirements 9.2**
     """
 
     @settings(max_examples=10)

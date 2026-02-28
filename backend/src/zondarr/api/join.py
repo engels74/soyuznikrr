@@ -4,7 +4,6 @@ Provides the public endpoint for redeeming invitation codes:
 - POST /api/v1/join/{code} - Redeem an invitation code
 
 This endpoint is publicly accessible without authentication.
-Implements Requirements 14.1, 14.2, 14.10, 15.5.
 """
 
 from collections.abc import Mapping, Sequence
@@ -148,7 +147,6 @@ class JoinController(Controller):
     user accounts on target media servers. This endpoint does not require
     authentication.
 
-    Implements Requirements 14.1, 14.2, 14.10, 15.5.
     """
 
     path: str = "/api/v1/join"
@@ -191,16 +189,15 @@ class JoinController(Controller):
         invitation. Applies library restrictions and permissions as configured.
         Creates a local Identity linking all User records.
 
-        This endpoint is publicly accessible without authentication
-        (Requirement 14.10).
+        This endpoint is publicly accessible without authentication.
 
         The redemption request requires username and password, with optional
-        email (Requirement 14.2).
+        email.
 
         On failure, ``RedemptionError`` propagates to the DI layer which
         rolls back the DB transaction, then the registered
         ``redemption_error_handler`` returns HTTP 400 with
-        ``RedemptionErrorResponse`` (Requirement 15.5).
+        ``RedemptionErrorResponse``.
 
         Args:
             code: The invitation code to redeem.

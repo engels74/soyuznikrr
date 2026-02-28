@@ -483,7 +483,7 @@ class JellyfinClient:
             return True
         except Exception as exc:
             error_msg = str(exc).lower()
-            # Check for user not found error - return False per Requirements 4.3
+            # Check for user not found error - return False
             if "not found" in error_msg or "404" in error_msg:
                 return False
 
@@ -495,7 +495,7 @@ class JellyfinClient:
                     original_error=exc,
                 ) from exc
 
-            # Re-raise other errors as MediaClientError per Requirements 4.4
+            # Re-raise other errors as MediaClientError
             raise MediaClientError(
                 f"Failed to delete user from Jellyfin server: {exc}",
                 operation="delete_user",
@@ -588,7 +588,7 @@ class JellyfinClient:
             raise
         except Exception as exc:
             error_msg = str(exc).lower()
-            # Check for user not found error - return False per Requirements 5.5
+            # Check for user not found error - return False
             if "not found" in error_msg or "404" in error_msg:
                 return False
 
@@ -600,7 +600,7 @@ class JellyfinClient:
                     original_error=exc,
                 ) from exc
 
-            # Re-raise other errors as MediaClientError per Requirements 5.6
+            # Re-raise other errors as MediaClientError
             raise MediaClientError(
                 f"Failed to update user enabled status on Jellyfin server: {exc}",
                 operation="set_user_enabled",
@@ -667,7 +667,7 @@ class JellyfinClient:
                     cause="User object has no Policy or policy attribute",
                 )
 
-            # Step 3: Set EnableAllFolders=False per Requirements 6.2, 6.3
+            # Step 3: Set EnableAllFolders=False
             # This restricts the user to only the specified libraries
             if hasattr(policy, "EnableAllFolders"):  # pyright: ignore[reportAny]
                 policy.EnableAllFolders = False
@@ -681,7 +681,7 @@ class JellyfinClient:
                     cause="Policy object has no EnableAllFolders or enable_all_folders attribute",
                 )
 
-            # Step 4: Set EnabledFolders to the library IDs per Requirements 6.2, 6.3
+            # Step 4: Set EnabledFolders to the library IDs
             # Convert Sequence to list for the API
             library_id_list = list(library_ids)
             if hasattr(policy, "EnabledFolders"):  # pyright: ignore[reportAny]
@@ -708,7 +708,7 @@ class JellyfinClient:
             raise
         except Exception as exc:
             error_msg = str(exc).lower()
-            # Check for user not found error - return False per Requirements 6.5
+            # Check for user not found error - return False
             if "not found" in error_msg or "404" in error_msg:
                 return False
 
@@ -720,7 +720,7 @@ class JellyfinClient:
                     original_error=exc,
                 ) from exc
 
-            # Re-raise other errors as MediaClientError per Requirements 6.6
+            # Re-raise other errors as MediaClientError
             raise MediaClientError(
                 f"Failed to set library access on Jellyfin server: {exc}",
                 operation="set_library_access",
@@ -741,7 +741,7 @@ class JellyfinClient:
         then maps universal permission names to Jellyfin-specific policy fields
         and updates the policy.
 
-        Permission mapping (per Requirements 7.3-7.6):
+        Permission mapping:
         - can_download -> EnableContentDownloading
         - can_stream -> EnableMediaPlayback
         - can_sync -> EnableSyncTranscoding
@@ -771,14 +771,14 @@ class JellyfinClient:
             )
 
         try:
-            # Step 1: Get current user via jellyfin-sdk users.get (Requirement 7.2)
+            # Step 1: Get current user via jellyfin-sdk users.get
             # jellyfin-sdk lacks type stubs, so returns Any
             user = self._api.users.get(external_user_id)  # pyright: ignore[reportAny]
 
             if user is None:
                 return False
 
-            # Step 2: Get current policy from user (Requirement 7.2)
+            # Step 2: Get current policy from user
             # jellyfin-sdk may use Policy or policy attribute
             policy = None
             if hasattr(user, "Policy"):  # pyright: ignore[reportAny]
@@ -797,7 +797,7 @@ class JellyfinClient:
             # Step 3: Map universal permissions to Jellyfin policy fields
             # Only update fields that are provided in the permissions dict
 
-            # can_download -> EnableContentDownloading (Requirement 7.3)
+            # can_download -> EnableContentDownloading
             if "can_download" in permissions:
                 value = permissions["can_download"]
                 if hasattr(policy, "EnableContentDownloading"):  # pyright: ignore[reportAny]
@@ -805,7 +805,7 @@ class JellyfinClient:
                 elif hasattr(policy, "enable_content_downloading"):  # pyright: ignore[reportAny]
                     policy.enable_content_downloading = value
 
-            # can_stream -> EnableMediaPlayback (Requirement 7.4)
+            # can_stream -> EnableMediaPlayback
             if "can_stream" in permissions:
                 value = permissions["can_stream"]
                 if hasattr(policy, "EnableMediaPlayback"):  # pyright: ignore[reportAny]
@@ -813,7 +813,7 @@ class JellyfinClient:
                 elif hasattr(policy, "enable_media_playback"):  # pyright: ignore[reportAny]
                     policy.enable_media_playback = value
 
-            # can_sync -> EnableSyncTranscoding (Requirement 7.5)
+            # can_sync -> EnableSyncTranscoding
             if "can_sync" in permissions:
                 value = permissions["can_sync"]
                 if hasattr(policy, "EnableSyncTranscoding"):  # pyright: ignore[reportAny]
@@ -821,7 +821,7 @@ class JellyfinClient:
                 elif hasattr(policy, "enable_sync_transcoding"):  # pyright: ignore[reportAny]
                     policy.enable_sync_transcoding = value
 
-            # can_transcode -> EnableAudioPlaybackTranscoding, EnableVideoPlaybackTranscoding (Requirement 7.6)
+            # can_transcode -> EnableAudioPlaybackTranscoding, EnableVideoPlaybackTranscoding
             if "can_transcode" in permissions:
                 value = permissions["can_transcode"]
                 # Set EnableAudioPlaybackTranscoding
@@ -835,7 +835,7 @@ class JellyfinClient:
                 elif hasattr(policy, "enable_video_playback_transcoding"):  # pyright: ignore[reportAny]
                     policy.enable_video_playback_transcoding = value
 
-            # Step 4: Update user policy via jellyfin-sdk (Requirement 7.7)
+            # Step 4: Update user policy via jellyfin-sdk
             self._api.users.update_policy(  # pyright: ignore[reportAny]
                 external_user_id, policy
             )
@@ -859,7 +859,7 @@ class JellyfinClient:
                     original_error=exc,
                 ) from exc
 
-            # Re-raise other errors as MediaClientError (Requirement 7.8)
+            # Re-raise other errors as MediaClientError
             raise MediaClientError(
                 f"Failed to update permissions on Jellyfin server: {exc}",
                 operation="update_permissions",
@@ -904,14 +904,14 @@ class JellyfinClient:
             )
 
         try:
-            # Retrieve all users via jellyfin-sdk users.all (Requirement 8.2)
+            # Retrieve all users via jellyfin-sdk users.all
             # jellyfin-sdk lacks type stubs, so returns Any
             users = self._api.users.all  # pyright: ignore[reportAny]
 
             if users is None:
                 return []
 
-            # Map Jellyfin users to ExternalUser structs (Requirement 8.3)
+            # Map Jellyfin users to ExternalUser structs
             external_users: list[ExternalUser] = []
             for user in users:  # pyright: ignore[reportAny]
                 # Extract user ID - jellyfin-sdk may use Id or id attribute
@@ -955,7 +955,7 @@ class JellyfinClient:
                     original_error=exc,
                 ) from exc
 
-            # Re-raise as MediaClientError (Requirement 8.4)
+            # Re-raise as MediaClientError
             raise MediaClientError(
                 f"Failed to list users from Jellyfin server: {exc}",
                 operation="list_users",

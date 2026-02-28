@@ -5,8 +5,6 @@
  * Renders labeled input with placeholder.
  * Implements client-side validation for required, min_length, max_length.
  * Displays validation errors inline.
- *
- * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.4
  */
 import { textInputConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionComponentProps } from "./registry";

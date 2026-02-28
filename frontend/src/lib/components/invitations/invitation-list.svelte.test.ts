@@ -7,8 +7,6 @@
  * - Property 11: Invitation Sort Application
  * - Property 13: Remaining Uses Display
  *
- * **Validates: Requirements 4.2, 4.3, 4.4, 4.6**
- *
  * @module $lib/components/invitations/invitation-list.svelte.test
  */
 
@@ -69,7 +67,6 @@ const invitationResponseArb: fc.Arbitrary<InvitationResponse> = fc.record({
 
 // =============================================================================
 // Property 9: Invitation Field Display
-// Validates: Requirements 4.2
 // =============================================================================
 
 describe('Property 9: Invitation Field Display', () => {
@@ -81,8 +78,6 @@ describe('Property 9: Invitation Field Display', () => {
 	 * For any invitation in the list view, the rendered output SHALL contain
 	 * the code, use_count, max_uses (if set), expires_at (if set), enabled
 	 * status, and is_active computed status.
-	 *
-	 * **Validates: Requirements 4.2**
 	 */
 	it('should display all required invitation fields', () => {
 		fc.assert(
@@ -119,8 +114,6 @@ describe('Property 9: Invitation Field Display', () => {
 
 	/**
 	 * For any invitation, the code SHALL be displayed in monospace font.
-	 *
-	 * **Validates: Requirements 4.2, 13.3**
 	 */
 	it('should display invitation code in monospace font', () => {
 		fc.assert(
@@ -142,8 +135,6 @@ describe('Property 9: Invitation Field Display', () => {
 	/**
 	 * For any invitation with max_uses set, the display SHALL show
 	 * "use_count / max_uses" format.
-	 *
-	 * **Validates: Requirements 4.2**
 	 */
 	it('should display use count with max uses in correct format', () => {
 		fc.assert(
@@ -170,8 +161,6 @@ describe('Property 9: Invitation Field Display', () => {
 
 	/**
 	 * For any invitation without max_uses, the display SHALL show only use_count.
-	 *
-	 * **Validates: Requirements 4.2**
 	 */
 	it('should display only use count when max_uses is not set', () => {
 		fc.assert(
@@ -198,7 +187,6 @@ describe('Property 9: Invitation Field Display', () => {
 
 // =============================================================================
 // Property 10: Invitation Filter Application
-// Validates: Requirements 4.3
 // =============================================================================
 
 describe('Property 10: Invitation Filter Application', () => {
@@ -213,8 +201,6 @@ describe('Property 10: Invitation Filter Application', () => {
 	 * Note: This tests the filter logic at the component level. The actual
 	 * filtering happens server-side, but we verify the UI correctly passes
 	 * filter parameters and displays filtered results.
-	 *
-	 * **Validates: Requirements 4.3**
 	 */
 	it('should display only invitations matching enabled filter', () => {
 		fc.assert(
@@ -252,8 +238,6 @@ describe('Property 10: Invitation Filter Application', () => {
 	/**
 	 * For any combination of is_active filter values, the invitation list
 	 * SHALL only display invitations matching the active/expired criteria.
-	 *
-	 * **Validates: Requirements 4.3**
 	 */
 	it('should display only invitations matching active/expired filter', () => {
 		fc.assert(
@@ -285,7 +269,6 @@ describe('Property 10: Invitation Filter Application', () => {
 
 // =============================================================================
 // Property 11: Invitation Sort Application
-// Validates: Requirements 4.4
 // =============================================================================
 
 describe('Property 11: Invitation Sort Application', () => {
@@ -300,8 +283,6 @@ describe('Property 11: Invitation Sort Application', () => {
 	 *
 	 * Note: Sorting happens server-side. This test verifies the UI correctly
 	 * displays pre-sorted data in the order received.
-	 *
-	 * **Validates: Requirements 4.4**
 	 */
 	it('should display invitations in the order provided (sorted by created_at)', () => {
 		fc.assert(
@@ -340,8 +321,6 @@ describe('Property 11: Invitation Sort Application', () => {
 	/**
 	 * For invitations sorted by use_count, the list SHALL maintain the
 	 * specified sort order.
-	 *
-	 * **Validates: Requirements 4.4**
 	 */
 	it('should display invitations in the order provided (sorted by use_count)', () => {
 		fc.assert(
@@ -378,7 +357,6 @@ describe('Property 11: Invitation Sort Application', () => {
 
 // =============================================================================
 // Property 13: Remaining Uses Display
-// Validates: Requirements 4.6
 // =============================================================================
 
 describe('Property 13: Remaining Uses Display', () => {
@@ -389,8 +367,6 @@ describe('Property 13: Remaining Uses Display', () => {
 	/**
 	 * For any invitation with a non-null remaining_uses value, the invitation
 	 * display SHALL show the remaining count.
-	 *
-	 * **Validates: Requirements 4.6**
 	 */
 	it('should display remaining uses when available', () => {
 		fc.assert(
@@ -426,8 +402,6 @@ describe('Property 13: Remaining Uses Display', () => {
 	/**
 	 * For any invitation without remaining_uses (null), the invitation display
 	 * SHALL NOT show a remaining count element.
-	 *
-	 * **Validates: Requirements 4.6**
 	 */
 	it('should not display remaining uses when not available', () => {
 		fc.assert(
@@ -456,8 +430,6 @@ describe('Property 13: Remaining Uses Display', () => {
 	/**
 	 * For any invitation with remaining_uses = 0, the display SHALL show
 	 * "0 left" to indicate exhaustion.
-	 *
-	 * **Validates: Requirements 4.6**
 	 */
 	it('should display zero remaining uses correctly', () => {
 		const invitation: InvitationResponse = {
@@ -488,8 +460,6 @@ describe('Property 13: Remaining Uses Display', () => {
 	/**
 	 * For any invitation with low remaining_uses (1-3), the status badge
 	 * SHALL indicate "limited" status.
-	 *
-	 * **Validates: Requirements 4.6**
 	 */
 	it('should show limited status for low remaining uses', () => {
 		fc.assert(

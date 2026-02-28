@@ -2,7 +2,6 @@
 
 Feature: zondarr-foundation
 Property: 3
-Validates: Requirements 2.7
 """
 
 from datetime import UTC, datetime
@@ -84,8 +83,6 @@ class TestModelSerializationRoundTrip:
     """
     Feature: zondarr-foundation
     Property 3: Model Serialization Round-Trip
-
-    **Validates: Requirements 2.7**
     """
 
     @settings(max_examples=25)

@@ -4,8 +4,6 @@
  * Tests the following property:
  * - Property 8: Responsive Sidebar Collapse
  *
- * **Validates: Requirements 3.5**
- *
  * Since we can't easily test CSS media queries in jsdom, we focus on:
  * 1. Testing that the mobile menu toggle state works correctly
  * 2. Testing that the sidebar has correct CSS classes for responsive behavior
@@ -58,7 +56,6 @@ import AdminLayoutWrapper from './admin-layout-test-wrapper.svelte';
 
 // =============================================================================
 // Property 8: Responsive Sidebar Collapse
-// Validates: Requirements 3.5
 // =============================================================================
 
 describe('Property 8: Responsive Sidebar Collapse', () => {
@@ -73,8 +70,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	 * Since jsdom doesn't support CSS media queries, we test the structural
 	 * requirements: the desktop sidebar has md:flex (hidden on mobile),
 	 * and the mobile sidebar has md:hidden (visible on mobile).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have desktop sidebar with md:flex class (hidden on mobile by default)', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -89,8 +84,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The mobile sidebar SHALL have md:hidden class to be hidden on desktop.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have mobile sidebar with md:hidden class (visible on mobile only)', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -104,8 +97,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The mobile header SHALL be visible only on mobile (md:hidden class).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have mobile header with md:hidden class', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -119,8 +110,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The desktop header SHALL be visible only on desktop (hidden md:flex classes).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have desktop header with hidden md:flex classes', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -135,8 +124,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * For any initial render, the mobile sidebar SHALL be hidden (translated off-screen).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have mobile sidebar hidden by default (translated off-screen)', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -154,8 +141,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	/**
 	 * For any click on the mobile menu button, the mobile sidebar SHALL toggle
 	 * its visibility state.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should toggle mobile sidebar visibility when menu button is clicked', async () => {
 		const user = userEvent.setup();
@@ -192,8 +177,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	/**
 	 * For any number of toggle operations, the mobile sidebar state SHALL
 	 * alternate correctly between open and closed.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should correctly alternate sidebar state for any number of toggles', async () => {
 		const user = userEvent.setup();
@@ -231,8 +214,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	/**
 	 * The mobile menu button SHALL have proper aria-expanded attribute
 	 * reflecting the current menu state.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have correct aria-expanded attribute on menu button', async () => {
 		const user = userEvent.setup();
@@ -254,8 +235,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * For any click on the mobile overlay, the mobile sidebar SHALL close.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should close mobile sidebar when overlay is clicked', async () => {
 		const user = userEvent.setup();
@@ -281,8 +260,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The mobile sidebar SHALL have proper transition classes for smooth animation.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have transition classes for smooth animation', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -297,8 +274,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The mobile sidebar SHALL have a fixed width of 64 (w-64 = 16rem = 256px).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have fixed width for mobile sidebar', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -311,8 +286,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * The desktop sidebar SHALL have a fixed width of 64 (md:w-64 = 16rem = 256px).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have fixed width for desktop sidebar', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -325,8 +298,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 
 	/**
 	 * Both sidebars SHALL contain navigation with aria-label="Main navigation".
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have accessible navigation in both sidebars', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -341,8 +312,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	/**
 	 * For any responsive layout, the main content area SHALL have proper
 	 * margin to account for the desktop sidebar (md:ml-64).
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should have proper margin on main content for desktop sidebar', () => {
 		const { container } = render(AdminLayoutWrapper);
@@ -357,8 +326,6 @@ describe('Property 8: Responsive Sidebar Collapse', () => {
 	/**
 	 * Property test: For any sequence of open/close operations, the sidebar
 	 * state SHALL always be consistent with the number of toggles.
-	 *
-	 * **Validates: Requirements 3.5**
 	 */
 	it('should maintain consistent state for any sequence of operations', async () => {
 		const user = userEvent.setup();
