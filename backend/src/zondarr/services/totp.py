@@ -138,24 +138,26 @@ class TOTPService:
         Raises:
             AuthenticationError: If the account is rate-limited.
         """
+        # Reset stale attempts when the window has expired,
+        # regardless of whether the threshold was reached.
+        if (
+            admin.totp_last_failed_at is not None
+            and (datetime.now(UTC) - admin.totp_last_failed_at).total_seconds()
+            >= RATE_LIMIT_WINDOW_SECONDS
+        ):
+            admin.totp_failed_attempts = 0
+            admin.totp_last_failed_at = None
+
         if admin.totp_failed_attempts >= MAX_FAILED_ATTEMPTS:
-            if admin.totp_last_failed_at is not None:
-                elapsed = (
-                    datetime.now(UTC) - admin.totp_last_failed_at
-                ).total_seconds()
-                if elapsed < RATE_LIMIT_WINDOW_SECONDS:
-                    logger.warning(
-                        "totp_rate_limited",
-                        admin_id=str(admin.id),
-                        failed_attempts=admin.totp_failed_attempts,
-                    )
-                    raise AuthenticationError(
-                        "Too many failed TOTP attempts. Try again later.",
-                        "TOTP_RATE_LIMITED",
-                    )
-                # Window expired — reset counter
-                admin.totp_failed_attempts = 0
-                admin.totp_last_failed_at = None
+            logger.warning(
+                "totp_rate_limited",
+                admin_id=str(admin.id),
+                failed_attempts=admin.totp_failed_attempts,
+            )
+            raise AuthenticationError(
+                "Too many failed TOTP attempts. Try again later.",
+                "TOTP_RATE_LIMITED",
+            )
 
     def record_failed_attempt(self, admin: AdminAccount) -> None:
         """Record a failed TOTP verification attempt.

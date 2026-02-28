@@ -101,6 +101,10 @@ async def retrieve_user_handler(
     Returns:
         AdminUser if valid, None if the admin doesn't exist or is disabled.
     """
+    # Reject challenge tokens — they must not be accepted as access tokens
+    if token.extras.get("purpose") == "totp_challenge":
+        return None
+
     try:
         admin_id = UUID(token.sub)
     except ValueError, TypeError:
