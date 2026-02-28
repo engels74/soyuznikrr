@@ -6,6 +6,7 @@ import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
 import { Label } from '$lib/components/ui/label';
+import TotpManagementCard from '$lib/components/settings/totp-management-card.svelte';
 import { emailUpdateSchema, passwordChangeSchema } from '$lib/schemas/settings';
 import { showApiError, showError, showSuccess } from '$lib/utils/toast';
 
@@ -14,6 +15,10 @@ interface Props {
 }
 
 let { me }: Props = $props();
+
+// TOTP state — intentionally captures initial prop value for local editing
+// svelte-ignore state_referenced_locally
+let totpEnabled = $state(me.totp_enabled ?? false);
 
 // Email state — intentionally captures initial prop value for local editing
 // svelte-ignore state_referenced_locally
@@ -160,5 +165,8 @@ async function handlePasswordChange() {
 				</div>
 			</Card.Content>
 		</Card.Root>
+
+		<!-- Two-Factor Authentication Card -->
+		<TotpManagementCard bind:totpEnabled />
 	{/if}
 </div>

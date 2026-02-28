@@ -46,11 +46,22 @@ export interface AdminMeResponse {
 	username: string;
 	email: string | null;
 	auth_method: string;
+	totp_enabled: boolean;
 	onboarding_required: boolean;
 	onboarding_step: OnboardingStep;
 }
 
 export interface AuthTokenResponse {
+	refresh_token: string;
+}
+
+export interface LoginResponse {
+	totp_required: boolean;
+	challenge_token: string | null;
+	refresh_token: string | null;
+}
+
+export interface TotpVerifyResponse {
 	refresh_token: string;
 }
 
@@ -124,7 +135,7 @@ export async function setupAdmin(
 export async function loginLocal(
 	data: { username: string; password: string },
 	customFetch: typeof globalThis.fetch = fetch
-): Promise<{ data?: AuthTokenResponse; error?: unknown }> {
+): Promise<{ data?: LoginResponse; error?: unknown }> {
 	const response = await customFetch(`${API_BASE_URL}/api/auth/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -135,8 +146,48 @@ export async function loginLocal(
 		const error = await response.json();
 		return { error };
 	}
-	const result = (await response.json()) as AuthTokenResponse;
+	const result = (await response.json()) as LoginResponse;
 	return { data: result };
+}
+
+/**
+ * Verify a TOTP code during login.
+ */
+export async function verifyTotp(
+	data: { challenge_token: string; totp_code: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: TotpVerifyResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/login/totp-verify`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as TotpVerifyResponse };
+}
+
+/**
+ * Verify a backup code during login.
+ */
+export async function verifyBackupCode(
+	data: { challenge_token: string; backup_code: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: TotpVerifyResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/login/backup-verify`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as TotpVerifyResponse };
 }
 
 /**
@@ -263,6 +314,102 @@ export async function changePassword(
 		return { error };
 	}
 	return { data: (await response.json()) as PasswordChangeResponse };
+}
+
+// =============================================================================
+// TOTP 2FA Management
+// =============================================================================
+
+export interface TotpSetupResponse {
+	secret: string;
+	provisioning_uri: string;
+	qr_code_svg: string;
+}
+
+export interface TotpVerifySetupResponse {
+	backup_codes: string[];
+}
+
+export interface TotpBackupCodesResponse {
+	backup_codes: string[];
+}
+
+/**
+ * Initiate TOTP setup — returns secret, provisioning URI, and QR code SVG.
+ */
+export async function totpSetup(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: TotpSetupResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/totp/setup`, {
+		method: 'POST',
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as TotpSetupResponse };
+}
+
+/**
+ * Verify TOTP setup with a code from the authenticator app.
+ * Returns backup codes on success.
+ */
+export async function totpVerifySetup(
+	data: { totp_code: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: TotpVerifySetupResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/totp/verify-setup`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as TotpVerifySetupResponse };
+}
+
+/**
+ * Disable TOTP 2FA. Requires password and a valid TOTP code.
+ */
+export async function totpDisable(
+	data: { password: string; totp_code: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/totp/disable`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return {};
+}
+
+/**
+ * Regenerate backup codes. Requires a valid TOTP code.
+ */
+export async function totpRegenerateBackupCodes(
+	data: { totp_code: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: TotpBackupCodesResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/totp/regenerate-backup-codes`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as TotpBackupCodesResponse };
 }
 
 export async function getMe(
