@@ -158,8 +158,7 @@ class RedemptionService:
                 )
             ):
                 raise RedemptionError(
-                    "Pre-wizard completion is required before redeeming "
-                    "this invitation",
+                    "Pre-wizard completion is required before redeeming this invitation",
                     redemption_error_code="WIZARD_REQUIRED",
                 )
 
