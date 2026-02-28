@@ -35,6 +35,7 @@ from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from structlog.types import Processor
 
 from zondarr.api.auth import AuthController
+from zondarr.api.dashboard import DashboardController
 from zondarr.api.errors import (
     authentication_error_handler,
     external_service_error_handler,
@@ -87,6 +88,7 @@ def _create_openapi_config() -> OpenAPIConfig:
     # Base tags
     tags = [
         Tag(name="Authentication", description="Admin authentication"),
+        Tag(name="Dashboard", description="Dashboard statistics"),
         Tag(name="Health", description="Health check endpoints"),
         Tag(name="Media Servers", description="Media server management"),
         Tag(name="Invitations", description="Invitation management"),
@@ -232,6 +234,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
     # Collect route handlers dynamically from providers
     route_handlers: list[type] = [
         AuthController,
+        DashboardController,
         HealthController,
         InvitationController,
         JoinController,

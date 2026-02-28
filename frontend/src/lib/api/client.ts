@@ -104,6 +104,9 @@ export type RedeemInvitationRequest = components['schemas']['RedeemInvitationReq
 export type RedemptionResponse = components['schemas']['RedemptionResponse'];
 export type RedemptionErrorResponse = components['schemas']['RedemptionErrorResponse'];
 
+export type DashboardStatsResponse = components['schemas']['DashboardStatsResponse'];
+export type RecentActivityItem = components['schemas']['RecentActivityItem'];
+
 export type OAuthPinResponse = components['schemas']['OAuthPinResponse'];
 export type OAuthCheckResponse = components['schemas']['OAuthCheckResponse'];
 
@@ -789,6 +792,19 @@ export async function healthCheck(customFetch: typeof globalThis.fetch = fetch) 
 		status: string;
 		checks: Record<string, boolean>;
 	}>;
+}
+
+// =============================================================================
+// Dashboard API Wrappers
+// =============================================================================
+
+/**
+ * Get aggregated dashboard statistics.
+ *
+ * @returns Dashboard stats including counts and recent activity
+ */
+export async function getDashboardStats(client: ApiClient = api) {
+	return client.GET('/api/v1/dashboard/stats');
 }
 
 // =============================================================================

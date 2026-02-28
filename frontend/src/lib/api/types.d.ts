@@ -158,6 +158,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get dashboard statistics
+         * @description Returns aggregated counts and recent activity for the admin dashboard.
+         */
+        get: operations["ApiV1DashboardStatsGetStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations": {
         parameters: {
             query?: never;
@@ -997,6 +1017,17 @@ export interface components {
         CsrfOriginUpdate: {
             csrf_origin?: string | null;
         };
+        /** DashboardStatsResponse */
+        DashboardStatsResponse: {
+            total_invitations: number;
+            active_invitations: number;
+            total_users: number;
+            active_users: number;
+            total_servers: number;
+            enabled_servers: number;
+            pending_invitations: number;
+            recent_activity: components["schemas"]["RecentActivityItem"][];
+        };
         /** EnvCredentialResponse */
         EnvCredentialResponse: {
             server_type: string;
@@ -1229,6 +1260,13 @@ export interface components {
             server_type: string;
             supported_permissions?: string[] | null;
         };
+        /** RecentActivityItem */
+        RecentActivityItem: {
+            type: string;
+            description: string;
+            /** Format: date-time */
+            timestamp: string;
+        };
         /** RedeemInvitationRequest */
         RedeemInvitationRequest: {
             username: string;
@@ -1253,9 +1291,9 @@ export interface components {
          *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
          *           "username": "VGFBaiJKfHyEulsYjSBd",
          *           "enabled": true,
-         *           "created_at": "1996-09-05T17:20:01.921080",
-         *           "expires_at": "2021-04-11T18:31:52.723815",
-         *           "updated_at": "2006-04-26T06:57:20.944409"
+         *           "created_at": "1996-09-05T19:19:18.921080",
+         *           "expires_at": "2021-04-11T20:31:09.723815",
+         *           "updated_at": "2006-04-26T08:56:37.944409"
          *         }
          *       ]
          *     }
@@ -1283,9 +1321,9 @@ export interface components {
              *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
              *         "username": "EMpEHdutFmqCQcDdvDZV",
              *         "enabled": false,
-             *         "created_at": "1996-08-23T03:29:02.852486",
+             *         "created_at": "1996-08-23T05:28:19.852486",
              *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-             *         "updated_at": "1997-02-04T11:54:21.373028"
+             *         "updated_at": "1997-02-04T13:53:38.373028"
              *       }
              *     ]
              */
@@ -1852,6 +1890,26 @@ export interface operations {
                             [key: string]: unknown;
                         } | unknown[];
                     };
+                };
+            };
+        };
+    };
+    ApiV1DashboardStatsGetStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request fulfilled, document follows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStatsResponse"];
                 };
             };
         };
