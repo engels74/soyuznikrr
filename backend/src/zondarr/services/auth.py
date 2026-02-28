@@ -10,6 +10,7 @@ import secrets
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import structlog
 
@@ -331,6 +332,71 @@ class AuthService:
             admin: The admin account.
         """
         _ = await self.token_repo.revoke_all_for_admin(admin.id)
+
+    async def update_email(
+        self, admin_id: UUID, email: str | None
+    ) -> AdminAccount:
+        """Update the email address on an admin account.
+
+        Args:
+            admin_id: The admin account UUID.
+            email: New email, or None to clear.
+
+        Returns:
+            The updated AdminAccount.
+
+        Raises:
+            AuthenticationError: If the account is not found.
+        """
+        admin = await self.admin_repo.get_by_id(admin_id)
+        if admin is None:
+            raise AuthenticationError(
+                "Account not found", "ACCOUNT_NOT_FOUND"
+            )
+        admin.email = email
+        return admin
+
+    async def change_password(
+        self,
+        admin_id: UUID,
+        current_password: str,
+        new_password: str,
+    ) -> AdminAccount:
+        """Change an admin's password after verifying the current one.
+
+        Args:
+            admin_id: The admin account UUID.
+            current_password: Current password for verification.
+            new_password: New password to set.
+
+        Returns:
+            The updated AdminAccount.
+
+        Raises:
+            AuthenticationError: If account not found, not local auth, or wrong password.
+        """
+        admin = await self.admin_repo.get_by_id(admin_id)
+        if admin is None:
+            raise AuthenticationError(
+                "Account not found", "ACCOUNT_NOT_FOUND"
+            )
+
+        if admin.auth_method != "local":
+            raise AuthenticationError(
+                "Password change is only available for local accounts",
+                "EXTERNAL_AUTH_NO_PASSWORD",
+            )
+
+        if admin.password_hash is None or not verify_password(
+            admin.password_hash, current_password
+        ):
+            raise AuthenticationError(
+                "Current password is incorrect", "INVALID_CREDENTIALS"
+            )
+
+        admin.password_hash = hash_password(new_password)
+        logger.info("admin_password_changed", admin_id=str(admin_id))
+        return admin
 
     async def get_available_auth_methods(
         self,

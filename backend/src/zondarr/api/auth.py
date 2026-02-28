@@ -13,7 +13,7 @@ Provides endpoints for admin authentication:
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-from litestar import Controller, Request, Response, get, post
+from litestar import Controller, Request, Response, get, patch, post
 from litestar.datastructures import Cookie, State
 from litestar.security.jwt import Token
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED
@@ -26,7 +26,10 @@ from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.services.auth import AuthService
 
 from .schemas import (
+    AdminEmailUpdate,
     AdminMeResponse,
+    AdminPasswordChange,
+    AdminProfileResponse,
     AdminSetupRequest,
     AuthFieldInfo,
     AuthMethodsResponse,
@@ -34,6 +37,7 @@ from .schemas import (
     ExternalLoginRequest,
     LoginRequest,
     OnboardingStatusResponse,
+    PasswordChangeResponse,
     ProviderAuthInfo,
     RefreshRequest,
 )
@@ -325,4 +329,48 @@ class AuthController(Controller):
             auth_method=user.auth_method,
             onboarding_required=onboarding_required,
             onboarding_step=onboarding_step,
+        )
+
+    @patch(
+        "/me",
+        status_code=HTTP_200_OK,
+        summary="Update admin profile",
+    )
+    async def update_profile(
+        self,
+        data: AdminEmailUpdate,
+        request: Request[AdminUser, Token, State],
+        session: AsyncSession,
+    ) -> AdminProfileResponse:
+        """Update the current admin's email."""
+        user: AdminUser = request.user
+        service = self._create_auth_service(session)
+        admin = await service.update_email(user.id, data.email)
+        return AdminProfileResponse(
+            id=admin.id,
+            username=admin.username,
+            email=admin.email,
+            auth_method=admin.auth_method,
+        )
+
+    @post(
+        "/me/change-password",
+        status_code=HTTP_200_OK,
+        summary="Change admin password",
+    )
+    async def change_password(
+        self,
+        data: AdminPasswordChange,
+        request: Request[AdminUser, Token, State],
+        session: AsyncSession,
+    ) -> PasswordChangeResponse:
+        """Change the current admin's password."""
+        user: AdminUser = request.user
+        service = self._create_auth_service(session)
+        _ = await service.change_password(
+            user.id, data.current_password, data.new_password
+        )
+        return PasswordChangeResponse(
+            success=True,
+            message="Password changed successfully",
         )

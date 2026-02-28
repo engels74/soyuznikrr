@@ -672,6 +672,108 @@ export async function testCsrfOrigin(
 }
 
 // =============================================================================
+// Settings Bundle API Wrappers
+// =============================================================================
+
+/** A single setting value with lock status */
+export interface SettingValue {
+	value: string | null;
+	is_locked: boolean;
+}
+
+/** All application settings bundled */
+export interface AllSettingsResponse {
+	csrf_origin: SettingValue;
+	sync_interval_seconds: SettingValue;
+	expiration_check_interval_seconds: SettingValue;
+}
+
+/** System information */
+export interface AboutResponse {
+	app_version: string;
+	python_version: string;
+	db_engine: string;
+	os_info: string;
+}
+
+/**
+ * Get all application settings with lock status.
+ *
+ * @param customFetch - Optional fetch function (use SvelteKit's fetch in load functions)
+ */
+export async function getAllSettings(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{
+	data?: AllSettingsResponse;
+	error?: unknown;
+}> {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/settings`, {
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as AllSettingsResponse };
+}
+
+/**
+ * Update the sync interval setting.
+ */
+export async function updateSyncInterval(
+	value: number
+): Promise<{ data?: SettingValue; error?: unknown }> {
+	const response = await fetch(`${API_BASE_URL}/api/v1/settings/sync-interval`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ sync_interval_seconds: value }),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as SettingValue };
+}
+
+/**
+ * Update the expiration check interval setting.
+ */
+export async function updateExpirationInterval(
+	value: number
+): Promise<{ data?: SettingValue; error?: unknown }> {
+	const response = await fetch(`${API_BASE_URL}/api/v1/settings/expiration-interval`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ expiration_check_interval_seconds: value }),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as SettingValue };
+}
+
+/**
+ * Get system information for the about page.
+ *
+ * @param customFetch - Optional fetch function (use SvelteKit's fetch in load functions)
+ */
+export async function getAbout(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: AboutResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/settings/about`, {
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as AboutResponse };
+}
+
+// =============================================================================
 // Health API Wrappers
 // =============================================================================
 

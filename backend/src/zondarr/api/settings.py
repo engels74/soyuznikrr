@@ -1,9 +1,11 @@
 """Settings controller for application-level configuration.
 
-Provides endpoints for managing CSRF origin and other application settings.
-All endpoints require authentication.
+Provides endpoints for managing CSRF origin, sync/expiration intervals,
+and system information. All endpoints require authentication.
 """
 
+import platform
+import sys
 from collections.abc import Mapping, Sequence
 from urllib.parse import urlparse
 
@@ -13,11 +15,17 @@ from litestar.di import Provide
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from zondarr import __version__
 from zondarr.api.schemas import (
+    AboutResponse,
+    AllSettingsResponse,
     CsrfOriginResponse,
     CsrfOriginTestRequest,
     CsrfOriginTestResponse,
     CsrfOriginUpdate,
+    ExpirationIntervalUpdate,
+    SettingValue,
+    SyncIntervalUpdate,
 )
 from zondarr.config import Settings
 from zondarr.core.exceptions import ValidationError
@@ -131,6 +139,96 @@ class SettingsController(Controller):
             success=False,
             message=f"Origin mismatch: you entered '{data.origin}' but your browser sent '{request_origin}'.",
             request_origin=request_origin,
+        )
+
+    @get(
+        "",
+        summary="Get all settings",
+        description="Returns all application settings with their lock status.",
+    )
+    async def get_all_settings(
+        self,
+        settings_service: SettingsService,
+    ) -> AllSettingsResponse:
+        """Bundle all settings with lock status."""
+        csrf_origin, csrf_locked = await settings_service.get_csrf_origin()
+        sync_interval, sync_locked = await settings_service.get_sync_interval()
+        exp_interval, exp_locked = await settings_service.get_expiration_interval()
+
+        return AllSettingsResponse(
+            csrf_origin=SettingValue(value=csrf_origin, is_locked=csrf_locked),
+            sync_interval_seconds=SettingValue(
+                value=str(sync_interval), is_locked=sync_locked
+            ),
+            expiration_check_interval_seconds=SettingValue(
+                value=str(exp_interval), is_locked=exp_locked
+            ),
+        )
+
+    @put(
+        "/sync-interval",
+        summary="Update sync interval",
+        description="Set the media server sync interval. Fails if locked by environment variable.",
+    )
+    async def update_sync_interval(
+        self,
+        data: SyncIntervalUpdate,
+        settings_service: SettingsService,
+    ) -> SettingValue:
+        """Update the sync interval setting."""
+        _, is_locked = await settings_service.get_sync_interval()
+        if is_locked:
+            raise ValidationError(
+                "Sync interval is set via SYNC_INTERVAL_SECONDS environment variable and cannot be changed through the API",
+                field_errors={"sync_interval_seconds": ["Locked by environment variable"]},
+            )
+        _ = await settings_service.set_sync_interval(data.sync_interval_seconds)
+        value, locked = await settings_service.get_sync_interval()
+        return SettingValue(value=str(value), is_locked=locked)
+
+    @put(
+        "/expiration-interval",
+        summary="Update expiration check interval",
+        description="Set the invitation expiration check interval. Fails if locked by environment variable.",
+    )
+    async def update_expiration_interval(
+        self,
+        data: ExpirationIntervalUpdate,
+        settings_service: SettingsService,
+    ) -> SettingValue:
+        """Update the expiration check interval setting."""
+        _, is_locked = await settings_service.get_expiration_interval()
+        if is_locked:
+            raise ValidationError(
+                "Expiration interval is set via EXPIRATION_CHECK_INTERVAL_SECONDS environment variable and cannot be changed through the API",
+                field_errors={"expiration_check_interval_seconds": ["Locked by environment variable"]},
+            )
+        _ = await settings_service.set_expiration_interval(
+            data.expiration_check_interval_seconds
+        )
+        value, locked = await settings_service.get_expiration_interval()
+        return SettingValue(value=str(value), is_locked=locked)
+
+    @get(
+        "/about",
+        summary="Get system information",
+        description="Returns read-only system information for the about page.",
+    )
+    async def get_about(self, settings: Settings) -> AboutResponse:
+        """Return system information."""
+        db_url = settings.database_url
+        if "sqlite" in db_url:
+            db_engine = "SQLite"
+        elif "postgresql" in db_url:
+            db_engine = "PostgreSQL"
+        else:
+            db_engine = db_url.split("://")[0] if "://" in db_url else "Unknown"
+
+        return AboutResponse(
+            app_version=__version__,
+            python_version=sys.version.split()[0],
+            db_engine=db_engine,
+            os_info=f"{platform.system()} {platform.release()}",
         )
 
     @staticmethod

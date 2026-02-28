@@ -5,6 +5,7 @@ import {
 	Menu,
 	ScrollText,
 	Server,
+	Settings as SettingsIcon,
 	Ticket,
 	Users,
 	Wand2,
@@ -51,6 +52,7 @@ const currentTitle = $derived.by(() => {
 	if (pathname.startsWith("/servers")) return "Servers";
 	if (pathname.startsWith("/wizards")) return "Wizards";
 	if (pathname.startsWith("/logs")) return "Logs";
+	if (pathname.startsWith("/settings")) return "Settings";
 	return "Admin";
 });
 
@@ -62,6 +64,7 @@ const navItems = [
 	{ href: "/servers", label: "Servers", icon: Server },
 	{ href: "/wizards", label: "Wizards", icon: Wand2 },
 	{ href: "/logs", label: "Logs", icon: ScrollText },
+	{ href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
 // Close mobile menu when route changes

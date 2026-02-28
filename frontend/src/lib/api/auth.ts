@@ -213,6 +213,58 @@ export async function advanceOnboarding(
 	return { data: result };
 }
 
+export interface AdminProfileResponse {
+	id: string;
+	username: string;
+	email: string | null;
+	auth_method: string;
+}
+
+export interface PasswordChangeResponse {
+	success: boolean;
+	message: string;
+}
+
+/**
+ * Update admin email address.
+ */
+export async function updateAdminEmail(
+	data: { email: string | null },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: AdminProfileResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/me`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as AdminProfileResponse };
+}
+
+/**
+ * Change admin password.
+ */
+export async function changePassword(
+	data: { current_password: string; new_password: string },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: PasswordChangeResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/me/change-password`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as PasswordChangeResponse };
+}
+
 export async function getMe(
 	customFetch: typeof globalThis.fetch = fetch
 ): Promise<AdminMeResponse | null> {

@@ -1349,6 +1349,123 @@ class AuthTokenResponse(msgspec.Struct, kw_only=True):
     refresh_token: str
 
 
+class AdminProfileResponse(msgspec.Struct, kw_only=True):
+    """Admin profile response for settings page.
+
+    Attributes:
+        id: Admin account UUID.
+        username: Admin username.
+        email: Optional email address.
+        auth_method: Authentication method used.
+    """
+
+    id: UUID
+    username: str
+    email: str | None = None
+    auth_method: str = "local"
+
+
+class AdminEmailUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to update admin email.
+
+    Attributes:
+        email: New email address, or None to clear.
+    """
+
+    email: EmailStr | None = None
+
+
+class AdminPasswordChange(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to change admin password.
+
+    Attributes:
+        current_password: Current password for verification.
+        new_password: New password (15+ chars).
+    """
+
+    current_password: Annotated[str, msgspec.Meta(min_length=1)]
+    new_password: AdminPassword
+
+
+class PasswordChangeResponse(msgspec.Struct, kw_only=True):
+    """Response after password change.
+
+    Attributes:
+        success: Whether the password was changed.
+        message: Human-readable result message.
+    """
+
+    success: bool
+    message: str
+
+
+# =============================================================================
+# Settings Schemas
+# =============================================================================
+
+
+class SettingValue(msgspec.Struct, kw_only=True):
+    """A single setting value with lock status.
+
+    Attributes:
+        value: Current setting value.
+        is_locked: True if set via environment variable.
+    """
+
+    value: str | None
+    is_locked: bool
+
+
+class AllSettingsResponse(msgspec.Struct, kw_only=True):
+    """Bundle of all application settings.
+
+    Attributes:
+        csrf_origin: CSRF origin setting.
+        sync_interval_seconds: Sync interval setting.
+        expiration_check_interval_seconds: Expiration check interval setting.
+    """
+
+    csrf_origin: SettingValue
+    sync_interval_seconds: SettingValue
+    expiration_check_interval_seconds: SettingValue
+
+
+class SyncIntervalUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to update the sync interval.
+
+    Attributes:
+        sync_interval_seconds: New interval in seconds (60-86400).
+    """
+
+    sync_interval_seconds: Annotated[int, msgspec.Meta(ge=60, le=86400)]
+
+
+class ExpirationIntervalUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to update the expiration check interval.
+
+    Attributes:
+        expiration_check_interval_seconds: New interval in seconds (60-86400).
+    """
+
+    expiration_check_interval_seconds: Annotated[int, msgspec.Meta(ge=60, le=86400)]
+
+
+class AboutResponse(msgspec.Struct, kw_only=True):
+    """System information response.
+
+    Attributes:
+        app_version: Application version string.
+        python_version: Python runtime version.
+        db_engine: Database engine type.
+        os_info: Operating system information.
+    """
+
+    app_version: str
+    python_version: str
+    db_engine: str
+    os_info: str
+
+
 # =============================================================================
 # Sync Schemas
 # =============================================================================
