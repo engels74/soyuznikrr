@@ -193,6 +193,42 @@ class TestCSRFExcludedPaths:
             await engine.dispose()
 
     @pytest.mark.asyncio
+    async def test_totp_setup_bypasses_csrf_not_configured(self) -> None:
+        """TOTP setup bypasses CSRF even when no origin is configured (production)."""
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(sf, _make_test_settings(debug=False))
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/totp/setup",
+                    json={},
+                    headers={"Origin": "https://anything.com"},
+                )
+                assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_totp_confirm_setup_bypasses_csrf_not_configured(self) -> None:
+        """TOTP confirm-setup bypasses CSRF even when no origin is configured."""
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(sf, _make_test_settings(debug=False))
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/totp/confirm-setup",
+                    json={},
+                    headers={"Origin": "https://anything.com"},
+                )
+                assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
     async def test_excluded_prefix_bypasses_csrf(self) -> None:
         engine = await create_test_engine()
         try:
