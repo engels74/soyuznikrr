@@ -199,6 +199,7 @@ class TOTPController(Controller):
         # Verify TOTP code
         if not totp_service.verify_code(admin, data.code):
             totp_service.record_failed_attempt(admin)
+            await session.commit()
             raise AuthenticationError("Invalid TOTP code", "INVALID_TOTP_CODE")
 
         # Success — reset failed attempts and issue tokens
@@ -251,6 +252,7 @@ class TOTPController(Controller):
         # Verify backup code
         if not totp_service.verify_backup_code(admin, data.code):
             totp_service.record_failed_attempt(admin)
+            await session.commit()
             raise AuthenticationError("Invalid backup code", "INVALID_BACKUP_CODE")
 
         # Success — reset failed attempts and issue tokens
