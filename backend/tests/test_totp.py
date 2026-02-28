@@ -803,3 +803,179 @@ class TestChallengeToken:
 
         with pytest.raises(AuthenticationError, match="purpose"):
             validate_challenge_token(encoded, TEST_SECRET_KEY)  # pyright: ignore[reportUnusedCallResult]
+
+
+# =============================================================================
+# External Login TOTP Enforcement Tests
+# =============================================================================
+
+
+def _make_external_login_app(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> "Litestar":
+    """Create a minimal Litestar app with AuthController for testing."""
+    from collections.abc import AsyncGenerator
+
+    from litestar import Litestar
+    from litestar.datastructures import State
+    from litestar.di import Provide
+
+    from zondarr.api.auth import AuthController
+    from zondarr.api.totp import TOTPController
+    from zondarr.config import Settings
+
+    settings = Settings(secret_key=TEST_SECRET_KEY)
+
+    async def provide_session() -> AsyncGenerator[AsyncSession]:
+        async with session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    def provide_settings(state: State) -> Settings:
+        return state.settings  # pyright: ignore[reportAny]
+
+    return Litestar(
+        route_handlers=[AuthController, TOTPController],
+        state=State({"settings": settings}),
+        dependencies={
+            "session": Provide(provide_session),
+            "settings": Provide(provide_settings, sync_to_thread=False),
+        },
+    )
+
+
+class TestExternalLoginTOTPEnforcement:
+    """Tests for TOTP enforcement in the external login endpoint.
+
+    The login_external() controller method must check admin.totp_enabled
+    after authenticate_external() succeeds. When TOTP is enabled, it
+    returns a challenge token instead of issuing access cookies.
+    """
+
+    @pytest.mark.asyncio
+    async def test_external_login_totp_enabled_returns_challenge(self) -> None:
+        """External login with TOTP enabled returns totp_required + challenge_token."""
+        from litestar.testing import TestClient
+
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            async with sf() as session:
+                admin = await _create_admin(session, username="extadmin")
+                secret = _setup_totp_for_admin(admin)
+                totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+                code = _get_valid_totp_code(secret)
+                totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+                assert admin.totp_enabled is True
+                await session.commit()
+
+            app = _make_external_login_app(sf)
+
+            with (
+                patch(
+                    "zondarr.services.auth.AuthService.authenticate_external",
+                    return_value=admin,
+                ),
+                TestClient(app) as client,
+            ):
+                resp = client.post(
+                    "/api/auth/login/plex",
+                    json={"credentials": {"token": "fake"}},
+                )
+
+            assert resp.status_code == 200
+            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+            assert data["totp_required"] is True
+            assert data["challenge_token"] is not None
+            # No access cookie should be set
+            assert "zondarr_access_token" not in resp.cookies
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_external_login_totp_disabled_returns_tokens(self) -> None:
+        """External login without TOTP returns refresh_token + access cookie."""
+        from litestar.testing import TestClient
+
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            async with sf() as session:
+                admin = await _create_admin(session, username="extadmin2")
+                assert admin.totp_enabled is False
+                await session.commit()
+
+            app = _make_external_login_app(sf)
+
+            with (
+                patch(
+                    "zondarr.services.auth.AuthService.authenticate_external",
+                    return_value=admin,
+                ),
+                TestClient(app) as client,
+            ):
+                resp = client.post(
+                    "/api/auth/login/plex",
+                    json={"credentials": {"token": "fake"}},
+                )
+
+            assert resp.status_code == 200
+            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+            assert data.get("refresh_token") is not None
+            assert data.get("totp_required") is not True
+            # Access cookie should be set
+            assert "zondarr_access_token" in resp.cookies
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_external_login_challenge_token_completes_via_totp_verify(
+        self,
+    ) -> None:
+        """Challenge token from external login can be used with /api/auth/totp/verify."""
+        from litestar.testing import TestClient
+
+        from zondarr.api.totp import validate_challenge_token
+
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            async with sf() as session:
+                admin = await _create_admin(session, username="extadmin3")
+                secret = _setup_totp_for_admin(admin)
+                totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+                code = _get_valid_totp_code(secret)
+                totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+                assert admin.totp_enabled is True
+                await session.commit()
+
+            app = _make_external_login_app(sf)
+
+            # Step 1: External login returns challenge token
+            with (
+                patch(
+                    "zondarr.services.auth.AuthService.authenticate_external",
+                    return_value=admin,
+                ),
+                TestClient(app) as client,
+            ):
+                resp = client.post(
+                    "/api/auth/login/plex",
+                    json={"credentials": {"token": "fake"}},
+                )
+
+            assert resp.status_code == 200
+            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+            assert data["totp_required"] is True
+            challenge_token = data["challenge_token"]
+            assert isinstance(challenge_token, str)
+
+            # Step 2: Validate the challenge token resolves to the correct admin
+            admin_id = validate_challenge_token(challenge_token, TEST_SECRET_KEY)
+            assert admin_id == admin.id
+        finally:
+            await engine.dispose()

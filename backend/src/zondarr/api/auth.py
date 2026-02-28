@@ -252,11 +252,15 @@ class AuthController(Controller):
         data: ExternalLoginRequest,
         session: AsyncSession,
         settings: Settings,
-    ) -> Response[AuthTokenResponse]:
+    ) -> Response[LoginResponse]:
         """Authenticate with an external provider.
 
         The credentials dict contents vary by provider; each registered
         provider declares its own required fields.
+
+        If the admin has TOTP enabled, returns totp_required=True with a
+        challenge_token. The client must then call /api/auth/totp/verify
+        or /api/auth/totp/backup-code to complete login.
         """
         service = self._create_auth_service(session)
         admin = await service.authenticate_external(
@@ -265,6 +269,15 @@ class AuthController(Controller):
             settings=settings,
         )
 
+        # Check if TOTP is required
+        if admin.totp_enabled:
+            challenge = create_challenge_token(str(admin.id), settings.secret_key)
+            return Response(
+                LoginResponse(totp_required=True, challenge_token=challenge),
+                status_code=HTTP_200_OK,
+            )
+
+        # No TOTP — issue tokens normally
         secret_key = settings.secret_key
         secure = await self._resolve_secure_cookies(session, settings)
         _, access_cookie = self._create_access_token(
@@ -273,7 +286,7 @@ class AuthController(Controller):
         refresh_token = await service.create_refresh_token(admin)
 
         return Response(
-            AuthTokenResponse(refresh_token=refresh_token),
+            LoginResponse(refresh_token=refresh_token),
             status_code=HTTP_200_OK,
             cookies=[access_cookie],
         )
