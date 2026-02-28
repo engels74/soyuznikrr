@@ -698,12 +698,16 @@ export interface AboutResponse {
 
 /**
  * Get all application settings with lock status.
+ *
+ * @param customFetch - Optional fetch function (use SvelteKit's fetch in load functions)
  */
-export async function getAllSettings(): Promise<{
+export async function getAllSettings(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{
 	data?: AllSettingsResponse;
 	error?: unknown;
 }> {
-	const response = await fetch(`${API_BASE_URL}/api/v1/settings`, {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/settings`, {
 		credentials: 'include'
 	});
 	if (!response.ok) {
@@ -753,9 +757,13 @@ export async function updateExpirationInterval(
 
 /**
  * Get system information for the about page.
+ *
+ * @param customFetch - Optional fetch function (use SvelteKit's fetch in load functions)
  */
-export async function getAbout(): Promise<{ data?: AboutResponse; error?: unknown }> {
-	const response = await fetch(`${API_BASE_URL}/api/v1/settings/about`, {
+export async function getAbout(
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: AboutResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/v1/settings/about`, {
 		credentials: 'include'
 	});
 	if (!response.ok) {

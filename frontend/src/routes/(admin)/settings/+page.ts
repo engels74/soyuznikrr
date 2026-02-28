@@ -10,8 +10,8 @@ import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch }) => {
 	const [settingsResult, aboutResult, me] = await Promise.all([
-		getAllSettings(),
-		getAbout(),
+		getAllSettings(fetch),
+		getAbout(fetch),
 		getMe(fetch)
 	]);
 
