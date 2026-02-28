@@ -54,12 +54,27 @@ def _make_csrf_app(
     async def handle_join() -> dict[str, str]:
         return {"status": "ok"}
 
+    @post("/api/auth/totp/setup")
+    async def handle_totp_setup() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @post("/api/auth/totp/confirm-setup")
+    async def handle_totp_confirm() -> dict[str, str]:
+        return {"status": "ok"}
+
     async def provide_session() -> AsyncGenerator[AsyncSession]:
         async with session_factory() as session:
             yield session
 
     return Litestar(
-        route_handlers=[handle_get, handle_post, handle_login, handle_join],
+        route_handlers=[
+            handle_get,
+            handle_post,
+            handle_login,
+            handle_join,
+            handle_totp_setup,
+            handle_totp_confirm,
+        ],
         middleware=[DefineMiddleware(CSRFMiddleware)],
         state=State({"settings": settings, "session_factory": session_factory}),
         dependencies={"session": Provide(provide_session)},
@@ -132,6 +147,44 @@ class TestCSRFExcludedPaths:
             with TestClient(app) as client:
                 response = client.post(
                     "/api/auth/login",
+                    json={},
+                    headers={"Origin": "https://evil.com"},
+                )
+                assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_totp_setup_bypasses_csrf(self) -> None:
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(
+                sf, _make_test_settings(csrf_origin="https://app.example.com")
+            )
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/totp/setup",
+                    json={},
+                    headers={"Origin": "https://evil.com"},
+                )
+                assert response.status_code == 201
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_totp_confirm_setup_bypasses_csrf(self) -> None:
+        engine = await create_test_engine()
+        try:
+            sf = async_sessionmaker(engine, expire_on_commit=False)
+            app = _make_csrf_app(
+                sf, _make_test_settings(csrf_origin="https://app.example.com")
+            )
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/totp/confirm-setup",
                     json={},
                     headers={"Origin": "https://evil.com"},
                 )

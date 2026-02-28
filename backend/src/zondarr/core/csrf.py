@@ -38,6 +38,8 @@ _CSRF_EXCLUDE_PATHS_BASE = frozenset(
         "/api/auth/logout",
         "/api/auth/methods",
         "/api/auth/onboarding/advance",
+        "/api/auth/totp/setup",
+        "/api/auth/totp/confirm-setup",
         "/api/health",
         "/health",
         "/api/v1/settings/csrf-origin",

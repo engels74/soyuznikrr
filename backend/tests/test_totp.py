@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import pyotp
 import pytest
+from litestar import Litestar
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.conftest import create_test_engine
@@ -812,7 +813,7 @@ class TestChallengeToken:
 
 def _make_external_login_app(
     session_factory: async_sessionmaker[AsyncSession],
-) -> "Litestar":
+) -> Litestar:
     """Create a minimal Litestar app with AuthController for testing."""
     from collections.abc import AsyncGenerator
 
