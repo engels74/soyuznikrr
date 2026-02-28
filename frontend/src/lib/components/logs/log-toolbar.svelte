@@ -93,7 +93,7 @@ const hasActiveFilters = $derived(
 );
 
 // Debounced search
-let searchInput: HTMLInputElement | undefined = $state();
+let searchInput: HTMLInputElement | null = $state(null);
 let internalSearch = $state("");
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
