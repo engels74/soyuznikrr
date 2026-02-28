@@ -211,7 +211,7 @@ class TOTPService:
         qr = segno.make(uri)
         svg_buffer = io.BytesIO()
         qr.save(
-            svg_buffer, kind="svg", scale=4, dark="currentColor", light="transparent"
+            svg_buffer, kind="svg", scale=4, dark="#000000", light=None
         )
         qr_svg = svg_buffer.getvalue().decode()
 
