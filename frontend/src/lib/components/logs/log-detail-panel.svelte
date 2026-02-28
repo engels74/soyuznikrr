@@ -103,7 +103,7 @@ const relativeTime = $derived.by(() => {
 	if (!entry?.timestamp) return "";
 	try {
 		const d = new Date(entry.timestamp);
-		const diff = Date.now() - d.getTime();
+		const diff = Math.max(0, Date.now() - d.getTime());
 		const seconds = Math.floor(diff / 1000);
 		if (seconds < 60) return `${seconds}s ago`;
 		const minutes = Math.floor(seconds / 60);
@@ -144,9 +144,13 @@ let copied = $state(false);
 async function copyAsJson() {
 	if (!entry) return;
 	const raw = JSON.stringify(entry, null, 2);
-	await navigator.clipboard.writeText(raw);
-	copied = true;
-	setTimeout(() => (copied = false), 2000);
+	try {
+		await navigator.clipboard.writeText(raw);
+		copied = true;
+		setTimeout(() => (copied = false), 2000);
+	} catch {
+		// Clipboard API can fail in non-secure contexts or when permissions are denied
+	}
 }
 
 function handleKeydown(e: KeyboardEvent) {

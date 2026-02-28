@@ -216,6 +216,16 @@ function handleKeydown(e: KeyboardEvent) {
 	if (selectedId == null) return;
 	if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
 
+	const target = e.target as HTMLElement;
+	if (
+		target.tagName === "INPUT" ||
+		target.tagName === "TEXTAREA" ||
+		target.tagName === "SELECT" ||
+		target.isContentEditable
+	) {
+		return;
+	}
+
 	const currentIndex = filteredEntries.findIndex((entry) => entry.seq === selectedId);
 	if (currentIndex === -1) return;
 

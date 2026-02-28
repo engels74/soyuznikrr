@@ -118,6 +118,11 @@ $effect(() => {
 	return () => document.removeEventListener("keydown", handleKeydown);
 });
 
+// Clear debounce timer on teardown
+$effect(() => {
+	return () => clearTimeout(debounceTimer);
+});
+
 // Sync internal search with external prop (e.g., when cleared externally)
 $effect(() => {
 	if (searchQuery !== internalSearch) {
