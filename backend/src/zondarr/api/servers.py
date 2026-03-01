@@ -558,6 +558,12 @@ class ServerController(Controller):
             api_key=api_key,
         )
 
+        # Refresh the server entity to properly load selectin relationships
+        # within the current greenlet context. Without this, the identity-map
+        # cached entity triggers a greenlet error when sync_libraries_detailed
+        # accesses the lazy-loaded `libraries` relationship.
+        await session.refresh(server)
+
         # Sync libraries after creation (best-effort — don't fail server creation)
         libraries: list[LibraryResponse] = []
         started_at = datetime.now(UTC)
