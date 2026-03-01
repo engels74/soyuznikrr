@@ -30,6 +30,15 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright
 SAFE_METHODS = frozenset({b"GET", b"HEAD", b"OPTIONS"})
 
 # Paths excluded from CSRF checks (public/auth endpoints — always excluded)
+#
+# TOTP endpoints (/api/auth/totp/setup, /api/auth/totp/confirm-setup):
+# These are authenticated (JWT cookie) and state-mutating, but safe to exclude:
+# - TOTP setup runs during onboarding step 2, before CSRF origin is configured
+#   (step 3), so excluding them is required for the onboarding flow to work.
+# - /setup returns the TOTP secret/QR code, but an attacker cannot read the
+#   response cross-origin (blocked by same-origin policy, no CORS configured).
+# - /confirm-setup requires a valid 6-digit TOTP code derived from the secret,
+#   which the attacker cannot obtain without reading the /setup response.
 _CSRF_EXCLUDE_PATHS_BASE = frozenset(
     {
         "/api/auth/setup",
@@ -38,6 +47,8 @@ _CSRF_EXCLUDE_PATHS_BASE = frozenset(
         "/api/auth/logout",
         "/api/auth/methods",
         "/api/auth/onboarding/advance",
+        "/api/auth/totp/setup",
+        "/api/auth/totp/confirm-setup",
         "/api/health",
         "/health",
         "/api/v1/settings/csrf-origin",
