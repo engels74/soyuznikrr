@@ -1253,11 +1253,17 @@ class MockSessionForSharedServers:
         self.delete_called = True
         self.delete_url = url
         self.delete_urls.append(url)
-        # Route errors: friends_delete_error for v2 friends API,
+        # Route errors: friends_delete_error for v2 friends/sharings API,
         # delete_error for everything else (shared server removal)
         if "/api/v2/friends/" in url and self._friends_delete_error is not None:
             raise self._friends_delete_error
-        if "/api/v2/friends/" not in url and self._delete_error is not None:
+        if "/api/v2/sharings/" in url and self._friends_delete_error is not None:
+            raise self._friends_delete_error
+        if (
+            "/api/v2/friends/" not in url
+            and "/api/v2/sharings/" not in url
+            and self._delete_error is not None
+        ):
             raise self._delete_error
         return MockHTTPResponse(json_data={})
 
@@ -1534,8 +1540,11 @@ class TestDeleteUserReturnValueCorrectness:
                 assert result is True
                 assert len(mock_account.removed_users) == 0  # Not in friends
                 assert mock_session.delete_called is True
-                assert mock_session.delete_url is not None
-                assert "42" in mock_session.delete_url
+                # Shared server entry 42 was deleted
+                assert any("42" in u for u in mock_session.delete_urls)
+                # Best-effort friend/sharing cleanup was also attempted
+                assert any("/api/v2/friends/" in u for u in mock_session.delete_urls)
+                assert any("/api/v2/sharings/" in u for u in mock_session.delete_urls)
 
     @settings(max_examples=100)
     @given(
