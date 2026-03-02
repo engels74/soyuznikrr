@@ -1253,11 +1253,17 @@ class MockSessionForSharedServers:
         self.delete_called = True
         self.delete_url = url
         self.delete_urls.append(url)
-        # Route errors: friends_delete_error for v2 friends API,
+        # Route errors: friends_delete_error for v2 friends/sharings API,
         # delete_error for everything else (shared server removal)
         if "/api/v2/friends/" in url and self._friends_delete_error is not None:
             raise self._friends_delete_error
-        if "/api/v2/friends/" not in url and self._delete_error is not None:
+        if "/api/v2/sharings/" in url and self._friends_delete_error is not None:
+            raise self._friends_delete_error
+        if (
+            "/api/v2/friends/" not in url
+            and "/api/v2/sharings/" not in url
+            and self._delete_error is not None
+        ):
             raise self._delete_error
         return MockHTTPResponse(json_data={})
 
@@ -1472,11 +1478,14 @@ class TestDeleteUserReturnValueCorrectness:
         api_key: str,
         user_id: int,
     ) -> None:
-        """delete_user returns False when user is not in friends list or shared_servers."""
+        """delete_user returns False when user is not in friends list or shared_servers and v2 cleanup also fails."""
         from zondarr.media.providers.plex.client import PlexClient
 
-        # Empty user list AND empty shared_servers response
-        mock_session = MockSessionForSharedServers(get_json={"SharedServer": []})
+        # Empty user list AND empty shared_servers response AND v2 cleanup fails
+        mock_session = MockSessionForSharedServers(
+            get_json={"SharedServer": []},
+            friends_delete_error=Exception("not found"),
+        )
         mock_account = MockMyPlexAccountWithUserManagement(
             users=[], session=mock_session
         )
@@ -1534,8 +1543,11 @@ class TestDeleteUserReturnValueCorrectness:
                 assert result is True
                 assert len(mock_account.removed_users) == 0  # Not in friends
                 assert mock_session.delete_called is True
-                assert mock_session.delete_url is not None
-                assert "42" in mock_session.delete_url
+                # Shared server entry 42 was deleted
+                assert any("42" in u for u in mock_session.delete_urls)
+                # Best-effort friend/sharing cleanup was also attempted
+                assert any("/api/v2/friends/" in u for u in mock_session.delete_urls)
+                assert any("/api/v2/sharings/" in u for u in mock_session.delete_urls)
 
     @settings(max_examples=100)
     @given(
@@ -2874,7 +2886,7 @@ class MockSessionForDirectShare:
     _response: MockResponse | None
     _post_error: Exception | None
     last_post_url: str | None
-    last_post_json: object | None
+    last_post_json: dict[str, object] | None
 
     def __init__(
         self,
@@ -2891,7 +2903,7 @@ class MockSessionForDirectShare:
         self,
         url: str,
         headers: dict[str, str] | None = None,
-        json: object = None,
+        json: dict[str, object] | None = None,
         timeout: int | None = None,
     ) -> MockResponse:
         _ = headers, timeout
@@ -3188,9 +3200,8 @@ class TestDirectShareFailurePropagatesError:
 
         # Verify POST payload contains cloud-translated IDs (100000 + key),
         # not the raw local section keys (1, 2)
-        assert mock_session.last_post_json is not None
         payload = mock_session.last_post_json
-        assert isinstance(payload, dict)
+        assert payload is not None
         shared_server = payload["shared_server"]
         assert isinstance(shared_server, dict)
         assert shared_server["library_section_ids"] == [100001, 100002]
