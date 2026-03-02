@@ -17,7 +17,6 @@ import pytest
 from litestar import Litestar
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from tests.conftest import create_test_engine
 from zondarr.core.exceptions import AuthenticationError
 from zondarr.models.admin import AdminAccount
 from zondarr.services.password import hash_password
@@ -226,493 +225,379 @@ class TestTOTPServiceSetup:
     """Tests for TOTPService.generate_setup and confirm_setup."""
 
     @pytest.mark.asyncio
-    async def test_generate_setup_returns_uri_qr_codes(self) -> None:
+    async def test_generate_setup_returns_uri_qr_codes(
+        self, session: AsyncSession
+    ) -> None:
         """generate_setup returns a provisioning URI, QR SVG, and backup codes."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                # Mock segno QR save to avoid "currentColor" issue in test env
-                fake_svg = b"<svg>mock</svg>"
-                with patch("zondarr.services.totp.segno") as mock_segno:
-                    mock_qr = mock_segno.make.return_value  # pyright: ignore[reportAny]
-                    mock_qr.save.side_effect = lambda buf, **_kw: buf.write(fake_svg)  # pyright: ignore[reportAny, reportUnknownMemberType, reportUnknownLambdaType]
-                    uri, qr_svg, backup_codes = service.generate_setup(admin)
+        # Mock segno QR save to avoid "currentColor" issue in test env
+        fake_svg = b"<svg>mock</svg>"
+        with patch("zondarr.services.totp.segno") as mock_segno:
+            mock_qr = mock_segno.make.return_value  # pyright: ignore[reportAny]
+            mock_qr.save.side_effect = lambda buf, **_kw: buf.write(fake_svg)  # pyright: ignore[reportAny, reportUnknownMemberType, reportUnknownLambdaType]
+            uri, qr_svg, backup_codes = service.generate_setup(admin)
 
-                assert uri.startswith("otpauth://totp/")
-                assert "Zondarr" in uri
-                assert admin.username in uri
-                assert "svg" in qr_svg.lower()
-                assert len(backup_codes) == BACKUP_CODE_COUNT
-                assert admin.totp_secret_encrypted is not None
-                assert admin.totp_backup_codes is not None
-                assert admin.totp_enabled is False  # Not enabled until confirmed
-        finally:
-            await engine.dispose()
+        assert uri.startswith("otpauth://totp/")
+        assert "Zondarr" in uri
+        assert admin.username in uri
+        assert "svg" in qr_svg.lower()
+        assert len(backup_codes) == BACKUP_CODE_COUNT
+        assert admin.totp_secret_encrypted is not None
+        assert admin.totp_backup_codes is not None
+        assert admin.totp_enabled is False  # Not enabled until confirmed
 
     @pytest.mark.asyncio
-    async def test_generate_setup_rejects_if_already_enabled(self) -> None:
+    async def test_generate_setup_rejects_if_already_enabled(
+        self, session: AsyncSession
+    ) -> None:
         """generate_setup raises if TOTP is already enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, totp_enabled=True)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="already enabled"):
-                    service.generate_setup(admin)  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="already enabled"):
+            service.generate_setup(admin)  # pyright: ignore[reportUnusedCallResult]
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_with_valid_code(self) -> None:
+    async def test_confirm_setup_with_valid_code(self, session: AsyncSession) -> None:
         """confirm_setup enables TOTP when given a valid code."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                code = _get_valid_totp_code(secret)
-                result = service.confirm_setup(admin, code)
+        code = _get_valid_totp_code(secret)
+        result = service.confirm_setup(admin, code)
 
-                assert result is True
-                assert admin.totp_enabled is True
-                assert admin.totp_enabled_at is not None
-        finally:
-            await engine.dispose()
+        assert result is True
+        assert admin.totp_enabled is True
+        assert admin.totp_enabled_at is not None
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_with_invalid_code(self) -> None:
+    async def test_confirm_setup_with_invalid_code(self, session: AsyncSession) -> None:
         """confirm_setup returns False for invalid code."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                _setup_totp_for_admin(admin)  # pyright: ignore[reportUnusedCallResult]
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        _setup_totp_for_admin(admin)  # pyright: ignore[reportUnusedCallResult]
 
-                result = service.confirm_setup(admin, "000000")
+        result = service.confirm_setup(admin, "000000")
 
-                assert result is False
-                assert admin.totp_enabled is False
-        finally:
-            await engine.dispose()
+        assert result is False
+        assert admin.totp_enabled is False
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_rejects_if_already_enabled(self) -> None:
+    async def test_confirm_setup_rejects_if_already_enabled(
+        self, session: AsyncSession
+    ) -> None:
         """confirm_setup raises if TOTP is already enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, totp_enabled=True)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="already enabled"):
-                    service.confirm_setup(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="already enabled"):
+            service.confirm_setup(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_rejects_if_no_pending_secret(self) -> None:
+    async def test_confirm_setup_rejects_if_no_pending_secret(
+        self, session: AsyncSession
+    ) -> None:
         """confirm_setup raises if no setup has been initiated."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="No TOTP setup"):
-                    service.confirm_setup(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="No TOTP setup"):
+            service.confirm_setup(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
 
 
 class TestTOTPServiceVerify:
     """Tests for TOTPService.verify_code and verify_backup_code."""
 
     @pytest.mark.asyncio
-    async def test_verify_code_with_valid_totp(self) -> None:
+    async def test_verify_code_with_valid_totp(self, session: AsyncSession) -> None:
         """verify_code returns True for a valid TOTP code."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                # Enable TOTP
-                code = _get_valid_totp_code(secret)
-                service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        # Enable TOTP
+        code = _get_valid_totp_code(secret)
+        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
-                # Verify with a fresh code
-                fresh_code = _get_valid_totp_code(secret)
-                assert service.verify_code(admin, fresh_code) is True
-        finally:
-            await engine.dispose()
+        # Verify with a fresh code
+        fresh_code = _get_valid_totp_code(secret)
+        assert service.verify_code(admin, fresh_code) is True
 
     @pytest.mark.asyncio
-    async def test_verify_code_with_invalid_totp(self) -> None:
+    async def test_verify_code_with_invalid_totp(self, session: AsyncSession) -> None:
         """verify_code returns False for an invalid code."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                code = _get_valid_totp_code(secret)
-                service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        code = _get_valid_totp_code(secret)
+        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
-                assert service.verify_code(admin, "000000") is False
-        finally:
-            await engine.dispose()
+        assert service.verify_code(admin, "000000") is False
 
     @pytest.mark.asyncio
-    async def test_verify_code_raises_if_not_enabled(self) -> None:
+    async def test_verify_code_raises_if_not_enabled(
+        self, session: AsyncSession
+    ) -> None:
         """verify_code raises AuthenticationError if TOTP not enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="not enabled"):
-                    service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="not enabled"):
+            service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
 
     @pytest.mark.asyncio
-    async def test_verify_backup_code_succeeds(self) -> None:
+    async def test_verify_backup_code_succeeds(self, session: AsyncSession) -> None:
         """verify_backup_code returns True and consumes the code."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                # Enable TOTP
-                code = _get_valid_totp_code(secret)
-                service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        # Enable TOTP
+        code = _get_valid_totp_code(secret)
+        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
-                # Get backup codes by regenerating
-                backup_codes = service.regenerate_backup_codes(admin)
-                first_code = backup_codes[0]
+        # Get backup codes by regenerating
+        backup_codes = service.regenerate_backup_codes(admin)
+        first_code = backup_codes[0]
 
-                assert service.verify_backup_code(admin, first_code) is True
-                # Same code should fail now (consumed)
-                assert service.verify_backup_code(admin, first_code) is False
-        finally:
-            await engine.dispose()
+        assert service.verify_backup_code(admin, first_code) is True
+        # Same code should fail now (consumed)
+        assert service.verify_backup_code(admin, first_code) is False
 
     @pytest.mark.asyncio
-    async def test_verify_backup_code_raises_if_not_enabled(self) -> None:
+    async def test_verify_backup_code_raises_if_not_enabled(
+        self, session: AsyncSession
+    ) -> None:
         """verify_backup_code raises if TOTP is not enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="not enabled"):
-                    service.verify_backup_code(admin, "ABCD-1234")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="not enabled"):
+            service.verify_backup_code(admin, "ABCD-1234")  # pyright: ignore[reportUnusedCallResult]
 
     @pytest.mark.asyncio
-    async def test_verify_backup_code_raises_if_no_codes(self) -> None:
+    async def test_verify_backup_code_raises_if_no_codes(
+        self, session: AsyncSession
+    ) -> None:
         """verify_backup_code raises if no backup codes are stored."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, totp_enabled=True)
-                admin.totp_backup_codes = None
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session, totp_enabled=True)
+        admin.totp_backup_codes = None
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="No backup codes"):
-                    service.verify_backup_code(admin, "ABCD-1234")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="No backup codes"):
+            service.verify_backup_code(admin, "ABCD-1234")  # pyright: ignore[reportUnusedCallResult]
 
 
 class TestTOTPServiceDisable:
     """Tests for TOTPService.disable."""
 
     @pytest.mark.asyncio
-    async def test_disable_clears_all_totp_fields(self) -> None:
+    async def test_disable_clears_all_totp_fields(self, session: AsyncSession) -> None:
         """disable clears secret, backup codes, enabled flag, and counters."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                code = _get_valid_totp_code(secret)
-                service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
-                assert admin.totp_enabled is True
+        code = _get_valid_totp_code(secret)
+        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        assert admin.totp_enabled is True
 
-                service.disable(admin)
+        service.disable(admin)
 
-                assert admin.totp_enabled is False
-                assert admin.totp_secret_encrypted is None
-                assert admin.totp_backup_codes is None
-                assert admin.totp_enabled_at is None
-                assert admin.totp_failed_attempts == 0
-                assert admin.totp_last_failed_at is None
-        finally:
-            await engine.dispose()
+        assert admin.totp_enabled is False
+        assert admin.totp_secret_encrypted is None
+        assert admin.totp_backup_codes is None
+        assert admin.totp_enabled_at is None
+        assert admin.totp_failed_attempts == 0
+        assert admin.totp_last_failed_at is None
 
     @pytest.mark.asyncio
-    async def test_disable_raises_if_not_enabled(self) -> None:
+    async def test_disable_raises_if_not_enabled(self, session: AsyncSession) -> None:
         """disable raises AuthenticationError if TOTP is not enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="not enabled"):
-                    service.disable(admin)
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="not enabled"):
+            service.disable(admin)
 
 
 class TestTOTPServiceRegenerateBackupCodes:
     """Tests for TOTPService.regenerate_backup_codes."""
 
     @pytest.mark.asyncio
-    async def test_regenerate_returns_new_codes(self) -> None:
+    async def test_regenerate_returns_new_codes(self, session: AsyncSession) -> None:
         """regenerate_backup_codes returns fresh codes and updates admin."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
-                secret = _setup_totp_for_admin(admin)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
 
-                code = _get_valid_totp_code(secret)
-                service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        code = _get_valid_totp_code(secret)
+        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
-                old_backup_json = admin.totp_backup_codes
-                new_codes = service.regenerate_backup_codes(admin)
+        old_backup_json = admin.totp_backup_codes
+        new_codes = service.regenerate_backup_codes(admin)
 
-                assert len(new_codes) == BACKUP_CODE_COUNT
-                assert admin.totp_backup_codes != old_backup_json
+        assert len(new_codes) == BACKUP_CODE_COUNT
+        assert admin.totp_backup_codes != old_backup_json
 
-                # New codes should be verifiable
-                assert service.verify_backup_code(admin, new_codes[0]) is True
-        finally:
-            await engine.dispose()
+        # New codes should be verifiable
+        assert service.verify_backup_code(admin, new_codes[0]) is True
 
     @pytest.mark.asyncio
-    async def test_regenerate_raises_if_not_enabled(self) -> None:
+    async def test_regenerate_raises_if_not_enabled(
+        self, session: AsyncSession
+    ) -> None:
         """regenerate_backup_codes raises if TOTP is not enabled."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="not enabled"):
-                    service.regenerate_backup_codes(admin)  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="not enabled"):
+            service.regenerate_backup_codes(admin)  # pyright: ignore[reportUnusedCallResult]
 
 
 class TestTOTPServiceRateLimiting:
     """Tests for rate limiting of TOTP attempts."""
 
     @pytest.mark.asyncio
-    async def test_rate_limit_blocks_after_max_attempts(self) -> None:
+    async def test_rate_limit_blocks_after_max_attempts(
+        self, session: AsyncSession
+    ) -> None:
         """check_rate_limit raises after MAX_FAILED_ATTEMPTS within window."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                # Simulate MAX_FAILED_ATTEMPTS failures.
-                # Use naive datetime to match what SQLite returns.
-                admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
+        # Simulate MAX_FAILED_ATTEMPTS failures.
+        # Use naive datetime to match what SQLite returns.
+        admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
-                with pytest.raises(AuthenticationError, match="Too many failed"):
-                    service.check_rate_limit(admin)
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="Too many failed"):
+            service.check_rate_limit(admin)
 
     @pytest.mark.asyncio
-    async def test_rate_limit_resets_after_window_expires(self) -> None:
+    async def test_rate_limit_resets_after_window_expires(
+        self, session: AsyncSession
+    ) -> None:
         """check_rate_limit resets counter when window has elapsed."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                # Set failed attempts with expired window.
-                # Use naive datetime to match what SQLite returns.
-                admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = datetime.now(UTC).replace(
-                    tzinfo=None
-                ) - timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS + 1)
+        # Set failed attempts with expired window.
+        # Use naive datetime to match what SQLite returns.
+        admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            seconds=RATE_LIMIT_WINDOW_SECONDS + 1
+        )
 
-                # Should not raise, and should reset counter
-                service.check_rate_limit(admin)
-                assert admin.totp_failed_attempts == 0
-                assert admin.totp_last_failed_at is None
-        finally:
-            await engine.dispose()
+        # Should not raise, and should reset counter
+        service.check_rate_limit(admin)
+        assert admin.totp_failed_attempts == 0
+        assert admin.totp_last_failed_at is None
 
     @pytest.mark.asyncio
-    async def test_rate_limit_does_not_block_under_threshold(self) -> None:
+    async def test_rate_limit_does_not_block_under_threshold(
+        self, session: AsyncSession
+    ) -> None:
         """check_rate_limit does not raise when under MAX_FAILED_ATTEMPTS."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                # Use naive datetime to match what SQLite returns.
-                admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS - 1
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
+        # Use naive datetime to match what SQLite returns.
+        admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS - 1
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
-                # Should not raise
-                service.check_rate_limit(admin)
-        finally:
-            await engine.dispose()
+        # Should not raise
+        service.check_rate_limit(admin)
 
     @pytest.mark.asyncio
-    async def test_rate_limit_handles_naive_datetime_from_sqlite(self) -> None:
+    async def test_rate_limit_handles_naive_datetime_from_sqlite(
+        self, session: AsyncSession
+    ) -> None:
         """check_rate_limit works when totp_last_failed_at is timezone-naive.
 
         SQLite strips timezone info on storage, so datetimes read back from
         the DB are naive. This test ensures no TypeError from comparing
         aware and naive datetimes.
         """
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                # Simulate what SQLite returns: a naive datetime (no tzinfo)
-                admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
-                admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
+        # Simulate what SQLite returns: a naive datetime (no tzinfo)
+        admin.totp_failed_attempts = MAX_FAILED_ATTEMPTS
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None)
 
-                # Should raise rate limit, NOT TypeError
-                with pytest.raises(AuthenticationError, match="Too many failed"):
-                    service.check_rate_limit(admin)
+        # Should raise rate limit, NOT TypeError
+        with pytest.raises(AuthenticationError, match="Too many failed"):
+            service.check_rate_limit(admin)
 
-                # Also test window expiry with a naive datetime
-                admin.totp_last_failed_at = datetime.now(UTC).replace(
-                    tzinfo=None
-                ) - timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS + 1)
-                service.check_rate_limit(admin)
-                assert admin.totp_failed_attempts == 0
-                assert admin.totp_last_failed_at is None
-        finally:
-            await engine.dispose()
+        # Also test window expiry with a naive datetime
+        admin.totp_last_failed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            seconds=RATE_LIMIT_WINDOW_SECONDS + 1
+        )
+        service.check_rate_limit(admin)
+        assert admin.totp_failed_attempts == 0
+        assert admin.totp_last_failed_at is None
 
     @pytest.mark.asyncio
-    async def test_record_failed_attempt_increments(self) -> None:
+    async def test_record_failed_attempt_increments(
+        self, session: AsyncSession
+    ) -> None:
         """record_failed_attempt increments counter and sets timestamp."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                assert admin.totp_failed_attempts == 0
-                service.record_failed_attempt(admin)
-                assert admin.totp_failed_attempts == 1
-                assert admin.totp_last_failed_at is not None
+        assert admin.totp_failed_attempts == 0
+        service.record_failed_attempt(admin)
+        assert admin.totp_failed_attempts == 1
+        assert admin.totp_last_failed_at is not None
 
-                service.record_failed_attempt(admin)
-                assert admin.totp_failed_attempts == 2
-        finally:
-            await engine.dispose()
+        service.record_failed_attempt(admin)
+        assert admin.totp_failed_attempts == 2
 
     @pytest.mark.asyncio
-    async def test_reset_failed_attempts_clears(self) -> None:
+    async def test_reset_failed_attempts_clears(self, session: AsyncSession) -> None:
         """reset_failed_attempts zeroes counter and timestamp."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session)
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                admin.totp_failed_attempts = 3
-                admin.totp_last_failed_at = datetime.now(UTC)
+        admin.totp_failed_attempts = 3
+        admin.totp_last_failed_at = datetime.now(UTC)
 
-                service.reset_failed_attempts(admin)
-                assert admin.totp_failed_attempts == 0
-                assert admin.totp_last_failed_at is None
-        finally:
-            await engine.dispose()
+        service.reset_failed_attempts(admin)
+        assert admin.totp_failed_attempts == 0
+        assert admin.totp_last_failed_at is None
 
 
 class TestTOTPServiceDecryptionFailure:
     """Tests for TOTP secret decryption failure handling."""
 
     @pytest.mark.asyncio
-    async def test_verify_code_raises_on_decryption_failure(self) -> None:
+    async def test_verify_code_raises_on_decryption_failure(
+        self, session: AsyncSession
+    ) -> None:
         """verify_code raises AuthenticationError if secret cannot be decrypted."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, totp_enabled=True)
-                admin.totp_secret_encrypted = "corrupted-ciphertext"  # noqa: S105
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session, totp_enabled=True)
+        admin.totp_secret_encrypted = "corrupted-ciphertext"  # noqa: S105
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="decrypt"):
-                    service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="decrypt"):
+            service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
 
     @pytest.mark.asyncio
-    async def test_verify_code_raises_when_secret_missing(self) -> None:
+    async def test_verify_code_raises_when_secret_missing(
+        self, session: AsyncSession
+    ) -> None:
         """verify_code raises when totp_secret_encrypted is None."""
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, totp_enabled=True)
-                admin.totp_secret_encrypted = None
-                service = TOTPService(secret_key=TEST_SECRET_KEY)
+        admin = await _create_admin(session, totp_enabled=True)
+        admin.totp_secret_encrypted = None
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
 
-                with pytest.raises(AuthenticationError, match="not enabled"):
-                    service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
-        finally:
-            await engine.dispose()
+        with pytest.raises(AuthenticationError, match="not enabled"):
+            service.verify_code(admin, "123456")  # pyright: ignore[reportUnusedCallResult]
 
 
 # =============================================================================
@@ -856,136 +741,128 @@ class TestExternalLoginTOTPEnforcement:
     """
 
     @pytest.mark.asyncio
-    async def test_external_login_totp_enabled_returns_challenge(self) -> None:
+    async def test_external_login_totp_enabled_returns_challenge(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """External login with TOTP enabled returns totp_required + challenge_token."""
         from litestar.testing import TestClient
 
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, username="extadmin")
-                secret = _setup_totp_for_admin(admin)
-                totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
-                code = _get_valid_totp_code(secret)
-                totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
-                assert admin.totp_enabled is True
-                await session.commit()
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="extadmin")
+            secret = _setup_totp_for_admin(admin)
+            totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+            code = _get_valid_totp_code(secret)
+            totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+            assert admin.totp_enabled is True
+            await session.commit()
 
-            app = _make_external_login_app(sf)
+        app = _make_external_login_app(session_factory)
 
-            with (
-                patch(
-                    "zondarr.services.auth.AuthService.authenticate_external",
-                    return_value=admin,
-                ),
-                TestClient(app) as client,
-            ):
-                resp = client.post(
-                    "/api/auth/login/plex",
-                    json={"credentials": {"token": "fake"}},
-                )
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
 
-            assert resp.status_code == 200
-            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
-            assert data["totp_required"] is True
-            assert data["challenge_token"] is not None
-            # No refresh token or access cookie should be issued before TOTP verification
-            assert "refresh_token" not in data
-            assert "zondarr_access_token" not in resp.cookies
-        finally:
-            await engine.dispose()
+        assert resp.status_code == 200
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        assert data["totp_required"] is True
+        assert data["challenge_token"] is not None
+        # No refresh token or access cookie should be issued before TOTP verification
+        assert "refresh_token" not in data
+        assert "zondarr_access_token" not in resp.cookies
 
     @pytest.mark.asyncio
-    async def test_external_login_totp_disabled_returns_tokens(self) -> None:
+    async def test_external_login_totp_disabled_returns_tokens(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """External login without TOTP returns refresh_token + access cookie."""
         from litestar.testing import TestClient
 
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, username="extadmin2")
-                assert admin.totp_enabled is False
-                await session.commit()
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="extadmin2")
+            assert admin.totp_enabled is False
+            await session.commit()
 
-            app = _make_external_login_app(sf)
+        app = _make_external_login_app(session_factory)
 
-            with (
-                patch(
-                    "zondarr.services.auth.AuthService.authenticate_external",
-                    return_value=admin,
-                ),
-                TestClient(app) as client,
-            ):
-                resp = client.post(
-                    "/api/auth/login/plex",
-                    json={"credentials": {"token": "fake"}},
-                )
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
 
-            assert resp.status_code == 200
-            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
-            assert data.get("refresh_token") is not None
-            assert data.get("totp_required") is not True
-            # Access cookie should be set
-            assert "zondarr_access_token" in resp.cookies
-        finally:
-            await engine.dispose()
+        assert resp.status_code == 200
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        assert data.get("refresh_token") is not None
+        assert data.get("totp_required") is not True
+        # Access cookie should be set
+        assert "zondarr_access_token" in resp.cookies
 
     @pytest.mark.asyncio
     async def test_external_login_challenge_token_completes_via_totp_verify(
         self,
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         """Challenge token from external login can be used with /api/auth/totp/verify."""
         from litestar.testing import TestClient
 
-        engine = await create_test_engine()
-        try:
-            sf = async_sessionmaker(engine, expire_on_commit=False)
-            async with sf() as session:
-                admin = await _create_admin(session, username="extadmin3")
-                secret = _setup_totp_for_admin(admin)
-                totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
-                code = _get_valid_totp_code(secret)
-                totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
-                assert admin.totp_enabled is True
-                await session.commit()
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="extadmin3")
+            secret = _setup_totp_for_admin(admin)
+            totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+            code = _get_valid_totp_code(secret)
+            totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+            assert admin.totp_enabled is True
+            await session.commit()
 
-            app = _make_external_login_app(sf)
+        app = _make_external_login_app(session_factory)
 
-            # Step 1: External login returns challenge token
-            with (
-                patch(
-                    "zondarr.services.auth.AuthService.authenticate_external",
-                    return_value=admin,
-                ),
-                TestClient(app) as client,
-            ):
-                resp = client.post(
-                    "/api/auth/login/plex",
-                    json={"credentials": {"token": "fake"}},
-                )
+        # Step 1: External login returns challenge token
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
 
-            assert resp.status_code == 200
-            data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
-            assert data["totp_required"] is True
-            challenge_token = data["challenge_token"]
-            assert isinstance(challenge_token, str)
+        assert resp.status_code == 200
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        assert data["totp_required"] is True
+        challenge_token = data["challenge_token"]
+        assert isinstance(challenge_token, str)
 
-            # Step 2: Complete login via the actual TOTP verify endpoint
-            totp_code = _get_valid_totp_code(secret)
-            with TestClient(app) as client:
-                verify_resp = client.post(
-                    "/api/auth/totp/verify",
-                    json={
-                        "challenge_token": challenge_token,
-                        "code": totp_code,
-                    },
-                )
+        # Step 2: Complete login via the actual TOTP verify endpoint
+        totp_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            verify_resp = client.post(
+                "/api/auth/totp/verify",
+                json={
+                    "challenge_token": challenge_token,
+                    "code": totp_code,
+                },
+            )
 
-            assert verify_resp.status_code == 200
-            verify_data: dict[str, object] = verify_resp.json()  # pyright: ignore[reportAny]
-            assert verify_data.get("refresh_token") is not None
-            assert "zondarr_access_token" in verify_resp.cookies
-        finally:
-            await engine.dispose()
+        assert verify_resp.status_code == 200
+        verify_data: dict[str, object] = verify_resp.json()  # pyright: ignore[reportAny]
+        assert verify_data.get("refresh_token") is not None
+        assert "zondarr_access_token" in verify_resp.cookies

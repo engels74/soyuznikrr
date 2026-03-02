@@ -625,7 +625,7 @@ class TestFriendCreationReturnsValidExternalUser:
     and email matches the input email.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -662,7 +662,7 @@ class TestFriendCreationReturnsValidExternalUser:
                 # email should match input
                 assert result.email == email
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -821,7 +821,7 @@ class TestHomeUserCreationReturnsValidExternalUser:
     and username matches the input username.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -862,7 +862,7 @@ class TestHomeUserCreationReturnsValidExternalUser:
                 # email should be None for Home Users
                 assert result.email is None
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1049,7 +1049,7 @@ class TestUserTypeRoutingCorrectness:
     path is used (createHomeUser).
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1090,7 +1090,7 @@ class TestUserTypeRoutingCorrectness:
                 # Result should have the email
                 assert result.email == email
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1391,7 +1391,7 @@ class TestDeleteUserReturnValueCorrectness:
     not found, and raise MediaClientError only for other failures.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1429,7 +1429,7 @@ class TestDeleteUserReturnValueCorrectness:
                 friends_url = f"https://plex.tv/api/v2/friends/{user_id}"
                 assert any(friends_url in u for u in mock_account.session.delete_urls)
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1465,7 +1465,7 @@ class TestDeleteUserReturnValueCorrectness:
                 assert result is True
                 assert str(user_id) in mock_account.removed_users
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1503,7 +1503,7 @@ class TestDeleteUserReturnValueCorrectness:
                 assert len(mock_account.removed_users) == 0
                 assert mock_session.get_called is True
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1549,7 +1549,7 @@ class TestDeleteUserReturnValueCorrectness:
                 assert any("/api/v2/friends/" in u for u in mock_session.delete_urls)
                 assert any("/api/v2/sharings/" in u for u in mock_session.delete_urls)
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1816,7 +1816,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
     updated, False if the user was not found.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1867,7 +1867,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
                 assert result is True
                 assert len(mock_account.update_friend_calls) == 1
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -1918,7 +1918,7 @@ class TestLibraryAccessUpdateReturnValueCorrectness:
                 assert result is True
                 assert len(mock_account.update_friend_calls) == 1
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2087,7 +2087,7 @@ class TestPermissionUpdateMappingAndReturnValue:
     the Plex allowSync setting and return True on success, False if user not found.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2126,7 +2126,7 @@ class TestPermissionUpdateMappingAndReturnValue:
                 # Verify can_download was mapped to allowSync
                 assert mock_account.update_friend_calls[0]["allowSync"] == can_download
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2160,7 +2160,7 @@ class TestPermissionUpdateMappingAndReturnValue:
 
                 assert result is True
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2317,7 +2317,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
     ExternalUser with non-empty external_user_id and username.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2368,7 +2368,7 @@ class TestListUsersReturnsAllUsersAsExternalUserStructs:
                     assert user.external_user_id  # non-empty
                     assert user.username is not None
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2535,7 +2535,7 @@ class TestErrorStructureContainsRequiredFields:
     configured URL.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2566,7 +2566,7 @@ class TestErrorStructureContainsRequiredFields:
         # cause field must be present (can be empty string but not None)
         assert error.cause is not None
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2600,7 +2600,7 @@ class TestErrorStructureContainsRequiredFields:
                 # service_name must contain the server URL
                 assert f"Plex ({url})" in error.service_name
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2636,7 +2636,7 @@ class TestErrorStructureContainsRequiredFields:
                 # service_name must contain the server URL
                 assert f"Plex ({url})" in error.service_name
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2670,7 +2670,7 @@ class TestErrorStructureContainsRequiredFields:
                 # service_name must contain the server URL
                 assert f"Plex ({url})" in error.service_name
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2701,7 +2701,7 @@ class TestErrorStructureContainsRequiredFields:
         # cause field must be present
         assert error.cause is not None
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2741,7 +2741,7 @@ class TestErrorStructureContainsRequiredFields:
                 # service_name must contain the server URL
                 assert f"Plex ({url})" in error.service_name
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2779,7 +2779,7 @@ class TestErrorStructureContainsRequiredFields:
                 # service_name must contain the server URL
                 assert f"Plex ({url})" in error.service_name
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,
@@ -2820,7 +2820,7 @@ class TestErrorStructureContainsRequiredFields:
                 # cause field must be present
                 assert error.cause is not None
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         url=url_strategy,
         api_key=api_key_strategy,

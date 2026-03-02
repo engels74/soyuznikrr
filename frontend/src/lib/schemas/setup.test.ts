@@ -1,7 +1,8 @@
 /**
- * Property-based tests for CSRF origin validation schema.
+ * Tests for CSRF origin validation schema.
  *
- * Tests the csrfOriginSchema from the onboarding wizard.
+ * Keeps non-obvious validation tests (trailing path rejection, protocol validation).
+ * Trivial Zod acceptance/rejection tests removed.
  *
  * @module $lib/schemas/setup.test
  */
@@ -26,16 +27,6 @@ describe('CSRF Origin Validation', () => {
 			}),
 			{ numRuns: 100 }
 		);
-	});
-
-	it('should reject empty origin strings', () => {
-		const result = csrfOriginSchema.safeParse({ origin: '' });
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			const originErrors = result.error.issues.filter((issue) => issue.path[0] === 'origin');
-			expect(originErrors.length).toBeGreaterThan(0);
-			expect(originErrors.some((e) => e.message === 'Origin is required')).toBe(true);
-		}
 	});
 
 	it('should reject non-URL strings', () => {

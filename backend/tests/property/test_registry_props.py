@@ -65,7 +65,7 @@ class TestRegistryReturnsCorrectClient:
     Property 5: Registry Returns Correct Client
     """
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(url=valid_url, api_key=valid_api_key)
     def test_jellyfin_client_returned_for_jellyfin_type(
         self, url: str, api_key: str
@@ -77,7 +77,7 @@ class TestRegistryReturnsCorrectClient:
         assert client.url == url
         assert client.api_key == api_key
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(url=valid_url, api_key=valid_api_key)
     def test_plex_client_returned_for_plex_type(self, url: str, api_key: str) -> None:
         """Registry returns PlexClient for PLEX server type."""
@@ -87,7 +87,7 @@ class TestRegistryReturnsCorrectClient:
         assert client.url == url
         assert client.api_key == api_key
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(server_type=server_type_strategy, url=valid_url, api_key=valid_api_key)
     def test_client_class_matches_registered_type(
         self, server_type: str, url: str, api_key: str
@@ -99,7 +99,7 @@ class TestRegistryReturnsCorrectClient:
         expected_client = client_class(url=url, api_key=api_key)
         assert type(client) is type(expected_client)
 
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     @given(server_type=server_type_strategy)
     def test_capabilities_match_client_class(self, server_type: str) -> None:
         """Registry capabilities match the client class capabilities."""

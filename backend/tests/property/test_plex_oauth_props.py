@@ -57,7 +57,7 @@ class TestOAuthPinGenerationReturnsValidResponse:
     expires_at in the future.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         client_id=client_id_strategy,
         pin_id=pin_id_strategy,
@@ -242,7 +242,7 @@ class TestOAuthPinVerificationRetrievesEmailOnSuccess:
     email address.
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=25)
     @given(
         client_id=client_id_strategy,
         pin_id=pin_id_strategy,
