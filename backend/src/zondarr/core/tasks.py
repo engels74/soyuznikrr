@@ -28,7 +28,6 @@ from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
-from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
@@ -94,12 +93,6 @@ class BackgroundTaskManager:
             asyncio.create_task(
                 self._run_token_cleanup_task(state),
                 name="token-cleanup",
-            )
-        )
-        self._tasks.append(
-            asyncio.create_task(
-                self._run_sync_exclusion_cleanup_task(state),
-                name="sync-exclusion-cleanup",
             )
         )
 
@@ -318,12 +311,10 @@ class BackgroundTaskManager:
                     server_repo = MediaServerRepository(session)
                     user_repo = UserRepository(session)
                     identity_repo = IdentityRepository(session)
-                    sync_exclusion_repo = SyncExclusionRepository(session)
                     sync_service = SyncService(
                         server_repo,
                         user_repo,
                         identity_repo,
-                        sync_exclusion_repo=sync_exclusion_repo,
                     )
                     result = await sync_service.sync_server(server_id, dry_run=False)
                     await session.commit()
@@ -436,35 +427,6 @@ class BackgroundTaskManager:
             if deleted > 0:
                 await session.commit()
                 logger.info("Cleaned up expired refresh tokens", count=deleted)
-
-    async def _run_sync_exclusion_cleanup_task(self, state: State, /) -> None:
-        """Periodically clean up old sync exclusions.
-
-        Runs at the same interval as expiration checks.
-        """
-        interval = self.settings.expiration_check_interval_seconds
-
-        while self._running:
-            try:
-                await self._cleanup_sync_exclusions(state)
-            except Exception as exc:
-                logger.exception("Sync exclusion cleanup task error", exc_info=exc)
-
-            await asyncio.sleep(interval)
-
-    async def _cleanup_sync_exclusions(self, state: State, /) -> None:
-        """Delete sync exclusions older than 30 days."""
-        session_factory = cast(
-            async_sessionmaker[AsyncSession],
-            state.session_factory,
-        )
-
-        async with session_factory() as session:
-            repo = SyncExclusionRepository(session)
-            deleted = await repo.cleanup_old(days=30)
-            if deleted > 0:
-                await session.commit()
-                logger.info("Cleaned up old sync exclusions", count=deleted)
 
 
 @asynccontextmanager

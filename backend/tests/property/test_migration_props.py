@@ -50,7 +50,6 @@ async def verify_tables_exist(session: AsyncSession) -> dict[str, bool]:
         "identities",
         "invitations",
         "users",
-        "sync_exclusions",
         "sync_runs",
         "invitation_servers",
         "invitation_libraries",
@@ -324,7 +323,6 @@ class TestMigrationSchemaIntegrity:
                 assert tables["identities"]
                 assert tables["invitations"]
                 assert tables["users"]
-                assert tables["sync_exclusions"]
                 assert tables["sync_runs"]
                 assert tables["invitation_servers"]
                 assert tables["invitation_libraries"]
