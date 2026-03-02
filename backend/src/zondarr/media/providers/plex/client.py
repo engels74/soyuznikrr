@@ -512,9 +512,9 @@ class PlexClient:
                         self._server.library.sectionByID(sid)  # pyright: ignore[reportUnknownMemberType]
                         for sid in library_section_ids
                     ]
-                    section_ids: list[int] = self._account._getSectionIds(
+                    section_ids: list[int] = self._account._getSectionIds(  # pyright: ignore[reportUnknownMemberType, reportPrivateUsage, reportUnknownVariableType]
                         machine_id, sections
-                    )  # pyright: ignore[reportUnknownMemberType, reportPrivateUsage, reportUnknownVariableType]
+                    )
                 else:
                     section_ids = []
                 params: dict[str, object] = {
