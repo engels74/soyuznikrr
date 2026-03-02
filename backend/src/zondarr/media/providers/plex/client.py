@@ -967,8 +967,8 @@ class PlexClient:
         """Delete a user from the Plex server.
 
         Removes the user account identified by the external user ID.
-        Attempts to find the user among Friends/Home Users first, then
-        checks shared_servers for direct-share users. Returns True if
+        First removes shared server access (if server is connected),
+        then removes the friend/home user relationship. Returns True if
         either path succeeds.
 
         Args:
@@ -999,8 +999,6 @@ class PlexClient:
                 # plexapi lacks type stubs, users() returns list of MyPlexUser
                 users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
 
-                # Path 1: Find the user among Friends/Home Users
-                friend_deleted = False
                 target_user: object | None = None
                 for user in users:  # pyright: ignore[reportUnknownVariableType]
                     user_id: str = str(getattr(user, "id", ""))  # pyright: ignore[reportUnknownArgumentType]
@@ -1008,6 +1006,15 @@ class PlexClient:
                         target_user = user  # pyright: ignore[reportUnknownVariableType]
                         break
 
+                # Step 1: Remove shared server access first (exceptions propagate)
+                shared_deleted = False
+                if self._server is not None:
+                    shared_deleted = self._remove_shared_server_access_sync(
+                        external_user_id
+                    )
+
+                # Step 2: Remove friend/home user relationship
+                friend_deleted = False
                 if target_user is not None:
                     is_home_user: bool = getattr(target_user, "home", False)  # pyright: ignore[reportUnknownArgumentType]
 
@@ -1056,29 +1063,6 @@ class PlexClient:
                                 user_id=external_user_id,
                                 error=str(verify_exc),
                             )
-
-                # Path 2: Remove shared server access (only for users with server access)
-                shared_deleted = False
-                if self._server is not None:
-                    # Only attempt shared server removal when the user has server access
-                    has_shared_access = target_user is not None and bool(
-                        getattr(target_user, "servers", None)  # pyright: ignore[reportUnknownArgumentType]
-                    )
-                    if has_shared_access or target_user is None:
-                        try:
-                            shared_deleted = self._remove_shared_server_access_sync(
-                                external_user_id
-                            )
-                        except Exception as shared_exc:
-                            if friend_deleted:
-                                log.warning(
-                                    "plex_shared_server_cleanup_failed",
-                                    url=self.url,
-                                    user_id=external_user_id,
-                                    error=str(shared_exc),
-                                )
-                            else:
-                                raise
 
                 return friend_deleted or shared_deleted
 

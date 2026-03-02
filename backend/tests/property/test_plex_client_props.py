@@ -1658,6 +1658,58 @@ class TestDeleteUserReturnValueCorrectness:
 
                 assert f"Plex ({url})" in exc_info.value.service_name
 
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        user_id=st.integers(min_value=1, max_value=999999999),
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_delete_user_raises_when_shared_server_removal_fails(
+        self,
+        url: str,
+        api_key: str,
+        user_id: int,
+        username: str,
+    ) -> None:
+        """delete_user raises ExternalServiceError when shared server removal fails, without attempting friend removal."""
+        from zondarr.core.exceptions import ExternalServiceError
+        from zondarr.media.providers.plex.client import PlexClient
+
+        # Create a Friend user with a shared server entry that will fail on DELETE
+        mock_user = MockMyPlexUserWithHome(
+            user_id=user_id, username=username, email=f"{username}@test.com", home=False
+        )
+        mock_session = MockSessionForSharedServers(
+            get_json={
+                "SharedServer": [
+                    {"id": 77, "userID": user_id},
+                ]
+            },
+            delete_error=RuntimeError("shared server API failure"),
+        )
+        mock_account = MockMyPlexAccountWithUserManagement(
+            users=[mock_user],
+            session=mock_session,
+        )
+        mock_server = MockPlexServerWithUserManagement(
+            url, api_key, account=mock_account
+        )
+
+        with patch("plexapi.server.PlexServer", return_value=mock_server):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                with pytest.raises(ExternalServiceError) as exc_info:
+                    _ = await client.delete_user(str(user_id))
+
+                assert f"Plex ({url})" in exc_info.value.service_name
+                # No friend removal should have been attempted
+                assert not any(
+                    "/api/v2/friends/" in u for u in mock_session.delete_urls
+                )
+
 
 class MockLibraryWithSections(MockLibrary):
     """Mock Plex library that supports sectionByID."""
