@@ -442,7 +442,13 @@ class PlexClient:
                 original_error=exc,
             ) from exc
 
-    async def _share_library_direct(self, email: str, auth_token: str) -> ExternalUser:
+    async def _share_library_direct(
+        self,
+        email: str,
+        auth_token: str,
+        *,
+        library_section_ids: list[int] | None = None,
+    ) -> ExternalUser:
         """Share server libraries directly using the user's Plex auth token.
 
         Uses the shared_servers API with the user's numeric Plex ID (obtained
@@ -452,6 +458,8 @@ class PlexClient:
         Args:
             email: The email address of the Plex user.
             auth_token: The user's Plex OAuth auth token.
+            library_section_ids: Optional list of integer Plex library section
+                IDs to restrict access to. Empty list or None means all libraries.
 
         Returns:
             An ExternalUser with the numeric Plex user ID and username.
@@ -495,10 +503,24 @@ class PlexClient:
                 sharing_url = f"https://plex.tv/api/servers/{machine_id}/shared_servers"
                 # Match plexapi's JSON body structure (nested dicts, not bracket-notation)
                 # Empty library_section_ids list = share all libraries (same as plexapi default)
+                # Non-empty list = share only those specific libraries
+                # IMPORTANT: Plex shared_servers API requires cloud-side section IDs
+                # (e.g. 142227451), not local section keys (e.g. 1).
+                # Use plexapi's _getSectionIds() to translate.
+                if library_section_ids:
+                    sections = [  # pyright: ignore[reportUnknownVariableType]
+                        self._server.library.sectionByID(sid)  # pyright: ignore[reportUnknownMemberType]
+                        for sid in library_section_ids
+                    ]
+                    section_ids: list[int] = self._account._getSectionIds(
+                        machine_id, sections
+                    )  # pyright: ignore[reportUnknownMemberType, reportPrivateUsage, reportUnknownVariableType]
+                else:
+                    section_ids = []
                 params: dict[str, object] = {
                     "server_id": machine_id,
                     "shared_server": {
-                        "library_section_ids": [],
+                        "library_section_ids": section_ids,
                         "invited_id": int(plex_user_id),
                     },
                     "sharing_settings": {
@@ -636,7 +658,12 @@ class PlexClient:
             )
             return 0
 
-    async def _invite_friend(self, email: str) -> ExternalUser:
+    async def _invite_friend(
+        self,
+        email: str,
+        *,
+        library_section_ids: list[int] | None = None,
+    ) -> ExternalUser:
         """Invite a Friend user via inviteFriend (legacy fallback).
 
         Sends an invitation to an existing Plex.tv account. The user must
@@ -647,6 +674,10 @@ class PlexClient:
 
         Args:
             email: The email address of the Plex.tv account to invite.
+            library_section_ids: Optional list of integer Plex library section
+                IDs to restrict access to. These are resolved to LibrarySection
+                objects for plexapi's inviteFriend(sections=...) parameter.
+                None means all libraries.
 
         Returns:
             An ExternalUser with the email as external_user_id and username.
@@ -670,11 +701,20 @@ class PlexClient:
             def _invite() -> object:
                 assert self._account is not None  # noqa: S101
                 assert self._server is not None  # noqa: S101
+                # Resolve integer section IDs to LibrarySection objects
+                # plexapi's inviteFriend() needs LibrarySection objects or names
+                sections = None
+                if library_section_ids:
+                    sections = [  # pyright: ignore[reportUnknownVariableType]
+                        self._server.library.sectionByID(sid)  # pyright: ignore[reportUnknownMemberType]
+                        for sid in library_section_ids
+                    ]
                 # plexapi lacks type stubs, inviteFriend returns MyPlexUser
                 # We pass the server to share with the friend
                 return self._account.inviteFriend(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                     user=email,
                     server=self._server,
+                    sections=sections,
                 )
 
             user = await asyncio.to_thread(_invite)
@@ -738,7 +778,11 @@ class PlexClient:
             ) from exc
 
     async def _create_friend(
-        self, email: str, *, auth_token: str | None = None
+        self,
+        email: str,
+        *,
+        auth_token: str | None = None,
+        library_section_ids: list[int] | None = None,
     ) -> ExternalUser:
         """Create a Friend/shared user on the Plex server.
 
@@ -749,6 +793,8 @@ class PlexClient:
         Args:
             email: The email address of the Plex.tv account.
             auth_token: Optional OAuth auth token from the user.
+            library_section_ids: Optional list of integer Plex library section
+                IDs to restrict access to. None means all libraries.
 
         Returns:
             An ExternalUser with the user's details.
@@ -757,8 +803,10 @@ class PlexClient:
             MediaClientError: If user creation fails.
         """
         if auth_token:
-            return await self._share_library_direct(email, auth_token)
-        return await self._invite_friend(email)
+            return await self._share_library_direct(
+                email, auth_token, library_section_ids=library_section_ids
+            )
+        return await self._invite_friend(email, library_section_ids=library_section_ids)
 
     async def _create_home_user(self, username: str) -> ExternalUser:
         """Create a Home User via createHomeUser.
@@ -864,6 +912,7 @@ class PlexClient:
         *,
         email: str | None = None,
         auth_token: str | None = None,
+        library_ids: Sequence[str] | None = None,
     ) -> ExternalUser:
         """Create a new user on the Plex server.
 
@@ -883,6 +932,9 @@ class PlexClient:
                 or shared user; otherwise creates a Home User.
             auth_token: Optional OAuth auth token from the user (keyword-only).
                 When provided with email, enables direct library sharing.
+            library_ids: Optional library external IDs (strings) to restrict
+                access to at creation time (keyword-only). Converted to integer
+                Plex section IDs internally. None means all libraries.
 
         Returns:
             An ExternalUser object with the created user's details.
@@ -894,8 +946,17 @@ class PlexClient:
         """
         _ = password  # Explicitly ignore password parameter
 
+        # Convert string library IDs to integer Plex section IDs
+        section_ids: list[int] | None = None
+        if library_ids:
+            section_ids = [int(lid) for lid in library_ids]
+
         if email is not None:
-            return await self._create_friend(email, auth_token=auth_token)
+            return await self._create_friend(
+                email,
+                auth_token=auth_token,
+                library_section_ids=section_ids,
+            )
 
         # No email provided - create as Home User
         return await self._create_home_user(username)

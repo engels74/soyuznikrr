@@ -574,9 +574,11 @@ class MockMyPlexAccountWithInvite:
         self._invite_result = invite_result
         self._invite_error = invite_error
 
-    def inviteFriend(self, user: str, server: object) -> MockMyPlexUser:
+    def inviteFriend(
+        self, user: str, server: object, sections: object = None
+    ) -> MockMyPlexUser:
         """Mock inviteFriend method."""
-        _ = server  # Unused but required by API signature
+        _ = server, sections  # Unused but required by API signature
         if self._invite_error is not None:
             raise self._invite_error
         if self._invite_result is not None:
@@ -984,9 +986,11 @@ class MockMyPlexAccountWithBothMethods:
         self.last_invite_email = None
         self.last_create_username = None
 
-    def inviteFriend(self, user: str, server: object) -> MockMyPlexUser:
+    def inviteFriend(
+        self, user: str, server: object, sections: object = None
+    ) -> MockMyPlexUser:
         """Mock inviteFriend method."""
-        _ = server  # Unused but required by API signature
+        _ = server, sections  # Unused but required by API signature
         self.invite_friend_called = True
         self.last_invite_email = user
         if self._invite_error is not None:
@@ -2966,6 +2970,19 @@ class MockMyPlexAccountForDirectShare:
             raise self._cancel_invite_error
         self.cancelled_invites.append(invite)
 
+    def _getSectionIds(
+        self,
+        server: object,
+        sections: list[object],
+    ) -> list[int]:
+        """Mock cloud-side section ID translation.
+
+        Returns sequential cloud IDs (100001, 100002, ...) to simulate
+        the local-key → cloud-ID translation that plexapi performs.
+        """
+        _ = server
+        return [100000 + getattr(s, "key", i) for i, s in enumerate(sections)]
+
 
 class MockMyPlexAccountUserForDirectShare:
     """Mock MyPlexAccount created from user's auth token."""
@@ -2985,7 +3002,7 @@ class MockPlexServerForDirectShare:
     token: str
     friendlyName: str
     machineIdentifier: str
-    library: MockLibrary
+    library: MockLibraryWithSections
     _account: MockMyPlexAccountForDirectShare
 
     def __init__(
@@ -2996,12 +3013,13 @@ class MockPlexServerForDirectShare:
         friendly_name: str = "Test Server",
         machine_identifier: str = "abc123machine",
         account: MockMyPlexAccountForDirectShare | None = None,
+        library: MockLibraryWithSections | None = None,
     ) -> None:
         self.url = url
         self.token = token
         self.friendlyName = friendly_name
         self.machineIdentifier = machine_identifier
-        self.library = MockLibrary()
+        self.library = library or MockLibraryWithSections()
         self._account = account or MockMyPlexAccountForDirectShare()
 
     def myPlexAccount(self) -> MockMyPlexAccountForDirectShare:
