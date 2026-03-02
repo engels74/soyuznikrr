@@ -550,8 +550,8 @@ class PlexClient:
                     )
                     for invite in pending:  # pyright: ignore[reportUnknownVariableType]
                         invite_servers: list[object] = (
-                            getattr(invite, "servers", []) or []
-                        )  # pyright: ignore[reportUnknownArgumentType]
+                            getattr(invite, "servers", []) or []  # pyright: ignore[reportUnknownArgumentType]
+                        )
                         for server_share in invite_servers:
                             if (
                                 getattr(server_share, "machineIdentifier", "")

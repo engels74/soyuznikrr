@@ -2886,7 +2886,7 @@ class MockSessionForDirectShare:
     _response: MockResponse | None
     _post_error: Exception | None
     last_post_url: str | None
-    last_post_json: object | None
+    last_post_json: dict[str, object] | None
 
     def __init__(
         self,
@@ -2903,7 +2903,7 @@ class MockSessionForDirectShare:
         self,
         url: str,
         headers: dict[str, str] | None = None,
-        json: object = None,
+        json: dict[str, object] | None = None,
         timeout: int | None = None,
     ) -> MockResponse:
         _ = headers, timeout
@@ -3200,9 +3200,8 @@ class TestDirectShareFailurePropagatesError:
 
         # Verify POST payload contains cloud-translated IDs (100000 + key),
         # not the raw local section keys (1, 2)
-        assert mock_session.last_post_json is not None
         payload = mock_session.last_post_json
-        assert isinstance(payload, dict)
+        assert payload is not None
         shared_server = payload["shared_server"]
         assert isinstance(shared_server, dict)
         assert shared_server["library_section_ids"] == [100001, 100002]
