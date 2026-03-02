@@ -8,6 +8,7 @@ are created, each linked to the correct MediaServer, and all linked to
 the same Identity.
 """
 
+from collections.abc import Sequence
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -1261,8 +1262,9 @@ class TestRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1397,8 +1399,9 @@ class TestRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1528,8 +1531,9 @@ class TestRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1674,8 +1678,9 @@ class TestRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 nonlocal create_call_count
                 create_call_count += 1
 
@@ -1860,8 +1865,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 # Fail if this is the Plex server
                 if server.server_type == "plex":
                     raise MediaClientError(
@@ -2026,8 +2032,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 # Fail if this is the Plex server
                 if server.server_type == "plex":
                     raise MediaClientError(
@@ -2193,8 +2200,9 @@ class TestPlexRedemptionRollbackOnFailure:
                 *,
                 email: str | None = None,
                 auth_token: str | None = None,
+                library_ids: Sequence[str] | None = None,
             ) -> ExternalUser:
-                _ = auth_token
+                _ = auth_token, library_ids
                 nonlocal create_call_count
 
                 create_call_count += 1

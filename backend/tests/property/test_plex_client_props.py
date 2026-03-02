@@ -574,9 +574,11 @@ class MockMyPlexAccountWithInvite:
         self._invite_result = invite_result
         self._invite_error = invite_error
 
-    def inviteFriend(self, user: str, server: object) -> MockMyPlexUser:
+    def inviteFriend(
+        self, user: str, server: object, sections: object = None
+    ) -> MockMyPlexUser:
         """Mock inviteFriend method."""
-        _ = server  # Unused but required by API signature
+        _ = server, sections  # Unused but required by API signature
         if self._invite_error is not None:
             raise self._invite_error
         if self._invite_result is not None:
@@ -984,9 +986,11 @@ class MockMyPlexAccountWithBothMethods:
         self.last_invite_email = None
         self.last_create_username = None
 
-    def inviteFriend(self, user: str, server: object) -> MockMyPlexUser:
+    def inviteFriend(
+        self, user: str, server: object, sections: object = None
+    ) -> MockMyPlexUser:
         """Mock inviteFriend method."""
-        _ = server  # Unused but required by API signature
+        _ = server, sections  # Unused but required by API signature
         self.invite_friend_called = True
         self.last_invite_email = user
         if self._invite_error is not None:
@@ -2869,6 +2873,8 @@ class MockSessionForDirectShare:
 
     _response: MockResponse | None
     _post_error: Exception | None
+    last_post_url: str | None
+    last_post_json: object | None
 
     def __init__(
         self,
@@ -2878,6 +2884,8 @@ class MockSessionForDirectShare:
     ) -> None:
         self._response = response or MockResponse()
         self._post_error = post_error
+        self.last_post_url = None
+        self.last_post_json = None
 
     def post(
         self,
@@ -2886,7 +2894,9 @@ class MockSessionForDirectShare:
         json: object = None,
         timeout: int | None = None,
     ) -> MockResponse:
-        _ = url, headers, json, timeout
+        _ = headers, timeout
+        self.last_post_url = url
+        self.last_post_json = json
         if self._post_error is not None:
             raise self._post_error
         assert self._response is not None
@@ -2966,6 +2976,19 @@ class MockMyPlexAccountForDirectShare:
             raise self._cancel_invite_error
         self.cancelled_invites.append(invite)
 
+    def _getSectionIds(
+        self,
+        server: object,
+        sections: list[object],
+    ) -> list[int]:
+        """Mock cloud-side section ID translation.
+
+        Returns sequential cloud IDs (100001, 100002, ...) to simulate
+        the local-key → cloud-ID translation that plexapi performs.
+        """
+        _ = server
+        return [100000 + getattr(s, "key", i) for i, s in enumerate(sections)]
+
 
 class MockMyPlexAccountUserForDirectShare:
     """Mock MyPlexAccount created from user's auth token."""
@@ -2985,7 +3008,7 @@ class MockPlexServerForDirectShare:
     token: str
     friendlyName: str
     machineIdentifier: str
-    library: MockLibrary
+    library: MockLibraryWithSections
     _account: MockMyPlexAccountForDirectShare
 
     def __init__(
@@ -2996,12 +3019,13 @@ class MockPlexServerForDirectShare:
         friendly_name: str = "Test Server",
         machine_identifier: str = "abc123machine",
         account: MockMyPlexAccountForDirectShare | None = None,
+        library: MockLibraryWithSections | None = None,
     ) -> None:
         self.url = url
         self.token = token
         self.friendlyName = friendly_name
         self.machineIdentifier = machine_identifier
-        self.library = MockLibrary()
+        self.library = library or MockLibraryWithSections()
         self._account = account or MockMyPlexAccountForDirectShare()
 
     def myPlexAccount(self) -> MockMyPlexAccountForDirectShare:
@@ -3118,6 +3142,58 @@ class TestDirectShareFailurePropagatesError:
 
         assert exc_info.value.operation == "share_library_direct"
         assert exc_info.value.server_url == url
+
+    @settings(max_examples=25)
+    @given(
+        url=url_strategy,
+        api_key=api_key_strategy,
+        email=email_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_direct_share_sends_cloud_translated_section_ids(
+        self,
+        url: str,
+        api_key: str,
+        email: str,
+    ) -> None:
+        """Direct share POST payload uses cloud-translated section IDs from _getSectionIds."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        # Set up library sections with known local keys
+        sections = [
+            MockLibrarySection(key=1, title="Movies", section_type="movie"),
+            MockLibrarySection(key=2, title="TV Shows", section_type="show"),
+        ]
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(session=mock_session)
+        mock_library = MockLibraryWithSections(sections=sections)
+        mock_server = MockPlexServerForDirectShare(
+            url, api_key, account=mock_account, library=mock_library
+        )
+
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser"
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+        ):
+            client = PlexClient(url=url, api_key=api_key)
+
+            async with client:
+                _ = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    email, "fake-token", library_section_ids=[1, 2]
+                )
+
+        # Verify POST payload contains cloud-translated IDs (100000 + key),
+        # not the raw local section keys (1, 2)
+        assert mock_session.last_post_json is not None
+        payload = mock_session.last_post_json
+        assert isinstance(payload, dict)
+        shared_server = payload["shared_server"]
+        assert isinstance(shared_server, dict)
+        assert shared_server["library_section_ids"] == [100001, 100002]
 
 
 class TestCancelPendingInvitesForUser:

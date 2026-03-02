@@ -169,12 +169,25 @@ class RedemptionService:
             for server in invitation.target_servers:
                 client = registry.create_client_for_server(server)
 
+                # Compute per-server library IDs before user creation
+                # so they can be applied at share/invite time (not just after)
+                server_library_ids: list[str] | None = None
+                if invitation.allowed_libraries:
+                    ids = [
+                        lib.external_id
+                        for lib in invitation.allowed_libraries
+                        if lib.media_server_id == server.id
+                    ]
+                    if ids:
+                        server_library_ids = ids
+
                 async with client:
                     external_user = await client.create_user(
                         username,
                         password,
                         email=email,
                         auth_token=auth_token,
+                        library_ids=server_library_ids,
                     )
                     created_external_users.append((server, external_user))
 
@@ -186,23 +199,17 @@ class RedemptionService:
                         external_user_id=external_user.external_user_id,
                     )
 
-                    # Step 4: Apply library restrictions
-                    if invitation.allowed_libraries:
-                        library_ids = [
-                            lib.external_id
-                            for lib in invitation.allowed_libraries
-                            if lib.media_server_id == server.id
-                        ]
-                        if library_ids:
-                            _ = await client.set_library_access(
-                                external_user.external_user_id,
-                                library_ids,
-                            )
-                            log.info(  # pyright: ignore[reportAny]
-                                "Applied library restrictions",
-                                server_name=server.name,
-                                library_count=len(library_ids),
-                            )
+                    # Step 4: Apply library restrictions (idempotent safety net)
+                    if server_library_ids:
+                        _ = await client.set_library_access(
+                            external_user.external_user_id,
+                            server_library_ids,
+                        )
+                        log.info(  # pyright: ignore[reportAny]
+                            "Applied library restrictions",
+                            server_name=server.name,
+                            library_count=len(server_library_ids),
+                        )
 
                     # Step 5: Apply permissions
                     permissions = dict(DEFAULT_PERMISSIONS)
