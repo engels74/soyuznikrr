@@ -1208,18 +1208,18 @@ class PlexClient:
                         )
                 else:
                     # User not found in account.users() — may be a shared-only
-                    # user (created via _share_library_direct). Still attempt
-                    # friend/sharing removal to ensure complete cleanup.
-                    if shared_deleted:
-                        log.info(
-                            "plex_user_not_in_friends_list_attempting_relationship_cleanup",
-                            url=self.url,
-                            user_id=external_user_id,
-                        )
-                        _ = self._remove_friend_and_sharing_sync(
-                            external_user_id,
-                            best_effort=True,
-                        )
+                    # user (created via _share_library_direct). Always attempt
+                    # friend/sharing removal to ensure complete cleanup,
+                    # regardless of whether shared server access was found.
+                    log.info(
+                        "plex_user_not_in_friends_list_attempting_relationship_cleanup",
+                        url=self.url,
+                        user_id=external_user_id,
+                    )
+                    friend_deleted = self._remove_friend_and_sharing_sync(
+                        external_user_id,
+                        best_effort=True,
+                    )
 
                 return friend_deleted or shared_deleted
 

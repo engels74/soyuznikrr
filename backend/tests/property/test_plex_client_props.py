@@ -1478,11 +1478,14 @@ class TestDeleteUserReturnValueCorrectness:
         api_key: str,
         user_id: int,
     ) -> None:
-        """delete_user returns False when user is not in friends list or shared_servers."""
+        """delete_user returns False when user is not in friends list or shared_servers and v2 cleanup also fails."""
         from zondarr.media.providers.plex.client import PlexClient
 
-        # Empty user list AND empty shared_servers response
-        mock_session = MockSessionForSharedServers(get_json={"SharedServer": []})
+        # Empty user list AND empty shared_servers response AND v2 cleanup fails
+        mock_session = MockSessionForSharedServers(
+            get_json={"SharedServer": []},
+            friends_delete_error=Exception("not found"),
+        )
         mock_account = MockMyPlexAccountWithUserManagement(
             users=[], session=mock_session
         )
