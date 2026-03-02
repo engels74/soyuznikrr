@@ -62,6 +62,7 @@ class PlexErrorCode:
 
     # Library errors
     LIBRARY_NOT_FOUND = "LIBRARY_NOT_FOUND"
+    INVALID_LIBRARY_ID = "INVALID_LIBRARY_ID"
 
 
 def _map_plex_error_to_code(error: Exception) -> str:
@@ -949,7 +950,16 @@ class PlexClient:
         # Convert string library IDs to integer Plex section IDs
         section_ids: list[int] | None = None
         if library_ids:
-            section_ids = [int(lid) for lid in library_ids]
+            try:
+                section_ids = [int(lid) for lid in library_ids]
+            except ValueError as exc:
+                raise _create_media_client_error(
+                    f"Invalid library ID(s): could not convert to integers: {exc}",
+                    operation="create_user",
+                    server_url=self.url,
+                    cause=f"Non-integer library ID in {list(library_ids)}",
+                    error_code=PlexErrorCode.INVALID_LIBRARY_ID,
+                ) from exc
 
         if email is not None:
             return await self._create_friend(
