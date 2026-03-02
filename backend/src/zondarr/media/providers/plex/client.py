@@ -481,7 +481,7 @@ class PlexClient:
         try:
             from plexapi.myplex import MyPlexAccount
 
-            def _share_direct() -> ExternalUser:
+            def _share_direct() -> tuple[ExternalUser, bool]:
                 assert self._account is not None  # noqa: S101
                 assert self._server is not None  # noqa: S101
 
@@ -542,6 +542,7 @@ class PlexClient:
                 # Auto-accept: use the invitee's token to accept the pending
                 # invite so they get immediate library access without having to
                 # visit plex.tv manually.
+                auto_accepted = False
                 try:
                     pending = user_account.pendingInvites(  # pyright: ignore[reportUnknownVariableType]
                         includeSent=False,
@@ -557,6 +558,7 @@ class PlexClient:
                                 == machine_id
                             ):
                                 _ = user_account.acceptInvite(invite)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportUnknownArgumentType]
+                                auto_accepted = True
                                 break
                 except Exception as exc:
                     # Best-effort: if auto-accept fails the invite still exists
@@ -566,14 +568,17 @@ class PlexClient:
                         error=str(exc),
                     )
 
-                return ExternalUser(
-                    external_user_id=plex_user_id,
-                    username=username,  # pyright: ignore[reportUnknownArgumentType]
-                    email=email,
-                    user_type="shared",
+                return (
+                    ExternalUser(
+                        external_user_id=plex_user_id,
+                        username=username,  # pyright: ignore[reportUnknownArgumentType]
+                        email=email,
+                        user_type="shared",
+                    ),
+                    auto_accepted,
                 )
 
-            result = await asyncio.to_thread(_share_direct)
+            result, invite_accepted = await asyncio.to_thread(_share_direct)
 
             log.info(
                 "plex_library_shared_direct",
@@ -583,8 +588,11 @@ class PlexClient:
                 username=result.username,
             )
 
-            # Best-effort cleanup: cancel any stale pending invites for this user
-            _ = await self._cancel_pending_invites_for_user(email)
+            # Only cancel stale pending invites when the invite was already
+            # accepted automatically.  When auto-accept failed, the pending
+            # invite must remain so the user can accept it manually.
+            if invite_accepted:
+                _ = await self._cancel_pending_invites_for_user(email)
 
             return result
 
@@ -1131,13 +1139,28 @@ class PlexClient:
             )
             sharing_removed = True
         except Exception as exc:
-            if best_effort or friends_removed:
-                # If friends endpoint succeeded, sharing 404 is expected
+            resp = getattr(exc, "response", None)
+            status: int | None = getattr(resp, "status_code", None)
+            is_not_found = status == 404
+
+            if best_effort or (friends_removed and is_not_found):
+                # 404 is expected when friends removal already cascaded
                 log.debug(
                     "plex_sharing_removal_skipped",
                     url=self.url,
                     user_id=external_user_id,
                     error=str(exc),
+                )
+            elif friends_removed:
+                # Non-404 failure after successful friends removal.
+                # The friend relationship is gone so the user is
+                # effectively deleted; log a warning for visibility.
+                log.warning(
+                    "plex_sharing_removal_failed_after_friend_removal",
+                    url=self.url,
+                    user_id=external_user_id,
+                    error=str(exc),
+                    status_code=status,
                 )
             else:
                 raise
