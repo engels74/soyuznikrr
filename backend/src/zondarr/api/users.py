@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zondarr.media.registry import registry
 from zondarr.models.identity import User
 from zondarr.repositories.identity import IdentityRepository
-from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.user import UserService
 
@@ -66,31 +65,15 @@ async def provide_identity_repository(
     return IdentityRepository(session)
 
 
-async def provide_sync_exclusion_repository(
-    session: AsyncSession,
-) -> SyncExclusionRepository:
-    """Provide SyncExclusionRepository instance.
-
-    Args:
-        session: Database session from DI.
-
-    Returns:
-        Configured SyncExclusionRepository instance.
-    """
-    return SyncExclusionRepository(session)
-
-
 async def provide_user_service(
     user_repository: UserRepository,
     identity_repository: IdentityRepository,
-    sync_exclusion_repository: SyncExclusionRepository,
 ) -> UserService:
     """Provide UserService instance.
 
     Args:
         user_repository: UserRepository from DI.
         identity_repository: IdentityRepository from DI.
-        sync_exclusion_repository: SyncExclusionRepository from DI.
 
     Returns:
         Configured UserService instance.
@@ -98,7 +81,6 @@ async def provide_user_service(
     return UserService(
         user_repository,
         identity_repository,
-        sync_exclusion_repository=sync_exclusion_repository,
     )
 
 
@@ -114,7 +96,6 @@ class UserController(Controller):
     dependencies: Mapping[str, Provide | AnyCallable] | None = {
         "user_repository": Provide(provide_user_repository),
         "identity_repository": Provide(provide_identity_repository),
-        "sync_exclusion_repository": Provide(provide_sync_exclusion_repository),
         "user_service": Provide(provide_user_service),
     }
 

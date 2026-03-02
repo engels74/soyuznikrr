@@ -34,7 +34,6 @@ from zondarr.repositories.admin import AdminAccountRepository
 from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.media_server import MediaServerRepository
-from zondarr.repositories.sync_exclusion import SyncExclusionRepository
 from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
@@ -118,20 +117,6 @@ async def provide_identity_repository(
     return IdentityRepository(session)
 
 
-async def provide_sync_exclusion_repository(
-    session: AsyncSession,
-) -> SyncExclusionRepository:
-    """Provide SyncExclusionRepository instance.
-
-    Args:
-        session: Database session from DI.
-
-    Returns:
-        Configured SyncExclusionRepository instance.
-    """
-    return SyncExclusionRepository(session)
-
-
 async def provide_sync_run_repository(
     session: AsyncSession,
 ) -> SyncRunRepository:
@@ -143,7 +128,6 @@ async def provide_sync_service(
     server_repository: MediaServerRepository,
     user_repository: UserRepository,
     identity_repository: IdentityRepository,
-    sync_exclusion_repository: SyncExclusionRepository,
 ) -> SyncService:
     """Provide SyncService instance.
 
@@ -151,7 +135,6 @@ async def provide_sync_service(
         server_repository: MediaServerRepository from DI.
         user_repository: UserRepository from DI.
         identity_repository: IdentityRepository from DI.
-        sync_exclusion_repository: SyncExclusionRepository from DI.
 
     Returns:
         Configured SyncService instance.
@@ -160,7 +143,6 @@ async def provide_sync_service(
         server_repository,
         user_repository,
         identity_repository,
-        sync_exclusion_repo=sync_exclusion_repository,
     )
 
 
@@ -192,7 +174,6 @@ class ServerController(Controller):
         "server_repository": Provide(provide_media_server_repository),
         "user_repository": Provide(provide_user_repository),
         "identity_repository": Provide(provide_identity_repository),
-        "sync_exclusion_repository": Provide(provide_sync_exclusion_repository),
         "sync_run_repository": Provide(provide_sync_run_repository),
         "sync_service": Provide(provide_sync_service),
         "media_server_service": Provide(provide_media_server_service),

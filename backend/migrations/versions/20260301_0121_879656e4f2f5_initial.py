@@ -201,34 +201,6 @@ def upgrade() -> None:
         )
 
     op.create_table(
-        "sync_exclusions",
-        sa.Column("external_user_id", sa.String(length=255), nullable=False),
-        sa.Column("media_server_id", sa.Uuid(), nullable=False),
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            server_default=sa.text("(CURRENT_TIMESTAMP)"),
-            nullable=False,
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["media_server_id"],
-            ["media_servers.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "external_user_id",
-            "media_server_id",
-            name="uq_sync_exclusions_external_user_server",
-        ),
-    )
-    with op.batch_alter_table("sync_exclusions", schema=None) as batch_op:
-        batch_op.create_index(
-            "ix_sync_exclusions_external_user_id", ["external_user_id"], unique=False
-        )
-
-    op.create_table(
         "sync_runs",
         sa.Column("media_server_id", sa.Uuid(), nullable=False),
         sa.Column("sync_type", sa.String(length=32), nullable=False),
@@ -404,10 +376,6 @@ def downgrade() -> None:
         batch_op.drop_index("ix_sync_runs_media_server_id")
 
     op.drop_table("sync_runs")
-    with op.batch_alter_table("sync_exclusions", schema=None) as batch_op:
-        batch_op.drop_index("ix_sync_exclusions_external_user_id")
-
-    op.drop_table("sync_exclusions")
     with op.batch_alter_table("refresh_tokens", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_refresh_tokens_token_hash"))
 

@@ -129,7 +129,6 @@ async def create_test_engine() -> AsyncEngine:
 _TRUNCATE_ORDER: list[str] = [
     "refresh_tokens",
     "sync_runs",
-    "sync_exclusions",
     "admin_accounts",
     "wizard_steps",
     "wizards",
