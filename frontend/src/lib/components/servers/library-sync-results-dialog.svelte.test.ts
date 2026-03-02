@@ -29,7 +29,7 @@ describe('LibrarySyncResultsDialog', () => {
 		cleanup();
 	});
 
-	it('renders all summary counts', async () => {
+	it('renders all summary counts with correct values', async () => {
 		await fc.assert(
 			fc.asyncProperty(librarySyncResultArb, async (result) => {
 				const onClose = vi.fn();
@@ -42,18 +42,20 @@ describe('LibrarySyncResultsDialog', () => {
 					expect(dialog).not.toBeNull();
 				});
 
-				expect(document.querySelector('[data-library-sync-total]')?.textContent).toContain(
-					String(result.total_libraries)
-				);
-				expect(document.querySelector('[data-library-sync-added]')?.textContent).toContain(
-					String(result.added_count)
-				);
-				expect(document.querySelector('[data-library-sync-updated]')?.textContent).toContain(
-					String(result.updated_count)
-				);
-				expect(document.querySelector('[data-library-sync-removed]')?.textContent).toContain(
-					String(result.removed_count)
-				);
+				const totalEl = document.querySelector('[data-library-sync-total]');
+				const addedEl = document.querySelector('[data-library-sync-added]');
+				const updatedEl = document.querySelector('[data-library-sync-updated]');
+				const removedEl = document.querySelector('[data-library-sync-removed]');
+
+				expect(totalEl).not.toBeNull();
+				expect(addedEl).not.toBeNull();
+				expect(updatedEl).not.toBeNull();
+				expect(removedEl).not.toBeNull();
+
+				expect(totalEl!.textContent).toContain(String(result.total_libraries));
+				expect(addedEl!.textContent).toContain(String(result.added_count));
+				expect(updatedEl!.textContent).toContain(String(result.updated_count));
+				expect(removedEl!.textContent).toContain(String(result.removed_count));
 
 				cleanup();
 			}),
