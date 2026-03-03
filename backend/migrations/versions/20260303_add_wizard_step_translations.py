@@ -45,37 +45,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["step_id"], ["wizard_steps.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["step_id"], ["wizard_steps.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "step_id", "language_code", name="uq_step_translation_language"
         ),
     )
-
-    # Data migration: create English translation rows for existing steps
-    conn = op.get_bind()
-    steps = conn.execute(
-        sa.text("SELECT id, title, content_markdown FROM wizard_steps")
-    ).fetchall()
-    for step in steps:
-        conn.execute(
-            sa.text(
-                "INSERT INTO wizard_step_translations "
-                "(id, step_id, language_code, title, content_markdown, created_at) "
-                "VALUES (lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || "
-                "'-4' || substr(hex(randomblob(2)),2) || '-' || "
-                "substr('89ab', abs(random()) % 4 + 1, 1) || "
-                "substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))), "
-                ":step_id, 'en', :title, :content_markdown, CURRENT_TIMESTAMP)"
-            ),
-            {
-                "step_id": step[0],
-                "title": step[1],
-                "content_markdown": step[2],
-            },
-        )
 
 
 def downgrade() -> None:

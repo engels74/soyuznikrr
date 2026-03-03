@@ -80,6 +80,7 @@ def public_wizard_step_to_response(step: WizardStep, /) -> WizardStepResponse:
             content_markdown=t.content_markdown,
         )
         for t in step.translations
+        if t.language_code != step.primary_language
     ]
     return WizardStepResponse(
         id=step.id,
@@ -112,6 +113,7 @@ def wizard_step_to_response(step: WizardStep, /) -> WizardStepResponse:
             content_markdown=t.content_markdown,
         )
         for t in step.translations
+        if t.language_code != step.primary_language
     ]
     return WizardStepResponse(
         id=step.id,
