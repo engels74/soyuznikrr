@@ -90,7 +90,9 @@ const availableLanguages = $derived.by(() => {
 	];
 	if (step.translations) {
 		for (const t of step.translations) {
-			langs.push({ code: t.language_code, label: t.language_code.toUpperCase() });
+			if (t.language_code !== primary) {
+				langs.push({ code: t.language_code, label: t.language_code.toUpperCase() });
+			}
 		}
 	}
 	return langs;

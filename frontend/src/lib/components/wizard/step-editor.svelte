@@ -297,7 +297,9 @@ function handleSetPrimaryLanguage(languageCode: string) {
 	const oldPrimary = primaryLanguage;
 
 	// Add current primary as a translation (preserving its content)
-	const newTranslations = translations.filter((t) => t.language_code !== languageCode);
+	const newTranslations = translations.filter(
+		(t) => t.language_code !== languageCode && t.language_code !== oldPrimary,
+	);
 	newTranslations.push({
 		language_code: oldPrimary,
 		title,
