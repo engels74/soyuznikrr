@@ -1032,6 +1032,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/languages': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * List supported languages
+		 * @description Return ISO 639-1 languages sorted with English first, rest alphabetical by code.
+		 */
+		get: operations['ApiV1LanguagesListLanguages'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1286,6 +1306,11 @@ export interface components {
 			pre_wizard?: components['schemas']['WizardDetailResponse'] | null;
 			post_wizard?: components['schemas']['WizardDetailResponse'] | null;
 		};
+		/** LanguageResponse */
+		LanguageResponse: {
+			code: string;
+			name: string;
+		};
 		/** LibraryResponse */
 		LibraryResponse: {
 			/** Format: uuid */
@@ -1440,26 +1465,7 @@ export interface components {
 		};
 		/**
 		 * RedemptionErrorResponse
-		 * @example {
-		 *       "success": false,
-		 *       "error_code": "AsuEshTKFLZjQQrDxkwh",
-		 *       "message": "WjGDYPstccqXcjHsjXcF",
-		 *       "correlation_id": null,
-		 *       "failed_server": null,
-		 *       "partial_users": [
-		 *         {
-		 *           "id": "c2713ce2-5868-405b-93e6-d9036dc3ccee",
-		 *           "identity_id": "2b1acaa9-29ad-405f-bddd-cc7231e6ff39",
-		 *           "media_server_id": "f69b0ae6-c099-4c4c-8f10-8ed367d731e1",
-		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
-		 *           "username": "VGFBaiJKfHyEulsYjSBd",
-		 *           "enabled": true,
-		 *           "created_at": "1996-09-09T02:15:52.921080",
-		 *           "expires_at": "2021-04-15T03:27:43.723815",
-		 *           "updated_at": "2006-04-29T15:53:11.944409"
-		 *         }
-		 *       ]
-		 *     }
+		 * @example RedemptionErrorResponse(success=False, error_code='AsuEshTKFLZjQQrDxkwh', message='WjGDYPstccqXcjHsjXcF', correlation_id=None, failed_server=None, partial_users=[UserResponse(id=UUID('c2713ce2-5868-405b-93e6-d9036dc3ccee'), identity_id=UUID('2b1acaa9-29ad-405f-bddd-cc7231e6ff39'), media_server_id=UUID('f69b0ae6-c099-4c4c-8f10-8ed367d731e1'), external_user_id='yOTjTEvAUueXgfLqpHUr', username='VGFBaiJKfHyEulsYjSBd', enabled=True, created_at=datetime.datetime(1996, 9, 9, 4, 24, 24, 921080), external_user_type=None, expires_at=datetime.datetime(2021, 4, 15, 5, 36, 15, 723815), updated_at=datetime.datetime(2006, 4, 29, 18, 1, 43, 944409))])
 		 */
 		RedemptionErrorResponse: {
 			/**
@@ -1477,17 +1483,7 @@ export interface components {
 			failed_server?: string | null;
 			/**
 			 * @example [
-			 *       {
-			 *         "id": "4133e4d7-5916-4281-8e24-d9ccd2ea3f17",
-			 *         "identity_id": "c2680192-6c96-4b0e-b4f5-add55c37849a",
-			 *         "media_server_id": "4850e927-bfdb-43be-a0fb-c247319115d0",
-			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
-			 *         "username": "EMpEHdutFmqCQcDdvDZV",
-			 *         "enabled": false,
-			 *         "created_at": "1996-08-26T12:24:53.852486",
-			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-07T20:50:12.373028"
-			 *       }
+			 *       "UserResponse(id=UUID('4133e4d7-5916-4281-8e24-d9ccd2ea3f17'), identity_id=UUID('c2680192-6c96-4b0e-b4f5-add55c37849a'), media_server_id=UUID('4850e927-bfdb-43be-a0fb-c247319115d0'), external_user_id='ypzVvHsoVSEeCtLViFvD', username='EMpEHdutFmqCQcDdvDZV', enabled=False, created_at=datetime.datetime(1996, 8, 26, 14, 33, 25, 852486), external_user_type='kSDBQNXqcJcDSuFiiFSZ', expires_at=None, updated_at=datetime.datetime(1997, 2, 7, 22, 58, 44, 373028))"
 			 *     ]
 			 */
 			partial_users?: components['schemas']['UserResponse'][] | null;
@@ -4308,6 +4304,26 @@ export interface operations {
 							  }
 							| unknown[];
 					};
+				};
+			};
+		};
+	};
+	ApiV1LanguagesListLanguages: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['LanguageResponse'][];
 				};
 			};
 		};

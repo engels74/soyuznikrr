@@ -8,7 +8,7 @@
  * @module $lib/components/wizard/step-editor
  */
 
-import { Globe, Plus, X } from "@lucide/svelte";
+import { Globe, X } from "@lucide/svelte";
 import { onDestroy } from "svelte";
 import { slide } from "svelte/transition";
 import { toast } from "svelte-sonner";
@@ -24,6 +24,8 @@ import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
 import { Switch } from "$lib/components/ui/switch";
 import { getAllInteractionTypes, type InteractionTypeRegistration } from "./interactions";
+import { getCachedLanguages, getLanguageLabel, loadLanguages } from "./language-cache";
+import LanguagePicker from "./language-picker.svelte";
 import MarkdownEditor from "./markdown-editor.svelte";
 
 interface Props {
@@ -36,19 +38,9 @@ interface Props {
 
 const { step, wizardId, onSave, onCancel, onInteractionsChange }: Props = $props();
 
-// Supported languages
-const SUPPORTED_LANGUAGES: { code: string; label: string }[] = [
-	{ code: "en", label: "English (EN)" },
-	{ code: "da", label: "Dansk (DA)" },
-	{ code: "de", label: "Deutsch (DE)" },
-	{ code: "zh", label: "中文 (ZH)" },
-	{ code: "es", label: "Español (ES)" },
-	{ code: "fr", label: "Français (FR)" },
-];
-
-function getLanguageLabel(code: string): string {
-	return SUPPORTED_LANGUAGES.find((l) => l.code === code)?.label ?? code.toUpperCase();
-}
+// Language data fetched from API (shared cache)
+let allLanguages = $state(getCachedLanguages());
+loadLanguages().then((langs) => { allLanguages = langs; });
 
 // Form state (local copies — intentionally captures initial prop values)
 // svelte-ignore state_referenced_locally
@@ -72,13 +64,12 @@ let translations = $state<TranslationData[]>(
 let activeTranslationTab = $state<string | null>(
 	translations.length > 0 ? translations[0]!.language_code : null,
 );
-let showAddLanguageMenu = $state(false);
 let showRemoveTranslationDialog = $state(false);
 let removeTranslationTarget = $state<string | null>(null);
 
 // Available languages (not yet added as translations and not the primary language)
 const availableLanguages = $derived(
-	SUPPORTED_LANGUAGES.filter(
+	allLanguages.filter(
 		(l) =>
 			l.code !== primaryLanguage &&
 			!translations.some((t) => t.language_code === l.code),
@@ -255,7 +246,6 @@ function handleAddTranslation(languageCode: string) {
 		{ language_code: languageCode, title: "", content_markdown: "" },
 	];
 	activeTranslationTab = languageCode;
-	showAddLanguageMenu = false;
 }
 
 /**
@@ -390,31 +380,10 @@ async function handleSave() {
 			</div>
 
 			{#if availableLanguages.length > 0}
-				<div class="add-language-wrapper">
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => (showAddLanguageMenu = !showAddLanguageMenu)}
-						class="text-cr-text-muted hover:text-cr-accent"
-					>
-						<Plus size={14} />
-						Add Language
-					</Button>
-
-					{#if showAddLanguageMenu}
-						<div class="add-language-menu" transition:slide={{ duration: 150 }}>
-							{#each availableLanguages as lang (lang.code)}
-								<button
-									type="button"
-									class="language-option"
-									onclick={() => handleAddTranslation(lang.code)}
-								>
-									{lang.label}
-								</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
+				<LanguagePicker
+					languages={availableLanguages}
+					onSelect={handleAddTranslation}
+				/>
 			{/if}
 		</div>
 
@@ -765,42 +734,6 @@ async function handleSave() {
 	.tab-dot.filled {
 		background: var(--cr-accent);
 		border-color: var(--cr-accent);
-	}
-
-	.add-language-wrapper {
-		position: relative;
-	}
-
-	.add-language-menu {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		z-index: 10;
-		margin-top: 0.25rem;
-		min-width: 10rem;
-		background: var(--cr-surface);
-		border: 1px solid var(--cr-border);
-		border-radius: 0.5rem;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-		overflow: hidden;
-	}
-
-	.language-option {
-		display: block;
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.8125rem;
-		color: var(--cr-text);
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		text-align: left;
-		transition: background 0.1s ease;
-	}
-
-	.language-option:hover {
-		background: var(--cr-accent-highlight);
-		color: var(--cr-accent);
 	}
 
 	/* Translation editor */

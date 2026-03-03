@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.conftest import TestDB
+from zondarr.core.languages import LANGUAGES
 from zondarr.models import WizardStepTranslation
 
 # Custom strategies
@@ -27,7 +28,7 @@ markdown_strategy = st.text(
     max_size=500,
 )
 
-language_code_strategy = st.sampled_from(["en", "da", "de", "fr", "es", "nl", "sv"])
+language_code_strategy = st.sampled_from(list(LANGUAGES.keys()))
 
 
 def _make_service(session: AsyncSession):

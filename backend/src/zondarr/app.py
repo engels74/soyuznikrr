@@ -32,6 +32,7 @@ from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
+from litestar.types import ControllerRouterHandler
 from structlog.types import Processor
 
 from zondarr.api.auth import AuthController
@@ -55,7 +56,7 @@ from zondarr.api.servers import ServerController
 from zondarr.api.settings import SettingsController
 from zondarr.api.totp import TOTPController
 from zondarr.api.users import UserController
-from zondarr.api.wizards import WizardController
+from zondarr.api.wizards import WizardController, list_languages
 from zondarr.config import Settings, load_settings
 from zondarr.core.auth import DevSkipAuthMiddleware, create_jwt_auth
 from zondarr.core.csrf import CSRFMiddleware
@@ -233,7 +234,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
     registry.set_settings(settings)
 
     # Collect route handlers dynamically from providers
-    route_handlers: list[type] = [
+    route_handlers: list[ControllerRouterHandler] = [
         AuthController,
         DashboardController,
         HealthController,
@@ -247,6 +248,7 @@ def create_app(settings: Settings | None = None) -> Litestar:
         TOTPController,
         UserController,
         WizardController,
+        list_languages,
     ]
 
     for desc in registry.get_all_descriptors():
