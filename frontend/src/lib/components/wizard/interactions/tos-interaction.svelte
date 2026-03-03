@@ -45,7 +45,9 @@ function toggleAccepted() {
 
 <div class="tos-interaction">
 	<!-- Custom checkbox with card -->
-	<div class="checkbox-card">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="checkbox-card" onclick={toggleAccepted} role="group">
 		<label class="checkbox-container">
 			<button
 				type="button"
@@ -91,6 +93,7 @@ function toggleAccepted() {
 		background: var(--wizard-input-bg);
 		border: 1px solid var(--wizard-input-border);
 		border-radius: 0.75rem;
+		cursor: pointer;
 	}
 
 	/* Checkbox container */

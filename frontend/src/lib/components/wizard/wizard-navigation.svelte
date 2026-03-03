@@ -87,7 +87,7 @@ const {
 	}
 
 	.nav-content {
-		max-width: 640px;
+		max-width: 720px;
 		margin: 0 auto;
 		display: flex;
 		justify-content: space-between;
