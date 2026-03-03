@@ -34,15 +34,17 @@ function handleClick() {
 	.click-interaction {
 		display: flex;
 		justify-content: center;
-		padding: 1rem 0;
+		padding: 2rem 0;
 	}
 
 	/* Override accent button sizing for primary CTA */
 	.confirm-btn {
 		gap: 0.5rem;
-		padding: 0.875rem 2rem;
-		font-size: 1rem;
-		border-radius: 0.5rem;
+		min-width: 200px;
+		min-height: 44px;
+		padding: 1rem 2.5rem;
+		font-size: 1.0625rem;
+		border-radius: 0.625rem;
 		box-shadow:
 			0 0 20px var(--wizard-accent-glow-lg),
 			0 4px 12px var(--wizard-shadow-sm);

@@ -113,7 +113,7 @@ function handleComplete() {
 	<!-- Continue button -->
 	<button
 		type="button"
-		class="wizard-accent-btn"
+		class="wizard-accent-btn continue-btn"
 		onclick={handleComplete}
 		disabled={!isComplete || disabled}
 	>
@@ -127,7 +127,7 @@ function handleComplete() {
 		flex-direction: column;
 		align-items: center;
 		gap: 2rem;
-		padding: 1.5rem 0;
+		padding: 2rem 0;
 	}
 
 	/* Circular timer ring */
@@ -244,6 +244,15 @@ function handleComplete() {
 		50% {
 			opacity: 0.7;
 		}
+	}
+
+	/* Continue button sizing */
+	.continue-btn {
+		min-width: 200px;
+		min-height: 44px;
+		padding: 1rem 2.5rem;
+		font-size: 1.0625rem;
+		border-radius: 0.625rem;
 	}
 </style>
 

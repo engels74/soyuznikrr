@@ -10,25 +10,34 @@ interface Props {
 	current: number;
 	total: number;
 	progress: number;
+	stepTitle?: string;
 }
 
-const { current, total, progress }: Props = $props();
+const { current, total, progress, stepTitle }: Props = $props();
 
 const isComplete = $derived(current === total && progress >= 100);
 </script>
 
 <div class="wizard-progress" class:complete={isComplete}>
-	<!-- Step counter -->
-	<div class="step-counter">
-		<span class="current">{current}</span>
-		<span class="separator">/</span>
-		<span class="total">{total}</span>
+	<!-- Step header: counter + title -->
+	<div class="step-header">
+		<div class="step-counter">
+			<span class="current">{current}</span>
+			<span class="separator">/</span>
+			<span class="total">{total}</span>
+		</div>
+		{#if stepTitle}
+			<span class="step-title">{stepTitle}</span>
+		{/if}
 	</div>
 
 	<!-- Progress bar -->
 	<div class="progress-track">
 		<div class="progress-fill" style="width: {progress}%"></div>
 	</div>
+
+	<!-- Accessible step label -->
+	<span class="step-label" aria-live="polite">Step {current} of {total}</span>
 </div>
 
 <style>
@@ -39,6 +48,13 @@ const isComplete = $derived(current === total && progress >= 100);
 		animation: wizard-reveal 0.6s ease-out both;
 	}
 
+	/* Step header: counter + title row */
+	.step-header {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+	}
+
 	/* Step counter */
 	.step-counter {
 		display: flex;
@@ -47,6 +63,18 @@ const isComplete = $derived(current === total && progress >= 100);
 		font-family: 'JetBrains Mono', 'Fira Code', monospace;
 		font-size: 0.875rem;
 		font-variant-numeric: tabular-nums;
+		flex-shrink: 0;
+	}
+
+	/* Step title */
+	.step-title {
+		color: hsl(220 10% 70%);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
 	}
 
 	.current {
@@ -65,7 +93,7 @@ const isComplete = $derived(current === total && progress >= 100);
 
 	/* Progress bar track */
 	.progress-track {
-		height: 3px;
+		height: 4px;
 		background: hsl(220 10% 18%);
 		border-radius: 2px;
 		overflow: hidden;
@@ -91,6 +119,13 @@ const isComplete = $derived(current === total && progress >= 100);
 
 	.wizard-progress.complete .current {
 		text-shadow: 0 0 8px hsl(45 90% 55% / 0.5);
+	}
+
+	/* Accessible step label */
+	.step-label {
+		font-size: 0.6875rem;
+		color: hsl(220 10% 45%);
+		letter-spacing: 0.02em;
 	}
 
 	@keyframes pulse-glow {
