@@ -55,7 +55,7 @@ function toggleAccepted() {
 				aria-checked={accepted}
 				class="checkbox"
 				class:checked={accepted}
-				onclick={toggleAccepted}
+				onclick={(e) => { e.stopPropagation(); toggleAccepted(); }}
 				{disabled}
 			>
 				{#if accepted}
