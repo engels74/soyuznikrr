@@ -10,9 +10,23 @@ import { browser } from "$app/environment";
 import type { WizardDetailResponse } from "$lib/api/client";
 import { validateStep } from "$lib/api/client";
 import { getInteractionType, type InteractionCompletionData } from "./interactions";
+import LanguageSwitcher from "./language-switcher.svelte";
 import { renderMarkdown } from "./markdown-utils";
 import WizardNavigation from "./wizard-navigation.svelte";
 import WizardProgress from "./wizard-progress.svelte";
+
+/** Translation shape from the backend API. */
+interface StepTranslation {
+	language_code: string;
+	title: string;
+	content_markdown: string;
+}
+
+/** Extended step type with translation fields (added by multilingual feature). */
+type TranslatableStep = typeof wizard.steps[number] & {
+	primary_language?: string;
+	translations?: StepTranslation[];
+};
 
 interface Props {
 	wizard: WizardDetailResponse;
@@ -60,10 +74,88 @@ const canProceed = $derived(
 const completedCount = $derived(currentCompletions.size);
 const totalCount = $derived(currentInteractions.length);
 
-// Render markdown content with sanitization
+// --- Language / translation state ---
+let selectedLanguage = $state<string | null>(null);
+
+// Cast current step to include optional translation fields
+const translatableStep = $derived(currentStep as TranslatableStep | undefined);
+
+// Build the list of available languages for the current step
+const availableLanguages = $derived.by(() => {
+	const step = translatableStep;
+	if (!step) return [];
+	const primary = step.primary_language ?? "en";
+	const langs: { code: string; label: string }[] = [
+		{ code: primary, label: primary.toUpperCase() },
+	];
+	if (step.translations) {
+		for (const t of step.translations) {
+			langs.push({ code: t.language_code, label: t.language_code.toUpperCase() });
+		}
+	}
+	return langs;
+});
+
+// Effective language: selected if available for this step, else primary
+const effectiveLanguage = $derived.by(() => {
+	const step = translatableStep;
+	if (!step) return null;
+	const primary = step.primary_language ?? "en";
+	if (!selectedLanguage) return primary;
+	if (selectedLanguage === primary) return primary;
+	if (step.translations?.some((t) => t.language_code === selectedLanguage)) {
+		return selectedLanguage;
+	}
+	return primary;
+});
+
+// Translated title
+const displayTitle = $derived.by(() => {
+	const step = translatableStep;
+	if (!step) return "";
+	const lang = effectiveLanguage;
+	const primary = step.primary_language ?? "en";
+	if (lang && lang !== primary) {
+		const t = step.translations?.find((tr) => tr.language_code === lang);
+		if (t) return t.title;
+	}
+	return step.title ?? "";
+});
+
+// Render markdown content with sanitization, using translated content when available
 const renderedMarkdown = $derived.by(() => {
-	if (!currentStep?.content_markdown) return "";
-	return renderMarkdown(currentStep.content_markdown);
+	const step = translatableStep;
+	if (!step) return "";
+	const lang = effectiveLanguage;
+	const primary = step.primary_language ?? "en";
+	let markdown = step.content_markdown;
+	if (lang && lang !== primary) {
+		const t = step.translations?.find((tr) => tr.language_code === lang);
+		if (t) markdown = t.content_markdown;
+	}
+	if (!markdown) return "";
+	return renderMarkdown(markdown);
+});
+
+function handleLanguageSelect(code: string) {
+	selectedLanguage = code;
+}
+
+// Restore language selection from sessionStorage
+$effect(() => {
+	if (browser) {
+		const savedLang = sessionStorage.getItem(`wizard-${wizard.id}-language`);
+		if (savedLang) {
+			selectedLanguage = savedLang;
+		}
+	}
+});
+
+// Persist language selection to sessionStorage
+$effect(() => {
+	if (browser && selectedLanguage) {
+		sessionStorage.setItem(`wizard-${wizard.id}-language`, selectedLanguage);
+	}
 });
 
 // Restore progress from sessionStorage on mount (skip in preview mode)
@@ -150,6 +242,7 @@ async function handleNext() {
 		if (isLastStep) {
 			if (browser && mode !== "preview") {
 				sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+				sessionStorage.removeItem(`wizard-${wizard.id}-language`);
 			}
 			onComplete(result.data?.completion_token);
 		} else {
@@ -252,15 +345,26 @@ async function handleInteractionValidate(
 		<!-- Step content card -->
 		{#key currentStep?.id}
 		<div class="wizard-card">
-			<!-- Step title -->
-			{#if currentStep?.title}
-				<h2 class="wizard-title">{currentStep.title}</h2>
-			{/if}
+			<!-- Step title with language switcher -->
+			<div class="wizard-title-row">
+				{#if displayTitle}
+					{#key effectiveLanguage}
+						<h2 class="wizard-title">{displayTitle}</h2>
+					{/key}
+				{/if}
+				<LanguageSwitcher
+					languages={availableLanguages}
+					selected={effectiveLanguage ?? "en"}
+					onSelect={handleLanguageSelect}
+				/>
+			</div>
 
 			<!-- Markdown content -->
-			<div class="wizard-content prose prose-invert">
-				{@html renderedMarkdown}
-			</div>
+			{#key effectiveLanguage}
+				<div class="wizard-content prose prose-invert lang-fade">
+					{@html renderedMarkdown}
+				</div>
+			{/key}
 
 			<!-- Interactions area -->
 			<div class="wizard-interaction" class:has-interactions={hasInteractions}>
@@ -453,15 +557,29 @@ async function handleInteractionValidate(
 		background: hsl(220 10% 40%);
 	}
 
+	/* Title row: title + language switcher */
+	.wizard-title-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
 	/* Cinematic title */
 	.wizard-title {
 		font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
 		font-size: 2rem;
 		font-weight: 500;
 		letter-spacing: -0.02em;
-		margin-bottom: 1.5rem;
+		margin-bottom: 0;
 		color: var(--wizard-text);
 		animation: wizard-reveal 0.6s ease-out 0.15s both;
+	}
+
+	/* Fade animation for language-switched content */
+	.lang-fade {
+		animation: lang-fade-in 0.25s ease-out both;
 	}
 
 	/* Content area */
@@ -830,6 +948,15 @@ async function handleInteractionValidate(
 		}
 	}
 
+	@keyframes lang-fade-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
 	@keyframes check-pop {
 		0% {
 			transform: scale(0.8);
@@ -863,7 +990,8 @@ async function handleInteractionValidate(
 		.wizard-title,
 		.wizard-content,
 		.wizard-interaction,
-		.interaction-block {
+		.interaction-block,
+		.lang-fade {
 			animation: none !important;
 		}
 

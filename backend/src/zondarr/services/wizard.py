@@ -22,7 +22,13 @@ from zondarr.core.wizard_token import (
     sign_wizard_progress,
     verify_wizard_progress,
 )
-from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
+from zondarr.models.wizard import (
+    InteractionType,
+    StepInteraction,
+    Wizard,
+    WizardStep,
+    WizardStepTranslation,
+)
 from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
 from zondarr.repositories.wizard_step import WizardStepRepository
@@ -227,6 +233,8 @@ class WizardService:
         title: str,
         content_markdown: str,
         step_order: int | None = None,
+        primary_language: str = "en",
+        translations: list[dict[str, str]] | None = None,
     ) -> WizardStep:
         """Create a new wizard step (bare content container).
 
@@ -238,6 +246,9 @@ class WizardService:
             title: The step title (keyword-only).
             content_markdown: The markdown content (keyword-only).
             step_order: The step position (keyword-only).
+            primary_language: Language code of the title/content fields (keyword-only).
+            translations: Optional list of translation dicts with
+                language_code, title, content_markdown (keyword-only).
 
         Returns:
             The created WizardStep entity.
@@ -261,9 +272,25 @@ class WizardService:
             step_order=step_order,
             title=title,
             content_markdown=content_markdown,
+            primary_language=primary_language,
         )
         created_step = await self.step_repo.create(step)
-        await self.step_repo.session.refresh(created_step, ["interactions"])
+
+        # Create translation records if provided
+        if translations:
+            for t in translations:
+                translation = WizardStepTranslation(
+                    step_id=created_step.id,
+                    language_code=t["language_code"],
+                    title=t["title"],
+                    content_markdown=t["content_markdown"],
+                )
+                self.step_repo.session.add(translation)
+            await self.step_repo.session.flush()
+
+        await self.step_repo.session.refresh(
+            created_step, ["interactions", "translations"]
+        )
         return created_step
 
     async def update_step(
@@ -274,6 +301,8 @@ class WizardService:
         *,
         title: str | None = None,
         content_markdown: str | None = None,
+        primary_language: str | None = None,
+        translations: list[dict[str, str]] | None = None,
     ) -> WizardStep:
         """Update a wizard step.
 
@@ -282,6 +311,11 @@ class WizardService:
             step_id: The UUID of the step (positional-only).
             title: New title (keyword-only).
             content_markdown: New markdown content (keyword-only).
+            primary_language: New language code (keyword-only).
+            translations: List of translation dicts to upsert. Replaces
+                the full set: languages not in the list are removed,
+                existing languages are updated, new languages are added
+                (keyword-only).
 
         Returns:
             The updated WizardStep entity.
@@ -300,8 +334,43 @@ class WizardService:
         if content_markdown is not None:
             step.content_markdown = content_markdown
 
+        if primary_language is not None:
+            step.primary_language = primary_language
+
+        # Upsert translations if provided (replace full set)
+        if translations is not None:
+            # Load current translations
+            await self.step_repo.session.refresh(step, ["translations"])
+            existing_by_lang = {t.language_code: t for t in step.translations}
+            incoming_langs = {t["language_code"] for t in translations}
+
+            # Remove translations not in the incoming set
+            for lang, existing_t in existing_by_lang.items():
+                if lang not in incoming_langs:
+                    await self.step_repo.session.delete(existing_t)
+
+            # Add or update translations
+            for t in translations:
+                lang = t["language_code"]
+                if lang in existing_by_lang:
+                    existing_t = existing_by_lang[lang]
+                    existing_t.title = t["title"]
+                    existing_t.content_markdown = t["content_markdown"]
+                else:
+                    new_t = WizardStepTranslation(
+                        step_id=step_id,
+                        language_code=lang,
+                        title=t["title"],
+                        content_markdown=t["content_markdown"],
+                    )
+                    self.step_repo.session.add(new_t)
+
+            await self.step_repo.session.flush()
+
         updated_step = await self.step_repo.update(step)
-        await self.step_repo.session.refresh(updated_step, ["interactions"])
+        await self.step_repo.session.refresh(
+            updated_step, ["interactions", "translations"]
+        )
         return updated_step
 
     async def delete_step(self, wizard_id: UUID, step_id: UUID, /) -> None:

@@ -8,15 +8,17 @@
  * @module $lib/components/wizard/step-editor
  */
 
+import { Globe, Plus, X } from "@lucide/svelte";
 import { onDestroy } from "svelte";
 import { slide } from "svelte/transition";
 import { toast } from "svelte-sonner";
-import type { StepInteractionResponse, WizardStepResponse } from "$lib/api/client";
+import type { StepInteractionResponse, TranslationData, WizardStepResponse } from "$lib/api/client";
 import {
 	addStepInteraction,
 	removeStepInteraction,
 	updateStepInteraction,
 } from "$lib/api/client";
+import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 import { Button } from "$lib/components/ui/button";
 import { Input } from "$lib/components/ui/input";
 import { Label } from "$lib/components/ui/label";
@@ -34,12 +36,59 @@ interface Props {
 
 const { step, wizardId, onSave, onCancel, onInteractionsChange }: Props = $props();
 
+// Supported languages
+const SUPPORTED_LANGUAGES: { code: string; label: string }[] = [
+	{ code: "en", label: "English (EN)" },
+	{ code: "da", label: "Dansk (DA)" },
+	{ code: "de", label: "Deutsch (DE)" },
+	{ code: "zh", label: "中文 (ZH)" },
+	{ code: "es", label: "Español (ES)" },
+	{ code: "fr", label: "Français (FR)" },
+];
+
+function getLanguageLabel(code: string): string {
+	return SUPPORTED_LANGUAGES.find((l) => l.code === code)?.label ?? code.toUpperCase();
+}
+
 // Form state (local copies — intentionally captures initial prop values)
 // svelte-ignore state_referenced_locally
 let title = $state(step.title);
 // svelte-ignore state_referenced_locally
 let contentMarkdown = $state(step.content_markdown);
 let isSaving = $state(false);
+
+// Translation state
+// svelte-ignore state_referenced_locally
+let primaryLanguage = $state(step.primary_language ?? "en");
+// svelte-ignore state_referenced_locally
+let translations = $state<TranslationData[]>(
+	(step.translations ?? []).map((t) => ({
+		language_code: t.language_code,
+		title: t.title,
+		content_markdown: t.content_markdown,
+	})),
+);
+// svelte-ignore state_referenced_locally
+let activeTranslationTab = $state<string | null>(
+	translations.length > 0 ? translations[0]!.language_code : null,
+);
+let showAddLanguageMenu = $state(false);
+let showRemoveTranslationDialog = $state(false);
+let removeTranslationTarget = $state<string | null>(null);
+
+// Available languages (not yet added as translations and not the primary language)
+const availableLanguages = $derived(
+	SUPPORTED_LANGUAGES.filter(
+		(l) =>
+			l.code !== primaryLanguage &&
+			!translations.some((t) => t.language_code === l.code),
+	),
+);
+
+// Active translation data for the current tab
+const activeTranslation = $derived(
+	translations.find((t) => t.language_code === activeTranslationTab),
+);
 
 // Track active interactions locally
 // svelte-ignore state_referenced_locally
@@ -198,7 +247,76 @@ function handleConfigChange(type: string, newConfig: Record<string, unknown>) {
 }
 
 /**
- * Handle save (title + content only).
+ * Add a translation for a new language.
+ */
+function handleAddTranslation(languageCode: string) {
+	translations = [
+		...translations,
+		{ language_code: languageCode, title: "", content_markdown: "" },
+	];
+	activeTranslationTab = languageCode;
+	showAddLanguageMenu = false;
+}
+
+/**
+ * Request to remove a translation (show confirmation).
+ */
+function handleRemoveTranslationRequest(languageCode: string) {
+	removeTranslationTarget = languageCode;
+	showRemoveTranslationDialog = true;
+}
+
+/**
+ * Remove a translation after confirmation.
+ */
+function handleRemoveTranslationConfirm() {
+	if (!removeTranslationTarget) return;
+	translations = translations.filter((t) => t.language_code !== removeTranslationTarget);
+	if (activeTranslationTab === removeTranslationTarget) {
+		activeTranslationTab = translations.length > 0 ? translations[0]!.language_code : null;
+	}
+	showRemoveTranslationDialog = false;
+	removeTranslationTarget = null;
+}
+
+/**
+ * Update a translation field.
+ */
+function handleTranslationChange(languageCode: string, field: "title" | "content_markdown", value: string) {
+	translations = translations.map((t) =>
+		t.language_code === languageCode ? { ...t, [field]: value } : t,
+	);
+}
+
+/**
+ * Set the primary language for this step.
+ */
+function handleSetPrimaryLanguage(languageCode: string) {
+	// If changing from a translation to primary, move content around
+	const existingTranslation = translations.find((t) => t.language_code === languageCode);
+	const oldPrimary = primaryLanguage;
+
+	// Add current primary as a translation (preserving its content)
+	const newTranslations = translations.filter((t) => t.language_code !== languageCode);
+	newTranslations.push({
+		language_code: oldPrimary,
+		title,
+		content_markdown: contentMarkdown,
+	});
+
+	// Set new primary content from the translation
+	if (existingTranslation) {
+		title = existingTranslation.title;
+		contentMarkdown = existingTranslation.content_markdown;
+	}
+
+	primaryLanguage = languageCode;
+	translations = newTranslations;
+	activeTranslationTab = newTranslations.length > 0 ? newTranslations[0]!.language_code : null;
+}
+
+/**
+ * Handle save (title + content + translations).
  */
 async function handleSave() {
 	isSaving = true;
@@ -206,6 +324,8 @@ async function handleSave() {
 		await onSave({
 			title,
 			content_markdown: contentMarkdown,
+			primary_language: primaryLanguage,
+			translations: translations as unknown as WizardStepResponse["translations"],
 		});
 	} finally {
 		isSaving = false;
@@ -229,6 +349,136 @@ async function handleSave() {
 	<div class="field">
 		<Label class="text-cr-text">Content</Label>
 		<MarkdownEditor bind:value={contentMarkdown} />
+	</div>
+
+	<!-- Primary language indicator -->
+	<div class="primary-language-info">
+		<Globe size={14} class="text-cr-text-muted" />
+		<span class="text-xs text-cr-text-muted">
+			Primary language: <strong class="text-cr-text">{getLanguageLabel(primaryLanguage)}</strong>
+		</span>
+	</div>
+
+	<!-- Translations section -->
+	<div class="translations-section">
+		<div class="section-header">
+			<h4 class="section-title">Translations</h4>
+			<p class="section-description">
+				Add translations for this step in other languages.
+			</p>
+		</div>
+
+		<!-- Translation tab bar -->
+		<div class="translation-tabs">
+			<div class="tab-list">
+				{#each translations as t (t.language_code)}
+					<button
+						type="button"
+						class="tab-button"
+						class:active={activeTranslationTab === t.language_code}
+						onclick={() => (activeTranslationTab = t.language_code)}
+					>
+						<span
+							class="tab-dot"
+							class:filled={t.title.length > 0 || t.content_markdown.length > 0}
+						></span>
+						{getLanguageLabel(t.language_code)}
+					</button>
+				{/each}
+			</div>
+
+			{#if availableLanguages.length > 0}
+				<div class="add-language-wrapper">
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => (showAddLanguageMenu = !showAddLanguageMenu)}
+						class="text-cr-text-muted hover:text-cr-accent"
+					>
+						<Plus size={14} />
+						Add Language
+					</Button>
+
+					{#if showAddLanguageMenu}
+						<div class="add-language-menu" transition:slide={{ duration: 150 }}>
+							{#each availableLanguages as lang (lang.code)}
+								<button
+									type="button"
+									class="language-option"
+									onclick={() => handleAddTranslation(lang.code)}
+								>
+									{lang.label}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Active translation editor -->
+		{#if activeTranslation && activeTranslationTab}
+			<div class="translation-editor" transition:slide={{ duration: 200 }}>
+				<div class="translation-editor-header">
+					<span class="translation-lang-label">
+						{getLanguageLabel(activeTranslationTab)}
+					</span>
+					<div class="translation-actions">
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => handleSetPrimaryLanguage(activeTranslationTab!)}
+							class="text-xs text-cr-text-muted hover:text-cr-accent"
+						>
+							Set as Primary
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => handleRemoveTranslationRequest(activeTranslationTab!)}
+							class="text-cr-text-muted hover:text-destructive"
+						>
+							<X size={14} />
+						</Button>
+					</div>
+				</div>
+
+				<div class="field">
+					<Label class="text-cr-text">Title</Label>
+					<Input
+						value={activeTranslation.title}
+						oninput={(e: Event) =>
+							handleTranslationChange(
+								activeTranslationTab!,
+								"title",
+								(e.target as HTMLInputElement).value,
+							)}
+						placeholder="Translated title"
+						class="border-cr-border bg-cr-bg text-cr-text"
+					/>
+				</div>
+
+				<div class="field">
+					<Label class="text-cr-text">Content</Label>
+					<textarea
+						value={activeTranslation.content_markdown}
+						oninput={(e: Event) =>
+							handleTranslationChange(
+								activeTranslationTab!,
+								"content_markdown",
+								(e.target as HTMLTextAreaElement).value,
+							)}
+						placeholder="Translated markdown content..."
+						rows="6"
+						class="translation-textarea"
+					></textarea>
+				</div>
+			</div>
+		{:else if translations.length === 0}
+			<p class="text-xs text-cr-text-muted" style="padding: 0.5rem 0;">
+				No translations added yet. Click "Add Language" to add one.
+			</p>
+		{/if}
 	</div>
 
 	<!-- Interaction toggles -->
@@ -299,6 +549,16 @@ async function handleSave() {
 		</Button>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={showRemoveTranslationDialog}
+	title="Remove Translation"
+	description="Are you sure you want to remove the {removeTranslationTarget ? getLanguageLabel(removeTranslationTarget) : ''} translation? This cannot be undone."
+	confirmLabel="Remove"
+	variant="destructive"
+	onConfirm={handleRemoveTranslationConfirm}
+	onCancel={() => { showRemoveTranslationDialog = false; removeTranslationTarget = null; }}
+/>
 
 <style>
 	.step-editor {
@@ -435,6 +695,162 @@ async function handleSave() {
 		padding: 0.75rem 1rem 1rem;
 		padding-left: calc(1rem + 3px);
 		border-top: 1px solid var(--cr-module-config-border);
+	}
+
+	/* Primary language info */
+	.primary-language-info {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	/* Translations section */
+	.translations-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--cr-border);
+	}
+
+	.translation-tabs {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.tab-list {
+		display: flex;
+		gap: 0.25rem;
+		flex-wrap: wrap;
+	}
+
+	.tab-button {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--cr-text-muted);
+		background: transparent;
+		border: 1px solid var(--cr-border);
+		border-radius: 0.375rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.tab-button:hover {
+		color: var(--cr-text);
+		border-color: var(--cr-text-muted);
+	}
+
+	.tab-button.active {
+		color: var(--cr-accent);
+		border-color: var(--cr-accent);
+		background: var(--cr-accent-highlight);
+	}
+
+	.tab-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		border: 1.5px solid var(--cr-text-muted);
+		flex-shrink: 0;
+	}
+
+	.tab-dot.filled {
+		background: var(--cr-accent);
+		border-color: var(--cr-accent);
+	}
+
+	.add-language-wrapper {
+		position: relative;
+	}
+
+	.add-language-menu {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		z-index: 10;
+		margin-top: 0.25rem;
+		min-width: 10rem;
+		background: var(--cr-surface);
+		border: 1px solid var(--cr-border);
+		border-radius: 0.5rem;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		overflow: hidden;
+	}
+
+	.language-option {
+		display: block;
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.8125rem;
+		color: var(--cr-text);
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		text-align: left;
+		transition: background 0.1s ease;
+	}
+
+	.language-option:hover {
+		background: var(--cr-accent-highlight);
+		color: var(--cr-accent);
+	}
+
+	/* Translation editor */
+	.translation-editor {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background: var(--cr-module-bg);
+		border: 1px solid var(--cr-module-border);
+		border-radius: 0.5rem;
+	}
+
+	.translation-editor-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.translation-lang-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--cr-text);
+	}
+
+	.translation-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.translation-textarea {
+		width: 100%;
+		padding: 0.75rem;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-size: 0.875rem;
+		line-height: 1.6;
+		color: var(--cr-text);
+		background: var(--cr-bg);
+		border: 1px solid var(--cr-border);
+		border-radius: 0.5rem;
+		resize: vertical;
+		outline: none;
+		transition: border-color 0.15s ease;
+	}
+
+	.translation-textarea:focus {
+		border-color: var(--cr-accent);
+	}
+
+	.translation-textarea::placeholder {
+		color: var(--cr-text-muted);
 	}
 
 	/* Actions */

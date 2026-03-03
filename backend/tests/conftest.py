@@ -130,6 +130,8 @@ _TRUNCATE_ORDER: list[str] = [
     "refresh_tokens",
     "sync_runs",
     "admin_accounts",
+    "wizard_step_translations",
+    "step_interactions",
     "wizard_steps",
     "wizards",
     "users",
