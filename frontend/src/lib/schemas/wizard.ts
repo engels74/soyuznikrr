@@ -172,6 +172,29 @@ export const quizDisplayConfigSchema = z.object({
 export type QuizDisplayConfig = z.infer<typeof quizDisplayConfigSchema>;
 
 // =============================================================================
+// Translation Schema
+// =============================================================================
+
+/**
+ * Schema for a single translation of a wizard step.
+ *
+ * Validates:
+ * - language_code: 2-10 character language code (ISO 639-1)
+ * - title: 1-255 characters
+ * - content_markdown: required markdown content
+ */
+export const translationSchema = z.object({
+	language_code: z
+		.string()
+		.min(2, 'Language code must be at least 2 characters')
+		.max(10, 'Language code must be at most 10 characters'),
+	title: z.string().min(1, 'Title is required').max(255, 'Title must be at most 255 characters'),
+	content_markdown: z.string().min(1, 'Content is required')
+});
+
+export type TranslationInput = z.infer<typeof translationSchema>;
+
+// =============================================================================
 // Wizard Step Schema
 // =============================================================================
 
@@ -184,11 +207,15 @@ export type QuizDisplayConfig = z.infer<typeof quizDisplayConfigSchema>;
  * - title: 1-255 characters
  * - content_markdown: required markdown content
  * - step_order: optional, non-negative integer
+ * - primary_language: language code for the primary title/content, defaults to "en"
+ * - translations: optional array of translations for other languages
  */
 export const wizardStepSchema = z.object({
 	title: z.string().min(1, 'Title is required').max(255, 'Title must be at most 255 characters'),
 	content_markdown: z.string().min(1, 'Content is required'),
-	step_order: z.number().int().min(0, 'Step order must be non-negative').optional()
+	step_order: z.number().int().min(0, 'Step order must be non-negative').optional(),
+	primary_language: z.string().min(2).max(10).default('en'),
+	translations: z.array(translationSchema).optional()
 });
 
 export type WizardStepInput = z.infer<typeof wizardStepSchema>;

@@ -11,7 +11,13 @@ from zondarr.models.invitation import (
 )
 from zondarr.models.media_server import Library, MediaServer
 from zondarr.models.sync_run import SyncRun
-from zondarr.models.wizard import InteractionType, StepInteraction, Wizard, WizardStep
+from zondarr.models.wizard import (
+    InteractionType,
+    StepInteraction,
+    Wizard,
+    WizardStep,
+    WizardStepTranslation,
+)
 
 __all__ = [
     "AdminAccount",
@@ -30,6 +36,7 @@ __all__ = [
     "User",
     "Wizard",
     "WizardStep",
+    "WizardStepTranslation",
     "invitation_libraries",
     "invitation_servers",
 ]

@@ -1,10 +1,11 @@
-"""Wizard, WizardStep, and StepInteraction models for configurable onboarding flows.
+"""Wizard, WizardStep, StepInteraction, and WizardStepTranslation models.
 
 Provides:
 - InteractionType: StrEnum for supported wizard step interaction types
 - Wizard: Model representing a configurable wizard flow
 - WizardStep: Model representing a single step within a wizard
 - StepInteraction: Model representing an interaction attached to a step
+- WizardStepTranslation: Model for multilingual wizard step content
 
 Uses SQLAlchemy 2.0 patterns with mapped_column and Mapped types.
 Relationships use cascade delete for steps when wizard is deleted,
@@ -98,6 +99,7 @@ class WizardStep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     step_order: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(255))
     content_markdown: Mapped[str] = mapped_column(Text)
+    primary_language: Mapped[str] = mapped_column(String(10), default="en")
 
     # Relationships - use joined for single relations
     wizard: Mapped[Wizard] = relationship(
@@ -111,6 +113,13 @@ class WizardStep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="StepInteraction.display_order",
+    )
+
+    # Translations - cascade delete
+    translations: Mapped[list[WizardStepTranslation]] = relationship(
+        back_populates="step",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     # Table constraints - unique step_order per wizard
@@ -158,5 +167,46 @@ class StepInteraction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__: tuple[UniqueConstraint, ...] = (
         UniqueConstraint(
             "step_id", "interaction_type", name="uq_step_interaction_type"
+        ),
+    )
+
+
+class WizardStepTranslation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """A translation of a wizard step's content into a specific language.
+
+    Stores translated title and content_markdown for a wizard step,
+    keyed by ISO 639-1 language code. Each step can have at most one
+    translation per language.
+
+    Attributes:
+        id: UUID primary key
+        step_id: Foreign key to the parent wizard step
+        language_code: ISO 639-1 language code (e.g. "en", "da", "de")
+        title: Translated step title
+        content_markdown: Translated markdown content
+        created_at: Timestamp when the translation was created
+        updated_at: Timestamp of last modification
+        step: Reference to the parent wizard step
+    """
+
+    __tablename__: str = "wizard_step_translations"
+
+    step_id: Mapped[UUID] = mapped_column(
+        ForeignKey("wizard_steps.id", ondelete="CASCADE"),
+    )
+    language_code: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(255))
+    content_markdown: Mapped[str] = mapped_column(Text)
+
+    # Relationships
+    step: Mapped[WizardStep] = relationship(
+        back_populates="translations",
+        lazy="joined",
+    )
+
+    # Table constraints - unique language per step
+    __table_args__: tuple[UniqueConstraint, ...] = (
+        UniqueConstraint(
+            "step_id", "language_code", name="uq_step_translation_language"
         ),
     )

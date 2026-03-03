@@ -346,6 +346,37 @@ InteractionTypeStr = Annotated[
 # Step order (non-negative integer)
 StepOrder = Annotated[int, msgspec.Meta(ge=0)]
 
+# Language code (ISO 639-1, 2-10 chars)
+LanguageCode = Annotated[str, msgspec.Meta(min_length=2, max_length=10)]
+
+
+class TranslationData(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Translation data for a wizard step.
+
+    Attributes:
+        language_code: ISO 639-1 language code (e.g., "en", "da", "de").
+        title: Translated title for the step.
+        content_markdown: Translated markdown content.
+    """
+
+    language_code: LanguageCode
+    title: NonEmptyStr
+    content_markdown: str
+
+
+class TranslationResponse(msgspec.Struct, omit_defaults=True):
+    """Translation response for a wizard step.
+
+    Attributes:
+        language_code: ISO 639-1 language code.
+        title: Translated title for the step.
+        content_markdown: Translated markdown content.
+    """
+
+    language_code: str
+    title: str
+    content_markdown: str
+
 
 class WizardCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to create a wizard.
@@ -387,11 +418,15 @@ class WizardStepCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
         title: Display title for the step.
         content_markdown: Markdown content to display.
         step_order: Position in the wizard sequence. Auto-assigned if not provided.
+        primary_language: Language code of the title/content_markdown fields.
+        translations: Optional list of translations for other languages.
     """
 
     title: NonEmptyStr
     content_markdown: str
     step_order: StepOrder | None = None
+    primary_language: LanguageCode = "en"
+    translations: list[TranslationData] | None = None
 
 
 class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -402,10 +437,14 @@ class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
     Attributes:
         title: Display title for the step.
         content_markdown: Markdown content to display.
+        primary_language: Language code of the title/content_markdown fields.
+        translations: List of translations to upsert. Omit to leave unchanged.
     """
 
     title: NonEmptyStr | None = None
     content_markdown: str | None = None
+    primary_language: LanguageCode | None = None
+    translations: list[TranslationData] | None = None
 
 
 class StepReorderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -505,7 +544,9 @@ class WizardStepResponse(msgspec.Struct, omit_defaults=True):
         step_order: Position in the wizard sequence.
         title: Display title for the step.
         content_markdown: Markdown content to display.
+        primary_language: Language code of the title/content_markdown fields.
         interactions: List of interactions attached to this step.
+        translations: List of translations for other languages.
         created_at: When the step was created.
         updated_at: When the step was last modified.
     """
@@ -515,7 +556,9 @@ class WizardStepResponse(msgspec.Struct, omit_defaults=True):
     step_order: int
     title: str
     content_markdown: str
+    primary_language: str
     interactions: list[StepInteractionResponse]
+    translations: list[TranslationResponse]
     created_at: datetime
     updated_at: datetime | None = None
 

@@ -378,6 +378,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/servers/{server_id}/credential-locks': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get credential lock status for a server
+		 * @description Returns which credential fields (URL, API key) are overridden by environment variables for a specific media server.
+		 */
+		get: operations['ApiV1ServersServerIdCredentialLocksGetCredentialLocks'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/servers/env-credentials': {
 		parameters: {
 			query?: never;
@@ -522,6 +542,30 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/settings/secure-cookies': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get secure cookies setting
+		 * @description Returns whether secure cookies are enabled and if the setting is locked by an environment variable.
+		 */
+		get: operations['ApiV1SettingsSecureCookiesGetSecureCookies'];
+		/**
+		 * Update secure cookies setting
+		 * @description Enable or disable secure cookies. Fails if the value is locked by an environment variable.
+		 */
+		put: operations['ApiV1SettingsSecureCookiesUpdateSecureCookies'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/settings/csrf-origin/test': {
 		parameters: {
 			query?: never;
@@ -576,6 +620,108 @@ export interface paths {
 		 */
 		put: operations['ApiV1SettingsSyncIntervalUpdateSyncInterval'];
 		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/confirm-setup': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Confirm TOTP setup with authenticator code */
+		post: operations['ApiAuthTotpConfirmSetupConfirmTotpSetup'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/disable': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Disable TOTP two-factor authentication */
+		post: operations['ApiAuthTotpDisableDisableTotp'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/regenerate-backup-codes': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Regenerate TOTP backup codes */
+		post: operations['ApiAuthTotpRegenerateBackupCodesRegenerateBackupCodes'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/setup': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Initiate TOTP setup */
+		post: operations['ApiAuthTotpSetupSetupTotp'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/backup-code': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Verify backup code during login */
+		post: operations['ApiAuthTotpBackupCodeVerifyBackupCode'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/totp/verify': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Verify TOTP code during login */
+		post: operations['ApiAuthTotpVerifyVerifyTotp'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -909,6 +1055,8 @@ export interface components {
 			onboarding_required: boolean;
 			/** @enum {string} */
 			onboarding_step: 'account' | 'security' | 'server' | 'complete';
+			/** @default false */
+			totp_enabled: boolean;
 			email?: string | null;
 			/** @default local */
 			auth_method: string;
@@ -936,6 +1084,7 @@ export interface components {
 		/** AllSettingsResponse */
 		AllSettingsResponse: {
 			csrf_origin: components['schemas']['SettingValue'];
+			secure_cookies: components['schemas']['SettingValue'];
 			sync_interval_seconds: components['schemas']['SettingValue'];
 			expiration_check_interval_seconds: components['schemas']['SettingValue'];
 		};
@@ -998,10 +1147,17 @@ export interface components {
 			pre_wizard_id?: string | null;
 			post_wizard_id?: string | null;
 		};
+		/** CredentialLockStatusResponse */
+		CredentialLockStatusResponse: {
+			url_locked: boolean;
+			api_key_locked: boolean;
+		};
 		/** CsrfOriginResponse */
 		CsrfOriginResponse: {
 			csrf_origin?: string | null;
 			is_locked: boolean;
+			/** @default false */
+			secure_cookies_auto_enabled: boolean;
 		};
 		/** CsrfOriginTestRequest */
 		CsrfOriginTestRequest: {
@@ -1158,6 +1314,13 @@ export interface components {
 			username: string;
 			password: string;
 		};
+		/** LoginResponse */
+		LoginResponse: {
+			/** @default false */
+			totp_required: boolean;
+			challenge_token?: string | null;
+			refresh_token?: string | null;
+		};
 		/** MediaServerCreate */
 		MediaServerCreate: {
 			name: string;
@@ -1291,9 +1454,9 @@ export interface components {
 		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
 		 *           "username": "VGFBaiJKfHyEulsYjSBd",
 		 *           "enabled": true,
-		 *           "created_at": "1996-09-05T19:19:18.921080",
-		 *           "expires_at": "2021-04-11T20:31:09.723815",
-		 *           "updated_at": "2006-04-26T08:56:37.944409"
+		 *           "created_at": "1996-09-09T02:15:52.921080",
+		 *           "expires_at": "2021-04-15T03:27:43.723815",
+		 *           "updated_at": "2006-04-29T15:53:11.944409"
 		 *         }
 		 *       ]
 		 *     }
@@ -1321,9 +1484,9 @@ export interface components {
 			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
 			 *         "username": "EMpEHdutFmqCQcDdvDZV",
 			 *         "enabled": false,
-			 *         "created_at": "1996-08-23T05:28:19.852486",
+			 *         "created_at": "1996-08-26T12:24:53.852486",
 			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-04T13:53:38.373028"
+			 *         "updated_at": "1997-02-07T20:50:12.373028"
 			 *       }
 			 *     ]
 			 */
@@ -1340,6 +1503,15 @@ export interface components {
 		/** RefreshRequest */
 		RefreshRequest: {
 			refresh_token: string;
+		};
+		/** SecureCookiesResponse */
+		SecureCookiesResponse: {
+			secure_cookies: boolean;
+			is_locked: boolean;
+		};
+		/** SecureCookiesUpdate */
+		SecureCookiesUpdate: {
+			secure_cookies: boolean;
 		};
 		/** ServerSyncStatusResponse */
 		ServerSyncStatusResponse: {
@@ -1411,6 +1583,55 @@ export interface components {
 		SyncRequest: {
 			/** @default true */
 			dry_run: boolean;
+		};
+		/** TOTPBackupCodeRequest */
+		TOTPBackupCodeRequest: {
+			challenge_token: string;
+			code: string;
+		};
+		/** TOTPBackupCodesResponse */
+		TOTPBackupCodesResponse: {
+			backup_codes: string[];
+		};
+		/** TOTPConfirmSetupRequest */
+		TOTPConfirmSetupRequest: {
+			code: string;
+		};
+		/** TOTPConfirmSetupResponse */
+		TOTPConfirmSetupResponse: {
+			backup_codes: string[];
+		};
+		/** TOTPDisableRequest */
+		TOTPDisableRequest: {
+			password: string;
+			code: string;
+		};
+		/** TOTPRegenerateBackupCodesRequest */
+		TOTPRegenerateBackupCodesRequest: {
+			code: string;
+		};
+		/** TOTPSetupResponse */
+		TOTPSetupResponse: {
+			provisioning_uri: string;
+			qr_code_svg: string;
+			backup_codes: string[];
+		};
+		/** TOTPVerifyRequest */
+		TOTPVerifyRequest: {
+			challenge_token: string;
+			code: string;
+		};
+		/** TranslationData */
+		TranslationData: {
+			language_code: string;
+			title: string;
+			content_markdown: string;
+		};
+		/** TranslationResponse */
+		TranslationResponse: {
+			language_code: string;
+			title: string;
+			content_markdown: string;
 		};
 		/** UpdateInvitationRequest */
 		UpdateInvitationRequest: {
@@ -1522,6 +1743,9 @@ export interface components {
 			title: string;
 			content_markdown: string;
 			step_order?: number | null;
+			/** @default en */
+			primary_language: string;
+			translations?: components['schemas']['TranslationData'][] | null;
 		};
 		/** WizardStepResponse */
 		WizardStepResponse: {
@@ -1532,7 +1756,9 @@ export interface components {
 			step_order: number;
 			title: string;
 			content_markdown: string;
+			primary_language: string;
 			interactions: components['schemas']['StepInteractionResponse'][];
+			translations: components['schemas']['TranslationResponse'][];
 			/** Format: date-time */
 			created_at: string;
 			updated_at?: string | null;
@@ -1541,6 +1767,8 @@ export interface components {
 		WizardStepUpdate: {
 			title?: string | null;
 			content_markdown?: string | null;
+			primary_language?: string | null;
+			translations?: components['schemas']['TranslationData'][] | null;
 		};
 		/** WizardUpdate */
 		WizardUpdate: {
@@ -1658,7 +1886,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
+					'application/json': components['schemas']['LoginResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -1702,7 +1930,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
+					'application/json': components['schemas']['LoginResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2497,6 +2725,47 @@ export interface operations {
 			};
 		};
 	};
+	ApiV1ServersServerIdCredentialLocksGetCredentialLocks: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Media server UUID */
+				server_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CredentialLockStatusResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
 	ApiV1ServersEnvCredentialsGetEnvCredentials: {
 		parameters: {
 			query?: never;
@@ -2747,6 +3016,68 @@ export interface operations {
 			};
 		};
 	};
+	ApiV1SettingsSecureCookiesGetSecureCookies: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SecureCookiesResponse'];
+				};
+			};
+		};
+	};
+	ApiV1SettingsSecureCookiesUpdateSecureCookies: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SecureCookiesUpdate'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SecureCookiesResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
 	ApiV1SettingsCsrfOriginTestTestCsrfOrigin: {
 		parameters: {
 			query?: never;
@@ -2851,6 +3182,238 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['SettingValue'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiAuthTotpConfirmSetupConfirmTotpSetup: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TOTPConfirmSetupRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['TOTPConfirmSetupResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiAuthTotpDisableDisableTotp: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TOTPDisableRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						[key: string]: boolean;
+					};
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiAuthTotpRegenerateBackupCodesRegenerateBackupCodes: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TOTPRegenerateBackupCodesRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['TOTPBackupCodesResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiAuthTotpSetupSetupTotp: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['TOTPSetupResponse'];
+				};
+			};
+		};
+	};
+	ApiAuthTotpBackupCodeVerifyBackupCode: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TOTPBackupCodeRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AuthTokenResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiAuthTotpVerifyVerifyTotp: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TOTPVerifyRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AuthTokenResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

@@ -217,7 +217,7 @@ async function handleDeleteStepConfirm() {
 }
 
 /**
- * Update a step (title + content only).
+ * Update a step (title + content + translations).
  */
 async function handleUpdateStep(
 	stepId: string,
@@ -229,6 +229,12 @@ async function handleUpdateStep(
 		const result = await updateStep(wizard.id, stepId, {
 			title: updates.title ?? null,
 			content_markdown: updates.content_markdown ?? null,
+			primary_language: updates.primary_language ?? null,
+			translations: updates.translations?.map((t) => ({
+				language_code: t.language_code,
+				title: t.title,
+				content_markdown: t.content_markdown,
+			})) ?? null,
 		});
 
 		if (result.error) {

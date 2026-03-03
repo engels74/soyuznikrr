@@ -7,7 +7,7 @@ and InvitationController to avoid duplicated conversion logic.
 
 from zondarr.models.wizard import StepInteraction, WizardStep
 
-from .schemas import StepInteractionResponse, WizardStepResponse
+from .schemas import StepInteractionResponse, TranslationResponse, WizardStepResponse
 
 
 def step_interaction_to_response(
@@ -73,13 +73,24 @@ def public_wizard_step_to_response(step: WizardStep, /) -> WizardStepResponse:
         WizardStepResponse with sanitised interactions.
     """
     interactions = [public_step_interaction_to_response(i) for i in step.interactions]
+    translations = [
+        TranslationResponse(
+            language_code=t.language_code,
+            title=t.title,
+            content_markdown=t.content_markdown,
+        )
+        for t in step.translations
+        if t.language_code != step.primary_language
+    ]
     return WizardStepResponse(
         id=step.id,
         wizard_id=step.wizard_id,
         step_order=step.step_order,
         title=step.title,
         content_markdown=step.content_markdown,
+        primary_language=step.primary_language,
         interactions=interactions,
+        translations=translations,
         created_at=step.created_at,
         updated_at=step.updated_at,
     )
@@ -95,13 +106,24 @@ def wizard_step_to_response(step: WizardStep, /) -> WizardStepResponse:
         WizardStepResponse with interactions.
     """
     interactions = [step_interaction_to_response(i) for i in step.interactions]
+    translations = [
+        TranslationResponse(
+            language_code=t.language_code,
+            title=t.title,
+            content_markdown=t.content_markdown,
+        )
+        for t in step.translations
+        if t.language_code != step.primary_language
+    ]
     return WizardStepResponse(
         id=step.id,
         wizard_id=step.wizard_id,
         step_order=step.step_order,
         title=step.title,
         content_markdown=step.content_markdown,
+        primary_language=step.primary_language,
         interactions=interactions,
+        translations=translations,
         created_at=step.created_at,
         updated_at=step.updated_at,
     )

@@ -918,17 +918,53 @@ export interface QuizConfig {
 
 export type StepConfig = ClickConfig | TimerConfig | TosConfig | TextInputConfig | QuizConfig;
 
-export type WizardStepResponse = components['schemas']['WizardStepResponse'];
+// Translation types — manually defined until types.d.ts is regenerated
+export interface TranslationData {
+	language_code: string;
+	title: string;
+	content_markdown: string;
+}
+
+export interface TranslationResponse {
+	language_code: string;
+	title: string;
+	content_markdown: string;
+}
+
+// Override generated WizardStepResponse to include translation fields
+// (types.d.ts hasn't been regenerated yet with primary_language/translations)
+export interface WizardStepResponse
+	extends Omit<components['schemas']['WizardStepResponse'], 'primary_language' | 'translations'> {
+	primary_language: string;
+	translations: TranslationResponse[];
+}
+
 export type WizardResponse = components['schemas']['WizardResponse'];
-export type WizardDetailResponse = components['schemas']['WizardDetailResponse'];
+
+export type WizardDetailResponse = Omit<components['schemas']['WizardDetailResponse'], 'steps'> & {
+	steps: WizardStepResponse[];
+};
+
 export type WizardListResponse = components['schemas']['WizardListResponse'];
 export type StepValidationResponse = components['schemas']['StepValidationResponse'];
 export type StepValidationRequest = components['schemas']['StepValidationRequest'];
 export type StepReorderRequest = components['schemas']['StepReorderRequest'];
 export type CreateWizardRequest = components['schemas']['WizardCreate'];
 export type UpdateWizardRequest = components['schemas']['WizardUpdate'];
-export type CreateWizardStepRequest = components['schemas']['WizardStepCreate'];
-export type UpdateWizardStepRequest = components['schemas']['WizardStepUpdate'];
+
+// Override generated step create/update to include translation fields
+export interface CreateWizardStepRequest
+	extends Omit<components['schemas']['WizardStepCreate'], 'primary_language' | 'translations'> {
+	primary_language?: string;
+	translations?: TranslationData[];
+}
+
+export interface UpdateWizardStepRequest
+	extends Omit<components['schemas']['WizardStepUpdate'], 'primary_language' | 'translations'> {
+	primary_language?: string | null;
+	translations?: TranslationData[] | null;
+}
+
 export type StepInteractionResponse = components['schemas']['StepInteractionResponse'];
 export type StepInteractionCreate = components['schemas']['StepInteractionCreate'];
 export type StepInteractionUpdate = components['schemas']['StepInteractionUpdate'];
@@ -1025,7 +1061,7 @@ export async function createStep(
 ) {
 	return client.POST('/api/v1/wizards/{wizard_id}/steps', {
 		params: { path: { wizard_id: wizardId } },
-		body: data
+		body: { primary_language: 'en', ...data } as never
 	});
 }
 
@@ -1045,7 +1081,7 @@ export async function updateStep(
 ) {
 	return client.PATCH('/api/v1/wizards/{wizard_id}/steps/{step_id}', {
 		params: { path: { wizard_id: wizardId, step_id: stepId } },
-		body: data
+		body: data as never
 	});
 }
 

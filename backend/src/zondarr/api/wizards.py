@@ -342,11 +342,25 @@ class WizardController(Controller):
         Raises:
             NotFoundError: If the wizard does not exist.
         """
+        translations = (
+            [
+                {
+                    "language_code": t.language_code,
+                    "title": t.title,
+                    "content_markdown": t.content_markdown,
+                }
+                for t in data.translations
+            ]
+            if data.translations
+            else None
+        )
         step = await wizard_service.create_step(
             wizard_id,
             title=data.title,
             content_markdown=data.content_markdown,
             step_order=data.step_order,
+            primary_language=data.primary_language,
+            translations=translations,
         )
         return wizard_step_to_response(step)
 
@@ -382,11 +396,25 @@ class WizardController(Controller):
         Raises:
             NotFoundError: If the wizard or step does not exist.
         """
+        translations = (
+            [
+                {
+                    "language_code": t.language_code,
+                    "title": t.title,
+                    "content_markdown": t.content_markdown,
+                }
+                for t in data.translations
+            ]
+            if data.translations is not None
+            else None
+        )
         step = await wizard_service.update_step(
             wizard_id,
             step_id,
             title=data.title,
             content_markdown=data.content_markdown,
+            primary_language=data.primary_language,
+            translations=translations,
         )
         return wizard_step_to_response(step)
 
