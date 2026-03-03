@@ -44,28 +44,30 @@ function toggleAccepted() {
 </script>
 
 <div class="tos-interaction">
-	<!-- Custom checkbox -->
-	<label class="checkbox-container">
-		<button
-			type="button"
-			role="checkbox"
-			aria-checked={accepted}
-			class="checkbox"
-			class:checked={accepted}
-			onclick={toggleAccepted}
-			{disabled}
-		>
-			{#if accepted}
-				<Check class="check-icon" />
-			{/if}
-		</button>
-		<span class="checkbox-label">{checkboxLabel}</span>
-	</label>
+	<!-- Custom checkbox with card -->
+	<div class="checkbox-card">
+		<label class="checkbox-container">
+			<button
+				type="button"
+				role="checkbox"
+				aria-checked={accepted}
+				class="checkbox"
+				class:checked={accepted}
+				onclick={toggleAccepted}
+				{disabled}
+			>
+				{#if accepted}
+					<Check class="check-icon" />
+				{/if}
+			</button>
+			<span class="checkbox-label">{checkboxLabel}</span>
+		</label>
+	</div>
 
 	<!-- Accept button -->
 	<button
 		type="button"
-		class="wizard-accent-btn"
+		class="wizard-accent-btn accept-btn"
 		onclick={handleAccept}
 		disabled={!canProceed || disabled}
 	>
@@ -78,30 +80,39 @@ function toggleAccepted() {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 1.5rem;
-		padding: 1rem 0;
+		gap: 2rem;
+		padding: 2rem 0;
+	}
+
+	/* Subtle card around checkbox area */
+	.checkbox-card {
+		width: 100%;
+		padding: 1.25rem 1.5rem;
+		background: var(--wizard-input-bg);
+		border: 1px solid var(--wizard-input-border);
+		border-radius: 0.75rem;
 	}
 
 	/* Checkbox container */
 	.checkbox-container {
 		display: flex;
-		align-items: flex-start;
-		gap: 0.75rem;
+		align-items: center;
+		gap: 1rem;
 		cursor: pointer;
 		max-width: 100%;
 	}
 
-	/* Custom checkbox button */
+	/* Custom checkbox button — increased size for touch targets */
 	.checkbox {
 		flex-shrink: 0;
-		width: 1.5rem;
-		height: 1.5rem;
+		width: 1.75rem;
+		height: 1.75rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		background: var(--wizard-input-hover-bg);
 		border: 2px solid var(--wizard-ring-border);
-		border-radius: 0.375rem;
+		border-radius: 0.5rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
@@ -130,17 +141,26 @@ function toggleAccepted() {
 
 	/* Check icon */
 	.checkbox :global(.check-icon) {
-		width: 1rem;
-		height: 1rem;
+		width: 1.125rem;
+		height: 1.125rem;
 		color: var(--wizard-bg);
 		stroke-width: 3;
 	}
 
 	/* Checkbox label */
 	.checkbox-label {
-		font-size: 0.9375rem;
+		font-size: 1rem;
 		line-height: 1.5;
 		color: var(--wizard-text-secondary);
 		user-select: none;
+	}
+
+	/* Accept button sizing */
+	.accept-btn {
+		min-width: 200px;
+		min-height: 44px;
+		padding: 1rem 2.5rem;
+		font-size: 1.0625rem;
+		border-radius: 0.625rem;
 	}
 </style>

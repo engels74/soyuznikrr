@@ -73,10 +73,17 @@ const {
 	.wizard-navigation {
 		position: sticky;
 		bottom: 0;
-		padding: 1rem 0 0;
+		padding: 0.75rem 0;
 		animation: wizard-reveal 0.6s ease-out 0.4s both;
 		z-index: 10;
 		pointer-events: none;
+		border-top: 1px solid hsl(220 10% 18%);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		background: hsl(220 15% 8% / 0.8);
+		margin: 0 -1.5rem;
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
 	}
 
 	.nav-content {
@@ -110,12 +117,13 @@ const {
 		justify-content: center;
 		gap: 0.5rem;
 		border: none;
-		border-radius: 0.375rem;
+		border-radius: 0.5rem;
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s ease;
 		pointer-events: auto;
+		min-height: 44px;
 	}
 
 	button:disabled {
@@ -128,7 +136,7 @@ const {
 	.back-btn {
 		background: transparent;
 		color: hsl(220 10% 60%);
-		padding: 0.5rem 1rem;
+		padding: 0.625rem 1.25rem;
 	}
 
 	.back-btn:hover:not(:disabled) {
@@ -140,7 +148,7 @@ const {
 	.cancel-btn {
 		background: transparent;
 		color: hsl(0 70% 55%);
-		padding: 0.5rem 1rem;
+		padding: 0.625rem 1.25rem;
 		opacity: 0.7;
 	}
 
@@ -154,7 +162,8 @@ const {
 		background: hsl(45 90% 55%);
 		color: hsl(220 20% 4%);
 		font-weight: 600;
-		padding: 0.75rem 1.5rem;
+		font-size: 0.9375rem;
+		padding: 0.75rem 2rem;
 		box-shadow:
 			0 0 16px hsl(45 90% 55% / 0.3),
 			0 4px 12px hsl(0 0% 0% / 0.2);

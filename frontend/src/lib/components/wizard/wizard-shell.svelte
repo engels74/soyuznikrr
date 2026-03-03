@@ -247,7 +247,7 @@ async function handleInteractionValidate(
 <div class="wizard-shell">
 	<div class="wizard-container">
 		<!-- Progress indicator -->
-		<WizardProgress current={currentStepIndex + 1} total={wizard.steps.length} {progress} />
+		<WizardProgress current={currentStepIndex + 1} total={wizard.steps.length} {progress} stepTitle={currentStep?.title} />
 
 		<!-- Step content card -->
 		{#key currentStep?.id}
@@ -263,7 +263,7 @@ async function handleInteractionValidate(
 			</div>
 
 			<!-- Interactions area -->
-			<div class="wizard-interaction">
+			<div class="wizard-interaction" class:has-interactions={hasInteractions}>
 				{#if hasInteractions}
 					{#if isMultiInteraction}
 						<div class="interaction-progress">
@@ -411,7 +411,7 @@ async function handleInteractionValidate(
 	.wizard-container {
 		position: relative;
 		width: 100%;
-		max-width: 640px;
+		max-width: 720px;
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
@@ -421,19 +421,17 @@ async function handleInteractionValidate(
 	.wizard-card {
 		background: var(--wizard-surface);
 		border: 1px solid var(--wizard-border);
-		border-radius: 1rem;
-		padding: 2rem;
+		border-radius: 1.25rem;
+		padding: 2.5rem;
 		backdrop-filter: blur(8px);
 		box-shadow:
 			0 4px 24px var(--wizard-shadow-lg),
 			0 0 0 1px var(--wizard-card-inset) inset,
 			0 0 0 1px hsl(45 90% 55% / 0.06) inset;
 		animation: step-enter 0.5s ease-out both;
-		max-height: calc(100dvh - 200px);
 		overflow-y: auto;
 		overflow-x: hidden;
 		min-height: 0;
-		scroll-behavior: smooth;
 		scrollbar-color: hsl(220 10% 30%) transparent;
 		scrollbar-width: thin;
 	}
@@ -471,7 +469,7 @@ async function handleInteractionValidate(
 		font-size: 1.125rem;
 		line-height: 1.7;
 		color: var(--wizard-text-muted);
-		margin-bottom: 1.5rem;
+		margin-bottom: 2rem;
 		animation: wizard-reveal 0.6s ease-out 0.2s both;
 	}
 
@@ -507,7 +505,7 @@ async function handleInteractionValidate(
 		font-size: 1.875rem;
 		font-weight: 500;
 		letter-spacing: -0.02em;
-		margin-top: 1.5rem;
+		margin-top: 2rem;
 		margin-bottom: 0.75rem;
 		color: var(--wizard-text);
 		line-height: 1.2;
@@ -518,8 +516,8 @@ async function handleInteractionValidate(
 		font-size: 1.5rem;
 		font-weight: 500;
 		letter-spacing: -0.01em;
-		margin-top: 1.25rem;
-		margin-bottom: 0.5rem;
+		margin-top: 1.75rem;
+		margin-bottom: 0.625rem;
 		color: var(--wizard-text);
 		line-height: 1.3;
 	}
@@ -528,7 +526,7 @@ async function handleInteractionValidate(
 		font-family: 'Satoshi', 'DM Sans', system-ui, sans-serif;
 		font-size: 1.25rem;
 		font-weight: 600;
-		margin-top: 1.125rem;
+		margin-top: 1.5rem;
 		margin-bottom: 0.5rem;
 		color: var(--wizard-text);
 		line-height: 1.4;
@@ -538,7 +536,7 @@ async function handleInteractionValidate(
 		font-family: 'Satoshi', 'DM Sans', system-ui, sans-serif;
 		font-size: 1.125rem;
 		font-weight: 600;
-		margin-top: 1rem;
+		margin-top: 1.25rem;
 		margin-bottom: 0.375rem;
 		color: var(--wizard-text);
 		line-height: 1.4;
@@ -549,7 +547,7 @@ async function handleInteractionValidate(
 		font-family: 'Satoshi', 'DM Sans', system-ui, sans-serif;
 		font-size: 1rem;
 		font-weight: 600;
-		margin-top: 0.875rem;
+		margin-top: 1.125rem;
 		margin-bottom: 0.375rem;
 		color: var(--wizard-text-muted);
 		line-height: 1.4;
@@ -557,7 +555,8 @@ async function handleInteractionValidate(
 
 	/* Paragraph */
 	.wizard-content :global(p) {
-		margin-bottom: 1rem;
+		max-width: 65ch;
+		margin-bottom: 1.25rem;
 		color: var(--wizard-text-muted);
 		line-height: 1.7;
 	}
@@ -654,9 +653,9 @@ async function handleInteractionValidate(
 	}
 
 	.wizard-content :global(li) {
-		margin-bottom: 0.375rem;
+		margin-bottom: 0.5rem;
 		color: var(--wizard-text-muted);
-		line-height: 1.6;
+		line-height: 1.7;
 	}
 
 	.wizard-content :global(li > p) {
@@ -702,6 +701,11 @@ async function handleInteractionValidate(
 	/* Interaction area */
 	.wizard-interaction {
 		animation: wizard-reveal 0.6s ease-out 0.3s both;
+	}
+
+	.wizard-interaction.has-interactions {
+		padding-top: 2rem;
+		border-top: 1px solid var(--wizard-divider);
 	}
 
 	/* Multi-interaction progress bar */
@@ -835,6 +839,22 @@ async function handleInteractionValidate(
 		}
 		100% {
 			transform: scale(1);
+		}
+	}
+
+	/* Responsive: tighter padding on mobile */
+	@media (max-width: 639px) {
+		.wizard-shell {
+			padding: 1rem;
+		}
+
+		.wizard-card {
+			padding: 1.5rem;
+			border-radius: 1rem;
+		}
+
+		.wizard-title {
+			font-size: 1.625rem;
 		}
 	}
 

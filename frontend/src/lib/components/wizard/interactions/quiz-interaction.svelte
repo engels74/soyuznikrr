@@ -225,14 +225,14 @@ onDestroy(() => {
 	.quiz-interaction {
 		display: flex;
 		flex-direction: column;
-		gap: 1.25rem;
-		padding: 1rem 0;
+		gap: 1.5rem;
+		padding: 2rem 0;
 	}
 
 	/* Question */
 	.question {
 		font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
-		font-size: 1.375rem;
+		font-size: 1.5rem;
 		font-weight: 500;
 		color: var(--wizard-text);
 		margin: 0;
@@ -243,15 +243,16 @@ onDestroy(() => {
 	.options {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 0.875rem;
 	}
 
-	/* Individual option */
+	/* Individual option — 44px min touch target */
 	.option {
 		display: flex;
 		align-items: center;
-		gap: 0.875rem;
-		padding: 1rem 1.25rem;
+		gap: 1rem;
+		min-height: 44px;
+		padding: 1.125rem 1.5rem;
 		background: var(--wizard-input-bg);
 		border: 2px solid var(--wizard-input-border);
 		border-radius: 0.75rem;
@@ -350,9 +351,9 @@ onDestroy(() => {
 
 	/* Option text */
 	.option-text {
-		font-size: 0.9375rem;
+		font-size: 1rem;
 		color: var(--wizard-text-secondary);
-		line-height: 1.4;
+		line-height: 1.5;
 	}
 
 	.option.selected .option-text {
@@ -389,6 +390,11 @@ onDestroy(() => {
 	/* Submit button layout */
 	.submit-btn {
 		align-self: flex-start;
+		min-width: 200px;
+		min-height: 44px;
+		padding: 1rem 2.5rem;
+		font-size: 1.0625rem;
+		border-radius: 0.625rem;
 		margin-top: 0.5rem;
 	}
 
