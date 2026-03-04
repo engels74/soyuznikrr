@@ -1,5 +1,5 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
-import { getAuthMethods, getMe, type OnboardingStep } from '$lib/api/auth';
+import { getAuthMethods, getMe, getSetupToken, type OnboardingStep } from '$lib/api/auth';
 import { isNetworkError } from '$lib/api/errors';
 import type { PageLoad } from './$types';
 
@@ -8,7 +8,8 @@ export const load: PageLoad = async ({ fetch }) => {
 		const authMethods = await getAuthMethods(fetch);
 
 		if (authMethods.setup_required) {
-			return { onboardingStep: 'account' as OnboardingStep };
+			const bootstrapToken = await getSetupToken(fetch);
+			return { onboardingStep: 'account' as OnboardingStep, bootstrapToken };
 		}
 
 		if (!authMethods.onboarding_required) {
