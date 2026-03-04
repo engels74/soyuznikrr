@@ -30,7 +30,7 @@ const { children }: Props = $props();
 
 	<!-- Main content area -->
 	<main class="flex flex-1 flex-col items-center px-4 py-8 md:py-12">
-		<div class="w-full max-w-lg">
+		<div class="w-full max-w-3xl">
 			{@render children()}
 		</div>
 	</main>

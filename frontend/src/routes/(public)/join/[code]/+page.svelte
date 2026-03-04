@@ -495,47 +495,53 @@ function handleRegistrationRetry() {
 
 	<!-- Loading state -->
 	{#if isRetrying}
-		<Card class="border-cr-border bg-cr-surface">
-			<CardHeader>
-				<Skeleton class="h-6 w-48" />
-				<Skeleton class="mt-2 h-4 w-64" />
-			</CardHeader>
-			<CardContent class="space-y-4">
-				<Skeleton class="h-20 w-full" />
-				<Skeleton class="h-20 w-full" />
-			</CardContent>
-		</Card>
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-cr-border bg-cr-surface">
+				<CardHeader>
+					<Skeleton class="h-6 w-48" />
+					<Skeleton class="mt-2 h-4 w-64" />
+				</CardHeader>
+				<CardContent class="space-y-4">
+					<Skeleton class="h-20 w-full" />
+					<Skeleton class="h-20 w-full" />
+				</CardContent>
+			</Card>
+		</div>
 
 	<!-- Error state (network/validation error) -->
 	{:else if data.error}
-		<ErrorState
-			message={getErrorMessage(data.error)}
-			title={isNetworkError(data.error) ? 'Connection Error' : 'Validation Failed'}
-			onRetry={handleRetry}
-		/>
+		<div class="mx-auto w-full max-w-lg">
+			<ErrorState
+				message={getErrorMessage(data.error)}
+				title={isNetworkError(data.error) ? 'Connection Error' : 'Validation Failed'}
+				onRetry={handleRetry}
+			/>
+		</div>
 
 	<!-- Invalid code state -->
 	{:else if data.validation && !data.validation.valid}
-		<Card class="border-rose-500/30 bg-rose-500/5">
-			<CardHeader>
-				<div class="flex items-center gap-3">
-					<div class="rounded-full bg-rose-500/15 p-2 text-rose-400">
-						<AlertTriangle class="size-5" />
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-rose-500/30 bg-rose-500/5">
+				<CardHeader>
+					<div class="flex items-center gap-3">
+						<div class="rounded-full bg-rose-500/15 p-2 text-rose-400">
+							<AlertTriangle class="size-5" />
+						</div>
+						<div>
+							<CardTitle class="text-cr-text">Invalid Invitation</CardTitle>
+							<CardDescription class="text-cr-text-muted">
+								Code: <span class="font-mono">{data.code}</span>
+							</CardDescription>
+						</div>
 					</div>
-					<div>
-						<CardTitle class="text-cr-text">Invalid Invitation</CardTitle>
-						<CardDescription class="text-cr-text-muted">
-							Code: <span class="font-mono">{data.code}</span>
-						</CardDescription>
-					</div>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<p data-failure-reason={data.validation.failure_reason} class="text-cr-text-muted">
-					{getFailureMessage(data.validation.failure_reason)}
-				</p>
-			</CardContent>
-		</Card>
+				</CardHeader>
+				<CardContent>
+					<p data-failure-reason={data.validation.failure_reason} class="text-cr-text-muted">
+						{getFailureMessage(data.validation.failure_reason)}
+					</p>
+				</CardContent>
+			</Card>
+		</div>
 
 	<!-- Pre-wizard state -->
 	{:else if currentStep === 'pre_wizard' && data.validation?.pre_wizard}
@@ -555,193 +561,205 @@ function handleRegistrationRetry() {
 
 	<!-- Success state -->
 	{:else if currentStep === 'success' && redemptionResponse}
-		<SuccessPage response={redemptionResponse} {hasPlexServer} />
+		<div class="mx-auto w-full max-w-lg">
+			<SuccessPage response={redemptionResponse} {hasPlexServer} />
+		</div>
 
 	<!-- Registration error state -->
 	{:else if currentStep === 'error' && redemptionError}
-		<RegistrationError error={redemptionError} onRetry={handleRegistrationRetry} />
+		<div class="mx-auto w-full max-w-lg">
+			<RegistrationError error={redemptionError} onRetry={handleRegistrationRetry} />
+		</div>
 
 	<!-- Registration form state -->
 	{:else if currentStep === 'registration' && data.validation?.valid}
-		<Card class="border-cr-border bg-cr-surface">
-			<CardHeader>
-				<div class="flex items-center gap-3">
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={handleBack}
-						class="text-cr-text-muted hover:text-cr-text"
-						aria-label="Go back"
-					>
-						<ArrowLeft class="size-5" />
-					</Button>
-					<div>
-						<CardTitle class="text-cr-text">Create Your Account</CardTitle>
-						<CardDescription class="text-cr-text-muted">
-								Enter your details to create your account
-						</CardDescription>
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-cr-border bg-cr-surface">
+				<CardHeader>
+					<div class="flex items-center gap-3">
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={handleBack}
+							class="text-cr-text-muted hover:text-cr-text"
+							aria-label="Go back"
+						>
+							<ArrowLeft class="size-5" />
+						</Button>
+						<div>
+							<CardTitle class="text-cr-text">Create Your Account</CardTitle>
+							<CardDescription class="text-cr-text-muted">
+									Enter your details to create your account
+							</CardDescription>
+						</div>
 					</div>
-				</div>
-			</CardHeader>
-			<CardContent>
-				{#if hasCredentialCreateServer}
-					<RegistrationForm
-						bind:formData
-						errors={formErrors}
-						submitting={isSubmitting}
-						onSubmit={handleRegistrationSubmit}
-					/>
-				{:else}
-					<p class="text-cr-text-muted">No supported server types found.</p>
-				{/if}
-			</CardContent>
-		</Card>
+				</CardHeader>
+				<CardContent>
+					{#if hasCredentialCreateServer}
+						<RegistrationForm
+							bind:formData
+							errors={formErrors}
+							submitting={isSubmitting}
+							onSubmit={handleRegistrationSubmit}
+						/>
+					{:else}
+						<p class="text-cr-text-muted">No supported server types found.</p>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
 
 	<!-- OAuth flow state -->
 	{:else if currentStep === 'oauth' && data.validation?.valid}
-		<Card class="border-cr-border bg-cr-surface">
-			<CardHeader>
-				<div class="flex items-center gap-3">
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={handleBack}
-						class="text-cr-text-muted hover:text-cr-text"
-						aria-label="Go back"
-					>
-						<ArrowLeft class="size-5" />
-					</Button>
-					<div>
-						<CardTitle class="text-cr-text">Sign in with {getProviderLabel(oauthServerType)}</CardTitle>
-						<CardDescription class="text-cr-text-muted">
-							Authenticate with your {getProviderLabel(oauthServerType)} account to get access
-						</CardDescription>
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-cr-border bg-cr-surface">
+				<CardHeader>
+					<div class="flex items-center gap-3">
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={handleBack}
+							class="text-cr-text-muted hover:text-cr-text"
+							aria-label="Go back"
+						>
+							<ArrowLeft class="size-5" />
+						</Button>
+						<div>
+							<CardTitle class="text-cr-text">Sign in with {getProviderLabel(oauthServerType)}</CardTitle>
+							<CardDescription class="text-cr-text-muted">
+								Authenticate with your {getProviderLabel(oauthServerType)} account to get access
+							</CardDescription>
+						</div>
 					</div>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<OAuthJoinFlow
-					serverType={oauthServerType}
-					onAuthenticated={handleOAuthAuthenticated}
-					onCancel={handleOAuthCancel}
-				/>
-			</CardContent>
-		</Card>
+				</CardHeader>
+				<CardContent>
+					<OAuthJoinFlow
+						serverType={oauthServerType}
+						onAuthenticated={handleOAuthAuthenticated}
+						onCancel={handleOAuthCancel}
+					/>
+				</CardContent>
+			</Card>
+		</div>
 
 	<!-- OAuth redeeming state -->
 	{:else if currentStep === 'oauth_redeeming'}
-		<Card class="border-cr-border bg-cr-surface">
-			<CardHeader>
-				<CardTitle class="text-cr-text">Adding You to the Server</CardTitle>
-				<CardDescription class="text-cr-text-muted">
-					Please wait while we set up your access...
-				</CardDescription>
-			</CardHeader>
-			<CardContent class="flex flex-col items-center gap-4 py-8">
-				<div class="size-8 animate-spin rounded-full border-2 border-cr-accent border-t-transparent"></div>
-				{#if oauthEmail}
-					<p class="text-sm text-cr-text-muted">
-						Signed in as <span class="font-medium text-cr-text">{oauthEmail}</span>
-					</p>
-				{/if}
-			</CardContent>
-		</Card>
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-cr-border bg-cr-surface">
+				<CardHeader>
+					<CardTitle class="text-cr-text">Adding You to the Server</CardTitle>
+					<CardDescription class="text-cr-text-muted">
+						Please wait while we set up your access...
+					</CardDescription>
+				</CardHeader>
+				<CardContent class="flex flex-col items-center gap-4 py-8">
+					<div class="size-8 animate-spin rounded-full border-2 border-cr-accent border-t-transparent"></div>
+					{#if oauthEmail}
+						<p class="text-sm text-cr-text-muted">
+							Signed in as <span class="font-medium text-cr-text">{oauthEmail}</span>
+						</p>
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
 
 	<!-- Valid code state (validation step) -->
 	{:else if data.validation?.valid}
-		<Card class="border-emerald-500/30 bg-emerald-500/5">
-			<CardHeader>
-				<div class="flex items-center gap-3">
-					<div class="rounded-full bg-emerald-500/15 p-2 text-emerald-400">
-						<CheckCircle class="size-5" />
-					</div>
-					<div>
-						<CardTitle class="text-cr-text">Valid Invitation</CardTitle>
-						<CardDescription class="text-cr-text-muted">
-							Code: <span class="font-mono">{data.code}</span>
-						</CardDescription>
-					</div>
-				</div>
-			</CardHeader>
-			<CardContent class="space-y-6">
-				<!-- Duration info -->
-				{#if data.validation.duration_days}
-					<div data-duration-display class="flex items-center gap-3 rounded-lg border border-cr-border bg-cr-bg p-4">
-						<div class="rounded-full bg-cr-accent/15 p-2 text-cr-accent">
-							<Calendar class="size-5" />
+		<div class="mx-auto w-full max-w-lg">
+			<Card class="border-emerald-500/30 bg-emerald-500/5">
+				<CardHeader>
+					<div class="flex items-center gap-3">
+						<div class="rounded-full bg-emerald-500/15 p-2 text-emerald-400">
+							<CheckCircle class="size-5" />
 						</div>
 						<div>
-							<p class="font-medium text-cr-text">Access Duration</p>
-							<p class="text-sm text-cr-text-muted">
-								Your access will be valid for <span class="font-semibold text-cr-accent">{data.validation.duration_days} days</span> after registration.
-							</p>
+							<CardTitle class="text-cr-text">Valid Invitation</CardTitle>
+							<CardDescription class="text-cr-text-muted">
+								Code: <span class="font-mono">{data.code}</span>
+							</CardDescription>
 						</div>
 					</div>
-				{/if}
-
-				<!-- Target servers -->
-				{#if (data.validation.target_servers?.length ?? 0) > 0}
-					<div data-target-servers>
-						<div class="mb-3 flex items-center gap-2 text-cr-text">
-							<Server class="size-4" />
-							<h3 class="font-medium">Target Servers</h3>
+				</CardHeader>
+				<CardContent class="space-y-6">
+					<!-- Duration info -->
+					{#if data.validation.duration_days}
+						<div data-duration-display class="flex items-center gap-3 rounded-lg border border-cr-border bg-cr-bg p-4">
+							<div class="rounded-full bg-cr-accent/15 p-2 text-cr-accent">
+								<Calendar class="size-5" />
+							</div>
+							<div>
+								<p class="font-medium text-cr-text">Access Duration</p>
+								<p class="text-sm text-cr-text-muted">
+									Your access will be valid for <span class="font-semibold text-cr-accent">{data.validation.duration_days} days</span> after registration.
+								</p>
+							</div>
 						</div>
-						<div class="space-y-2">
-							{#each data.validation.target_servers as server}
-								<div class="rounded-lg border border-cr-border bg-cr-bg p-3">
-									<p class="font-medium text-cr-text">{server.name}</p>
-									<p class="text-sm text-cr-text-muted capitalize">{server.server_type}</p>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
+					{/if}
 
-				<!-- Allowed libraries -->
-				{#if (data.validation.allowed_libraries?.length ?? 0) > 0}
-					<div data-allowed-libraries>
-						<div class="mb-3 flex items-center gap-2 text-cr-text">
+					<!-- Target servers -->
+					{#if (data.validation.target_servers?.length ?? 0) > 0}
+						<div data-target-servers>
+							<div class="mb-3 flex items-center gap-2 text-cr-text">
+								<Server class="size-4" />
+								<h3 class="font-medium">Target Servers</h3>
+							</div>
+							<div class="space-y-2">
+								{#each data.validation.target_servers as server}
+									<div class="rounded-lg border border-cr-border bg-cr-bg p-3">
+										<p class="font-medium text-cr-text">{server.name}</p>
+										<p class="text-sm text-cr-text-muted capitalize">{server.server_type}</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Allowed libraries -->
+					{#if (data.validation.allowed_libraries?.length ?? 0) > 0}
+						<div data-allowed-libraries>
+							<div class="mb-3 flex items-center gap-2 text-cr-text">
+								<Library class="size-4" />
+								<h3 class="font-medium">Allowed Libraries</h3>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								{#each data.validation.allowed_libraries as library}
+									<span class="rounded-full border border-cr-border bg-cr-bg px-3 py-1 text-sm text-cr-text">
+										{library.name}
+									</span>
+								{/each}
+							</div>
+						</div>
+					{:else if (data.validation.target_servers?.length ?? 0) > 0}
+						<div class="flex items-center gap-2 text-cr-text-muted">
 							<Library class="size-4" />
-							<h3 class="font-medium">Allowed Libraries</h3>
+							<p class="text-sm">Access to all libraries on target servers</p>
 						</div>
-						<div class="flex flex-wrap gap-2">
-							{#each data.validation.allowed_libraries as library}
-								<span class="rounded-full border border-cr-border bg-cr-bg px-3 py-1 text-sm text-cr-text">
-									{library.name}
-								</span>
-							{/each}
-						</div>
-					</div>
-				{:else if (data.validation.target_servers?.length ?? 0) > 0}
-					<div class="flex items-center gap-2 text-cr-text-muted">
-						<Library class="size-4" />
-						<p class="text-sm">Access to all libraries on target servers</p>
-					</div>
-				{/if}
+					{/if}
 
-				<!-- Pre-wizard notice -->
-				{#if hasPreWizard}
-					<div class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-						<div class="rounded-full bg-amber-500/15 p-2 text-amber-400">
-							<AlertTriangle class="size-5" />
+					<!-- Pre-wizard notice -->
+					{#if hasPreWizard}
+						<div class="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+							<div class="rounded-full bg-amber-500/15 p-2 text-amber-400">
+								<AlertTriangle class="size-5" />
+							</div>
+							<div>
+								<p class="font-medium text-cr-text">Additional Steps Required</p>
+								<p class="text-sm text-cr-text-muted">
+									You'll need to complete a few steps before creating your account.
+								</p>
+							</div>
 						</div>
-						<div>
-							<p class="font-medium text-cr-text">Additional Steps Required</p>
-							<p class="text-sm text-cr-text-muted">
-								You'll need to complete a few steps before creating your account.
-							</p>
-						</div>
-					</div>
-				{/if}
+					{/if}
 
-				<!-- Continue button -->
-				<Button
-					onclick={handleContinue}
-					class="w-full bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
-				>
-					{hasPreWizard && !preWizardCompleted ? 'Continue to Required Steps' : 'Continue to Registration'}
-				</Button>
-			</CardContent>
-		</Card>
+					<!-- Continue button -->
+					<Button
+						onclick={handleContinue}
+						class="w-full bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
+					>
+						{hasPreWizard && !preWizardCompleted ? 'Continue to Required Steps' : 'Continue to Registration'}
+					</Button>
+				</CardContent>
+			</Card>
+		</div>
 	{/if}
 </div>
