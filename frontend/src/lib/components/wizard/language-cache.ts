@@ -22,15 +22,18 @@ let pending: Promise<LanguageItem[]> | null = null;
 export async function loadLanguages(): Promise<LanguageItem[]> {
 	if (cached) return cached;
 	if (pending) return pending;
-	pending = getLanguages().then((result) => {
-		if (result.data) {
-			cached = result.data.map((l) => ({ code: l.code, label: l.name }));
-		} else {
-			cached = [];
-		}
-		pending = null;
-		return cached;
-	});
+	pending = getLanguages()
+		.then((result) => {
+			if (result.data) {
+				cached = result.data.map((l) => ({ code: l.code, label: l.name }));
+			} else {
+				cached = [];
+			}
+			return cached;
+		})
+		.finally(() => {
+			pending = null;
+		});
 	return pending;
 }
 
