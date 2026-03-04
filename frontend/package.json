@@ -17,7 +17,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.4",
 		"@internationalized/date": "^3.10.0",
-		"@lucide/svelte": "^0.576.0",
+		"@lucide/svelte": "^0.577.0",
 		"@sveltejs/kit": "^2.50.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@testing-library/jest-dom": "^6.9.1",
