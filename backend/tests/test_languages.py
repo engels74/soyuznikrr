@@ -104,7 +104,7 @@ class TestLanguagesEndpoint:
         with TestClient(app) as client:
             response = client.get("/api/v1/languages")
             assert response.status_code == 200
-            data = response.json()
+            data: list[dict[str, str]] = response.json()  # pyright: ignore[reportAny]
             assert isinstance(data, list)
 
     def test_entries_have_code_and_name_fields(self) -> None:
@@ -113,7 +113,7 @@ class TestLanguagesEndpoint:
 
         with TestClient(app) as client:
             response = client.get("/api/v1/languages")
-            data = response.json()
+            data: list[dict[str, str]] = response.json()  # pyright: ignore[reportAny]
             for entry in data:
                 assert "code" in entry
                 assert "name" in entry
@@ -126,7 +126,7 @@ class TestLanguagesEndpoint:
 
         with TestClient(app) as client:
             response = client.get("/api/v1/languages")
-            data = response.json()
+            data: list[dict[str, str]] = response.json()  # pyright: ignore[reportAny]
             assert data[0]["code"] == "en"
             assert data[0]["name"] == "English"
 
@@ -136,7 +136,7 @@ class TestLanguagesEndpoint:
 
         with TestClient(app) as client:
             response = client.get("/api/v1/languages")
-            data = response.json()
+            data: list[dict[str, str]] = response.json()  # pyright: ignore[reportAny]
             rest_codes = [entry["code"] for entry in data[1:]]
             assert rest_codes == sorted(rest_codes)
 
@@ -146,5 +146,5 @@ class TestLanguagesEndpoint:
 
         with TestClient(app) as client:
             response = client.get("/api/v1/languages")
-            data = response.json()
+            data: list[dict[str, str]] = response.json()  # pyright: ignore[reportAny]
             assert len(data) == len(LANGUAGES)
