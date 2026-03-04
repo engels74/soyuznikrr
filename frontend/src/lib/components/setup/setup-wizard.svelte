@@ -13,9 +13,10 @@ import StepTotp from './step-totp.svelte';
 
 interface Props {
 	initialStep?: OnboardingStep;
+	bootstrapToken?: string | null;
 }
 
-const { initialStep = 'account' }: Props = $props();
+const { initialStep = 'account', bootstrapToken }: Props = $props();
 
 // UI steps: 1=Account, 2=Two-Factor, 3=Security, 4=Server
 // Backend onboarding states map to UI steps, skipping TOTP (frontend-only)
@@ -112,7 +113,7 @@ async function handleCsrfSkip() {
 	{#key currentStep}
 		<div class="step-content">
 			{#if currentStep === 1}
-				<StepAdmin onComplete={handleAdminComplete} />
+				<StepAdmin onComplete={handleAdminComplete} {bootstrapToken} />
 			{:else if currentStep === 2}
 				<StepTotp onComplete={handleTotpComplete} onSkip={handleTotpSkip} />
 			{:else if currentStep === 3}

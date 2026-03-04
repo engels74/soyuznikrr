@@ -1363,6 +1363,16 @@ class ProviderAuthInfo(msgspec.Struct, kw_only=True):
     fields: list[AuthFieldInfo] = []
 
 
+class SetupTokenResponse(msgspec.Struct, kw_only=True):
+    """Response containing the bootstrap token for initial setup.
+
+    Attributes:
+        bootstrap_token: The bootstrap token, or None if not configured.
+    """
+
+    bootstrap_token: str | None
+
+
 class AuthMethodsResponse(msgspec.Struct, kw_only=True):
     """Response listing available authentication methods.
 

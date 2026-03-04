@@ -386,3 +386,92 @@ class TestBootstrapTokenValidation:
                 assert response.status_code == 201
         finally:
             await engine.dispose()
+
+
+# =============================================================================
+# GET /api/auth/setup-token endpoint tests
+# =============================================================================
+
+
+class TestGetSetupToken:
+    """Tests for the GET /api/auth/setup-token endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_token_when_no_admin_exists(self) -> None:
+        """Endpoint returns the bootstrap token when setup is required."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(
+                secret_key="a" * 32, bootstrap_token="env-bootstrap-token"
+            )
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                response = client.get("/api/auth/setup-token")
+                assert response.status_code == 200
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["bootstrap_token"] == "env-bootstrap-token"  # noqa: S105
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_returns_generated_token_when_no_env_token(self) -> None:
+        """Endpoint returns auto-generated token from app state."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32)
+            app = _make_setup_app(
+                session_factory, settings, generated_token="auto-gen-token"
+            )
+
+            with TestClient(app) as client:
+                response = client.get("/api/auth/setup-token")
+                assert response.status_code == 200
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["bootstrap_token"] == "auto-gen-token"  # noqa: S105
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_returns_null_when_no_token_configured(self) -> None:
+        """Endpoint returns null bootstrap_token when none is configured."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32)
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                response = client.get("/api/auth/setup-token")
+                assert response.status_code == 200
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["bootstrap_token"] is None
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_admin_exists(self) -> None:
+        """Endpoint returns 401 SETUP_NOT_REQUIRED when an admin already exists."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32, bootstrap_token="some-token")
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                # First, create an admin
+                response = client.post(
+                    "/api/auth/setup",
+                    json={**VALID_SETUP_PAYLOAD, "bootstrap_token": "some-token"},
+                )
+                assert response.status_code == 201
+
+                # Now the setup-token endpoint should reject
+                response = client.get("/api/auth/setup-token")
+                assert response.status_code == 401
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["error_code"] == "SETUP_NOT_REQUIRED"
+        finally:
+            await engine.dispose()

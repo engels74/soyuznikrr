@@ -15,7 +15,8 @@ vi.mock('$lib/api/auth', async () => {
 	return {
 		...actual,
 		setupAdmin: vi.fn(),
-		advanceOnboarding: vi.fn()
+		advanceOnboarding: vi.fn(),
+		getSetupToken: vi.fn().mockResolvedValue(null)
 	};
 });
 

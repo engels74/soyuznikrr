@@ -8,9 +8,10 @@ import { type SetupFormData, setupSchema } from '$lib/schemas/auth';
 
 interface Props {
 	onComplete: () => void;
+	bootstrapToken?: string | null;
 }
 
-const { onComplete }: Props = $props();
+const { onComplete, bootstrapToken }: Props = $props();
 
 let username = $state('');
 let password = $state('');
@@ -62,7 +63,8 @@ async function handleSubmit(e: SubmitEvent) {
 	const response = await setupAdmin({
 		username: result.data.username,
 		password: result.data.password,
-		email: result.data.email || undefined
+		email: result.data.email || undefined,
+		bootstrap_token: bootstrapToken || undefined
 	});
 
 	if (response.error) {
