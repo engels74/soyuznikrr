@@ -175,6 +175,13 @@ $effect(() => {
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
+				// Detect old saved-state format (before progressTokens feature).
+				// Without per-step tokens, back-navigation can't restore valid
+				// progress tokens, causing validation failures. Start fresh.
+				if ((parsed.stepIndex ?? 0) > 0 && !parsed.progressTokens) {
+					sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+					return;
+				}
 				currentStepIndex = parsed.stepIndex ?? 0;
 				progressToken = parsed.progressToken ?? null;
 				// Restore nested map structure
