@@ -862,8 +862,8 @@ class RedeemInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
         username: Username for the new accounts (3-32 chars, lowercase, starts with letter).
         password: Password for the new accounts (minimum 8 characters).
         email: Optional email address for the identity.
-        auth_token: Optional OAuth auth token from the provider (e.g. Plex auth token).
-            Used for direct library sharing without creating a friend relationship.
+        redemption_token: One-time OAuth redemption token from the PIN check endpoint.
+            Resolved server-side to the provider's auth_token.
         pre_wizard_token: Signed wizard completion token proving the pre-wizard
             was completed. Required when the invitation has a pre_wizard_id configured.
     """
@@ -871,7 +871,7 @@ class RedeemInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
     username: Username
     password: Password
     email: EmailStr | None = None
-    auth_token: str | None = None
+    redemption_token: str | None = None
     pre_wizard_token: str | None = None
 
 
@@ -1400,11 +1400,13 @@ class AdminSetupRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True
         username: Admin username (3-32 chars, lowercase).
         password: Admin password (15+ chars).
         email: Optional email address.
+        bootstrap_token: Bootstrap token required when server has one configured.
     """
 
     username: AdminUsername
     password: AdminPassword
     email: EmailStr | None = None
+    bootstrap_token: str | None = None
 
 
 class LoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -1802,13 +1804,13 @@ class OAuthPinResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     """Response from OAuth PIN creation.
 
     Attributes:
-        pin_id: The PIN identifier for status checking.
+        handle: Opaque session handle for status checking (replaces pin_id).
         code: The PIN code to display to the user.
         auth_url: URL where user authenticates.
         expires_at: When the PIN expires.
     """
 
-    pin_id: int
+    handle: str
     code: str
     auth_url: str
     expires_at: datetime
@@ -1817,20 +1819,19 @@ class OAuthPinResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
 class OAuthCheckResponse(msgspec.Struct, omit_defaults=True, kw_only=True):
     """Response from OAuth PIN status check.
 
-    Security note: ``auth_token`` is intentionally included in this public
-    endpoint response.  The join flow requires the token so the frontend can
-    pass it back as a credential when completing invitation redemption (the
-    token proves the user authenticated with the provider).
+    The raw provider auth_token is never exposed. On successful authentication,
+    a one-time ``redemption_token`` is returned instead, which the frontend
+    passes to the redemption endpoint to prove OAuth completion.
 
     Attributes:
         authenticated: Whether the PIN has been authenticated.
-        auth_token: Auth token (only if authenticated).
+        redemption_token: One-time token for redeeming the auth credential (only if authenticated).
         email: User's email (only if authenticated).
         error: Error message (only if failed).
     """
 
     authenticated: bool
-    auth_token: str | None = None
+    redemption_token: str | None = None
     email: str | None = None
     error: str | None = None
 

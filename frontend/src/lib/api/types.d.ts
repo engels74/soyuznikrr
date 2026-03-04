@@ -270,7 +270,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	'/api/v1/join/{provider}/oauth/pin/{pin_id}': {
+	'/api/v1/join/{provider}/oauth/pin/{handle}': {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -279,9 +279,9 @@ export interface paths {
 		};
 		/**
 		 * Check OAuth PIN status
-		 * @description Check if a PIN has been authenticated. Returns the user's email if authentication is complete.
+		 * @description Check if a PIN has been authenticated. Returns a one-time redemption token (not the raw auth token) if authentication is complete.
 		 */
-		get: operations['ApiV1JoinProviderOauthPinPinIdCheckPin'];
+		get: operations['ApiV1JoinProviderOauthPinHandleCheckPin'];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -301,7 +301,7 @@ export interface paths {
 		put?: never;
 		/**
 		 * Create OAuth PIN
-		 * @description Generate a PIN for OAuth authentication. The user should be directed to the auth_url to complete authentication.
+		 * @description Generate a PIN for OAuth authentication. The user should be directed to the auth_url to complete authentication. Returns an opaque handle for polling the PIN status.
 		 */
 		post: operations['ApiV1JoinProviderOauthPinCreatePin'];
 		delete?: never;
@@ -1400,13 +1400,13 @@ export interface components {
 		/** OAuthCheckResponse */
 		OAuthCheckResponse: {
 			authenticated: boolean;
-			auth_token?: string | null;
+			redemption_token?: string | null;
 			email?: string | null;
 			error?: string | null;
 		};
 		/** OAuthPinResponse */
 		OAuthPinResponse: {
-			pin_id: number;
+			handle: string;
 			code: string;
 			auth_url: string;
 			/** Format: date-time */
@@ -1460,12 +1460,31 @@ export interface components {
 			username: string;
 			password: string;
 			email?: string | null;
-			auth_token?: string | null;
+			redemption_token?: string | null;
 			pre_wizard_token?: string | null;
 		};
 		/**
 		 * RedemptionErrorResponse
-		 * @example RedemptionErrorResponse(success=False, error_code='AsuEshTKFLZjQQrDxkwh', message='WjGDYPstccqXcjHsjXcF', correlation_id=None, failed_server=None, partial_users=[UserResponse(id=UUID('c2713ce2-5868-405b-93e6-d9036dc3ccee'), identity_id=UUID('2b1acaa9-29ad-405f-bddd-cc7231e6ff39'), media_server_id=UUID('f69b0ae6-c099-4c4c-8f10-8ed367d731e1'), external_user_id='yOTjTEvAUueXgfLqpHUr', username='VGFBaiJKfHyEulsYjSBd', enabled=True, created_at=datetime.datetime(1996, 9, 9, 4, 24, 24, 921080), external_user_type=None, expires_at=datetime.datetime(2021, 4, 15, 5, 36, 15, 723815), updated_at=datetime.datetime(2006, 4, 29, 18, 1, 43, 944409))])
+		 * @example {
+		 *       "success": false,
+		 *       "error_code": "AsuEshTKFLZjQQrDxkwh",
+		 *       "message": "WjGDYPstccqXcjHsjXcF",
+		 *       "correlation_id": null,
+		 *       "failed_server": null,
+		 *       "partial_users": [
+		 *         {
+		 *           "id": "c2713ce2-5868-405b-93e6-d9036dc3ccee",
+		 *           "identity_id": "2b1acaa9-29ad-405f-bddd-cc7231e6ff39",
+		 *           "media_server_id": "f69b0ae6-c099-4c4c-8f10-8ed367d731e1",
+		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
+		 *           "username": "VGFBaiJKfHyEulsYjSBd",
+		 *           "enabled": true,
+		 *           "created_at": "1996-09-10T00:18:57.921080",
+		 *           "expires_at": "2021-04-16T01:30:48.723815",
+		 *           "updated_at": "2006-04-30T13:56:16.944409"
+		 *         }
+		 *       ]
+		 *     }
 		 */
 		RedemptionErrorResponse: {
 			/**
@@ -1483,7 +1502,17 @@ export interface components {
 			failed_server?: string | null;
 			/**
 			 * @example [
-			 *       "UserResponse(id=UUID('4133e4d7-5916-4281-8e24-d9ccd2ea3f17'), identity_id=UUID('c2680192-6c96-4b0e-b4f5-add55c37849a'), media_server_id=UUID('4850e927-bfdb-43be-a0fb-c247319115d0'), external_user_id='ypzVvHsoVSEeCtLViFvD', username='EMpEHdutFmqCQcDdvDZV', enabled=False, created_at=datetime.datetime(1996, 8, 26, 14, 33, 25, 852486), external_user_type='kSDBQNXqcJcDSuFiiFSZ', expires_at=None, updated_at=datetime.datetime(1997, 2, 7, 22, 58, 44, 373028))"
+			 *       {
+			 *         "id": "4133e4d7-5916-4281-8e24-d9ccd2ea3f17",
+			 *         "identity_id": "c2680192-6c96-4b0e-b4f5-add55c37849a",
+			 *         "media_server_id": "4850e927-bfdb-43be-a0fb-c247319115d0",
+			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
+			 *         "username": "EMpEHdutFmqCQcDdvDZV",
+			 *         "enabled": false,
+			 *         "created_at": "1996-08-27T10:27:58.852486",
+			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
+			 *         "updated_at": "1997-02-08T18:53:17.373028"
+			 *       }
 			 *     ]
 			 */
 			partial_users?: components['schemas']['UserResponse'][] | null;
@@ -2454,15 +2483,15 @@ export interface operations {
 			};
 		};
 	};
-	ApiV1JoinProviderOauthPinPinIdCheckPin: {
+	ApiV1JoinProviderOauthPinHandleCheckPin: {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
 				/** @description Provider name */
 				provider: string;
-				/** @description PIN ID to check */
-				pin_id: number;
+				/** @description Opaque PIN handle */
+				handle: string;
 			};
 			cookie?: never;
 		};

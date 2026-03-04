@@ -19,7 +19,9 @@ Usage:
 """
 
 import asyncio
+import secrets
 from contextlib import asynccontextmanager
+from typing import cast
 
 import structlog
 from litestar import Litestar
@@ -33,6 +35,7 @@ from litestar.openapi.plugins import ScalarRenderPlugin, SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme, Tag
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from litestar.types import ControllerRouterHandler
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from structlog.types import Processor
 
 from zondarr.api.auth import AuthController
@@ -72,6 +75,7 @@ from zondarr.core.log_buffer import capture_log_processor, log_buffer
 from zondarr.core.tasks import background_tasks_lifespan
 from zondarr.media.providers import register_all_providers
 from zondarr.media.registry import registry
+from zondarr.repositories.admin import AdminAccountRepository
 
 
 def provide_settings(state: State) -> Settings:
@@ -195,6 +199,40 @@ async def _log_stream_lifespan(_app: Litestar):
         log_buffer.unbind_loop()
 
 
+@asynccontextmanager
+async def _bootstrap_token_lifespan(app: Litestar):
+    """Auto-generate a bootstrap token on startup if needed.
+
+    When no BOOTSTRAP_TOKEN env var is set and no admin account exists,
+    generates a one-time token and logs it for the operator to use during
+    initial setup.
+    """
+    settings = cast(Settings, app.state.settings)
+    if settings.bootstrap_token is None:
+        session_factory: async_sessionmaker[AsyncSession] = (  # pyright: ignore[reportAny]
+            app.state.session_factory
+        )
+        async with session_factory() as session:
+            repo = AdminAccountRepository(session)
+            count = await repo.count()
+        if count == 0:
+            token = secrets.token_urlsafe(32)
+            app.state.generated_bootstrap_token = token
+            bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(
+                "zondarr.bootstrap"
+            )  # pyright: ignore[reportAny]
+            bootstrap_logger.info(
+                "bootstrap_token_generated",
+                message=(
+                    "No BOOTSTRAP_TOKEN set and no admin exists. "
+                    "Use this token for initial setup:"
+                ),
+            )
+            # Log token on a separate line for easy copy-paste
+            print(f"\n{'=' * 60}\n  BOOTSTRAP TOKEN: {token}\n{'=' * 60}\n")
+    yield
+
+
 def create_app(settings: Settings | None = None) -> Litestar:
     """Application factory for creating Litestar app instances.
 
@@ -271,7 +309,12 @@ def create_app(settings: Settings | None = None) -> Litestar:
 
     return Litestar(
         route_handlers=route_handlers,
-        lifespan=[db_lifespan, _log_stream_lifespan, background_tasks_lifespan],
+        lifespan=[
+            db_lifespan,
+            _bootstrap_token_lifespan,
+            _log_stream_lifespan,
+            background_tasks_lifespan,
+        ],
         state=State({"settings": settings}),
         dependencies={
             "session": Provide(provide_db_session),

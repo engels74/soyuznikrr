@@ -23,6 +23,7 @@ from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.invitation import InvitationService
+from zondarr.services.oauth_session import oauth_session_store
 from zondarr.services.redemption import RedemptionService
 from zondarr.services.user import UserService
 
@@ -211,12 +212,19 @@ class JoinController(Controller):
         Returns:
             RedemptionResponse on success with identity_id and users_created.
         """
+        # Resolve redemption_token to a real auth_token server-side
+        auth_token: str | None = None
+        if data.redemption_token:
+            result = oauth_session_store.redeem(data.redemption_token)
+            if result is not None:
+                auth_token = result[1]  # (provider, auth_token)
+
         identity, users = await redemption_service.redeem(
             code,
             username=data.username,
             password=data.password,
             email=data.email,
-            auth_token=data.auth_token,
+            auth_token=auth_token,
             pre_wizard_token=data.pre_wizard_token,
             secret_key=settings.secret_key,
         )

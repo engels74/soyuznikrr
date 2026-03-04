@@ -10,6 +10,7 @@ Provides endpoints for admin authentication:
 - GET /api/auth/me — Current admin info (requires auth)
 """
 
+import hmac
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -21,9 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
 from zondarr.core.auth import AdminUser
+from zondarr.core.exceptions import AuthenticationError
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.services.auth import AuthService
+from zondarr.services.oauth_session import oauth_session_store
 from zondarr.services.settings import SettingsService
 
 from .schemas import (
@@ -156,10 +159,24 @@ class AuthController(Controller):
     async def setup(
         self,
         data: AdminSetupRequest,
+        request: Request[None, None, State],
         session: AsyncSession,
         settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Create the first admin account (only when no admins exist)."""
+        # Validate bootstrap token if one is configured
+        expected_token: str | None = settings.bootstrap_token or getattr(
+            request.app.state, "generated_bootstrap_token", None
+        )
+        if expected_token is not None:
+            if data.bootstrap_token is None or not hmac.compare_digest(
+                expected_token, data.bootstrap_token
+            ):
+                raise AuthenticationError(
+                    "Invalid or missing bootstrap token",
+                    "INVALID_BOOTSTRAP_TOKEN",
+                )
+
         service = self._create_auth_service(session)
         admin = await service.setup_admin(
             data.username, data.password, email=data.email
@@ -262,10 +279,18 @@ class AuthController(Controller):
         challenge_token. The client must then call /api/auth/totp/verify
         or /api/auth/totp/backup-code to complete login.
         """
+        # Resolve redemption_token to auth_token server-side
+        credentials = dict(data.credentials)
+        if "redemption_token" in credentials:
+            redemption_token = credentials.pop("redemption_token")
+            result = oauth_session_store.redeem(redemption_token)
+            if result is not None:
+                credentials["auth_token"] = result[1]
+
         service = self._create_auth_service(session)
         admin = await service.authenticate_external(
             method,
-            data.credentials,
+            credentials,
             settings=settings,
         )
 

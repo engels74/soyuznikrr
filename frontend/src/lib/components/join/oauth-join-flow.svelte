@@ -42,8 +42,8 @@ import { getProviderColor, getProviderIconSvg, getProviderLabel } from "$lib/sto
 interface Props {
 	/** The server type for branding (e.g., "plex") */
 	serverType: string;
-	/** Callback when authentication is successful */
-	onAuthenticated: (email: string, authToken: string) => void;
+	/** Callback when authentication is successful (receives one-time redemption token) */
+	onAuthenticated: (email: string, redemptionToken: string) => void;
 	/** Callback when user cancels the flow */
 	onCancel?: () => void;
 }
@@ -166,7 +166,7 @@ function startPolling() {
 		}
 
 		try {
-			const { data, error } = await checkOAuthPin(serverType, pinData.pin_id);
+			const { data, error } = await checkOAuthPin(serverType, pinData.handle);
 
 			if (error) {
 				// Don't stop polling on transient errors
@@ -176,16 +176,16 @@ function startPolling() {
 
 			if (!data) return;
 
-			if (data.authenticated && data.email && data.auth_token) {
+			if (data.authenticated && data.email && data.redemption_token) {
 				stopPolling();
 				closePopup();
 				authenticatedEmail = data.email;
 				currentStep = "authenticated";
-				onAuthenticated(data.email, data.auth_token);
+				onAuthenticated(data.email, data.redemption_token);
 			} else if (data.authenticated && data.email) {
 				stopPolling();
 				closePopup();
-				errorMessage = "OAuth succeeded but no auth token was returned.";
+				errorMessage = "OAuth succeeded but no redemption token was returned.";
 				currentStep = "error";
 			} else if (data.error) {
 				stopPolling();
