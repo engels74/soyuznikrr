@@ -50,6 +50,7 @@ let interactionCompletions = $state<
 let isValidating = $state(false);
 let validationError = $state<string | null>(null);
 let progressToken = $state<string | null>(null);
+let progressTokens = $state<Map<number, string | null>>(new Map());
 
 // Derived values
 const currentStep = $derived(wizard.steps[currentStepIndex]);
@@ -187,6 +188,12 @@ $effect(() => {
 						).map(([stepId, entries]) => [stepId, new Map(entries)]),
 					);
 				}
+				// Restore per-step progress tokens
+				if (parsed.progressTokens) {
+					progressTokens = new Map(
+						(parsed.progressTokens as [number, string | null][]),
+					);
+				}
 			} catch {
 				// Invalid saved state, start fresh
 			}
@@ -210,6 +217,7 @@ $effect(() => {
 				stepIndex: currentStepIndex,
 				completions,
 				progressToken,
+				progressTokens: Array.from(progressTokens.entries()),
 			}),
 		);
 	}
@@ -256,7 +264,13 @@ async function handleNext() {
 			onComplete(result.data?.completion_token);
 		} else {
 			// Store progress token for next step validation
-			progressToken = result.data?.completion_token ?? null;
+			const newToken = result.data?.completion_token ?? null;
+			progressToken = newToken;
+			// Save this token keyed by the step we just validated, so we can
+			// restore it when navigating back to the *next* step
+			const newTokens = new Map(progressTokens);
+			newTokens.set(currentStepIndex, newToken);
+			progressTokens = newTokens;
 			currentStepIndex++;
 		}
 	} finally {
@@ -266,7 +280,26 @@ async function handleNext() {
 
 function handleBack() {
 	if (!isFirstStep) {
-		currentStepIndex--;
+		const targetIndex = currentStepIndex - 1;
+		// Restore the progress token that was valid *before* the target step.
+		// For step 0, no token is needed (null). For step N, we need the token
+		// returned after validating step N-1, stored at progressTokens[N-1].
+		progressToken = targetIndex === 0 ? null : (progressTokens.get(targetIndex - 1) ?? null);
+		// Clear interaction completions for the step we're going back to
+		// and all subsequent steps, since those will need to be re-completed
+		const newCompletions = new Map(interactionCompletions);
+		for (let i = targetIndex; i < wizard.steps.length; i++) {
+			const stepId = wizard.steps[i]?.id;
+			if (stepId) newCompletions.delete(stepId);
+		}
+		interactionCompletions = newCompletions;
+		// Clear stored tokens for the target step onward (they'll be regenerated)
+		const newTokens = new Map(progressTokens);
+		for (let i = targetIndex; i < wizard.steps.length; i++) {
+			newTokens.delete(i);
+		}
+		progressTokens = newTokens;
+		currentStepIndex = targetIndex;
 		validationError = null;
 	}
 }
