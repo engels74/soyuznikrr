@@ -218,9 +218,9 @@ async def _bootstrap_token_lifespan(app: Litestar):
         if count == 0:
             token = secrets.token_urlsafe(32)
             app.state.generated_bootstrap_token = token
-            bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(
+            bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(  # pyright: ignore[reportAny]
                 "zondarr.bootstrap"
-            )  # pyright: ignore[reportAny]
+            )
             bootstrap_logger.info(
                 "bootstrap_token_generated",
                 message=(

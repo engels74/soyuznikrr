@@ -217,7 +217,7 @@ class JoinController(Controller):
         if data.redemption_token:
             result = oauth_session_store.redeem(data.redemption_token)
             if result is not None:
-                auth_token = result[1]  # (provider, auth_token)
+                _provider, auth_token = result
 
         identity, users = await redemption_service.redeem(
             code,

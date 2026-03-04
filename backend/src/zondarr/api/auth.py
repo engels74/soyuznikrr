@@ -285,7 +285,13 @@ class AuthController(Controller):
             redemption_token = credentials.pop("redemption_token")
             result = oauth_session_store.redeem(redemption_token)
             if result is not None:
-                credentials["auth_token"] = result[1]
+                redeemed_provider, auth_token = result
+                if redeemed_provider != method:
+                    raise AuthenticationError(
+                        "Redemption token provider mismatch",
+                        "PROVIDER_MISMATCH",
+                    )
+                credentials["auth_token"] = auth_token
 
         service = self._create_auth_service(session)
         admin = await service.authenticate_external(
