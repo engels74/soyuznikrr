@@ -72,7 +72,7 @@ describe('Property 32: OAuth Polling', () => {
 		const pollsBeforeAuth = 3;
 
 		const pinResponse: OAuthPinResponse = {
-			pin_id: 12345,
+			handle: 'opaque-test-handle-12345',
 			code: 'ABCD',
 			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 60000).toISOString()
@@ -81,7 +81,7 @@ describe('Property 32: OAuth Polling', () => {
 		const authResponse: OAuthCheckResponse = {
 			authenticated: true,
 			email: 'test@example.com',
-			auth_token: 'test-auth-token-123'
+			redemption_token: 'test-redemption-token-123'
 		};
 
 		// Mock createOAuthPin to return the generated PIN
@@ -136,7 +136,10 @@ describe('Property 32: OAuth Polling', () => {
 
 		// Verify onAuthenticated was called with the email and auth token
 		await vi.waitFor(() => {
-			expect(onAuthenticated).toHaveBeenCalledWith(authResponse.email, authResponse.auth_token);
+			expect(onAuthenticated).toHaveBeenCalledWith(
+				authResponse.email,
+				authResponse.redemption_token
+			);
 		});
 	});
 
@@ -149,7 +152,7 @@ describe('Property 32: OAuth Polling', () => {
 
 		// Create a PIN that expires in 4 seconds
 		const expiredPinResponse: OAuthPinResponse = {
-			pin_id: 12345,
+			handle: 'opaque-test-handle-12345',
 			code: 'ABCD',
 			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 4000).toISOString()
@@ -205,7 +208,7 @@ describe('Property 32: OAuth Polling', () => {
 		vi.clearAllMocks();
 
 		const pinResponse: OAuthPinResponse = {
-			pin_id: 12345,
+			handle: 'opaque-test-handle-12345',
 			code: 'ABCD',
 			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 60000).toISOString()
@@ -280,7 +283,7 @@ describe('OAuth Flow Component', () => {
 		vi.clearAllMocks();
 
 		const pinResponse: OAuthPinResponse = {
-			pin_id: 42,
+			handle: 'opaque-test-handle-42',
 			code: 'XY9Z',
 			auth_url: 'https://auth.example.com/oauth',
 			expires_at: new Date(Date.now() + 60000).toISOString()
@@ -338,7 +341,7 @@ describe('OAuth Flow Component', () => {
 		vi.clearAllMocks();
 
 		const pinResponse: OAuthPinResponse = {
-			pin_id: 12345,
+			handle: 'opaque-test-handle-12345',
 			code: 'ABCD',
 			auth_url: 'https://auth.example.com/oauth/test',
 			expires_at: new Date(Date.now() + 60000).toISOString()

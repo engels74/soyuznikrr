@@ -88,7 +88,7 @@ let formErrors = $state<Record<string, string[]>>({});
 
 // OAuth state
 let oauthEmail = $state<string | null>(null);
-let oauthToken = $state<string | null>(null);
+let oauthRedemptionToken = $state<string | null>(null);
 
 // Response data
 let redemptionResponse = $state<RedemptionResponse | null>(null);
@@ -234,7 +234,7 @@ function handleBack() {
 	currentStep = "validation";
 	formErrors = {};
 	oauthEmail = null;
-	oauthToken = null;
+	oauthRedemptionToken = null;
 }
 
 /**
@@ -376,20 +376,20 @@ async function handleRegistrationSubmit() {
 /**
  * Handle OAuth authentication success.
  */
-async function handleOAuthAuthenticated(email: string, authToken: string) {
+async function handleOAuthAuthenticated(email: string, redemptionToken: string) {
 	oauthEmail = email;
-	oauthToken = authToken;
+	oauthRedemptionToken = redemptionToken;
 	currentStep = "oauth_redeeming";
 
-	// Proceed to redeem the invitation with OAuth credentials
+	// Proceed to redeem the invitation with the one-time redemption token
 	// Use the email as username and a placeholder password
-	// The backend will handle user creation via the provider's API
+	// The backend resolves the redemption token to the real auth_token server-side
 	try {
 		const response = await redeemInvitation(data.code, {
 			username: sanitizeEmailToUsername(email),
 			password: "oauth_placeholder", // Placeholder - backend handles OAuth auth differently
 			email: email,
-			auth_token: authToken,
+			redemption_token: redemptionToken,
 			pre_wizard_token: preWizardToken ?? undefined,
 		});
 
@@ -445,7 +445,7 @@ async function handleOAuthAuthenticated(email: string, authToken: string) {
 function handleOAuthCancel() {
 	currentStep = "validation";
 	oauthEmail = null;
-	oauthToken = null;
+	oauthRedemptionToken = null;
 }
 
 /**
@@ -454,7 +454,7 @@ function handleOAuthCancel() {
 function handleRegistrationRetry() {
 	redemptionError = null;
 	oauthEmail = null;
-	oauthToken = null;
+	oauthRedemptionToken = null;
 	// Go back to appropriate registration step
 	if (hasOAuthLinkServer && !hasCredentialCreateServer) {
 		currentStep = "oauth";

@@ -57,16 +57,16 @@ async function handleOAuthLogin() {
 
 		pollIntervalId = setInterval(async () => {
 			try {
-				const { data: checkData, error: checkError } = await checkOAuthPin(method, pinData.pin_id);
+				const { data: checkData, error: checkError } = await checkOAuthPin(method, pinData.handle);
 
 				if (checkError || !checkData) return;
 
-				if (checkData.authenticated && checkData.auth_token) {
+				if (checkData.authenticated && checkData.redemption_token) {
 					stopPolling();
 					popup?.close();
 
 					const result = await loginExternal(method, {
-						auth_token: checkData.auth_token,
+						redemption_token: checkData.redemption_token,
 					});
 					if (result.error) {
 						loading = false;

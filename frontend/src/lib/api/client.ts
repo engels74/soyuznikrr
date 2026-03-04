@@ -602,7 +602,7 @@ export async function redeemInvitation(
  * Create an OAuth PIN for authentication with a provider.
  *
  * @param provider - Provider type
- * @returns PIN response with auth URL
+ * @returns PIN response with auth URL and opaque handle
  */
 export async function createOAuthPin(
 	provider: string,
@@ -617,16 +617,16 @@ export async function createOAuthPin(
  * Check the status of an OAuth PIN.
  *
  * @param provider - Provider type
- * @param pinId - PIN ID to check
- * @returns Check response with authentication status
+ * @param handle - Opaque PIN handle from createOAuthPin
+ * @returns Check response with authentication status and redemption token
  */
 export async function checkOAuthPin(
 	provider: string,
-	pinId: number,
+	handle: string,
 	client: ApiClient = api
 ): Promise<{ data?: OAuthCheckResponse; error?: unknown }> {
-	return client.GET('/api/v1/join/{provider}/oauth/pin/{pin_id}', {
-		params: { path: { provider, pin_id: pinId } }
+	return client.GET('/api/v1/join/{provider}/oauth/pin/{handle}', {
+		params: { path: { provider, handle } }
 	});
 }
 

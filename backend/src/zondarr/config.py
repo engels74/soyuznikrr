@@ -57,6 +57,9 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = None
 
+    # Bootstrap token for initial admin setup
+    bootstrap_token: str | None = None
+
     # Dynamic provider credentials populated from env vars
     # Keyed by server_type (e.g., "plex", "jellyfin")
     # Each value is a dict with "url" and "api_key" keys
@@ -120,6 +123,7 @@ def load_settings() -> Settings:
             os.environ.get("EXPIRATION_CHECK_INTERVAL_SECONDS", "3600")
         ),
         "sync_interval_seconds": int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
+        "bootstrap_token": os.environ.get("BOOTSTRAP_TOKEN") or None,
     }
 
     # msgspec.convert validates constraints
