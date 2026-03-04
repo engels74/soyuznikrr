@@ -10,6 +10,7 @@ import { browser } from "$app/environment";
 import type { WizardDetailResponse } from "$lib/api/client";
 import { validateStep } from "$lib/api/client";
 import { getInteractionType, type InteractionCompletionData } from "./interactions";
+import { getCachedLanguages, getLanguageLabel, loadLanguages } from "./language-cache";
 import LanguageSwitcher from "./language-switcher.svelte";
 import { renderMarkdown } from "./markdown-utils";
 import WizardNavigation from "./wizard-navigation.svelte";
@@ -36,6 +37,10 @@ interface Props {
 }
 
 const { wizard, onComplete, onCancel, mode = "join" }: Props = $props();
+
+// Language data (shared cache, used for native name display)
+let languagesLoaded = $state(getCachedLanguages().length > 0);
+loadLanguages().then(() => { languagesLoaded = true; });
 
 // Reactive state
 let currentStepIndex = $state(0);
@@ -84,14 +89,16 @@ const translatableStep = $derived(currentStep as TranslatableStep | undefined);
 const availableLanguages = $derived.by(() => {
 	const step = translatableStep;
 	if (!step) return [];
+	// Reference languagesLoaded to re-derive when cache populates
+	void languagesLoaded;
 	const primary = step.primary_language ?? "en";
 	const langs: { code: string; label: string }[] = [
-		{ code: primary, label: primary.toUpperCase() },
+		{ code: primary, label: getLanguageLabel(primary) },
 	];
 	if (step.translations) {
 		for (const t of step.translations) {
 			if (t.language_code !== primary) {
-				langs.push({ code: t.language_code, label: t.language_code.toUpperCase() });
+				langs.push({ code: t.language_code, label: getLanguageLabel(t.language_code) });
 			}
 		}
 	}

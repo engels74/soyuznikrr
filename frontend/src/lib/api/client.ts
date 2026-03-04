@@ -107,6 +107,8 @@ export type RedemptionErrorResponse = components['schemas']['RedemptionErrorResp
 export type DashboardStatsResponse = components['schemas']['DashboardStatsResponse'];
 export type RecentActivityItem = components['schemas']['RecentActivityItem'];
 
+export type LanguageResponse = components['schemas']['LanguageResponse'];
+
 export type OAuthPinResponse = components['schemas']['OAuthPinResponse'];
 export type OAuthCheckResponse = components['schemas']['OAuthCheckResponse'];
 
@@ -883,6 +885,19 @@ export async function healthCheck(customFetch: typeof globalThis.fetch = fetch) 
  */
 export async function getDashboardStats(client: ApiClient = api) {
 	return client.GET('/api/v1/dashboard/stats');
+}
+
+// =============================================================================
+// Language API Wrappers
+// =============================================================================
+
+/**
+ * Get the list of supported ISO 639-1 languages.
+ *
+ * @returns Sorted list of languages (English first, rest alphabetical by code)
+ */
+export async function getLanguages(client: ApiClient = api) {
+	return client.GET('/api/v1/languages');
 }
 
 // =============================================================================

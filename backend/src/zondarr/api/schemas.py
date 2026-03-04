@@ -27,6 +27,7 @@ from uuid import UUID
 
 import msgspec
 
+from zondarr.core.languages import is_valid_language_code
 from zondarr.media.provider import AuthFlowType
 
 # =============================================================================
@@ -338,6 +339,19 @@ class MediaServerDetailResponse(msgspec.Struct, omit_defaults=True):
 # Wizard Schemas
 # =============================================================================
 
+
+class LanguageResponse(msgspec.Struct):
+    """A single ISO 639-1 language entry.
+
+    Attributes:
+        code: Two-letter ISO 639-1 language code.
+        name: Native language name.
+    """
+
+    code: str
+    name: str
+
+
 # Interaction type pattern for validation
 InteractionTypeStr = Annotated[
     str, msgspec.Meta(pattern=r"^(click|timer|tos|text_input|quiz)$")
@@ -346,8 +360,10 @@ InteractionTypeStr = Annotated[
 # Step order (non-negative integer)
 StepOrder = Annotated[int, msgspec.Meta(ge=0)]
 
-# Language code (ISO 639-1, 2-10 chars)
-LanguageCode = Annotated[str, msgspec.Meta(min_length=2, max_length=10)]
+# Language code (ISO 639-1, exactly 2 lowercase letters, validated against standard)
+LanguageCode = Annotated[
+    str, msgspec.Meta(min_length=2, max_length=2, pattern=r"^[a-z]{2}$")
+]
 
 
 class TranslationData(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
@@ -362,6 +378,11 @@ class TranslationData(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     language_code: LanguageCode
     title: NonEmptyStr
     content_markdown: str
+
+    def __post_init__(self) -> None:
+        if not is_valid_language_code(self.language_code):
+            msg = f"Invalid ISO 639-1 language code: {self.language_code!r}"
+            raise ValueError(msg)
 
 
 class TranslationResponse(msgspec.Struct, omit_defaults=True):
@@ -428,6 +449,11 @@ class WizardStepCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
     primary_language: LanguageCode = "en"
     translations: list[TranslationData] | None = None
 
+    def __post_init__(self) -> None:
+        if not is_valid_language_code(self.primary_language):
+            msg = f"Invalid ISO 639-1 language code: {self.primary_language!r}"
+            raise ValueError(msg)
+
 
 class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Request to update a wizard step.
@@ -445,6 +471,13 @@ class WizardStepUpdate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True)
     content_markdown: str | None = None
     primary_language: LanguageCode | None = None
     translations: list[TranslationData] | None = None
+
+    def __post_init__(self) -> None:
+        if self.primary_language is not None and not is_valid_language_code(
+            self.primary_language
+        ):
+            msg = f"Invalid ISO 639-1 language code: {self.primary_language!r}"
+            raise ValueError(msg)
 
 
 class StepReorderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):

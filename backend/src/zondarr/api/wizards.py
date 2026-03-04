@@ -31,6 +31,7 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
+from zondarr.core.languages import get_sorted_languages
 from zondarr.models.wizard import Wizard
 from zondarr.repositories.step_interaction import StepInteractionRepository
 from zondarr.repositories.wizard import WizardRepository
@@ -39,6 +40,7 @@ from zondarr.services.wizard import WizardService
 
 from .converters import step_interaction_to_response, wizard_step_to_response
 from .schemas import (
+    LanguageResponse,
     StepInteractionCreate,
     StepInteractionResponse,
     StepInteractionUpdate,
@@ -114,6 +116,28 @@ async def provide_wizard_service(
         Configured WizardService instance.
     """
     return WizardService(wizard_repository, step_repository, interaction_repository)
+
+
+@get(
+    "/api/v1/languages",
+    summary="List supported languages",
+    description="Return ISO 639-1 languages sorted with English first, rest alphabetical by code.",
+    tags=["Wizards"],
+    sync_to_thread=False,
+    exclude_from_auth=True,
+)
+def list_languages() -> list[LanguageResponse]:
+    """Return the sorted list of supported ISO 639-1 languages.
+
+    English is always first, remaining languages sorted alphabetically
+    by their two-letter code.
+
+    Returns:
+        Sorted list of language entries.
+    """
+    return [
+        LanguageResponse(code=code, name=name) for code, name in get_sorted_languages()
+    ]
 
 
 class WizardController(Controller):
