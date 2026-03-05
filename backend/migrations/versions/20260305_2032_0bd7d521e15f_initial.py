@@ -30,11 +30,11 @@ def upgrade() -> None:
         sa.Column("external_id", sa.String(length=255), nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False),
         sa.Column("last_login_at", sa.DateTime(), nullable=True),
-        sa.Column("totp_enabled", sa.Boolean(), nullable=False),
+        sa.Column("totp_enabled", sa.Boolean(), server_default=sa.text("0"), nullable=False),
         sa.Column("totp_secret_encrypted", sa.Text(), nullable=True),
         sa.Column("totp_backup_codes", sa.Text(), nullable=True),
         sa.Column("totp_enabled_at", sa.DateTime(), nullable=True),
-        sa.Column("totp_failed_attempts", sa.Integer(), nullable=False),
+        sa.Column("totp_failed_attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("totp_last_failed_at", sa.DateTime(), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
@@ -241,7 +241,7 @@ def upgrade() -> None:
         sa.Column("step_order", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=False),
         sa.Column("content_markdown", sa.Text(), nullable=False),
-        sa.Column("primary_language", sa.String(length=10), nullable=False),
+        sa.Column("primary_language", sa.String(length=10), server_default=sa.text("'en'"), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
