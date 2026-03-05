@@ -174,10 +174,10 @@ class DevRunner:
             )
 
         if not self.backend_only:
+            # Keep bootstrap token access backend-only; the frontend must not read it.
             frontend_env = {
                 **parent_env,
                 "PUBLIC_API_URL": f"http://localhost:{self.backend_port}",
-                "BOOTSTRAP_TOKEN_FILE": token_file,
                 **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             self.servers.append(

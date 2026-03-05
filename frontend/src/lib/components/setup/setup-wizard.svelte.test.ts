@@ -43,14 +43,22 @@ function findButton(container: HTMLElement, text: string): HTMLButtonElement | u
 	) as HTMLButtonElement | undefined;
 }
 
-async function submitAdminStep(user: ReturnType<typeof userEvent.setup>, container: HTMLElement) {
+async function submitAdminStep(
+	user: ReturnType<typeof userEvent.setup>,
+	container: HTMLElement,
+	bootstrapToken: string = 'bootstrap-token'
+) {
 	const username = container.querySelector('#setup-username') as HTMLInputElement;
 	const password = container.querySelector('#setup-password') as HTMLInputElement;
 	const confirmPassword = container.querySelector('#setup-confirm') as HTMLInputElement;
+	const token = container.querySelector('#setup-bootstrap-token') as HTMLInputElement;
 
 	await user.type(username, 'adminuser');
 	await user.type(password, 'this_is_a_secure_password');
 	await user.type(confirmPassword, 'this_is_a_secure_password');
+	if (bootstrapToken) {
+		await user.type(token, bootstrapToken);
+	}
 
 	await user.click(findButton(container, 'Create admin account')!);
 }
@@ -81,9 +89,28 @@ describe('SetupWizard', () => {
 		const { container } = render(SetupWizard);
 		await submitAdminStep(user, container);
 
+		expect(authApi.setupAdmin).toHaveBeenCalledWith({
+			username: 'adminuser',
+			password: 'this_is_a_secure_password',
+			email: undefined,
+			bootstrap_token: 'bootstrap-token'
+		});
+
 		await waitFor(() => {
 			expect(container.textContent).toContain('Two-Factor Authentication');
 		});
+	});
+
+	it('requires an operator-provided bootstrap token before submitting admin setup', async () => {
+		const user = userEvent.setup();
+		const { container } = render(SetupWizard);
+
+		expect(container.querySelector('#setup-bootstrap-token')).not.toBeNull();
+
+		await submitAdminStep(user, container, '');
+
+		expect(authApi.setupAdmin).not.toHaveBeenCalled();
+		expect(container.textContent).toContain('Bootstrap token is required');
 	});
 
 	it('navigates to dashboard when server step is skipped after CSRF step', async () => {

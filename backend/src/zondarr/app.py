@@ -228,8 +228,9 @@ async def _bootstrap_token_lifespan(app: Litestar):
 
     When no BOOTSTRAP_TOKEN env var is set and no admin account exists,
     generates a one-time token and logs it for the operator to use during
-    initial setup. The token is written to a file so the frontend SSR can
-    read it directly from disk.
+    initial setup. The token is also written to a file for secure
+    operator-only retrieval outside the web app (for example local file
+    access, bind mounts, or docker exec).
     """
     settings = cast(Settings, app.state.settings)
     bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(  # pyright: ignore[reportAny]
@@ -250,13 +251,13 @@ async def _bootstrap_token_lifespan(app: Litestar):
                 "bootstrap_token_generated",
                 message=(
                     "No BOOTSTRAP_TOKEN set and no admin exists. "
-                    "Use this token for initial setup:"
+                    "Use this operator-only token for initial setup:"
                 ),
             )
             # Log token on a separate line for easy copy-paste
             print(f"\n{'=' * 60}\n  BOOTSTRAP TOKEN: {token}\n{'=' * 60}\n")
 
-    # Write token to file for frontend SSR to read
+    # Write token to a local file for operator-only retrieval outside the web app
     if token is not None:
         token_path = _resolve_token_file_path(settings)
         try:
@@ -274,6 +275,10 @@ async def _bootstrap_token_lifespan(app: Litestar):
             bootstrap_logger.info(
                 "bootstrap_token_written",
                 path=str(token_path),
+                message=(
+                    "Read the bootstrap token from this file via local or container "
+                    "access; do not expose it through the frontend."
+                ),
             )
         except OSError:
             bootstrap_logger.warning(

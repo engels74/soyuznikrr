@@ -8,10 +8,9 @@ import { type SetupFormData, setupSchema } from '$lib/schemas/auth';
 
 interface Props {
 	onComplete: () => void;
-	bootstrapToken?: string | null;
 }
 
-const { onComplete, bootstrapToken }: Props = $props();
+const { onComplete }: Props = $props();
 
 let username = $state('');
 let password = $state('');
@@ -60,12 +59,18 @@ async function handleSubmit(e: SubmitEvent) {
 		return;
 	}
 
+	const bootstrapToken = manualToken.trim();
+	if (!bootstrapToken) {
+		errors.bootstrapToken = 'Bootstrap token is required';
+		return;
+	}
+
 	loading = true;
 	const response = await setupAdmin({
 		username: result.data.username,
 		password: result.data.password,
 		email: result.data.email || undefined,
-		bootstrap_token: bootstrapToken || manualToken.trim() || ''
+		bootstrap_token: bootstrapToken
 	});
 
 	if (response.error) {
@@ -172,21 +177,25 @@ async function handleSubmit(e: SubmitEvent) {
 				{/if}
 			</div>
 
-			{#if !bootstrapToken}
 				<div class="flex flex-col gap-1.5">
-					<Label for="setup-bootstrap-token" class="text-cr-text">Bootstrap Token</Label>
+					<Label for="setup-bootstrap-token" class="text-cr-text">
+						Bootstrap Token <span class="text-cr-text-dim">(required)</span>
+					</Label>
 					<Input
 						id="setup-bootstrap-token"
 						type="text"
 						bind:value={manualToken}
 						placeholder="Paste token from server logs"
+						autocomplete="off"
 						class="border-cr-border bg-cr-bg text-cr-text font-mono text-sm placeholder:text-cr-text-dim"
 					/>
 					<p class="text-xs text-cr-text-muted">
 						Enter the bootstrap token from your server logs or Docker logs.
 					</p>
+					{#if errors.bootstrapToken}
+						<p class="text-xs text-red-400">{errors.bootstrapToken}</p>
+					{/if}
 				</div>
-			{/if}
 
 			<Button
 				type="submit"

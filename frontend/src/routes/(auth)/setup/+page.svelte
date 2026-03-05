@@ -5,4 +5,4 @@ import type { PageData } from './$types';
 const { data }: { data: PageData } = $props();
 </script>
 
-<SetupWizard initialStep={data.onboardingStep} bootstrapToken={data.bootstrapToken} />
+<SetupWizard initialStep={data.onboardingStep} />

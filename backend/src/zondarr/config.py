@@ -60,7 +60,7 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     # Bootstrap token for initial admin setup
     bootstrap_token: str | None = None
 
-    # File path to write the bootstrap token to (for frontend SSR to read)
+    # File path to write the bootstrap token to for operator-only retrieval
     bootstrap_token_file: str | None = None
 
     # Dynamic provider credentials populated from env vars

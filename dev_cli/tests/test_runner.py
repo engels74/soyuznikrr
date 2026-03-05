@@ -35,7 +35,7 @@ class DevRunnerCommandTests(unittest.TestCase):
             token_file = str(repo_root / "backend" / "data" / ".bootstrap_token")
 
             self.assertEqual(backend.env["BOOTSTRAP_TOKEN_FILE"], token_file)
-            self.assertEqual(frontend.env["BOOTSTRAP_TOKEN_FILE"], token_file)
+            self.assertNotIn("BOOTSTRAP_TOKEN_FILE", frontend.env)
             self.assertIn("--reload", backend.cmd)
 
             ignore_idx = backend.cmd.index("--reload-ignore-paths")

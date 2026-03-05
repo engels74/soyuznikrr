@@ -1,28 +1,14 @@
-import { readFileSync } from 'node:fs';
 import { isRedirect, redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { getAuthMethods, getMe, type OnboardingStep } from '$lib/api/auth';
 import { isNetworkError } from '$lib/api/errors';
 import type { PageServerLoad } from './$types';
-
-function readBootstrapToken(): string | null {
-	const filePath = env.BOOTSTRAP_TOKEN_FILE;
-	if (!filePath) return null;
-	try {
-		const content = readFileSync(filePath, 'utf-8').trim();
-		return content || null;
-	} catch {
-		return null;
-	}
-}
 
 export const load: PageServerLoad = async ({ fetch }) => {
 	try {
 		const authMethods = await getAuthMethods(fetch);
 
 		if (authMethods.setup_required) {
-			const bootstrapToken = readBootstrapToken();
-			return { onboardingStep: 'account' as OnboardingStep, bootstrapToken };
+			return { onboardingStep: 'account' as OnboardingStep };
 		}
 
 		if (!authMethods.onboarding_required) {
