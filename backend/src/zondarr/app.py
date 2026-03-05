@@ -267,6 +267,7 @@ async def _bootstrap_token_lifespan(app: Litestar):
                 0o600,
             )
             try:
+                os.fchmod(fd, 0o600)
                 _ = os.write(fd, token.encode())
             finally:
                 os.close(fd)
