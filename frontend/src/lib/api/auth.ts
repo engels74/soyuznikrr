@@ -114,21 +114,6 @@ export async function getAuthMethods(
 	return data as AuthMethodsResponse;
 }
 
-export async function getSetupToken(
-	customFetch: typeof globalThis.fetch = fetch
-): Promise<string | null> {
-	try {
-		const response = await customFetch(`${API_BASE_URL}/api/auth/setup-token`, {
-			credentials: 'include'
-		});
-		if (!response.ok) return null;
-		const data = (await response.json()) as { bootstrap_token: string | null };
-		return data.bootstrap_token;
-	} catch {
-		return null;
-	}
-}
-
 export async function setupAdmin(
 	data: { username: string; password: string; email?: string; bootstrap_token?: string },
 	customFetch: typeof globalThis.fetch = fetch

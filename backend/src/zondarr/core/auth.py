@@ -32,7 +32,6 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright
 _AUTH_EXCLUDE_PATHS_BASE = [
     "/api/auth/methods",
     "/api/auth/setup",
-    "/api/auth/setup-token",
     "/api/auth/login",
     "/api/auth/refresh",
     "/api/auth/logout",

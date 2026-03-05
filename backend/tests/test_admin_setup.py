@@ -252,11 +252,15 @@ def _make_setup_app(
 
 
 class TestBootstrapTokenValidation:
-    """Tests for bootstrap token validation on the setup endpoint."""
+    """Tests for bootstrap token validation on the setup endpoint.
+
+    bootstrap_token is always required in the request body. The server
+    always validates it against the configured or auto-generated token.
+    """
 
     @pytest.mark.asyncio
-    async def test_setup_succeeds_without_token_when_none_configured(self) -> None:
-        """Setup works normally when no bootstrap token is configured."""
+    async def test_setup_rejects_when_no_token_configured(self) -> None:
+        """Setup returns 401 when no token is configured on the server."""
         engine = await create_test_engine()
         try:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -264,8 +268,13 @@ class TestBootstrapTokenValidation:
             app = _make_setup_app(session_factory, settings)
 
             with TestClient(app) as client:
-                response = client.post("/api/auth/setup", json=VALID_SETUP_PAYLOAD)
-                assert response.status_code == 201
+                response = client.post(
+                    "/api/auth/setup",
+                    json={**VALID_SETUP_PAYLOAD, "bootstrap_token": "any-token"},
+                )
+                assert response.status_code == 401
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["error_code"] == "INVALID_BOOTSTRAP_TOKEN"
         finally:
             await engine.dispose()
 
@@ -308,8 +317,8 @@ class TestBootstrapTokenValidation:
             await engine.dispose()
 
     @pytest.mark.asyncio
-    async def test_setup_rejects_missing_token_when_required(self) -> None:
-        """Setup returns 401 when bootstrap token is configured but not sent."""
+    async def test_setup_rejects_missing_token_field(self) -> None:
+        """Setup returns 400 when bootstrap_token field is omitted (now required)."""
         engine = await create_test_engine()
         try:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -317,10 +326,9 @@ class TestBootstrapTokenValidation:
             app = _make_setup_app(session_factory, settings)
 
             with TestClient(app) as client:
+                # Omit bootstrap_token entirely — should fail validation (400)
                 response = client.post("/api/auth/setup", json=VALID_SETUP_PAYLOAD)
-                assert response.status_code == 401
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
-                assert data["error_code"] == "INVALID_BOOTSTRAP_TOKEN"
+                assert response.status_code == 400
         finally:
             await engine.dispose()
 
@@ -336,8 +344,11 @@ class TestBootstrapTokenValidation:
             )
 
             with TestClient(app) as client:
-                # Without token — rejected
-                response = client.post("/api/auth/setup", json=VALID_SETUP_PAYLOAD)
+                # Wrong token — rejected
+                response = client.post(
+                    "/api/auth/setup",
+                    json={**VALID_SETUP_PAYLOAD, "bootstrap_token": "wrong-token"},
+                )
                 assert response.status_code == 401
 
                 # With correct auto-generated token — accepted
@@ -387,73 +398,9 @@ class TestBootstrapTokenValidation:
         finally:
             await engine.dispose()
 
-
-# =============================================================================
-# GET /api/auth/setup-token endpoint tests
-# =============================================================================
-
-
-class TestGetSetupToken:
-    """Tests for the GET /api/auth/setup-token endpoint."""
-
     @pytest.mark.asyncio
-    async def test_returns_token_when_no_admin_exists(self) -> None:
-        """Endpoint returns the bootstrap token when setup is required."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            settings = Settings(
-                secret_key="a" * 32, bootstrap_token="env-bootstrap-token"
-            )
-            app = _make_setup_app(session_factory, settings)
-
-            with TestClient(app) as client:
-                response = client.get("/api/auth/setup-token")
-                assert response.status_code == 200
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
-                assert data["bootstrap_token"] == "env-bootstrap-token"  # noqa: S105
-        finally:
-            await engine.dispose()
-
-    @pytest.mark.asyncio
-    async def test_returns_generated_token_when_no_env_token(self) -> None:
-        """Endpoint returns auto-generated token from app state."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            settings = Settings(secret_key="a" * 32)
-            app = _make_setup_app(
-                session_factory, settings, generated_token="auto-gen-token"
-            )
-
-            with TestClient(app) as client:
-                response = client.get("/api/auth/setup-token")
-                assert response.status_code == 200
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
-                assert data["bootstrap_token"] == "auto-gen-token"  # noqa: S105
-        finally:
-            await engine.dispose()
-
-    @pytest.mark.asyncio
-    async def test_returns_null_when_no_token_configured(self) -> None:
-        """Endpoint returns null bootstrap_token when none is configured."""
-        engine = await create_test_engine()
-        try:
-            session_factory = async_sessionmaker(engine, expire_on_commit=False)
-            settings = Settings(secret_key="a" * 32)
-            app = _make_setup_app(session_factory, settings)
-
-            with TestClient(app) as client:
-                response = client.get("/api/auth/setup-token")
-                assert response.status_code == 200
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
-                assert data["bootstrap_token"] is None
-        finally:
-            await engine.dispose()
-
-    @pytest.mark.asyncio
-    async def test_returns_error_when_admin_exists(self) -> None:
-        """Endpoint returns 401 SETUP_NOT_REQUIRED when an admin already exists."""
+    async def test_setup_token_endpoint_removed(self) -> None:
+        """GET /api/auth/setup-token returns 404 (endpoint removed)."""
         engine = await create_test_engine()
         try:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -461,17 +408,7 @@ class TestGetSetupToken:
             app = _make_setup_app(session_factory, settings)
 
             with TestClient(app) as client:
-                # First, create an admin
-                response = client.post(
-                    "/api/auth/setup",
-                    json={**VALID_SETUP_PAYLOAD, "bootstrap_token": "some-token"},
-                )
-                assert response.status_code == 201
-
-                # Now the setup-token endpoint should reject
                 response = client.get("/api/auth/setup-token")
-                assert response.status_code == 401
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
-                assert data["error_code"] == "SETUP_NOT_REQUIRED"
+                assert response.status_code in (404, 405)
         finally:
             await engine.dispose()

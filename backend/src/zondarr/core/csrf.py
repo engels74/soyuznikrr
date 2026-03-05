@@ -42,7 +42,6 @@ SAFE_METHODS = frozenset({b"GET", b"HEAD", b"OPTIONS"})
 _CSRF_EXCLUDE_PATHS_BASE = frozenset(
     {
         "/api/auth/setup",
-        "/api/auth/setup-token",
         "/api/auth/login",
         "/api/auth/refresh",
         "/api/auth/logout",
