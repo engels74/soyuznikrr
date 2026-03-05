@@ -180,6 +180,7 @@ class DevRunner:
                 "PUBLIC_API_URL": f"http://localhost:{self.backend_port}",
                 **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
+            frontend_env.pop("BOOTSTRAP_TOKEN_FILE", None)
             self.servers.append(
                 ServerProcess(
                     name="frontend",
