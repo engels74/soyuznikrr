@@ -17,6 +17,7 @@ let username = $state('');
 let password = $state('');
 let confirmPassword = $state('');
 let email = $state('');
+let manualToken = $state('');
 let errors = $state<Record<string, string>>({});
 let serverError = $state('');
 let loading = $state(false);
@@ -64,7 +65,7 @@ async function handleSubmit(e: SubmitEvent) {
 		username: result.data.username,
 		password: result.data.password,
 		email: result.data.email || undefined,
-		bootstrap_token: bootstrapToken || undefined
+		bootstrap_token: bootstrapToken || manualToken.trim() || ''
 	});
 
 	if (response.error) {
@@ -170,6 +171,22 @@ async function handleSubmit(e: SubmitEvent) {
 					<p class="text-xs text-red-400">{errors.email}</p>
 				{/if}
 			</div>
+
+			{#if !bootstrapToken}
+				<div class="flex flex-col gap-1.5">
+					<Label for="setup-bootstrap-token" class="text-cr-text">Bootstrap Token</Label>
+					<Input
+						id="setup-bootstrap-token"
+						type="text"
+						bind:value={manualToken}
+						placeholder="Paste token from server logs"
+						class="border-cr-border bg-cr-bg text-cr-text font-mono text-sm placeholder:text-cr-text-dim"
+					/>
+					<p class="text-xs text-cr-text-muted">
+						Enter the bootstrap token from your server logs or Docker logs.
+					</p>
+				</div>
+			{/if}
 
 			<Button
 				type="submit"

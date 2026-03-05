@@ -19,8 +19,10 @@ Usage:
 """
 
 import asyncio
+import os
 import secrets
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import cast
 
 import structlog
@@ -199,16 +201,42 @@ async def _log_stream_lifespan(_app: Litestar):
         log_buffer.unbind_loop()
 
 
+def _resolve_token_file_path(settings: Settings) -> Path:
+    """Resolve the file path for writing the bootstrap token.
+
+    Priority:
+    1. BOOTSTRAP_TOKEN_FILE env var (explicit path)
+    2. Derive from DATABASE_URL — if SQLite, write next to the DB file
+    3. Fallback: ./.bootstrap_token in CWD
+    """
+    if settings.bootstrap_token_file:
+        return Path(settings.bootstrap_token_file)
+
+    db_url = settings.database_url
+    if "sqlite" in db_url:
+        # Extract path from sqlite URL like "sqlite+aiosqlite:///./data/zondarr.db"
+        db_path_str = db_url.split("///", 1)[-1] if "///" in db_url else ""
+        if db_path_str:
+            return Path(db_path_str).parent / ".bootstrap_token"
+
+    return Path(".bootstrap_token")
+
+
 @asynccontextmanager
 async def _bootstrap_token_lifespan(app: Litestar):
-    """Auto-generate a bootstrap token on startup if needed.
+    """Auto-generate a bootstrap token on startup if needed, and write it to file.
 
     When no BOOTSTRAP_TOKEN env var is set and no admin account exists,
     generates a one-time token and logs it for the operator to use during
-    initial setup.
+    initial setup. The token is written to a file so the frontend SSR can
+    read it directly from disk.
     """
     settings = cast(Settings, app.state.settings)
-    if settings.bootstrap_token is None:
+    bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(  # pyright: ignore[reportAny]
+        "zondarr.bootstrap"
+    )
+    token: str | None = settings.bootstrap_token
+    if token is None:
         session_factory: async_sessionmaker[AsyncSession] = (  # pyright: ignore[reportAny]
             app.state.session_factory
         )
@@ -218,9 +246,6 @@ async def _bootstrap_token_lifespan(app: Litestar):
         if count == 0:
             token = secrets.token_urlsafe(32)
             app.state.generated_bootstrap_token = token
-            bootstrap_logger: structlog.stdlib.BoundLogger = structlog.get_logger(  # pyright: ignore[reportAny]
-                "zondarr.bootstrap"
-            )
             bootstrap_logger.info(
                 "bootstrap_token_generated",
                 message=(
@@ -230,6 +255,32 @@ async def _bootstrap_token_lifespan(app: Litestar):
             )
             # Log token on a separate line for easy copy-paste
             print(f"\n{'=' * 60}\n  BOOTSTRAP TOKEN: {token}\n{'=' * 60}\n")
+
+    # Write token to file for frontend SSR to read
+    if token is not None:
+        token_path = _resolve_token_file_path(settings)
+        try:
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            fd = os.open(
+                str(token_path),
+                os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                0o600,
+            )
+            try:
+                os.fchmod(fd, 0o600)
+                _ = os.write(fd, token.encode())
+            finally:
+                os.close(fd)
+            bootstrap_logger.info(
+                "bootstrap_token_written",
+                path=str(token_path),
+            )
+        except OSError:
+            bootstrap_logger.warning(
+                "bootstrap_token_write_failed",
+                path=str(token_path),
+                message="Could not write bootstrap token file. Token is still available in console output above.",
+            )
     yield
 
 

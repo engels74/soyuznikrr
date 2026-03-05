@@ -45,7 +45,6 @@ from .schemas import (
     PasswordChangeResponse,
     ProviderAuthInfo,
     RefreshRequest,
-    SetupTokenResponse,
 )
 from .totp import create_challenge_token
 
@@ -151,30 +150,6 @@ class AuthController(Controller):
             provider_auth=provider_auth,
         )
 
-    @get(
-        "/setup-token",
-        status_code=HTTP_200_OK,
-        summary="Get bootstrap token for initial setup",
-        exclude_from_auth=True,
-    )
-    async def get_setup_token(
-        self,
-        request: Request[None, None, State],
-        session: AsyncSession,
-        settings: Settings,
-    ) -> SetupTokenResponse:
-        """Return the bootstrap token only when setup is required (no admin exists)."""
-        service = self._create_auth_service(session)
-        if not await service.setup_required():
-            raise AuthenticationError(
-                "Setup already completed",
-                "SETUP_NOT_REQUIRED",
-            )
-        token = settings.bootstrap_token or getattr(
-            request.app.state, "generated_bootstrap_token", None
-        )
-        return SetupTokenResponse(bootstrap_token=token)
-
     @post(
         "/setup",
         status_code=HTTP_201_CREATED,
@@ -189,18 +164,17 @@ class AuthController(Controller):
         settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Create the first admin account (only when no admins exist)."""
-        # Validate bootstrap token if one is configured
+        # Validate bootstrap token (always required)
         expected_token: str | None = settings.bootstrap_token or getattr(
             request.app.state, "generated_bootstrap_token", None
         )
-        if expected_token is not None:
-            if data.bootstrap_token is None or not hmac.compare_digest(
-                expected_token, data.bootstrap_token
-            ):
-                raise AuthenticationError(
-                    "Invalid or missing bootstrap token",
-                    "INVALID_BOOTSTRAP_TOKEN",
-                )
+        if expected_token is None or not hmac.compare_digest(
+            expected_token, data.bootstrap_token
+        ):
+            raise AuthenticationError(
+                "Invalid or missing bootstrap token",
+                "INVALID_BOOTSTRAP_TOKEN",
+            )
 
         service = self._create_auth_service(session)
         admin = await service.setup_admin(

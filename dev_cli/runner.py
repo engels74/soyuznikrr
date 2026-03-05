@@ -131,12 +131,16 @@ class DevRunner:
 
     def _build_servers(self) -> None:
         parent_env = dict(os.environ)
+        token_file = str(
+            self.repo_root / "backend" / "data" / ".bootstrap_token"
+        )
 
         if not self.frontend_only:
             backend_env = {
                 **parent_env,
                 "DEBUG": "true",
                 "CORS_ORIGINS": f"http://localhost:{self.frontend_port}",
+                "BOOTSTRAP_TOKEN_FILE": token_file,
                 **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             backend_cmd = [
@@ -169,6 +173,7 @@ class DevRunner:
             frontend_env = {
                 **parent_env,
                 "PUBLIC_API_URL": f"http://localhost:{self.backend_port}",
+                "BOOTSTRAP_TOKEN_FILE": token_file,
                 **({"DEV_SKIP_AUTH": "true"} if self.skip_auth else {}),
             }
             self.servers.append(

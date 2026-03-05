@@ -1363,16 +1363,6 @@ class ProviderAuthInfo(msgspec.Struct, kw_only=True):
     fields: list[AuthFieldInfo] = []
 
 
-class SetupTokenResponse(msgspec.Struct, kw_only=True):
-    """Response containing the bootstrap token for initial setup.
-
-    Attributes:
-        bootstrap_token: The bootstrap token, or None if not configured.
-    """
-
-    bootstrap_token: str | None
-
-
 class AuthMethodsResponse(msgspec.Struct, kw_only=True):
     """Response listing available authentication methods.
 
@@ -1410,13 +1400,13 @@ class AdminSetupRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True
         username: Admin username (3-32 chars, lowercase).
         password: Admin password (15+ chars).
         email: Optional email address.
-        bootstrap_token: Bootstrap token required when server has one configured.
+        bootstrap_token: Bootstrap token required for initial admin setup.
     """
 
     username: AdminUsername
     password: AdminPassword
     email: EmailStr | None = None
-    bootstrap_token: str | None = None
+    bootstrap_token: str
 
 
 class LoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
