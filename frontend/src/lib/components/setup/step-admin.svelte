@@ -65,7 +65,7 @@ async function handleSubmit(e: SubmitEvent) {
 		username: result.data.username,
 		password: result.data.password,
 		email: result.data.email || undefined,
-		bootstrap_token: bootstrapToken || manualToken || undefined
+		bootstrap_token: bootstrapToken || manualToken.trim() || ''
 	});
 
 	if (response.error) {

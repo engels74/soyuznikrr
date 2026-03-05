@@ -409,6 +409,6 @@ class TestBootstrapTokenValidation:
 
             with TestClient(app) as client:
                 response = client.get("/api/auth/setup-token")
-                assert response.status_code in (404, 405)
+                assert response.status_code == 404
         finally:
             await engine.dispose()

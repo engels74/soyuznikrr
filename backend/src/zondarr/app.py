@@ -19,6 +19,7 @@ Usage:
 """
 
 import asyncio
+import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -258,12 +259,27 @@ async def _bootstrap_token_lifespan(app: Litestar):
     # Write token to file for frontend SSR to read
     if token is not None:
         token_path = _resolve_token_file_path(settings)
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        token_path.write_text(token)
-        bootstrap_logger.info(
-            "bootstrap_token_written",
-            path=str(token_path),
-        )
+        try:
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            fd = os.open(
+                str(token_path),
+                os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                0o600,
+            )
+            try:
+                _ = os.write(fd, token.encode())
+            finally:
+                os.close(fd)
+            bootstrap_logger.info(
+                "bootstrap_token_written",
+                path=str(token_path),
+            )
+        except OSError:
+            bootstrap_logger.warning(
+                "bootstrap_token_write_failed",
+                path=str(token_path),
+                message="Could not write bootstrap token file. Token is still available in console output above.",
+            )
     yield
 
 

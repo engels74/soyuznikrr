@@ -115,7 +115,7 @@ export async function getAuthMethods(
 }
 
 export async function setupAdmin(
-	data: { username: string; password: string; email?: string; bootstrap_token?: string },
+	data: { username: string; password: string; email?: string; bootstrap_token: string },
 	customFetch: typeof globalThis.fetch = fetch
 ): Promise<{ data?: AuthTokenResponse; error?: unknown }> {
 	const response = await customFetch(`${API_BASE_URL}/api/auth/setup`, {
