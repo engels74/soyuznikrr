@@ -156,7 +156,11 @@ class DevRunner:
                 str(self.backend_port),
             ]
             if self.reload:
-                backend_cmd.append("--reload")
+                backend_cmd.extend([
+                    "--reload",
+                    "--reload-ignore-paths",
+                    token_file,
+                ])
             self.servers.append(
                 ServerProcess(
                     name="backend",
