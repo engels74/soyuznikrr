@@ -50,6 +50,17 @@ CODE_LENGTH: int = 12
 MAX_CODE_GENERATION_RETRIES: int = 3
 
 
+def _normalize_expires_at(expires_at: datetime | None) -> datetime | None:
+    """Normalize a naive datetime to UTC.
+
+    If the datetime has no timezone info, assume UTC and attach it.
+    Returns None unchanged.
+    """
+    if expires_at is not None and expires_at.tzinfo is None:
+        return expires_at.replace(tzinfo=UTC)
+    return expires_at
+
+
 class InvitationService:
     """Service for managing invitation operations.
 
@@ -157,6 +168,9 @@ class InvitationService:
             )
         elif allowed_libraries is not None:
             resolved_libraries = list(allowed_libraries)
+
+        # Normalize naive datetime to UTC before persisting
+        expires_at = _normalize_expires_at(expires_at)
 
         # Create the invitation entity
         invitation = Invitation(
@@ -521,7 +535,7 @@ class InvitationService:
 
         # Update mutable fields if provided
         if expires_at is not None:
-            invitation.expires_at = expires_at
+            invitation.expires_at = _normalize_expires_at(expires_at)
 
         if max_uses is not None:
             invitation.max_uses = max_uses
@@ -620,10 +634,13 @@ class InvitationService:
         if not invitation.enabled:
             return False
 
-        # Check expiration
+        # Check expiration (defensive: normalize naive datetime to UTC)
         if invitation.expires_at is not None:
+            exp = invitation.expires_at
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=UTC)
             now = datetime.now(UTC)
-            if invitation.expires_at <= now:
+            if exp <= now:
                 return False
 
         # Check max uses
@@ -715,10 +732,13 @@ class InvitationService:
         if not invitation.enabled:
             return False, InvitationValidationFailure.DISABLED
 
-        # Check 2: Expiration time
+        # Check 2: Expiration time (defensive: normalize naive datetime to UTC)
         if invitation.expires_at is not None:
+            exp = invitation.expires_at
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=UTC)
             now = datetime.now(UTC)
-            if invitation.expires_at <= now:
+            if exp <= now:
                 return False, InvitationValidationFailure.EXPIRED
 
         # Check 3: Use count vs max_uses
