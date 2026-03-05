@@ -465,10 +465,12 @@ class UserController(Controller):
             inv = user.invitation
             is_active = inv.enabled
             if is_active and inv.expires_at is not None:
-                # Compare naive-to-naive: DB column is DateTime without
-                # timezone, so expires_at comes back naive from the ORM.
-                now_utc = datetime.now(UTC).replace(tzinfo=None)
-                is_active = inv.expires_at > now_utc
+                # Defensive: normalize naive datetime to UTC
+                exp = inv.expires_at
+                if exp.tzinfo is None:
+                    exp = exp.replace(tzinfo=UTC)
+                now = datetime.now(UTC)
+                is_active = exp > now
             if is_active and inv.max_uses is not None:
                 is_active = inv.use_count < inv.max_uses
             remaining_uses = (
