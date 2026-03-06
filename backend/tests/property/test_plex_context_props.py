@@ -124,7 +124,8 @@ class TestCapabilitiesDeclaration:
     Feature: plex-integration
     Property: Capabilities Declaration
 
-    PlexClient declares CREATE_USER, DELETE_USER, and LIBRARY_ACCESS capabilities.
+    PlexClient declares CREATE_USER, DELETE_USER, LIBRARY_ACCESS, and
+    REMOVE_SHARED_ACCESS capabilities.
     It does NOT declare ENABLE_DISABLE_USER or DOWNLOAD_PERMISSION.
     """
 
@@ -134,6 +135,7 @@ class TestCapabilitiesDeclaration:
             Capability.CREATE_USER,
             Capability.DELETE_USER,
             Capability.LIBRARY_ACCESS,
+            Capability.REMOVE_SHARED_ACCESS,
         ],
         ids=lambda c: c.name,
     )
