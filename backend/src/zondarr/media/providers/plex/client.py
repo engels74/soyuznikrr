@@ -581,7 +581,7 @@ class PlexClient:
                             pending_count=len(invites),  # pyright: ignore[reportUnknownArgumentType]
                         )
 
-                        # Step 2: Find invite from the admin
+                        # Step 2: Find invite from the admin for this server
                         matched_invite: dict[str, object] | None = None
                         for inv in invites:  # pyright: ignore[reportUnknownVariableType]
                             owner: dict[str, object] = inv.get("owner", {}) or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportAssignmentType]
@@ -591,8 +591,20 @@ class PlexClient:
                                 owner.get("title", ""),
                                 owner.get("friendlyName", ""),
                             )
-                            if admin_username and admin_username in owner_values:
-                                matched_invite = inv  # pyright: ignore[reportUnknownVariableType]
+                            if not (admin_username and admin_username in owner_values):
+                                continue
+                            # Also match on server machineIdentifier so we
+                            # don't accept the wrong invite when the admin
+                            # has multiple servers with pending invites.
+                            inv_servers = cast(
+                                list[dict[str, object]],
+                                inv.get("sharedServers") or [],  # pyright: ignore[reportUnknownMemberType]
+                            )
+                            for srv in inv_servers:
+                                if str(srv.get("machineIdentifier", "")) == machine_id:
+                                    matched_invite = inv  # pyright: ignore[reportUnknownVariableType]
+                                    break
+                            if matched_invite is not None:
                                 break
 
                         if matched_invite is None:
@@ -605,21 +617,27 @@ class PlexClient:
                                 time.sleep(1)
                             continue
 
-                        # Step 3: Accept the invite
+                        # Step 3: Accept the invite for the matching server
                         shared_servers = cast(
                             list[dict[str, object]],
                             matched_invite.get("sharedServers") or [],
                         )
-                        if not shared_servers:
+                        matched_server: dict[str, object] | None = None
+                        for srv in shared_servers:
+                            if str(srv.get("machineIdentifier", "")) == machine_id:
+                                matched_server = srv
+                                break
+                        if matched_server is None:
                             log.info(
-                                "plex_auto_accept_no_shared_servers",
+                                "plex_auto_accept_no_matching_server",
                                 attempt=attempt,
+                                machine_id=machine_id,
                             )
                             if attempt < 3:
                                 time.sleep(1)
                             continue
 
-                        invite_id = shared_servers[0].get("id", "")
+                        invite_id = matched_server.get("id", "")
                         accept_url = (
                             f"{v2_base}/api/v2/shared_servers/{invite_id}/accept"
                         )

@@ -3517,7 +3517,10 @@ class MockV2InviteSessionError:
 
 
 def _make_v2_invite_json(
-    *, admin_username: str = "admin_user", invite_id: int = 99999
+    *,
+    admin_username: str = "admin_user",
+    invite_id: int = 99999,
+    machine_identifier: str = "abc123machine",
 ) -> list[dict[str, object]]:
     """Build a v2 pending-invite JSON list with one invite from the admin."""
     return [
@@ -3528,7 +3531,9 @@ def _make_v2_invite_json(
                 "title": "",
                 "friendlyName": "",
             },
-            "sharedServers": [{"id": invite_id}],
+            "sharedServers": [
+                {"id": invite_id, "machineIdentifier": machine_identifier}
+            ],
         }
     ]
 
@@ -3723,7 +3728,7 @@ class TestAutoAcceptV2Invite:
                     "title": "",
                     "friendlyName": "",
                 },
-                "sharedServers": [{"id": 11111}],
+                "sharedServers": [{"id": 11111, "machineIdentifier": "other_machine"}],
             },
             {
                 "owner": {
@@ -3732,7 +3737,7 @@ class TestAutoAcceptV2Invite:
                     "title": "",
                     "friendlyName": "",
                 },
-                "sharedServers": [{"id": 22222}],
+                "sharedServers": [{"id": 22222, "machineIdentifier": "abc123machine"}],
             },
         ]
         v2_session = MockV2InviteSessionSequenced(
