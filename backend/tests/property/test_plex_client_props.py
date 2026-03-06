@@ -2957,6 +2957,7 @@ class MockMyPlexAccountForDirectShare:
     _cancel_invite_error: Exception | None
     cancelled_invites: list[MockMyPlexInvite]
     pending_invites_called: bool
+    username: str
 
     def __init__(
         self,
@@ -2964,12 +2965,14 @@ class MockMyPlexAccountForDirectShare:
         session: MockSessionForDirectShare | None = None,
         pending_invites: list[MockMyPlexInvite] | None = None,
         cancel_invite_error: Exception | None = None,
+        username: str = "admin_user",
     ) -> None:
         self._session = session or MockSessionForDirectShare()
         self._pending_invites = pending_invites or []
         self._cancel_invite_error = cancel_invite_error
         self.cancelled_invites = []
         self.pending_invites_called = False
+        self.username = username
 
     def _headers(self) -> dict[str, str]:
         return {"X-Plex-Token": "admin-token"}
@@ -3002,15 +3005,68 @@ class MockMyPlexAccountForDirectShare:
         return [100000 + getattr(s, "key", i) for i, s in enumerate(sections)]
 
 
+class MockV2InviteResponse:
+    """Mock HTTP response for Plex v2 invite API calls."""
+
+    _json: object
+    status_code: int
+
+    def __init__(self, *, json_data: object = None, status_code: int = 200) -> None:
+        self._json = json_data if json_data is not None else []
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise Exception(f"HTTP {self.status_code}")
+
+    def json(self) -> object:
+        return self._json
+
+
+class MockV2InviteSession:
+    """Mock requests session for the user account's v2 invite API calls."""
+
+    _get_response: MockV2InviteResponse
+    _post_response: MockV2InviteResponse
+
+    def __init__(
+        self,
+        *,
+        get_response: MockV2InviteResponse | None = None,
+        post_response: MockV2InviteResponse | None = None,
+    ) -> None:
+        self._get_response = get_response or MockV2InviteResponse()
+        self._post_response = post_response or MockV2InviteResponse()
+
+    def get(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        return self._get_response
+
+    def post(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        return self._post_response
+
+
 class MockMyPlexAccountUserForDirectShare:
     """Mock MyPlexAccount created from user's auth token."""
 
     id: int
     username: str
+    uuid: str
+    _session: MockV2InviteSession
 
-    def __init__(self, *, user_id: int, username: str) -> None:
+    def __init__(
+        self,
+        *,
+        user_id: int,
+        username: str,
+        uuid: str = "user-uuid-1234",
+        session: MockV2InviteSession | None = None,
+    ) -> None:
         self.id = user_id
         self.username = username
+        self.uuid = uuid
+        self._session = session or MockV2InviteSession()
 
 
 class MockPlexServerForDirectShare:
@@ -3400,3 +3456,319 @@ class TestCancelPendingInvitesForUser:
 
                 assert count == 1
                 assert len(mock_account.cancelled_invites) == 1
+
+
+# --- Mocks for v2 auto-accept tests ---
+
+
+class MockV2InviteSessionSequenced:
+    """Mock session that returns different v2 responses on successive GET calls.
+
+    Allows testing retry logic by providing a sequence of responses.
+    """
+
+    _get_responses: list[MockV2InviteResponse]
+    _post_response: MockV2InviteResponse
+    _get_call_index: int
+
+    def __init__(
+        self,
+        *,
+        get_responses: list[MockV2InviteResponse] | None = None,
+        post_response: MockV2InviteResponse | None = None,
+    ) -> None:
+        self._get_responses = get_responses or [MockV2InviteResponse()]
+        self._post_response = post_response or MockV2InviteResponse()
+        self._get_call_index = 0
+
+    def get(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        idx = min(self._get_call_index, len(self._get_responses) - 1)
+        self._get_call_index += 1
+        return self._get_responses[idx]
+
+    def post(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        return self._post_response
+
+
+class MockV2InviteSessionError:
+    """Mock session that raises on GET (simulating network failure)."""
+
+    _error: Exception
+    _post_response: MockV2InviteResponse
+
+    def __init__(
+        self,
+        *,
+        error: Exception,
+        post_response: MockV2InviteResponse | None = None,
+    ) -> None:
+        self._error = error
+        self._post_response = post_response or MockV2InviteResponse()
+
+    def get(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        raise self._error
+
+    def post(self, url: str, **kwargs: object) -> MockV2InviteResponse:
+        _ = url, kwargs
+        return self._post_response
+
+
+def _make_v2_invite_json(
+    *,
+    admin_username: str = "admin_user",
+    invite_id: int = 99999,
+    machine_identifier: str = "abc123machine",
+) -> list[dict[str, object]]:
+    """Build a v2 pending-invite JSON list with one invite from the admin."""
+    return [
+        {
+            "owner": {
+                "username": admin_username,
+                "email": "",
+                "title": "",
+                "friendlyName": "",
+            },
+            "sharedServers": [
+                {"id": invite_id, "machineIdentifier": machine_identifier}
+            ],
+        }
+    ]
+
+
+class TestAutoAcceptV2Invite:
+    """
+    Feature: plex-integration
+    Property: v2 Auto-Accept Invite Behaviour
+
+    After _share_library_direct creates a server share, it uses the Plex v2
+    API to automatically accept the pending invite on behalf of the user.
+    This test class covers the retry logic and error handling for that flow.
+    """
+
+    @pytest.mark.asyncio
+    async def test_auto_accept_succeeds_on_first_attempt(self) -> None:
+        """v2 auto-accept finds matching invite and accepts on first try."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        admin_username = "admin_user"
+        invite_json = _make_v2_invite_json(admin_username=admin_username, invite_id=42)
+        v2_session = MockV2InviteSessionSequenced(
+            get_responses=[MockV2InviteResponse(json_data=invite_json)],
+        )
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser", session=v2_session
+        )
+
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(
+            session=mock_session, username=admin_username
+        )
+        mock_server = MockPlexServerForDirectShare(
+            "http://plex:32400", "token123", account=mock_account
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+            patch("time.sleep"),
+        ):
+            client = PlexClient(url="http://plex:32400", api_key="token123")
+
+            async with client:
+                result = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    "user@example.com", "fake-token"
+                )
+
+                assert result.external_user_id == "12345"
+                assert result.username == "testuser"
+                # auto-accept succeeded → stale invites should have been cleaned up
+                assert mock_account.pending_invites_called
+
+    @pytest.mark.asyncio
+    async def test_auto_accept_succeeds_on_retry(self) -> None:
+        """v2 auto-accept finds no invite on first attempt, succeeds on second."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        admin_username = "admin_user"
+        invite_json = _make_v2_invite_json(admin_username=admin_username)
+        v2_session = MockV2InviteSessionSequenced(
+            get_responses=[
+                MockV2InviteResponse(json_data=[]),  # first call: empty
+                MockV2InviteResponse(json_data=invite_json),  # second call: found
+            ],
+        )
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser", session=v2_session
+        )
+
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(
+            session=mock_session, username=admin_username
+        )
+        mock_server = MockPlexServerForDirectShare(
+            "http://plex:32400", "token123", account=mock_account
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+            patch("time.sleep"),
+        ):
+            client = PlexClient(url="http://plex:32400", api_key="token123")
+
+            async with client:
+                result = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    "user@example.com", "fake-token"
+                )
+
+                assert result.external_user_id == "12345"
+                # Confirm v2 session GET was called twice (empty then found)
+                assert v2_session._get_call_index == 2
+                # auto-accept succeeded → stale invites cleaned up
+                assert mock_account.pending_invites_called
+
+    @pytest.mark.asyncio
+    async def test_auto_accept_gives_up_after_max_retries(self) -> None:
+        """v2 auto-accept gives up after 3 attempts; auto_accepted=False."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        # All attempts return empty → never finds a matching invite
+        v2_session = MockV2InviteSessionSequenced(
+            get_responses=[MockV2InviteResponse(json_data=[])],
+        )
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser", session=v2_session
+        )
+
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(
+            session=mock_session, username="admin_user"
+        )
+        mock_server = MockPlexServerForDirectShare(
+            "http://plex:32400", "token123", account=mock_account
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+            patch("time.sleep"),
+        ):
+            client = PlexClient(url="http://plex:32400", api_key="token123")
+
+            async with client:
+                result = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    "user@example.com", "fake-token"
+                )
+
+                # The share itself succeeded even though auto-accept didn't
+                assert result.external_user_id == "12345"
+                # 3 GET attempts were made
+                assert v2_session._get_call_index == 3
+                # auto-accept failed → stale invites NOT cleaned up
+                assert not mock_account.pending_invites_called
+
+    @pytest.mark.asyncio
+    async def test_auto_accept_exception_logged_at_warning(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Exception during v2 auto-accept is logged at warning level."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        v2_session = MockV2InviteSessionError(
+            error=ConnectionError("v2 API unreachable")
+        )
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser", session=v2_session
+        )
+
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(
+            session=mock_session, username="admin_user"
+        )
+        mock_server = MockPlexServerForDirectShare(
+            "http://plex:32400", "token123", account=mock_account
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+            patch("time.sleep"),
+        ):
+            client = PlexClient(url="http://plex:32400", api_key="token123")
+
+            async with client:
+                result = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    "user@example.com", "fake-token"
+                )
+
+                # Share succeeded despite auto-accept failure
+                assert result.external_user_id == "12345"
+
+        # structlog writes to stdout; verify warning-level log with error detail
+        captured = capsys.readouterr()
+        assert "plex_auto_accept_invite_failed" in captured.out
+        assert "warning" in captured.out
+        assert "v2 API unreachable" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_auto_accept_matches_by_owner_username(self) -> None:
+        """v2 auto-accept matches invite by owner.username against admin username."""
+        from zondarr.media.providers.plex.client import PlexClient
+
+        admin_username = "my_special_admin"
+        # Two invites: one from a different owner, one from our admin
+        invites_json: list[dict[str, object]] = [
+            {
+                "owner": {
+                    "username": "someone_else",
+                    "email": "",
+                    "title": "",
+                    "friendlyName": "",
+                },
+                "sharedServers": [{"id": 11111, "machineIdentifier": "other_machine"}],
+            },
+            {
+                "owner": {
+                    "username": admin_username,
+                    "email": "",
+                    "title": "",
+                    "friendlyName": "",
+                },
+                "sharedServers": [{"id": 22222, "machineIdentifier": "abc123machine"}],
+            },
+        ]
+        v2_session = MockV2InviteSessionSequenced(
+            get_responses=[MockV2InviteResponse(json_data=invites_json)],
+        )
+        mock_user_account = MockMyPlexAccountUserForDirectShare(
+            user_id=12345, username="testuser", session=v2_session
+        )
+
+        mock_session = MockSessionForDirectShare()
+        mock_account = MockMyPlexAccountForDirectShare(
+            session=mock_session, username=admin_username
+        )
+        mock_server = MockPlexServerForDirectShare(
+            "http://plex:32400", "token123", account=mock_account
+        )
+
+        with (
+            patch("plexapi.server.PlexServer", return_value=mock_server),
+            patch("plexapi.myplex.MyPlexAccount", return_value=mock_user_account),
+            patch("time.sleep"),
+        ):
+            client = PlexClient(url="http://plex:32400", api_key="token123")
+
+            async with client:
+                result = await client._share_library_direct(  # pyright: ignore[reportPrivateUsage]
+                    "user@example.com", "fake-token"
+                )
+
+                assert result.external_user_id == "12345"
+                # Only 1 GET call needed (matched on first attempt)
+                assert v2_session._get_call_index == 1
+                # auto-accept succeeded → stale invites cleaned up
+                assert mock_account.pending_invites_called
