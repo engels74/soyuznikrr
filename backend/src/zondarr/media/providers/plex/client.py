@@ -13,8 +13,9 @@ Uses Python 3.14 features:
 """
 
 import asyncio
+import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Self, final
+from typing import TYPE_CHECKING, Self, cast, final
 
 import structlog
 
@@ -540,33 +541,111 @@ class PlexClient:
                 _ = resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
                 # Auto-accept: use the invitee's token to accept the pending
-                # invite so they get immediate library access without having to
-                # visit plex.tv manually.
+                # invite via the Plex v2 API so they get immediate library
+                # access without having to visit plex.tv manually.
+                # The v1 endpoints (pendingInvites/acceptInvite) return 410
+                # Gone as of plexapi 4.18, so we call the v2 REST API directly.
                 auto_accepted = False
-                try:
-                    pending = user_account.pendingInvites(  # pyright: ignore[reportUnknownVariableType]
-                        includeSent=False,
-                        includeReceived=True,
-                    )
-                    for invite in pending:  # pyright: ignore[reportUnknownVariableType]
-                        invite_servers: list[object] = (
-                            getattr(invite, "servers", []) or []  # pyright: ignore[reportUnknownArgumentType]
+                v2_base = "https://clients.plex.tv"
+                v2_params: dict[str, str] = {
+                    "X-Plex-Token": auth_token,
+                    "X-Plex-Product": "Zondarr",
+                    "X-Plex-Version": "1.0",
+                    "X-Plex-Client-Identifier": str(user_account.uuid),  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                    "X-Plex-Platform": "Web",
+                    "X-Plex-Platform-Version": "1.0",
+                    "X-Plex-Device": "Web",
+                    "X-Plex-Device-Name": "Zondarr",
+                }
+                v2_headers: dict[str, str] = {"Accept": "application/json"}
+                admin_username: str = self._account.username or ""  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+                for attempt in range(1, 4):
+                    try:
+                        # Step 1: List pending received invites
+                        list_url = (
+                            f"{v2_base}/api/v2/shared_servers/invites/received/pending"
                         )
-                        for server_share in invite_servers:
-                            if (
-                                getattr(server_share, "machineIdentifier", "")
-                                == machine_id
-                            ):
-                                _ = user_account.acceptInvite(invite)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportUnknownArgumentType]
-                                auto_accepted = True
+                        list_resp = user_account._session.get(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                            list_url,
+                            params=v2_params,
+                            headers=v2_headers,
+                            timeout=30,
+                        )
+                        _ = list_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        invites: list[dict[str, object]] = list_resp.json()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+
+                        log.info(
+                            "plex_auto_accept_pending_invites",
+                            attempt=attempt,
+                            pending_count=len(invites),  # pyright: ignore[reportUnknownArgumentType]
+                        )
+
+                        # Step 2: Find invite from the admin
+                        matched_invite: dict[str, object] | None = None
+                        for inv in invites:  # pyright: ignore[reportUnknownVariableType]
+                            owner: dict[str, object] = inv.get("owner", {}) or {}  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportAssignmentType]
+                            owner_values = (
+                                owner.get("username", ""),
+                                owner.get("email", ""),
+                                owner.get("title", ""),
+                                owner.get("friendlyName", ""),
+                            )
+                            if admin_username and admin_username in owner_values:
+                                matched_invite = inv  # pyright: ignore[reportUnknownVariableType]
                                 break
-                except Exception as exc:
-                    # Best-effort: if auto-accept fails the invite still exists
-                    # and the user can accept manually at plex.tv.
-                    log.debug(
-                        "plex_auto_accept_invite_failed",
-                        error=str(exc),
-                    )
+
+                        if matched_invite is None:
+                            log.info(
+                                "plex_auto_accept_no_matching_invite",
+                                attempt=attempt,
+                                admin_username=admin_username,
+                            )
+                            if attempt < 3:
+                                time.sleep(1)
+                            continue
+
+                        # Step 3: Accept the invite
+                        shared_servers = cast(
+                            list[dict[str, object]],
+                            matched_invite.get("sharedServers") or [],
+                        )
+                        if not shared_servers:
+                            log.info(
+                                "plex_auto_accept_no_shared_servers",
+                                attempt=attempt,
+                            )
+                            if attempt < 3:
+                                time.sleep(1)
+                            continue
+
+                        invite_id = shared_servers[0].get("id", "")
+                        accept_url = (
+                            f"{v2_base}/api/v2/shared_servers/{invite_id}/accept"
+                        )
+                        accept_resp = user_account._session.post(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportPrivateUsage]
+                            accept_url,
+                            params=v2_params,
+                            headers=v2_headers,
+                            timeout=30,
+                        )
+                        _ = accept_resp.raise_for_status()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+                        auto_accepted = True
+                        log.info(
+                            "plex_auto_accept_invite_accepted",
+                            invite_id=invite_id,
+                            attempt=attempt,
+                        )
+                        break
+                    except Exception as exc:
+                        log.warning(
+                            "plex_auto_accept_invite_failed",
+                            attempt=attempt,
+                            error=str(exc),
+                            error_type=type(exc).__name__,
+                        )
+                        if attempt < 3:
+                            time.sleep(1)
 
                 return (
                     ExternalUser(
@@ -586,6 +665,7 @@ class PlexClient:
                 email=email,
                 user_id=result.external_user_id,
                 username=result.username,
+                auto_accepted=invite_accepted,
             )
 
             # Only cancel stale pending invites when the invite was already
