@@ -620,7 +620,7 @@ class PlexClient:
                         # Step 3: Accept the invite for the matching server
                         shared_servers = cast(
                             list[dict[str, object]],
-                            matched_invite.get("sharedServers") or [],
+                            matched_invite.get("sharedServers") or [],  # pyright: ignore[reportUnknownMemberType]
                         )
                         matched_server: dict[str, object] | None = None
                         for srv in shared_servers:
