@@ -29,11 +29,21 @@ import {
 const uuidArb = fc.uuid();
 
 /**
- * Generate a valid ISO 8601 date string.
+ * Generate a valid ISO 8601 date string (any date for testing parsing).
  */
 const isoDateArb = fc
 	.integer({
 		min: new Date('2020-01-01T00:00:00.000Z').getTime(),
+		max: new Date('2030-12-31T23:59:59.999Z').getTime()
+	})
+	.map((timestamp) => new Date(timestamp).toISOString());
+
+/**
+ * Generate a future ISO 8601 date string (for valid input that passes refine).
+ */
+const futureDateArb = fc
+	.integer({
+		min: Date.now() + 60_000, // At least 1 minute in the future
 		max: new Date('2030-12-31T23:59:59.999Z').getTime()
 	})
 	.map((timestamp) => new Date(timestamp).toISOString());
@@ -57,7 +67,7 @@ const invalidCodeArb = fc.oneof(
 const validCreateInputArb: fc.Arbitrary<CreateInvitationInput> = fc.record({
 	server_ids: fc.array(uuidArb, { minLength: 1, maxLength: 5 }),
 	code: fc.oneof(validCodeArb, fc.constant('')),
-	expires_at: fc.oneof(isoDateArb, fc.constant('')),
+	expires_at: fc.oneof(futureDateArb, fc.constant('')),
 	max_uses: fc.oneof(fc.integer({ min: 1, max: 1000 }), fc.constant(undefined)),
 	duration_days: fc.oneof(fc.integer({ min: 1, max: 365 }), fc.constant(undefined)),
 	library_ids: fc.oneof(fc.array(uuidArb, { minLength: 0, maxLength: 10 }), fc.constant(undefined))
@@ -79,7 +89,7 @@ const invalidCreateInputArb: fc.Arbitrary<CreateInvitationInput> = fc.record({
  * Generate valid UpdateInvitationInput.
  */
 const validUpdateInputArb: fc.Arbitrary<UpdateInvitationInput> = fc.record({
-	expires_at: fc.oneof(isoDateArb, fc.constant(''), fc.constant(null)),
+	expires_at: fc.oneof(futureDateArb, fc.constant(''), fc.constant(null)),
 	max_uses: fc.oneof(fc.integer({ min: 1, max: 1000 }), fc.constant(undefined), fc.constant(null)),
 	duration_days: fc.oneof(
 		fc.integer({ min: 1, max: 365 }),
@@ -342,7 +352,7 @@ describe('Property 16: Immutable Field Protection', () => {
 			fc.property(
 				fc.record({
 					// Mutable fields
-					expires_at: fc.oneof(isoDateArb, fc.constant('')),
+					expires_at: fc.oneof(futureDateArb, fc.constant('')),
 					max_uses: fc.oneof(fc.integer({ min: 1, max: 100 }), fc.constant(undefined)),
 					enabled: fc.boolean(),
 					// Immutable fields (should be stripped)

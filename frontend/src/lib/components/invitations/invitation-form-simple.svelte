@@ -138,6 +138,9 @@ function toISOString(dateTimeLocal: string): string {
 	}
 }
 
+// Compute minimum datetime for expiration input (current time)
+const minDateTime = $derived(new Date().toISOString().slice(0, 16));
+
 // Local state for datetime-local input
 let expiresAtLocal = $state(
 	formatDateTimeLocal(formData.expires_at as string | undefined),
@@ -289,6 +292,7 @@ function getFieldErrors(field: string): string[] {
 					? toISOString(value)
 					: "";
 			}}
+			min={minDateTime}
 			class="border-cr-border bg-cr-surface text-cr-text"
 			data-field-expires-at
 		/>

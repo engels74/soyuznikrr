@@ -172,6 +172,13 @@ class InvitationService:
         # Normalize naive datetime to UTC before persisting
         expires_at = _normalize_expires_at(expires_at)
 
+        # Validate that expires_at is in the future
+        if expires_at is not None and expires_at <= datetime.now(UTC):
+            raise ValidationError(
+                "Expiration date must be in the future",
+                field_errors={"expires_at": ["Expiration date must be in the future"]},
+            )
+
         # Create the invitation entity
         invitation = Invitation(
             code=invitation_code,
@@ -535,7 +542,15 @@ class InvitationService:
 
         # Update mutable fields if provided
         if expires_at is not None:
-            invitation.expires_at = _normalize_expires_at(expires_at)
+            normalized = _normalize_expires_at(expires_at)
+            if normalized is not None and normalized <= datetime.now(UTC):
+                raise ValidationError(
+                    "Expiration date must be in the future",
+                    field_errors={
+                        "expires_at": ["Expiration date must be in the future"]
+                    },
+                )
+            invitation.expires_at = normalized
 
         if max_uses is not None:
             invitation.max_uses = max_uses

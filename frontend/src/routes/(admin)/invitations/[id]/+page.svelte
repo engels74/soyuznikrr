@@ -83,7 +83,7 @@ const formData = $state<UpdateInvitationInput>({
 // Cannot use $derived — formData must be independently mutable for user edits.
 // This $effect resets the form when server data changes (e.g., after save + invalidateAll).
 $effect(() => {
-	formData.expires_at = initialFormData.expires_at;
+	formData.expires_at = initialFormData.expires_at ? toISOString(initialFormData.expires_at) : initialFormData.expires_at;
 	formData.max_uses = initialFormData.max_uses;
 	formData.duration_days = initialFormData.duration_days;
 	formData.enabled = initialFormData.enabled;
@@ -127,6 +127,9 @@ async function copyInviteLink() {
 		showError("Failed to copy invite link");
 	}
 }
+
+// Compute minimum datetime for expiration input (current time)
+const minDateTime = $derived(new Date().toISOString().slice(0, 16));
 
 // Derive local datetime value from initial data
 const initialExpiresAtLocal = $derived(
@@ -632,6 +635,7 @@ function getFieldErrors(field: string): string[] {
 											? toISOString(value)
 											: "";
 									}}
+									min={minDateTime}
 									class="border-cr-border bg-cr-bg text-cr-text"
 									data-field-expires-at
 								/>

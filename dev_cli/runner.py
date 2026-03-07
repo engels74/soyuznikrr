@@ -156,10 +156,15 @@ class DevRunner:
                 str(self.backend_port),
             ]
             if self.reload:
+                data_dir = str(
+                    self.repo_root / "backend" / "data"
+                )
                 backend_cmd.extend([
                     "--reload",
                     "--reload-ignore-paths",
                     token_file,
+                    "--reload-ignore-paths",
+                    data_dir,
                 ])
             self.servers.append(
                 ServerProcess(
