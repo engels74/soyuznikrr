@@ -258,3 +258,6 @@ vite.config.ts.timestamp-*
 
 # Root package manager artifacts
 /bun.lock
+
+# Local seed/fixture scripts
+scripts/
