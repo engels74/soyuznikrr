@@ -137,7 +137,12 @@ class TestCapabilitiesDeclaration:
             Capability.LIBRARY_ACCESS,
             Capability.REMOVE_SHARED_ACCESS,
         ],
-        ids=lambda c: c.name,
+        ids=[
+            "CREATE_USER",
+            "DELETE_USER",
+            "LIBRARY_ACCESS",
+            "REMOVE_SHARED_ACCESS",
+        ],
     )
     def test_capabilities_includes(self, capability: Capability) -> None:
         """PlexClient declares expected capabilities."""
@@ -151,7 +156,10 @@ class TestCapabilitiesDeclaration:
             Capability.ENABLE_DISABLE_USER,
             Capability.DOWNLOAD_PERMISSION,
         ],
-        ids=lambda c: c.name,
+        ids=[
+            "ENABLE_DISABLE_USER",
+            "DOWNLOAD_PERMISSION",
+        ],
     )
     def test_capabilities_excludes(self, capability: Capability) -> None:
         """PlexClient does NOT declare unsupported capabilities."""
