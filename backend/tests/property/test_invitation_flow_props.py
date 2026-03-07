@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from tests.conftest import TestDB, create_test_engine
 from zondarr.core.exceptions import NotFoundError, ValidationError
-from zondarr.models import Invitation
+from zondarr.models import Invitation, Wizard
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.services.invitation import InvitationService, InvitationValidationFailure
 
@@ -608,3 +608,135 @@ class TestInvitationUpdateOperations:
             # get_by_id should raise NotFoundError
             with pytest.raises(NotFoundError):
                 _ = await service.get_by_id(invitation_id)
+
+
+class TestInvitationWizardClearing:
+    """Tests for clearing wizard assignments on invitations."""
+
+    @given(code=code_strategy)
+    @settings(max_examples=10, deadline=None)
+    @pytest.mark.asyncio
+    async def test_clear_pre_wizard_id_via_none(self, db: TestDB, code: str) -> None:
+        """Setting pre_wizard_id to None clears the wizard assignment.
+
+        Property: For any invitation with a pre_wizard_id set, updating
+        with pre_wizard_id=None SHALL clear the wizard assignment.
+        """
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
+
+            # Create a wizard
+            wizard = Wizard(name="Test Wizard", enabled=True)
+            session.add(wizard)
+            await session.flush()
+
+            # Create invitation with wizard assigned
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                use_count=0,
+                pre_wizard_id=wizard.id,
+            )
+            created = await repo.create(invitation)
+            await session.commit()
+
+            assert created.pre_wizard_id == wizard.id
+
+            # Clear the wizard by passing None
+            updated = await service.update(
+                created.id,
+                pre_wizard_id=None,
+            )
+            await session.commit()
+
+            # PROPERTY ASSERTION: pre_wizard_id is cleared
+            assert updated.pre_wizard_id is None
+
+    @given(code=code_strategy)
+    @settings(max_examples=10, deadline=None)
+    @pytest.mark.asyncio
+    async def test_clear_post_wizard_id_via_none(self, db: TestDB, code: str) -> None:
+        """Setting post_wizard_id to None clears the wizard assignment.
+
+        Property: For any invitation with a post_wizard_id set, updating
+        with post_wizard_id=None SHALL clear the wizard assignment.
+        """
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
+
+            # Create a wizard
+            wizard = Wizard(name="Test Wizard", enabled=True)
+            session.add(wizard)
+            await session.flush()
+
+            # Create invitation with wizard assigned
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                use_count=0,
+                post_wizard_id=wizard.id,
+            )
+            created = await repo.create(invitation)
+            await session.commit()
+
+            assert created.post_wizard_id == wizard.id
+
+            # Clear the wizard by passing None
+            updated = await service.update(
+                created.id,
+                post_wizard_id=None,
+            )
+            await session.commit()
+
+            # PROPERTY ASSERTION: post_wizard_id is cleared
+            assert updated.post_wizard_id is None
+
+    @given(code=code_strategy)
+    @settings(max_examples=10, deadline=None)
+    @pytest.mark.asyncio
+    async def test_omitting_wizard_id_preserves_value(
+        self, db: TestDB, code: str
+    ) -> None:
+        """Not providing wizard IDs preserves existing assignments.
+
+        Property: For any invitation with wizard IDs set, updating
+        without providing wizard IDs SHALL preserve the existing values.
+        """
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
+
+            # Create a wizard
+            wizard = Wizard(name="Test Wizard", enabled=True)
+            session.add(wizard)
+            await session.flush()
+
+            # Create invitation with wizard assigned
+            invitation = Invitation(
+                code=code,
+                enabled=True,
+                use_count=0,
+                pre_wizard_id=wizard.id,
+                post_wizard_id=wizard.id,
+            )
+            created = await repo.create(invitation)
+            await session.commit()
+
+            assert created.pre_wizard_id == wizard.id
+            assert created.post_wizard_id == wizard.id
+
+            # Update without providing wizard IDs (UNSET by default)
+            updated = await service.update(
+                created.id,
+                enabled=False,
+            )
+            await session.commit()
+
+            # PROPERTY ASSERTION: wizard IDs are preserved
+            assert updated.pre_wizard_id == wizard.id
+            assert updated.post_wizard_id == wizard.id

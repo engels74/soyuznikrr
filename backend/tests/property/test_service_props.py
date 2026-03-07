@@ -504,3 +504,28 @@ class TestGeneratedCodesAreValid:
                 assert len(codes) == num_invitations
         finally:
             await engine.dispose()
+
+
+class TestDuplicateCodeReturnsValidationError:
+    """Creating an invitation with a duplicate code returns a ValidationError."""
+
+    @pytest.mark.asyncio
+    async def test_duplicate_code_raises_validation_error(self) -> None:
+        """InvitationService.create raises ValidationError for duplicate codes."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                repo = InvitationRepository(session)
+                service = InvitationService(repo)
+
+                _ = await service.create(code="DUPECODE1234")
+                await session.commit()
+
+                with pytest.raises(ValidationError) as exc_info:
+                    _ = await service.create(code="DUPECODE1234")
+
+                assert "already exists" in exc_info.value.message
+                assert "code" in exc_info.value.field_errors
+        finally:
+            await engine.dispose()
