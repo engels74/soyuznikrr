@@ -328,6 +328,12 @@ async function handleSave() {
 			return;
 		}
 
+		// Update data.invitation immediately from API response so $derived
+		// status/statusLabel react before invalidateAll() resolves.
+		if (result.data) {
+			data.invitation = result.data as InvitationDetailResponse;
+		}
+
 		showSuccess("Invitation updated successfully");
 		await invalidateAll();
 	} finally {

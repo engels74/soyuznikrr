@@ -81,7 +81,7 @@ def _map_plex_error_to_code(error: Exception) -> str:
     error_str = str(error).lower()
 
     # User-related errors
-    if "already" in error_str and ("shared" in error_str or "friend" in error_str):
+    if "already" in error_str and ("shar" in error_str or "friend" in error_str):
         return PlexErrorCode.USER_ALREADY_EXISTS
     if "taken" in error_str or ("exists" in error_str and "user" in error_str):
         return PlexErrorCode.USERNAME_TAKEN

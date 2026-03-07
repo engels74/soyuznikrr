@@ -21,7 +21,10 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from uuid import UUID
 
-from zondarr.core.exceptions import NotFoundError, ValidationError
+from msgspec import UNSET, UnsetType
+from sqlalchemy.exc import IntegrityError
+
+from zondarr.core.exceptions import NotFoundError, RepositoryError, ValidationError
 from zondarr.models.invitation import Invitation
 from zondarr.models.media_server import Library, MediaServer
 from zondarr.repositories.invitation import InvitationRepository
@@ -194,7 +197,17 @@ class InvitationService:
         invitation.target_servers = resolved_servers
         invitation.allowed_libraries = resolved_libraries
 
-        created = await self.repository.create(invitation)
+        try:
+            created = await self.repository.create(invitation)
+        except RepositoryError as exc:
+            if isinstance(exc.original, IntegrityError):
+                raise ValidationError(
+                    "An invitation with this code already exists",
+                    field_errors={
+                        "code": ["An invitation with this code already exists"]
+                    },
+                ) from exc
+            raise
 
         # Refresh to eagerly load wizard relationships set via FK
         await self.repository.session.refresh(created, ["pre_wizard", "post_wizard"])
@@ -500,8 +513,8 @@ class InvitationService:
         enabled: bool | None = None,
         server_ids: Sequence[UUID] | None = None,
         library_ids: Sequence[UUID] | None = None,
-        pre_wizard_id: UUID | None = None,
-        post_wizard_id: UUID | None = None,
+        pre_wizard_id: UUID | None | UnsetType = UNSET,
+        post_wizard_id: UUID | None | UnsetType = UNSET,
     ) -> Invitation:
         """Update an invitation with the specified fields.
 
@@ -522,8 +535,8 @@ class InvitationService:
             enabled: New enabled status (keyword-only).
             server_ids: New list of server UUIDs (keyword-only).
             library_ids: New list of library UUIDs (keyword-only).
-            pre_wizard_id: New wizard ID to run before account creation (keyword-only).
-            post_wizard_id: New wizard ID to run after account creation (keyword-only).
+            pre_wizard_id: New wizard ID or None to clear, UNSET to skip (keyword-only).
+            post_wizard_id: New wizard ID or None to clear, UNSET to skip (keyword-only).
 
         Returns:
             The updated Invitation entity.
@@ -561,10 +574,10 @@ class InvitationService:
         if enabled is not None:
             invitation.enabled = enabled
 
-        if pre_wizard_id is not None:
+        if pre_wizard_id is not UNSET:
             invitation.pre_wizard_id = pre_wizard_id
 
-        if post_wizard_id is not None:
+        if post_wizard_id is not UNSET:
             invitation.post_wizard_id = post_wizard_id
 
         # Validate and update server_ids if provided
@@ -733,9 +746,13 @@ class InvitationService:
 
         Implements Property 11: Invitation Validation Checks All Conditions.
         Checks in order:
-        1. Enabled status
-        2. Expiration time
+        1. Expiration time
+        2. Enabled status
         3. Use count vs max_uses
+
+        Expiration is checked first because the background task sets
+        ``enabled=False`` on expired invitations, and users should see
+        "expired" rather than "disabled by administrator".
 
         Args:
             invitation: The invitation to validate (positional-only).
@@ -743,11 +760,7 @@ class InvitationService:
         Returns:
             A tuple of (is_valid, failure_reason). If valid, failure_reason is None.
         """
-        # Check 1: Enabled status
-        if not invitation.enabled:
-            return False, InvitationValidationFailure.DISABLED
-
-        # Check 2: Expiration time (defensive: normalize naive datetime to UTC)
+        # Check 1: Expiration time (defensive: normalize naive datetime to UTC)
         if invitation.expires_at is not None:
             exp = invitation.expires_at
             if exp.tzinfo is None:
@@ -755,6 +768,10 @@ class InvitationService:
             now = datetime.now(UTC)
             if exp <= now:
                 return False, InvitationValidationFailure.EXPIRED
+
+        # Check 2: Enabled status
+        if not invitation.enabled:
+            return False, InvitationValidationFailure.DISABLED
 
         # Check 3: Use count vs max_uses
         if invitation.max_uses is not None:

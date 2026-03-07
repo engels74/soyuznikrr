@@ -94,6 +94,35 @@ class TestValidationChecksAllConditions:
             assert is_valid is False
             assert reason == InvitationValidationFailure.EXPIRED
 
+    @given(code=code_strategy)
+    @pytest.mark.asyncio
+    async def test_validate_returns_expired_not_disabled_for_expired_disabled_invitation(
+        self, db: TestDB, code: str
+    ) -> None:
+        """Expired+disabled invitation returns EXPIRED, not DISABLED.
+
+        When the background task disables an expired invitation, the user
+        should see 'expired' rather than 'disabled by administrator'.
+        """
+        await db.clean()
+        async with db.session_factory() as session:
+            repo = InvitationRepository(session)
+            service = InvitationService(repo)
+
+            invitation = Invitation()
+            invitation.code = code
+            invitation.enabled = False
+            invitation.expires_at = datetime.now(UTC) - timedelta(days=1)
+            invitation.max_uses = None
+            invitation.use_count = 0
+            _ = await repo.create(invitation)
+            await session.commit()
+
+            is_valid, reason = await service.validate(code)
+
+            assert is_valid is False
+            assert reason == InvitationValidationFailure.EXPIRED
+
     @given(
         code=code_strategy,
         max_uses=st.integers(min_value=1, max_value=100),

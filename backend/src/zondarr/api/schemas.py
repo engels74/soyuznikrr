@@ -26,6 +26,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 import msgspec
+from msgspec import UNSET, UnsetType
 
 from zondarr.core.languages import is_valid_language_code
 from zondarr.media.provider import AuthFlowType
@@ -43,8 +44,10 @@ UrlStr = Annotated[str, msgspec.Meta(min_length=1, max_length=2048)]
 # API key string (may be longer for some services)
 ApiKeyStr = Annotated[str, msgspec.Meta(min_length=1, max_length=512)]
 
-# Invitation code (short, unique identifier)
-InvitationCode = Annotated[str, msgspec.Meta(min_length=1, max_length=20)]
+# Invitation code (short, unique identifier, alphanumeric only)
+InvitationCode = Annotated[
+    str, msgspec.Meta(min_length=1, max_length=20, pattern=r"^[a-zA-Z0-9]+$")
+]
 
 # Email address (basic pattern validation)
 EmailStr = Annotated[
@@ -730,8 +733,8 @@ class UpdateInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
     server_ids: list[UUID] | None = None
     library_ids: list[UUID] | None = None
     permissions: dict[str, bool] | None = None
-    pre_wizard_id: UUID | None = None
-    post_wizard_id: UUID | None = None
+    pre_wizard_id: UUID | None | UnsetType = UNSET
+    post_wizard_id: UUID | None | UnsetType = UNSET
 
 
 # Alias for backwards compatibility
