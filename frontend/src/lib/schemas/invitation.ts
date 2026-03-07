@@ -34,7 +34,22 @@ export const createInvitationSchema = z.object({
 		.regex(/^[a-zA-Z0-9]+$/, 'Code must be alphanumeric')
 		.optional()
 		.or(z.literal('')),
-	expires_at: z.string().datetime({ message: 'Invalid date format' }).optional().or(z.literal('')),
+	expires_at: z
+		.string()
+		.datetime({ offset: true, message: 'Invalid date format' })
+		.optional()
+		.or(z.literal(''))
+		.refine(
+			(val) => {
+				if (!val) return true;
+				const now = new Date();
+				now.setSeconds(0, 0);
+				return new Date(val) > now;
+			},
+			{
+				message: 'Expiration date must be in the future'
+			}
+		),
 	max_uses: z.coerce
 		.number()
 		.int('Must be a whole number')
@@ -72,10 +87,21 @@ export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 export const updateInvitationSchema = z.object({
 	expires_at: z
 		.string()
-		.datetime({ message: 'Invalid date format' })
+		.datetime({ offset: true, message: 'Invalid date format' })
 		.optional()
 		.nullable()
-		.or(z.literal('')),
+		.or(z.literal(''))
+		.refine(
+			(val) => {
+				if (!val) return true;
+				const now = new Date();
+				now.setSeconds(0, 0);
+				return new Date(val) > now;
+			},
+			{
+				message: 'Expiration date must be in the future'
+			}
+		),
 	max_uses: z.coerce
 		.number()
 		.int('Must be a whole number')
