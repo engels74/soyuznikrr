@@ -138,8 +138,17 @@ function toISOString(dateTimeLocal: string): string {
 	}
 }
 
-// Compute minimum datetime for expiration input (current time)
-const minDateTime = $derived(new Date().toISOString().slice(0, 16));
+function toLocalDateTimeString(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+// Compute minimum datetime for expiration input (current time, local timezone)
+const minDateTime = $derived(toLocalDateTimeString(new Date()));
 
 // Local state for datetime-local input
 let expiresAtLocal = $state(

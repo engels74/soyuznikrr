@@ -39,9 +39,17 @@ export const createInvitationSchema = z.object({
 		.datetime({ offset: true, message: 'Invalid date format' })
 		.optional()
 		.or(z.literal(''))
-		.refine((val) => !val || new Date(val) > new Date(), {
-			message: 'Expiration date must be in the future'
-		}),
+		.refine(
+			(val) => {
+				if (!val) return true;
+				const now = new Date();
+				now.setSeconds(0, 0);
+				return new Date(val) > now;
+			},
+			{
+				message: 'Expiration date must be in the future'
+			}
+		),
 	max_uses: z.coerce
 		.number()
 		.int('Must be a whole number')
@@ -83,9 +91,17 @@ export const updateInvitationSchema = z.object({
 		.optional()
 		.nullable()
 		.or(z.literal(''))
-		.refine((val) => !val || new Date(val) > new Date(), {
-			message: 'Expiration date must be in the future'
-		}),
+		.refine(
+			(val) => {
+				if (!val) return true;
+				const now = new Date();
+				now.setSeconds(0, 0);
+				return new Date(val) > now;
+			},
+			{
+				message: 'Expiration date must be in the future'
+			}
+		),
 	max_uses: z.coerce
 		.number()
 		.int('Must be a whole number')
