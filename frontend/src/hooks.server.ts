@@ -38,6 +38,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const user: App.Locals['user'] = await response.json();
 				event.locals.user = user;
 			} else {
+				event.cookies.delete('zondarr_access_token', { path: '/' });
 				event.locals.user = null;
 			}
 		} catch {
