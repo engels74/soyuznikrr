@@ -37,7 +37,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (response.ok) {
 				const user: App.Locals['user'] = await response.json();
 				event.locals.user = user;
+			} else if (response.status === 401 || response.status === 403) {
+				event.cookies.delete('zondarr_access_token', { path: '/' });
+				event.locals.user = null;
 			} else {
+				// Transient backend error (500/503) — keep cookie, skip user
 				event.locals.user = null;
 			}
 		} catch {

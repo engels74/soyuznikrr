@@ -163,9 +163,15 @@ class FixedJWTCookieMiddleware(JWTCookieAuthenticationMiddleware):
             raise NotAuthorizedException(
                 "No JWT token found in request header or cookies"
             )
-        return await self.authenticate_token(
-            encoded_token=encoded_token, connection=connection
-        )
+        try:
+            return await self.authenticate_token(
+                encoded_token=encoded_token, connection=connection
+            )
+        except NotAuthorizedException:
+            raise
+        except Exception as exc:
+            logger.debug("jwt_token_invalid", reason=str(exc))
+            raise NotAuthorizedException("Invalid or expired token") from exc
 
 
 def create_jwt_auth(settings: Settings) -> JWTCookieAuth[AdminUser]:
