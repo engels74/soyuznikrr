@@ -19,16 +19,19 @@ from typing import TYPE_CHECKING, Annotated
 from litestar import Controller, get, post
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_200_OK
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.api.schemas import OAuthCheckResponse, OAuthPinResponse
 from zondarr.config import Settings
 from zondarr.core.exceptions import NotFoundError
 from zondarr.media.exceptions import UnknownServerTypeError
 from zondarr.media.registry import registry
-from zondarr.services.oauth_session import oauth_session_store
+from zondarr.services.oauth_session import OAuthSessionStore
 
 if TYPE_CHECKING:
     from zondarr.media.provider import OAuthFlowProvider
+
+_store = OAuthSessionStore()
 
 
 def _resolve_flow(provider: str, settings: Settings) -> OAuthFlowProvider:
@@ -80,12 +83,14 @@ class OAuthController(Controller):
     async def create_pin(
         self,
         settings: Settings,
+        session: AsyncSession,
         provider: Annotated[str, Parameter(description="Provider name")],
     ) -> OAuthPinResponse:
         """Generate OAuth PIN and return auth URL with opaque handle.
 
         Args:
             settings: Application settings (injected via DI).
+            session: Database session (injected via DI).
             provider: Provider name from URL path.
 
         Returns:
@@ -94,7 +99,8 @@ class OAuthController(Controller):
         flow = _resolve_flow(provider, settings)
         try:
             pin = await flow.create_pin()
-            handle = oauth_session_store.create(
+            handle = await _store.create(
+                session,
                 provider,
                 pin.pin_id,
             )
@@ -121,6 +127,7 @@ class OAuthController(Controller):
     async def check_pin(
         self,
         settings: Settings,
+        session: AsyncSession,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
     ) -> OAuthCheckResponse:
@@ -133,31 +140,33 @@ class OAuthController(Controller):
 
         Args:
             settings: Application settings (injected via DI).
+            session: Database session (injected via DI).
             provider: Provider name from URL path.
             handle: The opaque PIN handle from create_pin.
 
         Returns:
             OAuthCheckResponse with authenticated status and redemption_token if successful.
         """
-        session = oauth_session_store.get(handle)
-        if session is None:
+        oauth_session = await _store.get(session, handle)
+        if oauth_session is None:
             raise NotFoundError("OAuthSession", handle)
-        if session.provider != provider:
+        if oauth_session.provider != provider:
             raise NotFoundError("OAuthSession", handle)
 
         # If already authenticated, return the existing redemption token
-        if session.redemption_token is not None and not session.redeemed:
+        if oauth_session.redemption_token is not None and not oauth_session.redeemed:
             return OAuthCheckResponse(
                 authenticated=True,
-                redemption_token=session.redemption_token,
-                email=session.email,
+                redemption_token=oauth_session.redemption_token,
+                email=oauth_session.email,
             )
 
         flow = _resolve_flow(provider, settings)
         try:
-            result = await flow.check_pin(session.pin_id)
+            result = await flow.check_pin(oauth_session.pin_id)
             if result.authenticated and result.auth_token:
-                redemption_token = oauth_session_store.set_authenticated(
+                redemption_token = await _store.set_authenticated(
+                    session,
                     handle,
                     auth_token=result.auth_token,
                     email=result.email,

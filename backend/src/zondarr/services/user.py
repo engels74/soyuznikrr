@@ -291,7 +291,7 @@ class UserService:
         user.enabled = enabled
         return await self.user_repository.update(user)
 
-    async def delete(self, user_id: UUID, /) -> None:
+    async def delete(self, user_id: UUID, /, *, force: bool = False) -> None:
         """Delete a user with atomicity and cascade guarantees.
 
         Deletes the user from the external media server first, then deletes
@@ -303,10 +303,13 @@ class UserService:
 
         Args:
             user_id: The UUID of the user to delete (positional-only).
+            force: If True, allow local-only deletion even when the user
+                is not found on the media server. Defaults to False.
 
         Raises:
             NotFoundError: If the user does not exist.
-            ValidationError: If the external media server operation fails.
+            ValidationError: If the external media server operation fails
+                or if the user is not found on the server (unless force=True).
             RepositoryError: If the database operation fails.
         """
         user = await self.user_repository.get_by_id(user_id)
@@ -322,9 +325,14 @@ class UserService:
         try:
             async with client:
                 deleted_from_server = await client.delete_user(user.external_user_id)
-                if not deleted_from_server:
+                if not deleted_from_server and not force:
+                    raise ValidationError(
+                        "User not found on media server. Use force=True to delete locally only.",
+                        field_errors={"user_id": ["User not found on media server"]},
+                    )
+                elif not deleted_from_server:
                     log.warning(  # pyright: ignore[reportAny]
-                        "user_not_found_on_media_server_during_delete",
+                        "user_not_found_on_media_server_force_delete",
                         user_id=str(user.id),
                         external_user_id=user.external_user_id,
                         server_name=server.name,

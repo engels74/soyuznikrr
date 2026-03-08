@@ -1,18 +1,23 @@
-"""In-memory OAuth session store with opaque handles.
+"""Database-backed OAuth session store with opaque handles.
 
 Maps high-entropy opaque handles to provider PIN data, preventing
 enumeration of sequential provider pin_ids and keeping raw auth_tokens
 server-side.
 
 Sessions have TTL-based expiry and auth tokens support one-time consumption
-via redemption tokens.
+via redemption tokens. All data is persisted to the database so sessions
+survive across Granian workers/subinterpreters.
 """
 
 import secrets
-import time
-from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import final
 
 import structlog
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from zondarr.models.oauth_session import OAuthSessionModel
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
@@ -20,48 +25,56 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore
 DEFAULT_TTL_SECONDS = 600
 
 
-@dataclass
-class OAuthSession:
-    """A tracked OAuth PIN session.
+@final
+class OAuthSessionData:
+    """Read-only view of an OAuth session for callers.
 
     Attributes:
         provider: The provider name (e.g., "plex").
         pin_id: The provider's internal PIN ID.
-        created_at: Unix timestamp when the session was created.
-        ttl: Time-to-live in seconds.
         auth_token: Raw provider auth token, set when PIN is authenticated.
         email: User's email, set when PIN is authenticated.
         redemption_token: One-time token for redeeming the auth_token.
         redeemed: Whether the redemption token has been consumed.
     """
 
-    provider: str
-    pin_id: int
-    created_at: float = field(default_factory=time.monotonic)
-    ttl: int = DEFAULT_TTL_SECONDS
-    auth_token: str | None = None
-    email: str | None = None
-    redemption_token: str | None = None
-    redeemed: bool = False
+    __slots__ = (
+        "auth_token",
+        "email",
+        "pin_id",
+        "provider",
+        "redeemed",
+        "redemption_token",
+    )
 
-    @property
-    def is_expired(self) -> bool:
-        """Check if the session has exceeded its TTL."""
-        return (time.monotonic() - self.created_at) > self.ttl
+    def __init__(
+        self,
+        *,
+        provider: str,
+        pin_id: int,
+        auth_token: str | None = None,
+        email: str | None = None,
+        redemption_token: str | None = None,
+        redeemed: bool = False,
+    ) -> None:
+        self.provider = provider
+        self.pin_id = pin_id
+        self.auth_token = auth_token
+        self.email = email
+        self.redemption_token = redemption_token
+        self.redeemed = redeemed
 
 
 class OAuthSessionStore:
-    """In-memory store mapping opaque handles to OAuth sessions.
+    """Database-backed store mapping opaque handles to OAuth sessions.
 
-    Thread-safe for single-process async use. Handles are generated
-    using ``secrets.token_urlsafe(32)`` for high entropy.
+    All methods require an ``AsyncSession`` parameter so sessions are
+    shared across Granian workers via the database.
     """
 
-    def __init__(self) -> None:
-        self._sessions: dict[str, OAuthSession] = {}
-
-    def create(
+    async def create(
         self,
+        session: AsyncSession,
         provider: str,
         pin_id: int,
         *,
@@ -70,6 +83,7 @@ class OAuthSessionStore:
         """Create a new session and return its opaque handle.
 
         Args:
+            session: SQLAlchemy async session.
             provider: The provider name.
             pin_id: The provider's internal PIN ID.
             ttl: Time-to-live in seconds.
@@ -77,13 +91,15 @@ class OAuthSessionStore:
         Returns:
             A high-entropy opaque handle string.
         """
-        self._cleanup_expired()
         handle = secrets.token_urlsafe(32)
-        self._sessions[handle] = OAuthSession(
+        model = OAuthSessionModel(
+            handle=handle,
             provider=provider,
             pin_id=pin_id,
             ttl=ttl,
         )
+        session.add(model)
+        await session.flush()
         logger.debug(
             "oauth_session_created",
             provider=provider,
@@ -91,27 +107,35 @@ class OAuthSessionStore:
         )
         return handle
 
-    def get(self, handle: str) -> OAuthSession | None:
+    async def get(
+        self,
+        session: AsyncSession,
+        handle: str,
+    ) -> OAuthSessionData | None:
         """Look up a session by handle.
 
         Returns None if the handle is unknown or the session has expired.
 
         Args:
+            session: SQLAlchemy async session.
             handle: The opaque session handle.
 
         Returns:
-            The session, or None if not found/expired.
+            The session data, or None if not found/expired.
         """
-        session = self._sessions.get(handle)
-        if session is None:
+        stmt = select(OAuthSessionModel).where(OAuthSessionModel.handle == handle)
+        model = await session.scalar(stmt)
+        if model is None:
             return None
-        if session.is_expired:
-            del self._sessions[handle]
+        if self._is_expired(model):
+            await session.delete(model)
+            await session.flush()
             return None
-        return session
+        return self._to_data(model)
 
-    def set_authenticated(
+    async def set_authenticated(
         self,
+        session: AsyncSession,
         handle: str,
         *,
         auth_token: str,
@@ -120,6 +144,7 @@ class OAuthSessionStore:
         """Mark a session as authenticated and generate a redemption token.
 
         Args:
+            session: SQLAlchemy async session.
             handle: The opaque session handle.
             auth_token: The raw provider auth token.
             email: The user's email address.
@@ -127,64 +152,107 @@ class OAuthSessionStore:
         Returns:
             A one-time redemption token, or None if session not found.
         """
-        session = self.get(handle)
-        if session is None:
+        stmt = select(OAuthSessionModel).where(OAuthSessionModel.handle == handle)
+        model = await session.scalar(stmt)
+        if model is None or self._is_expired(model):
             return None
-        session.auth_token = auth_token
-        session.email = email
-        session.redemption_token = secrets.token_urlsafe(32)
+        model.auth_token = auth_token
+        model.email = email
+        model.redemption_token = secrets.token_urlsafe(32)
+        await session.flush()
         logger.debug(
             "oauth_session_authenticated",
             handle_prefix=handle[:8],
             has_email=email is not None,
         )
-        return session.redemption_token
+        return model.redemption_token
 
-    def redeem(self, redemption_token: str) -> tuple[str, str] | None:
+    async def redeem(
+        self,
+        session: AsyncSession,
+        redemption_token: str,
+    ) -> tuple[str, str] | None:
         """Consume a redemption token and return (provider, auth_token).
 
         One-time use: after redemption the token is invalidated.
 
         Args:
+            session: SQLAlchemy async session.
             redemption_token: The one-time redemption token.
 
         Returns:
             A (provider, auth_token) tuple, or None if invalid/already used.
         """
-        for handle, session in self._sessions.items():
-            if (
-                session.redemption_token == redemption_token
-                and not session.redeemed
-                and not session.is_expired
-                and session.auth_token is not None
-            ):
-                session.redeemed = True
-                auth_token = session.auth_token
-                provider = session.provider
-                # Clear the auth token from memory after redemption
-                session.auth_token = None
-                logger.debug(
-                    "oauth_session_redeemed",
-                    handle_prefix=handle[:8],
-                    provider=provider,
-                )
-                return (provider, auth_token)
-        return None
+        stmt = select(OAuthSessionModel).where(
+            OAuthSessionModel.redemption_token == redemption_token,
+            OAuthSessionModel.redeemed.is_(False),
+        )
+        model = await session.scalar(stmt)
+        if model is None or self._is_expired(model) or model.auth_token is None:
+            return None
+        model.redeemed = True
+        auth_token = model.auth_token
+        provider = model.provider
+        model.auth_token = None
+        await session.flush()
+        logger.debug(
+            "oauth_session_redeemed",
+            handle_prefix=model.handle[:8],
+            provider=provider,
+        )
+        return (provider, auth_token)
 
-    def remove(self, handle: str) -> None:
+    async def remove(
+        self,
+        session: AsyncSession,
+        handle: str,
+    ) -> None:
         """Remove a session by handle.
 
         Args:
+            session: SQLAlchemy async session.
             handle: The opaque session handle.
         """
-        _ = self._sessions.pop(handle, None)
+        stmt = delete(OAuthSessionModel).where(OAuthSessionModel.handle == handle)
+        _ = await session.execute(stmt)
+        await session.flush()
 
-    def _cleanup_expired(self) -> None:
-        """Remove all expired sessions."""
-        expired = [h for h, s in self._sessions.items() if s.is_expired]
-        for h in expired:
-            del self._sessions[h]
+    async def cleanup_expired(self, session: AsyncSession) -> None:
+        """Remove all expired sessions from the database.
 
+        Args:
+            session: SQLAlchemy async session.
+        """
+        now = datetime.now(UTC)
+        # We can't easily express created_at + ttl < now in a single portable
+        # SQL expression, so fetch and filter in Python.
+        stmt = select(OAuthSessionModel)
+        result = await session.scalars(stmt)
+        expired = [m for m in result if self._is_expired(m, now=now)]
+        for m in expired:
+            await session.delete(m)
+        if expired:
+            await session.flush()
 
-# Module-level singleton instance
-oauth_session_store = OAuthSessionStore()
+    @staticmethod
+    def _is_expired(model: OAuthSessionModel, *, now: datetime | None = None) -> bool:
+        """Check if a session model has exceeded its TTL."""
+        if now is None:
+            now = datetime.now(UTC)
+        expiry = model.created_at + timedelta(seconds=model.ttl)
+        # Ensure both are comparable (both should be UTC)
+        if expiry.tzinfo is None:
+            return expiry < now.replace(tzinfo=None)
+        return expiry < now
+
+    @staticmethod
+    def _to_data(model: OAuthSessionModel) -> OAuthSessionData:
+        """Convert a model instance to an OAuthSessionData view."""
+        return OAuthSessionData(
+            provider=model.provider,
+            pin_id=model.pin_id,
+            auth_token=model.auth_token,
+            email=model.email,
+            redemption_token=model.redemption_token,
+            redeemed=model.redeemed,
+        )

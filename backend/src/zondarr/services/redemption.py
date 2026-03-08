@@ -199,14 +199,25 @@ class RedemptionService:
                         external_user_id=external_user.external_user_id,
                     )
 
-                    # Step 4: Apply library restrictions (idempotent safety net)
-                    if server_library_ids:
+                    # Step 4: Apply library restrictions
+                    # For "friend" users, sections were already applied at
+                    # invite time via inviteFriend(sections=...).
+                    # Only call set_library_access for non-friend users as a
+                    # safety net — friend users are in "pending" state and
+                    # not findable via the server API yet.
+                    if server_library_ids and external_user.user_type != "friend":
                         _ = await client.set_library_access(
                             external_user.external_user_id,
                             server_library_ids,
                         )
                         log.info(  # pyright: ignore[reportAny]
                             "Applied library restrictions",
+                            server_name=server.name,
+                            library_count=len(server_library_ids),
+                        )
+                    elif server_library_ids and external_user.user_type == "friend":
+                        log.info(  # pyright: ignore[reportAny]
+                            "Skipping set_library_access for friend user (sections applied at invite time)",
                             server_name=server.name,
                             library_count=len(server_library_ids),
                         )

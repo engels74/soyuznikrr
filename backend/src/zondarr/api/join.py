@@ -23,7 +23,7 @@ from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.invitation import InvitationService
-from zondarr.services.oauth_session import oauth_session_store
+from zondarr.services.oauth_session import OAuthSessionStore
 from zondarr.services.redemption import RedemptionService
 from zondarr.services.user import UserService
 
@@ -185,6 +185,7 @@ class JoinController(Controller):
         data: RedeemInvitationRequest,
         redemption_service: RedemptionService,
         settings: Settings,
+        session: AsyncSession,
     ) -> Response[RedemptionResponse]:
         """Redeem an invitation code to create user accounts.
 
@@ -215,7 +216,8 @@ class JoinController(Controller):
         # Resolve redemption_token to a real auth_token server-side
         auth_token: str | None = None
         if data.redemption_token:
-            result = oauth_session_store.redeem(data.redemption_token)
+            store = OAuthSessionStore()
+            result = await store.redeem(session, data.redemption_token)
             if result is not None:
                 _provider, auth_token = result
 

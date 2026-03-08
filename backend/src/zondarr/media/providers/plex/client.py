@@ -1308,6 +1308,23 @@ class PlexClient:
                         target_user = user  # pyright: ignore[reportUnknownVariableType]
                         break
 
+                # Fallback: if no match by numeric ID, try matching by email
+                # or username. This handles the case where external_user_id was
+                # stored as an email address instead of a numeric Plex ID.
+                if target_user is None:
+                    for user in users:  # pyright: ignore[reportUnknownVariableType]
+                        user_email: str = getattr(user, "email", "") or ""  # pyright: ignore[reportUnknownArgumentType]
+                        user_username: str = getattr(user, "username", "") or ""  # pyright: ignore[reportUnknownArgumentType]
+                        if external_user_id in (user_email, user_username):
+                            target_user = user  # pyright: ignore[reportUnknownVariableType]
+                            log.warning(
+                                "plex_user_matched_by_email_fallback",
+                                url=self.url,
+                                external_user_id=external_user_id,
+                                matched_id=str(getattr(user, "id", "")),  # pyright: ignore[reportUnknownArgumentType]
+                            )
+                            break
+
                 # Step 1: Remove shared server access first (exceptions propagate)
                 shared_deleted = False
                 if self._server is not None:
