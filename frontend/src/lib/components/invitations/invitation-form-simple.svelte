@@ -477,7 +477,7 @@ function getFieldErrors(field: string): string[] {
 		{/if}
 		<Button
 			type="submit"
-			disabled={submitting}
+			disabled={submitting || loadingWizards}
 			class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
 		>
 			{#if submitting}
