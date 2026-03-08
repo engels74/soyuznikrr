@@ -9,9 +9,10 @@ Provides:
 Uses SQLAlchemy 2.0 async patterns with proper connection pooling.
 """
 
+import sqlite3
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, cast
+from typing import cast
 
 from litestar import Litestar
 from litestar.datastructures import State
@@ -62,12 +63,13 @@ def create_engine_from_url(
     if database_url.startswith("sqlite"):
         # Enable WAL mode and set synchronous=NORMAL for better concurrency.
         # WAL allows concurrent readers with a single writer; NORMAL is safe with WAL.
-        @event.listens_for(engine.sync_engine, "connect")
-        def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
+        def _set_sqlite_pragmas(dbapi_conn: sqlite3.Connection, _: object) -> None:
             cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA synchronous=NORMAL")
+            _ = cursor.execute("PRAGMA journal_mode=WAL")
+            _ = cursor.execute("PRAGMA synchronous=NORMAL")
             cursor.close()
+
+        event.listen(engine.sync_engine, "connect", _set_sqlite_pragmas)
 
     return engine
 
