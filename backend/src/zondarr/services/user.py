@@ -165,16 +165,17 @@ class UserService:
             if existing is None:
                 continue
 
-            # Skip cleanup if the existing user belongs to the CURRENT
-            # invitation (same transaction — don't clean up our own work).
-            # Clean up if: no invitation (sync-imported) OR a different
-            # invitation (stale from a previous invitation cycle).
-            if (
-                existing.invitation_id is not None
-                and current_invitation_id is not None
-                and existing.invitation_id == current_invitation_id
-            ):
-                continue
+            # Preserve invitation-linked users unless we know they're stale.
+            # When current_invitation_id is None (no redemption context),
+            # preserve ALL invitation-linked users (safe default).
+            # When provided, only skip if the invitation matches (same
+            # transaction — don't clean up our own work).
+            if existing.invitation_id is not None:
+                if (
+                    current_invitation_id is None
+                    or existing.invitation_id == current_invitation_id
+                ):
+                    continue
 
             identity_id = existing.identity_id
 
