@@ -240,6 +240,25 @@ class OAuthController(Controller):
         if oauth_session.provider != provider:
             raise NotFoundError("OAuthSession", handle)
 
+        # If already authenticated but not yet redeemed, return existing token
+        if oauth_session.redemption_token is not None and not oauth_session.redeemed:
+            return OAuthCheckResponse(
+                authenticated=True,
+                redemption_token=oauth_session.redemption_token,
+                email=oauth_session.email,
+            )
+
+        # If already redeemed, the session has been consumed
+        if oauth_session.redeemed:
+            return Response(
+                ErrorResponse(
+                    detail="OAuth session has already been redeemed",
+                    error_code="SESSION_ALREADY_REDEEMED",
+                    timestamp=datetime.now(UTC),
+                ),
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+
         redemption_token = await _store.set_authenticated(
             session,
             handle,
@@ -253,7 +272,7 @@ class OAuthController(Controller):
             "oauth_test_complete_used",
             provider=provider,
             handle_prefix=handle[:8],
-            email=settings.plex_test_email,
+            has_email=True,
         )
 
         return OAuthCheckResponse(
