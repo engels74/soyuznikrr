@@ -241,9 +241,11 @@ class RedemptionService:
                     days=invitation.duration_days
                 )
 
-            # Step 6.5: Clean up stale local users (e.g. sync-imported duplicates)
+            # Step 6.5: Clean up stale local users (e.g. sync-imported duplicates
+            # or users from a previous invitation cycle)
             cleaned = await self.user_service.cleanup_stale_local_users(
-                created_external_users
+                created_external_users,
+                current_invitation_id=invitation.id,
             )
             if cleaned > 0:
                 log.info(  # pyright: ignore[reportAny]

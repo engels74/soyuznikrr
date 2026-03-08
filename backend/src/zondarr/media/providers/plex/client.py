@@ -491,6 +491,41 @@ class PlexClient:
                 plex_user_id: str = str(user_account.id)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
                 username: str = user_account.username or email  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
+                # Pre-cleanup: remove any residual friend/sharing relationships
+                # and shared_server entries from prior invitation cycles.
+                # Best-effort — don't fail if nothing to clean up.
+                try:
+                    _ = self._remove_friend_and_sharing_sync(
+                        plex_user_id, best_effort=True
+                    )
+                    log.info(
+                        "plex_share_direct_pre_cleanup_friend_sharing",
+                        url=self.url,
+                        plex_user_id=plex_user_id,
+                    )
+                except Exception as exc:
+                    log.debug(
+                        "plex_share_direct_pre_cleanup_friend_sharing_skipped",
+                        url=self.url,
+                        plex_user_id=plex_user_id,
+                        error=str(exc),
+                    )
+
+                try:
+                    _ = self._remove_shared_server_access_sync(plex_user_id)
+                    log.info(
+                        "plex_share_direct_pre_cleanup_shared_server",
+                        url=self.url,
+                        plex_user_id=plex_user_id,
+                    )
+                except Exception as exc:
+                    log.debug(
+                        "plex_share_direct_pre_cleanup_shared_server_skipped",
+                        url=self.url,
+                        plex_user_id=plex_user_id,
+                        error=str(exc),
+                    )
+
                 # Get the server's machine identifier
                 machine_id: str = self._server.machineIdentifier  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
@@ -524,6 +559,7 @@ class PlexClient:
                     "shared_server": {
                         "library_section_ids": section_ids,
                         "invited_id": int(plex_user_id),
+                        "skipFriendship": True,
                     },
                     "sharing_settings": {
                         "filterMovies": "",
@@ -808,7 +844,7 @@ class PlexClient:
         for u in users:  # pyright: ignore[reportUnknownVariableType]
             u_email: str = getattr(u, "email", "") or ""  # pyright: ignore[reportUnknownArgumentType]
             if u_email.lower() == email.lower():
-                plex_id = getattr(u, "id", None)  # pyright: ignore[reportUnknownArgumentType]
+                plex_id: int | None = getattr(u, "id", None)  # pyright: ignore[reportUnknownArgumentType]
                 if not plex_id:
                     return None
                 return (

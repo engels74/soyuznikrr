@@ -132,6 +132,8 @@ class UserService:
     async def cleanup_stale_local_users(
         self,
         external_users: Sequence[tuple[MediaServer, ExternalUser]],
+        *,
+        current_invitation_id: UUID | None = None,
     ) -> int:
         """Remove stale local User records that match incoming external users.
 
@@ -142,11 +144,15 @@ class UserService:
         Identity too (Property 21 pattern).
 
         This prevents duplicate entries when a sync-imported user later
-        redeems an invitation.
+        redeems an invitation, or when a user is re-invited after deletion.
 
         Args:
             external_users: Sequence of (MediaServer, ExternalUser) tuples
                 to check against.
+            current_invitation_id: The invitation ID being redeemed. If the
+                existing user's invitation_id matches this, skip cleanup
+                (same transaction). If it differs, clean up (stale from a
+                previous invitation cycle).
 
         Returns:
             Count of local User records cleaned up.
@@ -159,11 +165,17 @@ class UserService:
             if existing is None:
                 continue
 
-            # Only clean up sync-imported users (no invitation link).
-            # Invitation-linked records must not be deleted — let the
-            # UniqueConstraint catch double-redemption instead.
+            # Preserve invitation-linked users unless we know they're stale.
+            # When current_invitation_id is None (no redemption context),
+            # preserve ALL invitation-linked users (safe default).
+            # When provided, only skip if the invitation matches (same
+            # transaction — don't clean up our own work).
             if existing.invitation_id is not None:
-                continue
+                if (
+                    current_invitation_id is None
+                    or existing.invitation_id == current_invitation_id
+                ):
+                    continue
 
             identity_id = existing.identity_id
 
