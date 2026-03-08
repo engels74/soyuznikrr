@@ -159,12 +159,27 @@ class DevRunner:
                 data_dir = str(
                     self.repo_root / "backend" / "data"
                 )
+                db_file = str(
+                    self.repo_root / "backend" / "zondarr.db"
+                )
+                db_wal = str(
+                    self.repo_root / "backend" / "zondarr.db-wal"
+                )
+                db_shm = str(
+                    self.repo_root / "backend" / "zondarr.db-shm"
+                )
                 backend_cmd.extend([
                     "--reload",
                     "--reload-ignore-paths",
                     token_file,
                     "--reload-ignore-paths",
                     data_dir,
+                    "--reload-ignore-paths",
+                    db_file,
+                    "--reload-ignore-paths",
+                    db_wal,
+                    "--reload-ignore-paths",
+                    db_shm,
                 ])
             self.servers.append(
                 ServerProcess(

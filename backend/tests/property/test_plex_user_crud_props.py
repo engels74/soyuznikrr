@@ -31,6 +31,7 @@ class MockMyPlexAccountWithBothMethods:
     _invite_error: Exception | None
     _create_result: MockMyPlexUser | None
     _create_error: Exception | None
+    _last_invited: MockMyPlexUser | None
     invite_friend_called: bool
     create_home_user_called: bool
     last_invite_email: str | None
@@ -48,6 +49,7 @@ class MockMyPlexAccountWithBothMethods:
         self._invite_error = invite_error
         self._create_result = create_result
         self._create_error = create_error
+        self._last_invited = None
         self.invite_friend_called = False
         self.create_home_user_called = False
         self.last_invite_email = None
@@ -62,9 +64,17 @@ class MockMyPlexAccountWithBothMethods:
         self.last_invite_email = user
         if self._invite_error is not None:
             raise self._invite_error
-        if self._invite_result is not None:
-            return self._invite_result
-        return MockMyPlexUser(user_id=12345, username=user, email=user)
+        result = self._invite_result or MockMyPlexUser(
+            user_id=12345, username=user, email=user
+        )
+        self._last_invited = result
+        return result
+
+    def users(self) -> list[MockMyPlexUser]:
+        """Mock users() returning the invited user."""
+        if self._last_invited is not None:
+            return [self._last_invited]
+        return []
 
     def createHomeUser(self, user: str, server: object) -> MockMyPlexUser:
         """Mock createHomeUser method."""

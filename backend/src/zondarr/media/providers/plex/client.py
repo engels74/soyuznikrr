@@ -792,6 +792,59 @@ class PlexClient:
             )
             return 0
 
+    def _find_user_by_email_sync(self, email: str) -> tuple[str, str] | None:
+        """Find a user in account.users() by email (case-insensitive).
+
+        Synchronous helper — must be called from a thread (via asyncio.to_thread).
+
+        Args:
+            email: The email address to search for.
+
+        Returns:
+            A tuple of (numeric_plex_id, username) if found, None otherwise.
+        """
+        assert self._account is not None  # noqa: S101
+        users = self._account.users()  # pyright: ignore[reportUnknownVariableType]
+        for u in users:  # pyright: ignore[reportUnknownVariableType]
+            u_email: str = getattr(u, "email", "") or ""  # pyright: ignore[reportUnknownArgumentType]
+            if u_email.lower() == email.lower():
+                plex_id = getattr(u, "id", None)  # pyright: ignore[reportUnknownArgumentType]
+                if not plex_id:
+                    return None
+                return (
+                    str(plex_id),
+                    getattr(u, "username", None) or email,  # pyright: ignore[reportUnknownArgumentType]
+                )
+        return None
+
+    def _invoke_invite_friend_sync(
+        self,
+        email: str,
+        library_section_ids: list[int] | None,
+    ) -> None:
+        """Resolve library sections and call inviteFriend (synchronous).
+
+        Synchronous helper — must be called from a thread (via asyncio.to_thread).
+
+        Args:
+            email: The email address of the Plex.tv account to invite.
+            library_section_ids: Optional list of integer Plex library section
+                IDs to restrict access to. None means all libraries.
+        """
+        assert self._account is not None  # noqa: S101
+        assert self._server is not None  # noqa: S101
+        sections = None
+        if library_section_ids:
+            sections = [  # pyright: ignore[reportUnknownVariableType]
+                self._server.library.sectionByID(sid)  # pyright: ignore[reportUnknownMemberType]
+                for sid in library_section_ids
+            ]
+        self._account.inviteFriend(  # pyright: ignore[reportUnknownMemberType, reportUnusedCallResult]
+            user=email,
+            server=self._server,
+            sections=sections,
+        )
+
     async def _invite_friend(
         self,
         email: str,
@@ -814,7 +867,7 @@ class PlexClient:
                 None means all libraries.
 
         Returns:
-            An ExternalUser with the email as external_user_id and username.
+            An ExternalUser with the numeric Plex user ID as external_user_id.
 
         Raises:
             MediaClientError: If the client is not initialized.
@@ -832,29 +885,30 @@ class PlexClient:
 
         try:
 
-            def _invite() -> object:
+            def _invite() -> tuple[str, str]:
                 assert self._account is not None  # noqa: S101
                 assert self._server is not None  # noqa: S101
-                # Resolve integer section IDs to LibrarySection objects
-                # plexapi's inviteFriend() needs LibrarySection objects or names
-                sections = None
-                if library_section_ids:
-                    sections = [  # pyright: ignore[reportUnknownVariableType]
-                        self._server.library.sectionByID(sid)  # pyright: ignore[reportUnknownMemberType]
-                        for sid in library_section_ids
-                    ]
-                # plexapi lacks type stubs, inviteFriend returns MyPlexUser
-                # We pass the server to share with the friend
-                return self._account.inviteFriend(  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-                    user=email,
-                    server=self._server,
-                    sections=sections,
-                )
+                self._invoke_invite_friend_sync(email, library_section_ids)
 
-            user = await asyncio.to_thread(_invite)
-            # plexapi MyPlexUser has id and username attributes
-            user_id: str = str(getattr(user, "id", email))
-            username: str = getattr(user, "username", None) or email
+                # Resolve the numeric Plex user ID by looking up the user
+                # in account.users(). The inviteFriend() return value's .id
+                # may not be the numeric ID needed by Plex v2 APIs
+                # (friends/sharings deletion). This lookup mirrors the
+                # pattern used in delete_user().
+                result = self._find_user_by_email_sync(email)
+                if result is not None:
+                    return result
+
+                # Fallback: user not yet in friends list (pending
+                # invite). Log warning; email stored as last resort.
+                log.warning(
+                    "plex_invite_friend_numeric_id_not_resolved",
+                    url=self.url,
+                    email=email,
+                )
+                return (email, email)
+
+            user_id, username = await asyncio.to_thread(_invite)
 
             log.info(
                 "plex_friend_created",
@@ -875,7 +929,10 @@ class PlexClient:
         except Exception as exc:
             error_code = _map_plex_error_to_code(exc)
 
-            # Log the error with appropriate level
+            # Handle orphaned Plex relationships: when a previous
+            # deletion failed to fully clean up, the Plex friendship
+            # persists and blocks re-invitation.  Attempt to remove the
+            # orphaned relationship and retry once.
             if error_code == PlexErrorCode.USER_ALREADY_EXISTS:
                 log.warning(
                     "plex_friend_already_exists",
@@ -883,6 +940,23 @@ class PlexClient:
                     email=email,
                     error=str(exc),
                 )
+
+                # Attempt cleanup-and-retry
+                try:
+                    cleanup_result = await self._cleanup_orphaned_and_retry_invite(
+                        email, library_section_ids=library_section_ids
+                    )
+                    if cleanup_result is not None:
+                        return cleanup_result
+                except Exception as cleanup_exc:
+                    # Cleanup/retry failed - fall through to raise
+                    # the original USER_ALREADY_EXISTS error below.
+                    log.debug(
+                        "plex_orphaned_cleanup_failed",
+                        url=self.url,
+                        email=email,
+                        error=str(cleanup_exc),
+                    )
             else:
                 log.error(
                     "plex_create_friend_failed",
@@ -910,6 +984,99 @@ class PlexClient:
                 cause=str(exc),
                 error_code=error_code,
             ) from exc
+
+    async def _cleanup_orphaned_and_retry_invite(
+        self,
+        email: str,
+        *,
+        library_section_ids: list[int] | None = None,
+    ) -> ExternalUser | None:
+        """Attempt to clean up an orphaned Plex friendship and retry the invite.
+
+        When a previous user deletion failed to fully remove the Plex
+        relationship, the friendship persists and blocks re-invitation.
+        This method looks up the user's numeric Plex ID, removes the
+        orphaned friend/sharing relationships, and retries inviteFriend().
+
+        Args:
+            email: The email address of the Plex.tv account.
+            library_section_ids: Optional library section IDs to share.
+
+        Returns:
+            An ExternalUser if the retry succeeded, None if the user
+            could not be found in the friends list (cleanup not possible).
+        """
+        assert self._account is not None  # noqa: S101
+        assert self._server is not None  # noqa: S101
+
+        def _lookup_and_cleanup() -> str | None:
+            result = self._find_user_by_email_sync(email)
+            if result is not None:
+                return result[0]
+            return None
+
+        plex_user_id = await asyncio.to_thread(_lookup_and_cleanup)
+
+        if plex_user_id is None:
+            log.warning(
+                "plex_orphaned_cleanup_user_not_found",
+                url=self.url,
+                email=email,
+            )
+            return None
+
+        log.info(
+            "plex_orphaned_cleanup_attempting",
+            url=self.url,
+            email=email,
+            plex_user_id=plex_user_id,
+        )
+
+        # Remove orphaned relationship (best_effort to avoid raising)
+        cleanup_ok = await asyncio.to_thread(
+            self._remove_friend_and_sharing_sync,
+            plex_user_id,
+            best_effort=True,
+        )
+
+        log.info(
+            "plex_orphaned_cleanup_result",
+            url=self.url,
+            email=email,
+            plex_user_id=plex_user_id,
+            cleanup_ok=cleanup_ok,
+        )
+
+        if not cleanup_ok:
+            return None
+
+        # Retry the invitation after cleanup
+        def _retry_invite() -> tuple[str, str]:
+            assert self._account is not None  # noqa: S101
+            assert self._server is not None  # noqa: S101
+            self._invoke_invite_friend_sync(email, library_section_ids)
+
+            # Resolve the numeric Plex user ID (same pattern as _invite)
+            result = self._find_user_by_email_sync(email)
+            if result is not None:
+                return result
+            return (email, email)
+
+        user_id, username = await asyncio.to_thread(_retry_invite)
+
+        log.info(
+            "plex_orphaned_cleanup_reinvite_succeeded",
+            url=self.url,
+            email=email,
+            user_id=user_id,
+        )
+
+        return ExternalUser(
+            external_user_id=user_id,
+            username=username,
+            email=email,
+            user_type="friend",
+        )
 
     async def _create_friend(
         self,

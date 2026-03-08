@@ -244,6 +244,7 @@ class MockMyPlexAccountWithInvite:
 
     _invite_result: MockMyPlexUser | None
     _invite_error: Exception | None
+    _last_invited: MockMyPlexUser | None
 
     def __init__(
         self,
@@ -253,6 +254,7 @@ class MockMyPlexAccountWithInvite:
     ) -> None:
         self._invite_result = invite_result
         self._invite_error = invite_error
+        self._last_invited = None
 
     def inviteFriend(
         self, user: str, server: object, sections: object = None
@@ -261,10 +263,17 @@ class MockMyPlexAccountWithInvite:
         _ = server, sections  # Unused but required by API signature
         if self._invite_error is not None:
             raise self._invite_error
-        if self._invite_result is not None:
-            return self._invite_result
-        # Default: return a mock user with the email
-        return MockMyPlexUser(user_id=12345, username=user, email=user)
+        result = self._invite_result or MockMyPlexUser(
+            user_id=12345, username=user, email=user
+        )
+        self._last_invited = result
+        return result
+
+    def users(self) -> list[MockMyPlexUser]:
+        """Mock users() method returning the invited user."""
+        if self._last_invited is not None:
+            return [self._last_invited]
+        return []
 
 
 class MockMyPlexAccountWithHomeUser:
