@@ -29,7 +29,11 @@ Example usage:
 import os
 from typing import TYPE_CHECKING, ClassVar
 
+import structlog
+
 from .exceptions import UnknownServerTypeError
+
+log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
 if TYPE_CHECKING:
     from zondarr.config import Settings
@@ -227,6 +231,7 @@ class ClientRegistry:
 
         Dynamically reads env var names from provider metadata,
         removing the need for per-provider if/else branches.
+        Decrypts the DB-stored API key before use.
 
         Args:
             server_type: The server type string.
@@ -236,13 +241,32 @@ class ClientRegistry:
         Returns:
             A tuple of (effective_url, effective_api_key).
         """
+        # Decrypt DB api_key if settings are available
+        decrypted_db_api_key = db_api_key
+        if self._settings is not None:
+            from zondarr.services.api_key_encryption import (
+                InvalidToken,
+                decrypt_api_key,
+            )
+
+            try:
+                decrypted_db_api_key = decrypt_api_key(
+                    db_api_key, secret_key=self._settings.secret_key
+                )
+            except InvalidToken:
+                log.warning(
+                    "api_key_decryption_failed",
+                    server_type=server_type,
+                )
+                raise
+
         if self._settings is None:
-            return db_url, db_api_key
+            return db_url, decrypted_db_api_key
 
         # Try provider credentials from settings first
         provider_creds = self._settings.provider_credentials.get(server_type, {})
         url = provider_creds.get("url") or db_url
-        api_key = provider_creds.get("api_key") or db_api_key
+        api_key = provider_creds.get("api_key") or decrypted_db_api_key
 
         return url, api_key
 

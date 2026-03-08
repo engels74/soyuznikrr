@@ -148,16 +148,18 @@ async def provide_sync_service(
 
 async def provide_media_server_service(
     server_repository: MediaServerRepository,
+    settings: Settings,
 ) -> MediaServerService:
     """Provide MediaServerService instance.
 
     Args:
         server_repository: MediaServerRepository from DI.
+        settings: Application settings from DI.
 
     Returns:
         Configured MediaServerService instance.
     """
-    return MediaServerService(server_repository)
+    return MediaServerService(server_repository, settings=settings)
 
 
 class ServerController(Controller):
