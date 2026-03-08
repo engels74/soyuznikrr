@@ -10,6 +10,7 @@ from zondarr.models.invitation import (
     invitation_servers,
 )
 from zondarr.models.media_server import Library, MediaServer
+from zondarr.models.oauth_session import OAuthSessionModel
 from zondarr.models.sync_run import SyncRun
 from zondarr.models.wizard import (
     InteractionType,
@@ -28,6 +29,7 @@ __all__ = [
     "Invitation",
     "Library",
     "MediaServer",
+    "OAuthSessionModel",
     "RefreshToken",
     "StepInteraction",
     "SyncRun",

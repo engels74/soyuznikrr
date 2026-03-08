@@ -9,6 +9,8 @@ import pytest
 
 from zondarr.api.schemas import CreateInvitationRequest
 
+DUMMY_SERVER_ID = "00000000-0000-0000-0000-000000000001"
+
 
 class TestInvitationCodePattern:
     """InvitationCode type rejects non-alphanumeric characters."""
@@ -24,7 +26,7 @@ class TestInvitationCodePattern:
         ],
     )
     def test_valid_alphanumeric_codes_accepted(self, code: str) -> None:
-        data: dict[str, str | list[str]] = {"server_ids": [], "code": code}
+        data = {"server_ids": [DUMMY_SERVER_ID], "code": code}
         result = msgspec.json.decode(
             msgspec.json.encode(data), type=CreateInvitationRequest
         )
@@ -43,21 +45,21 @@ class TestInvitationCodePattern:
         ],
     )
     def test_special_characters_rejected(self, code: str) -> None:
-        data: dict[str, str | list[str]] = {"server_ids": [], "code": code}
+        data = {"server_ids": [DUMMY_SERVER_ID], "code": code}
         with pytest.raises(msgspec.ValidationError):
             _ = msgspec.json.decode(
                 msgspec.json.encode(data), type=CreateInvitationRequest
             )
 
     def test_empty_code_rejected(self) -> None:
-        data: dict[str, str | list[str]] = {"server_ids": [], "code": ""}
+        data = {"server_ids": [DUMMY_SERVER_ID], "code": ""}
         with pytest.raises(msgspec.ValidationError):
             _ = msgspec.json.decode(
                 msgspec.json.encode(data), type=CreateInvitationRequest
             )
 
     def test_code_exceeding_max_length_rejected(self) -> None:
-        data: dict[str, str | list[str]] = {"server_ids": [], "code": "A" * 21}
+        data = {"server_ids": [DUMMY_SERVER_ID], "code": "A" * 21}
         with pytest.raises(msgspec.ValidationError):
             _ = msgspec.json.decode(
                 msgspec.json.encode(data), type=CreateInvitationRequest

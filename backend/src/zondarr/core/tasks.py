@@ -101,15 +101,26 @@ class BackgroundTaskManager:
     async def stop(self) -> None:
         """Stop all background tasks gracefully.
 
-        Cancels all running tasks and waits for them to complete.
-        Exceptions from cancelled tasks are suppressed.
+        Cancels all running tasks and waits for them to complete
+        within a timeout. Exceptions from cancelled tasks are suppressed.
         """
         self._running = False
 
         for task in self._tasks:
             _ = task.cancel()
 
-        _ = await asyncio.gather(*self._tasks, return_exceptions=True)
+        if self._tasks:
+            try:
+                _ = await asyncio.wait_for(
+                    asyncio.gather(*self._tasks, return_exceptions=True),
+                    timeout=10.0,
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Background tasks did not stop within timeout",
+                    remaining_tasks=len([t for t in self._tasks if not t.done()]),
+                )
+
         self._tasks.clear()
         self._next_sync_run_at = None
         self._libraries_sync_in_progress.clear()
@@ -157,7 +168,7 @@ class BackgroundTaskManager:
         Args:
             state: Application state containing session factory (positional-only).
         """
-        interval = self.settings.sync_interval_seconds
+        interval = max(self.settings.sync_interval_seconds, 60)
 
         # Delay initial sync to avoid blocking web requests at startup,
         # especially important for SQLite's single-writer limitation
@@ -262,6 +273,10 @@ class BackgroundTaskManager:
 
         # Sync libraries per server, each with its own session
         for server_id, server_name in server_ids_and_names:
+            # Yield to event loop between servers so HTTP requests
+            # are not starved while sync holds SQLite write locks
+            await asyncio.sleep(0)
+
             started_at = datetime.now(UTC)
             self._libraries_sync_in_progress.add(server_id)
             try:
@@ -302,8 +317,14 @@ class BackgroundTaskManager:
             finally:
                 self._libraries_sync_in_progress.discard(server_id)
 
+        # Yield between library sync and user sync phases
+        await asyncio.sleep(0)
+
         # Sync users per server, each with its own session
         for server_id, server_name in server_ids_and_names:
+            # Yield to event loop between servers
+            await asyncio.sleep(0)
+
             started_at = datetime.now(UTC)
             self._users_sync_in_progress.add(server_id)
             try:

@@ -119,8 +119,7 @@ function formatDateTimeLocal(isoString: string | undefined | null): string {
 	if (!isoString) return "";
 	try {
 		const date = new Date(isoString);
-		// Format as YYYY-MM-DDTHH:mm for datetime-local input
-		return date.toISOString().slice(0, 16);
+		return toLocalDateTimeString(date);
 	} catch {
 		return "";
 	}

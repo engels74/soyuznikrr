@@ -686,18 +686,18 @@ class TestUserDeletionAtomicity:
     )
     @settings(max_examples=15, deadline=None)
     @pytest.mark.asyncio
-    async def test_user_not_found_on_server_still_deletes_local(
+    async def test_user_not_found_on_server_raises_validation_error(
         self,
         db: TestDB,
         username: str,
         external_user_id: str,
         initial_enabled: bool,
     ) -> None:
-        """When user not found on Jellyfin, local User record is still deleted.
+        """When user not found on server, ValidationError is raised.
 
         Property: For any user that exists locally but not on the media server
-        (delete_user returns False), the local User record should still be deleted.
-        This handles the case where the user was already deleted externally.
+        (delete_user returns False), a ValidationError is raised and the local
+        record is preserved. This enforces deletion atomicity.
         """
         await db.clean()
 
@@ -716,14 +716,70 @@ class TestUserDeletionAtomicity:
             return_value=create_mock_client_delete_user_not_found()
         )
 
-        # Execute delete operation - should succeed even if user not on server
+        # Execute delete operation - should raise ValidationError
         async with db.session_factory() as session:
             user_repo = UserRepository(session)
             identity_repo = IdentityRepository(session)
             user_service = UserService(user_repo, identity_repo)
 
             with patch("zondarr.services.user.registry", mock_registry):
-                await user_service.delete(user_id)
+                with pytest.raises(ValidationError) as exc_info:
+                    await user_service.delete(user_id)
+
+            assert "not found on media server" in exc_info.value.message.lower()
+
+        # PROPERTY ASSERTION: Local record is preserved
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None, (
+                f"Expected user {user_id} to still exist after atomicity rejection"
+            )
+
+    @given(
+        username=username_strategy,
+        external_user_id=external_user_id_strategy,
+        initial_enabled=st.booleans(),
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_user_not_found_on_server_force_deletes_local(
+        self,
+        db: TestDB,
+        username: str,
+        external_user_id: str,
+        initial_enabled: bool,
+    ) -> None:
+        """When user not found on server with force=True, local record is deleted.
+
+        Property: For any user that exists locally but not on the media server,
+        passing force=True allows local-only deletion for cleanup scenarios.
+        """
+        await db.clean()
+
+        # Create test user
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+        )
+        user_id = user.id
+
+        # Create mock registry that returns "user not found" response
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.create_client_for_server = MagicMock(
+            return_value=create_mock_client_delete_user_not_found()
+        )
+
+        # Execute delete operation with force=True
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                await user_service.delete(user_id, force=True)
 
             await session.commit()
 
@@ -732,7 +788,7 @@ class TestUserDeletionAtomicity:
             user_repo = UserRepository(session)
             deleted_user = await user_repo.get_by_id(user_id)
             assert deleted_user is None, (
-                f"Expected user {user_id} to be deleted even when not found on server"
+                f"Expected user {user_id} to be deleted with force=True"
             )
 
     @given(

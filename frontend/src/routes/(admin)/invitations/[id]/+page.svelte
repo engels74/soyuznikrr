@@ -201,7 +201,7 @@ function formatDateTimeLocal(isoString: string | undefined | null): string {
 	if (!isoString) return "";
 	try {
 		const date = new Date(isoString);
-		return date.toISOString().slice(0, 16);
+		return toLocalDateTimeString(date);
 	} catch {
 		return "";
 	}

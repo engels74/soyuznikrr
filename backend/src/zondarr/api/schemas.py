@@ -693,7 +693,7 @@ class CreateInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
         post_wizard_id: Optional wizard ID to run after account creation.
     """
 
-    server_ids: list[UUID]
+    server_ids: Annotated[list[UUID], msgspec.Meta(min_length=1)]
     code: InvitationCode | None = None
     expires_at: datetime | None = None
     max_uses: PositiveInt | None = None

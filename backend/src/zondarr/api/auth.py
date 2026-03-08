@@ -26,7 +26,7 @@ from zondarr.core.exceptions import AuthenticationError
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.repositories.app_setting import AppSettingRepository
 from zondarr.services.auth import AuthService
-from zondarr.services.oauth_session import oauth_session_store
+from zondarr.services.oauth_session import OAuthSessionStore
 from zondarr.services.settings import SettingsService
 
 from .schemas import (
@@ -282,7 +282,8 @@ class AuthController(Controller):
         credentials = dict(data.credentials)
         if "redemption_token" in credentials:
             redemption_token = credentials.pop("redemption_token")
-            result = oauth_session_store.redeem(redemption_token)
+            store = OAuthSessionStore()
+            result = await store.redeem(session, redemption_token)
             if result is not None:
                 redeemed_provider, auth_token = result
                 if redeemed_provider != method:
