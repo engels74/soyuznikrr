@@ -726,13 +726,13 @@ class UpdateInvitationRequest(msgspec.Struct, kw_only=True, forbid_unknown_field
         post_wizard_id: Optional wizard ID to run after account creation.
     """
 
-    expires_at: datetime | None = None
-    max_uses: PositiveInt | None = None
-    duration_days: PositiveInt | None = None
-    enabled: bool | None = None
-    server_ids: list[UUID] | None = None
-    library_ids: list[UUID] | None = None
-    permissions: dict[str, bool] | None = None
+    expires_at: datetime | None | UnsetType = UNSET
+    max_uses: PositiveInt | None | UnsetType = UNSET
+    duration_days: PositiveInt | None | UnsetType = UNSET
+    enabled: bool | UnsetType = UNSET
+    server_ids: list[UUID] | UnsetType = UNSET
+    library_ids: list[UUID] | UnsetType = UNSET
+    permissions: dict[str, bool] | UnsetType = UNSET
     pre_wizard_id: UUID | None | UnsetType = UNSET
     post_wizard_id: UUID | None | UnsetType = UNSET
 

@@ -132,6 +132,8 @@ class UserService:
     async def cleanup_stale_local_users(
         self,
         external_users: Sequence[tuple[MediaServer, ExternalUser]],
+        *,
+        current_invitation_id: UUID | None = None,
     ) -> int:
         """Remove stale local User records that match incoming external users.
 
@@ -142,11 +144,15 @@ class UserService:
         Identity too (Property 21 pattern).
 
         This prevents duplicate entries when a sync-imported user later
-        redeems an invitation.
+        redeems an invitation, or when a user is re-invited after deletion.
 
         Args:
             external_users: Sequence of (MediaServer, ExternalUser) tuples
                 to check against.
+            current_invitation_id: The invitation ID being redeemed. If the
+                existing user's invitation_id matches this, skip cleanup
+                (same transaction). If it differs, clean up (stale from a
+                previous invitation cycle).
 
         Returns:
             Count of local User records cleaned up.
@@ -159,10 +165,15 @@ class UserService:
             if existing is None:
                 continue
 
-            # Only clean up sync-imported users (no invitation link).
-            # Invitation-linked records must not be deleted — let the
-            # UniqueConstraint catch double-redemption instead.
-            if existing.invitation_id is not None:
+            # Skip cleanup if the existing user belongs to the CURRENT
+            # invitation (same transaction — don't clean up our own work).
+            # Clean up if: no invitation (sync-imported) OR a different
+            # invitation (stale from a previous invitation cycle).
+            if (
+                existing.invitation_id is not None
+                and current_invitation_id is not None
+                and existing.invitation_id == current_invitation_id
+            ):
                 continue
 
             identity_id = existing.identity_id

@@ -152,6 +152,14 @@ class InvitationService:
         """
         # Use provided code or generate a unique one with collision handling
         if code is not None:
+            existing = await self.repository.get_by_code(code)
+            if existing is not None:
+                raise ValidationError(
+                    "An invitation with this code already exists",
+                    field_errors={
+                        "code": ["An invitation with this code already exists"]
+                    },
+                )
             invitation_code = code
         else:
             invitation_code = await self._generate_unique_code()
@@ -507,12 +515,12 @@ class InvitationService:
         invitation_id: UUID,
         /,
         *,
-        expires_at: datetime | None = None,
-        max_uses: int | None = None,
-        duration_days: int | None = None,
-        enabled: bool | None = None,
-        server_ids: Sequence[UUID] | None = None,
-        library_ids: Sequence[UUID] | None = None,
+        expires_at: datetime | None | UnsetType = UNSET,
+        max_uses: int | None | UnsetType = UNSET,
+        duration_days: int | None | UnsetType = UNSET,
+        enabled: bool | UnsetType = UNSET,
+        server_ids: Sequence[UUID] | UnsetType = UNSET,
+        library_ids: Sequence[UUID] | UnsetType = UNSET,
         pre_wizard_id: UUID | None | UnsetType = UNSET,
         post_wizard_id: UUID | None | UnsetType = UNSET,
     ) -> Invitation:
@@ -554,24 +562,27 @@ class InvitationService:
         resolved_servers: list[MediaServer] | None = None
 
         # Update mutable fields if provided
-        if expires_at is not None:
-            normalized = _normalize_expires_at(expires_at)
-            if normalized is not None and normalized <= datetime.now(UTC):
-                raise ValidationError(
-                    "Expiration date must be in the future",
-                    field_errors={
-                        "expires_at": ["Expiration date must be in the future"]
-                    },
-                )
-            invitation.expires_at = normalized
+        if expires_at is not UNSET:
+            if expires_at is None:
+                invitation.expires_at = None
+            else:
+                normalized = _normalize_expires_at(expires_at)
+                if normalized is not None and normalized <= datetime.now(UTC):
+                    raise ValidationError(
+                        "Expiration date must be in the future",
+                        field_errors={
+                            "expires_at": ["Expiration date must be in the future"]
+                        },
+                    )
+                invitation.expires_at = normalized
 
-        if max_uses is not None:
+        if max_uses is not UNSET:
             invitation.max_uses = max_uses
 
-        if duration_days is not None:
+        if duration_days is not UNSET:
             invitation.duration_days = duration_days
 
-        if enabled is not None:
+        if enabled is not UNSET:
             invitation.enabled = enabled
 
         if pre_wizard_id is not UNSET:
@@ -581,12 +592,12 @@ class InvitationService:
             invitation.post_wizard_id = post_wizard_id
 
         # Validate and update server_ids if provided
-        if server_ids is not None:
+        if server_ids is not UNSET:
             resolved_servers = await self._validate_server_ids(server_ids)
             invitation.target_servers = resolved_servers
 
         # Validate and update library_ids if provided
-        if library_ids is not None:
+        if library_ids is not UNSET:
             # Use resolved servers if server_ids was updated, otherwise use current
             target_servers = (
                 resolved_servers
