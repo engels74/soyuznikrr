@@ -808,8 +808,11 @@ class PlexClient:
         for u in users:  # pyright: ignore[reportUnknownVariableType]
             u_email: str = getattr(u, "email", "") or ""  # pyright: ignore[reportUnknownArgumentType]
             if u_email.lower() == email.lower():
+                plex_id = getattr(u, "id", None)  # pyright: ignore[reportUnknownArgumentType]
+                if not plex_id:
+                    return None
                 return (
-                    str(getattr(u, "id", "")),  # pyright: ignore[reportUnknownArgumentType]
+                    str(plex_id),
                     getattr(u, "username", None) or email,  # pyright: ignore[reportUnknownArgumentType]
                 )
         return None
