@@ -5,6 +5,7 @@ to the browser in real-time, with optional level and source filtering.
 """
 
 import asyncio
+import time
 from collections.abc import AsyncGenerator, Sequence
 
 import msgspec
@@ -25,6 +26,7 @@ _encoder = msgspec.json.Encoder()
 
 _BACKFILL_LIMIT = 500
 _BACKFILL_BATCH = 50
+_MAX_SSE_DURATION = 1800  # 30 minutes
 
 
 class LogController(Controller):
@@ -56,6 +58,7 @@ class LogController(Controller):
         min_level = _LEVEL_ORDER.get(level.upper(), 0) if level else 0
 
         async def _generate() -> AsyncGenerator[ServerSentEventMessage | str]:
+            start_time = time.monotonic()
             last_seq = 0
 
             try:
@@ -75,8 +78,10 @@ class LogController(Controller):
                     if (i + 1) % _BACKFILL_BATCH == 0:
                         await asyncio.sleep(0)
 
-                # Stream new entries
+                # Stream new entries (auto-close after _MAX_SSE_DURATION)
                 while True:
+                    if time.monotonic() - start_time > _MAX_SSE_DURATION:
+                        return
                     try:
                         _ = await asyncio.wait_for(
                             log_buffer.wait_for_new(after_seq=last_seq, timeout=30.0),

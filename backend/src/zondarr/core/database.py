@@ -11,16 +11,18 @@ Uses SQLAlchemy 2.0 async patterns with proper connection pooling.
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import cast
+from typing import Any, cast
 
 from litestar import Litestar
 from litestar.datastructures import State
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from zondarr.config import Settings
 
@@ -44,14 +46,30 @@ def create_engine_from_url(
     """
     kwargs: dict[str, object] = {
         "echo": debug,
-        "pool_pre_ping": pool_pre_ping,
     }
 
-    # SQLite: add busy timeout so writers wait instead of failing immediately
     if database_url.startswith("sqlite"):
-        kwargs["connect_args"] = {"timeout": 30}
+        # SQLite: NullPool avoids stale connection and pool exhaustion issues.
+        # SQLite doesn't benefit from connection pooling (each conn is a file handle).
+        kwargs["poolclass"] = NullPool
+        # Increase busy timeout so writers wait instead of failing immediately.
+        kwargs["connect_args"] = {"timeout": 60}
+    else:
+        kwargs["pool_pre_ping"] = pool_pre_ping
 
-    return create_async_engine(database_url, **kwargs)
+    engine = create_async_engine(database_url, **kwargs)
+
+    if database_url.startswith("sqlite"):
+        # Enable WAL mode and set synchronous=NORMAL for better concurrency.
+        # WAL allows concurrent readers with a single writer; NORMAL is safe with WAL.
+        @event.listens_for(engine.sync_engine, "connect")
+        def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.close()
+
+    return engine
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

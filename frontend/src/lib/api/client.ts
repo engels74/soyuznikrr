@@ -27,6 +27,23 @@ export const api = createClient<paths>({
 	credentials: 'include'
 });
 
+// Redirect to /login on 401 responses (client-side only).
+// Skipped for SSR and when already on public auth pages to avoid redirect loops.
+api.use({
+	async onResponse({ response }) {
+		if (
+			response.status === 401 &&
+			typeof window !== 'undefined' &&
+			!window.location.pathname.startsWith('/login') &&
+			!window.location.pathname.startsWith('/join') &&
+			!window.location.pathname.startsWith('/setup')
+		) {
+			window.location.href = '/login';
+		}
+		return response;
+	}
+});
+
 /**
  * Create a scoped API client that uses a custom fetch function.
  * Use this in SvelteKit load functions to pass SvelteKit's provided fetch.
