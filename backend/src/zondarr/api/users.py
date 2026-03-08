@@ -396,7 +396,7 @@ class UserController(Controller):
         "/{user_id:uuid}",
         status_code=204,
         summary="Delete user",
-        description="Delete a user from both local database and media server.",
+        description="Delete a user from both local database and media server. Use force=true to delete the local record even if the user is not found on the media server.",
     )
     async def delete_user(
         self,
@@ -405,6 +405,12 @@ class UserController(Controller):
             Parameter(description="User UUID"),
         ],
         user_service: UserService,
+        force: Annotated[
+            bool,
+            Parameter(
+                description="Force deletion even if the user is not found on the media server",
+            ),
+        ] = False,
     ) -> None:
         """Delete a user account.
 
@@ -415,6 +421,8 @@ class UserController(Controller):
         Args:
             user_id: The UUID of the user to delete.
             user_service: UserService from DI.
+            force: If True, delete the local record even if the user
+                is not found on the media server.
 
         Returns:
             None (HTTP 204 No Content on success).
@@ -423,7 +431,7 @@ class UserController(Controller):
             NotFoundError: If the user does not exist.
             ValidationError: If the media server operation fails.
         """
-        await user_service.delete(user_id)
+        await user_service.delete(user_id, force=force)
 
     def _to_detail_response(self, user: User, /) -> UserDetailResponse:
         """Convert a User entity to UserDetailResponse.
