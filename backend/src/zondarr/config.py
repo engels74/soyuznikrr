@@ -84,6 +84,10 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 900
 
+    # Test credentials for E2E OAuth flow testing (debug-only)
+    plex_test_token: str | None = None
+    plex_test_email: str | None = None
+
 
 def load_settings() -> Settings:
     """Load and validate settings from environment variables.
@@ -128,6 +132,8 @@ def load_settings() -> Settings:
         "sync_interval_seconds": int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
         "bootstrap_token": os.environ.get("BOOTSTRAP_TOKEN") or None,
         "bootstrap_token_file": os.environ.get("BOOTSTRAP_TOKEN_FILE") or None,
+        "plex_test_token": os.environ.get("PLEX_TEST_TOKEN") or None,
+        "plex_test_email": os.environ.get("PLEX_TEST_EMAIL") or None,
     }
 
     # msgspec.convert validates constraints
