@@ -14,14 +14,16 @@ These endpoints are publicly accessible without authentication.
 """
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 
-from litestar import Controller, get, post
+import structlog
+from litestar import Controller, Response, get, post
 from litestar.params import Parameter
-from litestar.status_codes import HTTP_200_OK
+from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zondarr.api.schemas import OAuthCheckResponse, OAuthPinResponse
+from zondarr.api.schemas import ErrorResponse, OAuthCheckResponse, OAuthPinResponse
 from zondarr.config import Settings
 from zondarr.core.exceptions import NotFoundError
 from zondarr.media.exceptions import UnknownServerTypeError
@@ -30,6 +32,8 @@ from zondarr.services.oauth_session import OAuthSessionStore
 
 if TYPE_CHECKING:
     from zondarr.media.provider import OAuthFlowProvider
+
+logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
 _store = OAuthSessionStore()
 
@@ -184,3 +188,95 @@ class OAuthController(Controller):
             )
         finally:
             await flow.close()
+
+    @post(
+        "/pin/{handle:str}/test-complete",
+        status_code=HTTP_200_OK,
+        summary="Simulate OAuth PIN completion (debug only)",
+        description=(
+            "Debug-only endpoint that simulates OAuth PIN completion using "
+            "test credentials from environment variables. Returns 404 when "
+            "debug mode is disabled."
+        ),
+        exclude_from_auth=True,
+    )
+    async def test_complete_pin(
+        self,
+        settings: Settings,
+        session: AsyncSession,
+        provider: Annotated[str, Parameter(description="Provider name")],
+        handle: Annotated[str, Parameter(description="Opaque PIN handle")],
+    ) -> OAuthCheckResponse | Response[ErrorResponse]:
+        """Simulate OAuth PIN completion for E2E testing.
+
+        Only available when debug mode is enabled and test credentials
+        are configured via PLEX_TEST_TOKEN and PLEX_TEST_EMAIL env vars.
+
+        Args:
+            settings: Application settings (injected via DI).
+            session: Database session (injected via DI).
+            provider: Provider name from URL path.
+            handle: The opaque PIN handle from create_pin.
+
+        Returns:
+            OAuthCheckResponse with authenticated status and redemption_token.
+        """
+        if not settings.debug:
+            raise NotFoundError("Endpoint", "test-complete")
+
+        if not settings.plex_test_token or not settings.plex_test_email:
+            return Response(
+                ErrorResponse(
+                    detail="PLEX_TEST_TOKEN and PLEX_TEST_EMAIL must be configured",
+                    error_code="TEST_CREDENTIALS_MISSING",
+                    timestamp=datetime.now(UTC),
+                ),
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+
+        oauth_session = await _store.get(session, handle)
+        if oauth_session is None:
+            raise NotFoundError("OAuthSession", handle)
+        if oauth_session.provider != provider:
+            raise NotFoundError("OAuthSession", handle)
+
+        # If already authenticated but not yet redeemed, return existing token
+        if oauth_session.redemption_token is not None and not oauth_session.redeemed:
+            return OAuthCheckResponse(
+                authenticated=True,
+                redemption_token=oauth_session.redemption_token,
+                email=oauth_session.email,
+            )
+
+        # If already redeemed, the session has been consumed
+        if oauth_session.redeemed:
+            return Response(
+                ErrorResponse(
+                    detail="OAuth session has already been redeemed",
+                    error_code="SESSION_ALREADY_REDEEMED",
+                    timestamp=datetime.now(UTC),
+                ),
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+
+        redemption_token = await _store.set_authenticated(
+            session,
+            handle,
+            auth_token=settings.plex_test_token,
+            email=settings.plex_test_email,
+        )
+        if redemption_token is None:
+            raise NotFoundError("OAuthSession", handle)
+
+        logger.info(
+            "oauth_test_complete_used",
+            provider=provider,
+            handle_prefix=handle[:8],
+            has_email=True,
+        )
+
+        return OAuthCheckResponse(
+            authenticated=True,
+            redemption_token=redemption_token,
+            email=settings.plex_test_email,
+        )
