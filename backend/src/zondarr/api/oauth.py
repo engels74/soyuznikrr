@@ -171,6 +171,8 @@ class OAuthController(Controller):
                     auth_token=result.auth_token,
                     email=result.email,
                 )
+                if redemption_token is None:
+                    raise NotFoundError("OAuthSession", handle)
                 return OAuthCheckResponse(
                     authenticated=True,
                     redemption_token=redemption_token,

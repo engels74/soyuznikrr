@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import final
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.models.oauth_session import OAuthSessionModel
@@ -175,6 +175,8 @@ class OAuthSessionStore:
         """Consume a redemption token and return (provider, auth_token).
 
         One-time use: after redemption the token is invalidated.
+        Uses a conditional UPDATE to atomically mark the token as redeemed,
+        preventing double-redemption under concurrent requests.
 
         Args:
             session: SQLAlchemy async session.
@@ -183,21 +185,44 @@ class OAuthSessionStore:
         Returns:
             A (provider, auth_token) tuple, or None if invalid/already used.
         """
-        stmt = select(OAuthSessionModel).where(
-            OAuthSessionModel.redemption_token == redemption_token,
-            OAuthSessionModel.redeemed.is_(False),
+        # Atomically claim the token: only one concurrent request can
+        # match redeemed=False and flip it to True.
+        stmt = (
+            update(OAuthSessionModel)
+            .where(
+                OAuthSessionModel.redemption_token == redemption_token,
+                OAuthSessionModel.redeemed.is_(False),
+                OAuthSessionModel.auth_token.isnot(None),
+            )
+            .values(redeemed=True)
+            .returning(
+                OAuthSessionModel.handle,
+                OAuthSessionModel.provider,
+                OAuthSessionModel.auth_token,
+                OAuthSessionModel.created_at,
+                OAuthSessionModel.ttl,
+            )
         )
-        model = await session.scalar(stmt)
-        if model is None or self._is_expired(model) or model.auth_token is None:
+        row = (await session.execute(stmt)).first()
+        if row is None:
             return None
-        model.redeemed = True
-        auth_token = model.auth_token
-        provider = model.provider
-        model.auth_token = None
+        handle: str = row.handle  # pyright: ignore[reportAny]
+        provider: str = row.provider  # pyright: ignore[reportAny]
+        auth_token: str = row.auth_token  # pyright: ignore[reportAny]
+        # Check TTL expiry (can't easily express in SQL portably)
+        if self._is_expired_raw(row.created_at, row.ttl):  # pyright: ignore[reportAny]
+            return None
+        # Clear auth_token from storage after reading it
+        clear_stmt = (
+            update(OAuthSessionModel)
+            .where(OAuthSessionModel.redemption_token == redemption_token)
+            .values(auth_token=None)
+        )
+        _ = await session.execute(clear_stmt)
         await session.flush()
         logger.debug(
             "oauth_session_redeemed",
-            handle_prefix=model.handle[:8],
+            handle_prefix=handle[:8],
             provider=provider,
         )
         return (provider, auth_token)
@@ -237,9 +262,16 @@ class OAuthSessionStore:
     @staticmethod
     def _is_expired(model: OAuthSessionModel, *, now: datetime | None = None) -> bool:
         """Check if a session model has exceeded its TTL."""
+        return OAuthSessionStore._is_expired_raw(model.created_at, model.ttl, now=now)
+
+    @staticmethod
+    def _is_expired_raw(
+        created_at: datetime, ttl: int, *, now: datetime | None = None
+    ) -> bool:
+        """Check if a session has exceeded its TTL using raw values."""
         if now is None:
             now = datetime.now(UTC)
-        expiry = model.created_at + timedelta(seconds=model.ttl)
+        expiry = created_at + timedelta(seconds=ttl)
         # Ensure both are comparable (both should be UTC)
         if expiry.tzinfo is None:
             return expiry < now.replace(tzinfo=None)
