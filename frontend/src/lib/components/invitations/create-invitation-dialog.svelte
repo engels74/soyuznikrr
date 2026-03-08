@@ -19,7 +19,7 @@ import {
 	type WizardResponse,
 	withErrorHandling,
 } from "$lib/api/client";
-import { asErrorResponse } from "$lib/api/errors";
+import { asErrorResponse, asValidationErrorResponse } from "$lib/api/errors";
 import { Button } from "$lib/components/ui/button";
 import * as Dialog from "$lib/components/ui/dialog";
 import {
@@ -143,6 +143,15 @@ async function handleSubmit() {
 		});
 
 		if (result.error) {
+			const validationBody = asValidationErrorResponse(result.error);
+			if (validationBody?.field_errors) {
+				const fieldErrors: Record<string, string[]> = {};
+				for (const fe of validationBody.field_errors) {
+					fieldErrors[fe.field] = fe.messages;
+				}
+				errors = fieldErrors;
+			}
+
 			const errorBody = asErrorResponse(result.error);
 			showError(
 				"Failed to create invitation",

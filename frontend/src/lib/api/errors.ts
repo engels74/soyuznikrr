@@ -116,6 +116,27 @@ export function asErrorResponse(error: unknown): ErrorResponse | undefined {
 }
 
 /**
+ * Safely cast an unknown API error body to ValidationErrorResponse.
+ *
+ * Checks for the presence of `field_errors` array, which distinguishes
+ * validation errors from standard error responses.
+ *
+ * @param error - The unknown error body from an API response
+ * @returns Typed ValidationErrorResponse if the shape matches, otherwise undefined
+ */
+export function asValidationErrorResponse(error: unknown): ValidationErrorResponse | undefined {
+	if (
+		error &&
+		typeof error === 'object' &&
+		'field_errors' in error &&
+		Array.isArray((error as ValidationErrorResponse).field_errors)
+	) {
+		return error as ValidationErrorResponse;
+	}
+	return undefined;
+}
+
+/**
  * Extract a user-friendly error message from any error.
  *
  * Handles ApiError, standard Error, and unknown error types.
