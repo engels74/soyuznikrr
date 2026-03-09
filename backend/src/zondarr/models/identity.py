@@ -111,6 +111,11 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "media_server_id",
             name="uq_users_external_user_server",
         ),
+        UniqueConstraint(
+            "username",
+            "media_server_id",
+            name="uq_users_username_server",
+        ),
     )
 
     # Relationships - use joined for single relations

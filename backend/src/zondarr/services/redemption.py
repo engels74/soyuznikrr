@@ -35,6 +35,7 @@ import structlog
 from zondarr.core.exceptions import RedemptionError
 from zondarr.core.wizard_token import verify_wizard_completion
 from zondarr.media.exceptions import MediaClientError
+from zondarr.media.provider import JoinFlowType
 from zondarr.media.registry import registry
 from zondarr.media.types import ExternalUser
 from zondarr.models.identity import Identity, User
@@ -160,6 +161,34 @@ class RedemptionService:
                 raise RedemptionError(
                     "Pre-wizard completion is required before redeeming this invitation",
                     redemption_error_code="WIZARD_REQUIRED",
+                )
+
+        # Step 2.75: Require OAuth token for servers that use OAuth join flow
+        if auth_token is None:
+            for server in invitation.target_servers:
+                provider = registry.get_provider(server.server_type)
+                join_flow = provider.join_flow
+                if (
+                    join_flow is not None
+                    and join_flow.flow_type == JoinFlowType.OAUTH_LINK
+                ):
+                    raise RedemptionError(
+                        "OAuth authentication is required for this invitation",
+                        redemption_error_code="OAUTH_REQUIRED",
+                    )
+
+        # Step 2.8: Check username uniqueness across target servers
+        for server in invitation.target_servers:
+            existing = (
+                await self.user_service.user_repository.get_by_username_and_server(
+                    username, server.id
+                )
+            )
+            if existing is not None:
+                raise RedemptionError(
+                    f"Username '{username}' is already taken on server '{server.name}'",
+                    redemption_error_code="USERNAME_TAKEN",
+                    failed_server=server.name,
                 )
 
         # Step 3: Create users on each target server
