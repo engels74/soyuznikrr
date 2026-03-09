@@ -131,9 +131,7 @@ class DevRunner:
 
     def _build_servers(self) -> None:
         parent_env = dict(os.environ)
-        token_file = str(
-            self.repo_root / "backend" / "data" / ".bootstrap_token"
-        )
+        token_file = str(self.repo_root / "backend" / "data" / ".bootstrap_token")
 
         if not self.frontend_only:
             backend_env = {
@@ -154,33 +152,32 @@ class DevRunner:
                 "0.0.0.0",
                 "--port",
                 str(self.backend_port),
+                "--backpressure",
+                "16",
+                "--respawn-failed-workers",
+                "--workers-kill-timeout",
+                "10",
             ]
             if self.reload:
-                data_dir = str(
-                    self.repo_root / "backend" / "data"
+                data_dir = str(self.repo_root / "backend" / "data")
+                db_file = str(self.repo_root / "backend" / "zondarr.db")
+                db_wal = str(self.repo_root / "backend" / "zondarr.db-wal")
+                db_shm = str(self.repo_root / "backend" / "zondarr.db-shm")
+                backend_cmd.extend(
+                    [
+                        "--reload",
+                        "--reload-ignore-paths",
+                        token_file,
+                        "--reload-ignore-paths",
+                        data_dir,
+                        "--reload-ignore-paths",
+                        db_file,
+                        "--reload-ignore-paths",
+                        db_wal,
+                        "--reload-ignore-paths",
+                        db_shm,
+                    ]
                 )
-                db_file = str(
-                    self.repo_root / "backend" / "zondarr.db"
-                )
-                db_wal = str(
-                    self.repo_root / "backend" / "zondarr.db-wal"
-                )
-                db_shm = str(
-                    self.repo_root / "backend" / "zondarr.db-shm"
-                )
-                backend_cmd.extend([
-                    "--reload",
-                    "--reload-ignore-paths",
-                    token_file,
-                    "--reload-ignore-paths",
-                    data_dir,
-                    "--reload-ignore-paths",
-                    db_file,
-                    "--reload-ignore-paths",
-                    db_wal,
-                    "--reload-ignore-paths",
-                    db_shm,
-                ])
             self.servers.append(
                 ServerProcess(
                     name="backend",
