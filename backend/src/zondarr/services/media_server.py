@@ -16,11 +16,13 @@ from uuid import UUID
 
 import structlog
 
+from zondarr.config import Settings
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ServerInfo
 from zondarr.models.media_server import Library, MediaServer
 from zondarr.repositories.media_server import MediaServerRepository
+from zondarr.services.api_key_encryption import encrypt_api_key
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
@@ -55,6 +57,7 @@ class MediaServerService:
 
     repository: MediaServerRepository
     registry: ClientRegistry
+    settings: Settings | None
 
     def __init__(
         self,
@@ -62,6 +65,7 @@ class MediaServerService:
         /,
         *,
         registry: ClientRegistry | None = None,
+        settings: Settings | None = None,
     ) -> None:
         """Initialize the MediaServerService.
 
@@ -69,8 +73,11 @@ class MediaServerService:
             repository: The MediaServerRepository for data access (positional-only).
             registry: Optional ClientRegistry for creating media clients.
                 Defaults to the global registry instance (keyword-only).
+            settings: Optional application settings for API key encryption
+                (keyword-only).
         """
         self.repository = repository
+        self.settings = settings
         # Import here to avoid circular imports and allow injection for testing
         if registry is None:
             from zondarr.media.registry import registry as global_registry
@@ -136,12 +143,19 @@ class MediaServerService:
                 },
             )
 
+        # Encrypt api_key before persisting
+        stored_api_key = api_key
+        if self.settings is not None:
+            stored_api_key = encrypt_api_key(
+                api_key, secret_key=self.settings.secret_key
+            )
+
         # Create and persist the server
         server = MediaServer(
             name=name,
             server_type=server_type,
             url=url,
-            api_key=api_key,
+            api_key=stored_api_key,
             enabled=enabled,
         )
 
@@ -208,7 +222,13 @@ class MediaServerService:
         if url is not None:
             server.url = url
         if api_key is not None:
-            server.api_key = api_key
+            # Encrypt api_key before persisting
+            if self.settings is not None:
+                server.api_key = encrypt_api_key(
+                    api_key, secret_key=self.settings.secret_key
+                )
+            else:
+                server.api_key = api_key
         if enabled is not None:
             server.enabled = enabled
 

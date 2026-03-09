@@ -28,7 +28,7 @@ class MediaServer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         name: Human-readable name for the server
         server_type: Type of media server (jellyfin or plex)
         url: Base URL for the media server API
-        api_key: Authentication token (should be encrypted at rest)
+        api_key: Authentication token (encrypted at application layer via Fernet/HKDF)
         enabled: Whether the server is active for user management
         created_at: Timestamp when the server was added
         updated_at: Timestamp of last modification
@@ -40,7 +40,7 @@ class MediaServer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255))
     server_type: Mapped[str] = mapped_column(String(50))
     url: Mapped[str] = mapped_column(String(2048))
-    api_key: Mapped[str] = mapped_column(String(512))  # Encrypted at rest
+    api_key: Mapped[str] = mapped_column(String(512))  # Encrypted at application layer
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships - use selectinload for collections to avoid N+1

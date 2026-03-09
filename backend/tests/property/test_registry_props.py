@@ -16,6 +16,7 @@ from zondarr.media.exceptions import UnknownServerTypeError
 from zondarr.media.providers.jellyfin.client import JellyfinClient
 from zondarr.media.providers.plex.client import PlexClient
 from zondarr.media.registry import ClientRegistry, registry
+from zondarr.services.api_key_encryption import encrypt_api_key
 
 
 def _make_descriptor(server_type: str, client_class: type) -> MagicMock:
@@ -238,8 +239,9 @@ class TestEffectiveCredentials:
         s = Settings(secret_key="a" * 32)
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "plex", db_url="http://db.url", db_api_key="db-key"
+            "plex", db_url="http://db.url", db_api_key=encrypted_key
         )
         assert url == "http://db.url"
         assert api_key == "db-key"
@@ -252,8 +254,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "plex", db_url="http://db.url", db_api_key="db-key"
+            "plex", db_url="http://db.url", db_api_key=encrypted_key
         )
         assert url == "http://env.plex"
         assert api_key == "db-key"
@@ -266,8 +269,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "plex", db_url="http://db.url", db_api_key="db-key"
+            "plex", db_url="http://db.url", db_api_key=encrypted_key
         )
         assert url == "http://db.url"
         assert api_key == "env-token"
@@ -282,8 +286,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "plex", db_url="http://db.url", db_api_key="db-key"
+            "plex", db_url="http://db.url", db_api_key=encrypted_key
         )
         assert url == "http://env.plex"
         assert api_key == "env-token"
@@ -298,8 +303,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "jellyfin", db_url="http://db.url", db_api_key="db-key"
+            "jellyfin", db_url="http://db.url", db_api_key=encrypted_key
         )
         assert url == "http://env.jf"
         assert api_key == "env-jf-key"
@@ -314,8 +320,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("jf-db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "jellyfin", db_url="http://jf.db", db_api_key="jf-db-key"
+            "jellyfin", db_url="http://jf.db", db_api_key=encrypted_key
         )
         assert url == "http://jf.db"
         assert api_key == "jf-db-key"
@@ -330,8 +337,9 @@ class TestEffectiveCredentials:
         )
         registry.set_settings(s)
 
+        encrypted_key = encrypt_api_key("plex-db-key", secret_key="a" * 32)
         url, api_key = registry._get_effective_credentials(  # pyright: ignore[reportPrivateUsage]
-            "plex", db_url="http://plex.db", db_api_key="plex-db-key"
+            "plex", db_url="http://plex.db", db_api_key=encrypted_key
         )
         assert url == "http://plex.db"
         assert api_key == "plex-db-key"
@@ -349,7 +357,7 @@ class TestEffectiveCredentials:
         server = MagicMock()
         server.server_type = "jellyfin"
         server.url = "http://db.jf:8096"
-        server.api_key = "db-api-key"
+        server.api_key = encrypt_api_key("db-api-key", secret_key="a" * 32)
 
         client = registry.create_client_for_server(server)
         assert isinstance(client, JellyfinClient)
