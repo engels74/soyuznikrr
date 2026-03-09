@@ -281,14 +281,15 @@ class PlexClient:
                 asyncio.to_thread(func),
                 timeout=self.timeout_seconds,
             )
-        except TimeoutError:
+        except TimeoutError as exc:
             log.error(
                 "plex_api_timeout",
                 operation=operation,
                 timeout_seconds=self.timeout_seconds,
                 url=self.url,
             )
-            raise
+            msg = f"Plex API operation '{operation}' timed out after {self.timeout_seconds}s"
+            raise TimeoutError(msg) from exc
 
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
