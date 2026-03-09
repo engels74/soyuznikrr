@@ -15,13 +15,14 @@ These endpoints are publicly accessible without authentication.
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 import structlog
 from litestar import Controller, Response, get, post
+from litestar.datastructures import State
 from litestar.params import Parameter
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.api.schemas import ErrorResponse, OAuthCheckResponse, OAuthPinResponse
 from zondarr.config import Settings
@@ -87,35 +88,42 @@ class OAuthController(Controller):
     async def create_pin(
         self,
         settings: Settings,
-        session: AsyncSession,
+        state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
     ) -> OAuthPinResponse:
         """Generate OAuth PIN and return auth URL with opaque handle.
 
         Args:
             settings: Application settings (injected via DI).
-            session: Database session (injected via DI).
+            state: Application state containing session factory (injected via DI).
             provider: Provider name from URL path.
 
         Returns:
             OAuthPinResponse with handle, code, auth_url, and expires_at.
         """
+        # Phase 1: External HTTP call (no DB session held)
         flow = _resolve_flow(provider, settings)
         try:
             pin = await flow.create_pin()
+        finally:
+            await flow.close()
+
+        # Phase 2: Store session in DB (short-lived session)
+        session_factory = cast(async_sessionmaker[AsyncSession], state.session_factory)
+        async with session_factory() as session:
             handle = await _store.create(
                 session,
                 provider,
                 pin.pin_id,
             )
-            return OAuthPinResponse(
-                handle=handle,
-                code=pin.code,
-                auth_url=pin.auth_url,
-                expires_at=pin.expires_at,
-            )
-        finally:
-            await flow.close()
+            await session.commit()
+
+        return OAuthPinResponse(
+            handle=handle,
+            code=pin.code,
+            auth_url=pin.auth_url,
+            expires_at=pin.expires_at,
+        )
 
     @get(
         "/pin/{handle:str}",
@@ -131,63 +139,80 @@ class OAuthController(Controller):
     async def check_pin(
         self,
         settings: Settings,
-        session: AsyncSession,
+        state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
     ) -> OAuthCheckResponse:
         """Check if PIN has been authenticated.
 
-        Looks up the session by opaque handle, verifies the provider matches,
-        then delegates to the provider to check the PIN status. If authenticated,
-        the raw auth_token is stored server-side and a one-time redemption token
-        is returned instead.
+        Uses short-lived database sessions to avoid holding SQLite's write lock
+        across the external HTTP call to the provider. Three phases:
+        1. Read session data (short-lived DB session)
+        2. Check PIN with provider (no DB session held)
+        3. Write authentication result (short-lived DB session)
 
         Args:
             settings: Application settings (injected via DI).
-            session: Database session (injected via DI).
+            state: Application state containing session factory (injected via DI).
             provider: Provider name from URL path.
             handle: The opaque PIN handle from create_pin.
 
         Returns:
             OAuthCheckResponse with authenticated status and redemption_token if successful.
         """
-        oauth_session = await _store.get(session, handle)
-        if oauth_session is None:
-            raise NotFoundError("OAuthSession", handle)
-        if oauth_session.provider != provider:
-            raise NotFoundError("OAuthSession", handle)
+        session_factory = cast(async_sessionmaker[AsyncSession], state.session_factory)
 
-        # If already authenticated, return the existing redemption token
-        if oauth_session.redemption_token is not None and not oauth_session.redeemed:
-            return OAuthCheckResponse(
-                authenticated=True,
-                redemption_token=oauth_session.redemption_token,
-                email=oauth_session.email,
-            )
+        # Phase 1: Read session data (short-lived, may write if expired)
+        async with session_factory() as read_session:
+            oauth_session = await _store.get(read_session, handle)
+            if oauth_session is None:
+                raise NotFoundError("OAuthSession", handle)
+            if oauth_session.provider != provider:
+                raise NotFoundError("OAuthSession", handle)
 
+            # If already authenticated, return the existing redemption token
+            if (
+                oauth_session.redemption_token is not None
+                and not oauth_session.redeemed
+            ):
+                return OAuthCheckResponse(
+                    authenticated=True,
+                    redemption_token=oauth_session.redemption_token,
+                    email=oauth_session.email,
+                )
+            pin_id = oauth_session.pin_id
+            await read_session.commit()
+        # Session closed — no write lock held
+
+        # Phase 2: External HTTP call (no DB session)
         flow = _resolve_flow(provider, settings)
         try:
-            result = await flow.check_pin(oauth_session.pin_id)
-            if result.authenticated and result.auth_token:
+            result = await flow.check_pin(pin_id)
+        finally:
+            await flow.close()
+
+        # Phase 3: Write authentication result (short-lived)
+        if result.authenticated and result.auth_token:
+            async with session_factory() as write_session:
                 redemption_token = await _store.set_authenticated(
-                    session,
+                    write_session,
                     handle,
                     auth_token=result.auth_token,
                     email=result.email,
                 )
-                if redemption_token is None:
-                    raise NotFoundError("OAuthSession", handle)
-                return OAuthCheckResponse(
-                    authenticated=True,
-                    redemption_token=redemption_token,
-                    email=result.email,
-                )
+                await write_session.commit()
+            if redemption_token is None:
+                raise NotFoundError("OAuthSession", handle)
             return OAuthCheckResponse(
-                authenticated=result.authenticated,
-                error=result.error,
+                authenticated=True,
+                redemption_token=redemption_token,
+                email=result.email,
             )
-        finally:
-            await flow.close()
+
+        return OAuthCheckResponse(
+            authenticated=result.authenticated,
+            error=result.error,
+        )
 
     @post(
         "/pin/{handle:str}/test-complete",
@@ -203,7 +228,7 @@ class OAuthController(Controller):
     async def test_complete_pin(
         self,
         settings: Settings,
-        session: AsyncSession,
+        state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
     ) -> OAuthCheckResponse | Response[ErrorResponse]:
@@ -214,7 +239,7 @@ class OAuthController(Controller):
 
         Args:
             settings: Application settings (injected via DI).
-            session: Database session (injected via DI).
+            state: Application state containing session factory (injected via DI).
             provider: Provider name from URL path.
             handle: The opaque PIN handle from create_pin.
 
@@ -234,37 +259,49 @@ class OAuthController(Controller):
                 status_code=HTTP_400_BAD_REQUEST,
             )
 
-        oauth_session = await _store.get(session, handle)
-        if oauth_session is None:
-            raise NotFoundError("OAuthSession", handle)
-        if oauth_session.provider != provider:
-            raise NotFoundError("OAuthSession", handle)
+        session_factory = cast(async_sessionmaker[AsyncSession], state.session_factory)
 
-        # If already authenticated but not yet redeemed, return existing token
-        if oauth_session.redemption_token is not None and not oauth_session.redeemed:
-            return OAuthCheckResponse(
-                authenticated=True,
-                redemption_token=oauth_session.redemption_token,
-                email=oauth_session.email,
+        # Phase 1: Read session data (short-lived)
+        async with session_factory() as read_session:
+            oauth_session = await _store.get(read_session, handle)
+            if oauth_session is None:
+                raise NotFoundError("OAuthSession", handle)
+            if oauth_session.provider != provider:
+                raise NotFoundError("OAuthSession", handle)
+
+            # If already authenticated but not yet redeemed, return existing token
+            if (
+                oauth_session.redemption_token is not None
+                and not oauth_session.redeemed
+            ):
+                return OAuthCheckResponse(
+                    authenticated=True,
+                    redemption_token=oauth_session.redemption_token,
+                    email=oauth_session.email,
+                )
+
+            # If already redeemed, the session has been consumed
+            if oauth_session.redeemed:
+                return Response(
+                    ErrorResponse(
+                        detail="OAuth session has already been redeemed",
+                        error_code="SESSION_ALREADY_REDEEMED",
+                        timestamp=datetime.now(UTC),
+                    ),
+                    status_code=HTTP_400_BAD_REQUEST,
+                )
+            await read_session.commit()
+
+        # Phase 2: Write authentication result (short-lived)
+        async with session_factory() as write_session:
+            redemption_token = await _store.set_authenticated(
+                write_session,
+                handle,
+                auth_token=settings.plex_test_token,
+                email=settings.plex_test_email,
             )
+            await write_session.commit()
 
-        # If already redeemed, the session has been consumed
-        if oauth_session.redeemed:
-            return Response(
-                ErrorResponse(
-                    detail="OAuth session has already been redeemed",
-                    error_code="SESSION_ALREADY_REDEEMED",
-                    timestamp=datetime.now(UTC),
-                ),
-                status_code=HTTP_400_BAD_REQUEST,
-            )
-
-        redemption_token = await _store.set_authenticated(
-            session,
-            handle,
-            auth_token=settings.plex_test_token,
-            email=settings.plex_test_email,
-        )
         if redemption_token is None:
             raise NotFoundError("OAuthSession", handle)
 
