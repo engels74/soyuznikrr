@@ -603,7 +603,23 @@ class TestRedemptionIncrementsUseCount:
 
         def create_client_side_effect(server: MediaServer, /) -> AsyncMock:
             del server  # Unused but required by interface
-            return create_mock_client(str(uuid4()), base_username, None)
+            mock_client = AsyncMock()
+
+            async def mock_create_user(
+                username: str, _password: str, **_kwargs: object
+            ) -> ExternalUser:
+                return ExternalUser(
+                    external_user_id=str(uuid4()),
+                    username=username,
+                    email=None,
+                )
+
+            mock_client.create_user = AsyncMock(side_effect=mock_create_user)
+            mock_client.set_library_access = AsyncMock(return_value=True)
+            mock_client.update_permissions = AsyncMock(return_value=True)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            return mock_client
 
         mock_registry.create_client_for_server = MagicMock(
             side_effect=create_client_side_effect

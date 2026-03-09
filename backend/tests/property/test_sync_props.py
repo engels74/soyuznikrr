@@ -55,12 +55,24 @@ def user_sets_strategy(
     num_stale = draw(st.integers(min_value=0, max_value=5))
     num_matched = draw(st.integers(min_value=0, max_value=5))
 
+    total = num_orphaned + num_stale + num_matched
+
     # Generate unique IDs for all users
     all_ids = draw(
         st.lists(
             external_id_strategy,
-            min_size=num_orphaned + num_stale + num_matched,
-            max_size=num_orphaned + num_stale + num_matched,
+            min_size=total,
+            max_size=total,
+            unique=True,
+        )
+    )
+
+    # Generate unique usernames for all users (must be unique per server)
+    all_usernames = draw(
+        st.lists(
+            username_strategy,
+            min_size=total,
+            max_size=total,
             unique=True,
         )
     )
@@ -69,35 +81,39 @@ def user_sets_strategy(
     stale_ids = all_ids[num_orphaned : num_orphaned + num_stale]
     matched_ids = all_ids[num_orphaned + num_stale :]
 
-    # Generate usernames for each user
+    orphaned_usernames = all_usernames[:num_orphaned]
+    stale_usernames = all_usernames[num_orphaned : num_orphaned + num_stale]
+    matched_usernames = all_usernames[num_orphaned + num_stale :]
+
+    # Generate users with unique usernames
     orphaned_users = [
         ExternalUser(
             external_user_id=uid,
-            username=draw(username_strategy),
+            username=uname,
             email=None,
             user_type=draw(user_type_strategy),
         )
-        for uid in orphaned_ids
+        for uid, uname in zip(orphaned_ids, orphaned_usernames, strict=True)
     ]
 
     stale_users = [
         ExternalUser(
             external_user_id=uid,
-            username=draw(username_strategy),
+            username=uname,
             email=None,
             user_type=draw(user_type_strategy),
         )
-        for uid in stale_ids
+        for uid, uname in zip(stale_ids, stale_usernames, strict=True)
     ]
 
     matched_users = [
         ExternalUser(
             external_user_id=uid,
-            username=draw(username_strategy),
+            username=uname,
             email=None,
             user_type=draw(user_type_strategy),
         )
-        for uid in matched_ids
+        for uid, uname in zip(matched_ids, matched_usernames, strict=True)
     ]
 
     return orphaned_users, stale_users, matched_users

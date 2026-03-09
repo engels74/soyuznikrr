@@ -93,6 +93,39 @@ class UserRepository(Repository[User]):
                 original=e,
             ) from e
 
+    async def get_by_username_and_server(
+        self, username: str, media_server_id: UUID
+    ) -> User | None:
+        """Retrieve a user by username and media server.
+
+        Queries by the compound key (username, media_server_id)
+        to check for duplicate usernames on a server.
+
+        Args:
+            username: The username on the media server.
+            media_server_id: The UUID of the media server.
+
+        Returns:
+            The User entity if found, None otherwise.
+
+        Raises:
+            RepositoryError: If the database operation fails.
+        """
+        try:
+            result = await self.session.scalars(
+                select(User).where(
+                    User.username == username,
+                    User.media_server_id == media_server_id,
+                )
+            )
+            return result.first()
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to get user by username and server",
+                operation="get_by_username_and_server",
+                original=e,
+            ) from e
+
     async def get_by_external_and_server(
         self, external_user_id: str, media_server_id: UUID
     ) -> User | None:
