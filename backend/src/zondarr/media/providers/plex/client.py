@@ -314,8 +314,8 @@ class PlexClient:
             _original_request = session.request
 
             def _request_with_timeout(
-                *args: Any,
-                **kwargs: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+                *args: Any,  # pyright: ignore[reportExplicitAny, reportAny]  # wrapper must match Session.request
+                **kwargs: Any,  # pyright: ignore[reportExplicitAny, reportAny]  # wrapper must match Session.request
             ) -> requests.Response:
                 kwargs.setdefault("timeout", self.timeout_seconds)
                 return _original_request(*args, **kwargs)  # pyright: ignore[reportAny]
