@@ -309,6 +309,17 @@ class ClientRegistry:
             db_url=server.url,
             db_api_key=server.api_key,
         )
+
+        # Pass provider-specific settings when available
+        if server.server_type == "plex" and self._settings is not None:
+            from zondarr.media.providers.plex.client import PlexClient
+
+            return PlexClient(
+                url=url,
+                api_key=api_key,
+                timeout_seconds=self._settings.plex_api_timeout_seconds,
+            )
+
         return self.create_client(server.server_type, url=url, api_key=api_key)
 
     def clear(self) -> None:

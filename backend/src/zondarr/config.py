@@ -84,6 +84,16 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 900
 
+    # Plex API timeout (seconds) — applies to plexapi requests.Session
+    # and as an asyncio.wait_for safety net around all PlexClient operations
+    plex_api_timeout_seconds: Annotated[
+        int,
+        msgspec.Meta(
+            ge=5,
+            description="Timeout in seconds for Plex API requests (default: 30)",
+        ),
+    ] = 30
+
     # Test credentials for E2E OAuth flow testing (debug-only)
     plex_test_token: str | None = None
     plex_test_email: str | None = None
@@ -132,6 +142,9 @@ def load_settings() -> Settings:
         "sync_interval_seconds": int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
         "bootstrap_token": os.environ.get("BOOTSTRAP_TOKEN") or None,
         "bootstrap_token_file": os.environ.get("BOOTSTRAP_TOKEN_FILE") or None,
+        "plex_api_timeout_seconds": int(
+            os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
+        ),
         "plex_test_token": os.environ.get("PLEX_TEST_TOKEN") or None,
         "plex_test_email": os.environ.get("PLEX_TEST_EMAIL") or None,
     }

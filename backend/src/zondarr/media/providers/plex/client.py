@@ -14,8 +14,8 @@ Uses Python 3.14 features:
 
 import asyncio
 import time
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Self, cast, final
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, Self, cast, final
 
 import structlog
 
@@ -212,22 +212,26 @@ class PlexClient:
     Attributes:
         url: The Plex server URL.
         api_key: The API key (X-Plex-Token) for authentication.
+        timeout_seconds: Timeout for Plex API requests in seconds.
     """
 
     url: str
     api_key: str
+    timeout_seconds: int
     _server: PlexServer | None
     _account: MyPlexAccount | None
 
-    def __init__(self, *, url: str, api_key: str) -> None:
+    def __init__(self, *, url: str, api_key: str, timeout_seconds: int = 30) -> None:
         """Initialize a PlexClient.
 
         Args:
             url: The Plex server URL (keyword-only).
             api_key: The API key (X-Plex-Token) for authentication (keyword-only).
+            timeout_seconds: Timeout for Plex API requests (keyword-only).
         """
         self.url = url
         self.api_key = api_key
+        self.timeout_seconds = timeout_seconds
         self._server = None
         self._account = None
 
@@ -253,11 +257,46 @@ class PlexClient:
     def supported_permissions(cls) -> frozenset[str]:
         return frozenset({"can_download"})
 
+    async def _run_with_timeout[T](
+        self,
+        func: Callable[[], T],
+        *,
+        operation: str,
+    ) -> T:
+        """Run a synchronous function in a thread with an asyncio timeout safety net.
+
+        Args:
+            func: The synchronous callable to run.
+            operation: Name of the operation (for logging on timeout).
+
+        Returns:
+            The result of the callable.
+
+        Raises:
+            TimeoutError: Re-raised after logging when the operation exceeds
+                the configured timeout.
+        """
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(func),
+                timeout=self.timeout_seconds,
+            )
+        except TimeoutError:
+            log.error(
+                "plex_api_timeout",
+                operation=operation,
+                timeout_seconds=self.timeout_seconds,
+                url=self.url,
+            )
+            raise
+
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 
         Initializes the PlexServer and MyPlexAccount connections using
         asyncio.to_thread() since python-plexapi is synchronous.
+        Configures a requests.Session with a default timeout so that
+        all plexapi HTTP calls respect the configured limit.
 
         Returns:
             Self for use in async with statements.
@@ -265,18 +304,44 @@ class PlexClient:
         Raises:
             ExternalServiceError: If connection to the Plex server fails.
         """
-
+        import requests
         from plexapi.server import PlexServer
 
         def _connect() -> tuple[PlexServer, MyPlexAccount]:
-            server = PlexServer(self.url, self.api_key)
+            session = requests.Session()
+            # Set a default timeout on all requests made through this session
+            # by monkey-patching session.request to inject the timeout kwarg.
+            _original_request = session.request
+
+            def _request_with_timeout(
+                *args: Any,
+                **kwargs: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+            ) -> requests.Response:
+                kwargs.setdefault("timeout", self.timeout_seconds)
+                return _original_request(*args, **kwargs)  # pyright: ignore[reportAny]
+
+            session.request = _request_with_timeout  # type: ignore[assignment]
+            server = PlexServer(
+                self.url,
+                self.api_key,
+                session=session,
+                timeout=self.timeout_seconds,
+            )
             # plexapi lacks type stubs, myPlexAccount returns MyPlexAccount
             account: MyPlexAccount = server.myPlexAccount()  # pyright: ignore[reportUnknownVariableType]
             return server, account  # pyright: ignore[reportUnknownVariableType]
 
         log.info("plex_client_connecting", url=self.url)
         try:
-            self._server, self._account = await asyncio.to_thread(_connect)
+            self._server, self._account = await self._run_with_timeout(
+                _connect, operation="connect"
+            )
+        except TimeoutError as exc:
+            raise _create_external_service_error(
+                f"Timed out connecting to Plex server after {self.timeout_seconds}s",
+                server_url=self.url,
+                original_error=exc,
+            ) from exc
         except Exception as exc:
             log.error(
                 "plex_client_connection_failed",
@@ -334,7 +399,9 @@ class PlexClient:
                 name: str = self._server.friendlyName  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                 return name  # pyright: ignore[reportUnknownVariableType]
 
-            server_name = await asyncio.to_thread(_query_server_info)
+            server_name = await self._run_with_timeout(
+                _query_server_info, operation="test_connection"
+            )
             log.info("plex_connection_test_success", url=self.url, server=server_name)
             return True
         except Exception as exc:
@@ -368,7 +435,7 @@ class PlexClient:
             version: str = self._server.version  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             return ServerInfo(server_name=name, version=version)  # pyright: ignore[reportUnknownArgumentType]
 
-        return await asyncio.to_thread(_get_info)
+        return await self._run_with_timeout(_get_info, operation="get_server_info")
 
     async def get_libraries(self) -> Sequence[LibraryInfo]:
         """Retrieve all libraries (sections) from the Plex server.
@@ -412,7 +479,9 @@ class PlexClient:
                     for section in sections  # pyright: ignore[reportUnknownVariableType]
                 ]
 
-            libraries = await asyncio.to_thread(_get_sections)
+            libraries = await self._run_with_timeout(
+                _get_sections, operation="get_libraries"
+            )
             log.info(
                 "plex_libraries_retrieved",
                 url=self.url,
@@ -711,7 +780,9 @@ class PlexClient:
                     auto_accepted,
                 )
 
-            result, invite_accepted = await asyncio.to_thread(_share_direct)
+            result, invite_accepted = await self._run_with_timeout(
+                _share_direct, operation="share_library_direct"
+            )
 
             log.info(
                 "plex_library_shared_direct",
@@ -806,7 +877,9 @@ class PlexClient:
 
                 return cancelled
 
-            count = await asyncio.to_thread(_cancel_invites)
+            count = await self._run_with_timeout(
+                _cancel_invites, operation="cancel_pending_invites"
+            )
 
             if count > 0:
                 log.info(
@@ -944,7 +1017,9 @@ class PlexClient:
                 )
                 return (email, email)
 
-            user_id, username = await asyncio.to_thread(_invite)
+            user_id, username = await self._run_with_timeout(
+                _invite, operation="invite_friend"
+            )
 
             log.info(
                 "plex_friend_created",
@@ -1051,7 +1126,9 @@ class PlexClient:
                 return result[0]
             return None
 
-        plex_user_id = await asyncio.to_thread(_lookup_and_cleanup)
+        plex_user_id = await self._run_with_timeout(
+            _lookup_and_cleanup, operation="cleanup_orphaned_lookup"
+        )
 
         if plex_user_id is None:
             log.warning(
@@ -1069,10 +1146,11 @@ class PlexClient:
         )
 
         # Remove orphaned relationship (best_effort to avoid raising)
-        cleanup_ok = await asyncio.to_thread(
-            self._remove_friend_and_sharing_sync,
-            plex_user_id,
-            best_effort=True,
+        cleanup_ok = await self._run_with_timeout(
+            lambda: self._remove_friend_and_sharing_sync(
+                plex_user_id, best_effort=True
+            ),
+            operation="cleanup_orphaned_remove",
         )
 
         log.info(
@@ -1098,7 +1176,9 @@ class PlexClient:
                 return result
             return (email, email)
 
-        user_id, username = await asyncio.to_thread(_retry_invite)
+        user_id, username = await self._run_with_timeout(
+            _retry_invite, operation="cleanup_orphaned_reinvite"
+        )
 
         log.info(
             "plex_orphaned_cleanup_reinvite_succeeded",
@@ -1182,7 +1262,7 @@ class PlexClient:
                     server=self._server,
                 )
 
-            user = await asyncio.to_thread(_create)
+            user = await self._run_with_timeout(_create, operation="create_home_user")
             # plexapi MyPlexUser has id attribute
             user_id: str = str(getattr(user, "id", ""))
 
@@ -1564,7 +1644,7 @@ class PlexClient:
 
                 return friend_deleted or shared_deleted
 
-            deleted = await asyncio.to_thread(_delete)
+            deleted = await self._run_with_timeout(_delete, operation="delete_user")
 
             if deleted:
                 log.info(
@@ -1637,8 +1717,9 @@ class PlexClient:
             )
 
         try:
-            removed = await asyncio.to_thread(
-                self._remove_shared_server_access_sync, external_user_id
+            removed = await self._run_with_timeout(
+                lambda: self._remove_shared_server_access_sync(external_user_id),
+                operation="remove_shared_access",
             )
             if removed:
                 log.info(
@@ -1783,7 +1864,9 @@ class PlexClient:
 
                 return True
 
-            updated = await asyncio.to_thread(_set_access)
+            updated = await self._run_with_timeout(
+                _set_access, operation="set_library_access"
+            )
 
             if updated:
                 log.info(
@@ -1911,7 +1994,9 @@ class PlexClient:
 
                 return True
 
-            updated = await asyncio.to_thread(_update_permissions)
+            updated = await self._run_with_timeout(
+                _update_permissions, operation="update_permissions"
+            )
 
             if updated:
                 log.info(
@@ -2035,7 +2120,7 @@ class PlexClient:
 
                 return result
 
-            users = await asyncio.to_thread(_list_users)
+            users = await self._run_with_timeout(_list_users, operation="list_users")
 
             log.info(
                 "plex_users_listed",
