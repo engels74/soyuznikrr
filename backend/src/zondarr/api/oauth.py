@@ -166,8 +166,10 @@ class OAuthController(Controller):
         async with session_factory() as read_session:
             oauth_session = await _store.get(read_session, handle)
             if oauth_session is None:
+                await read_session.commit()  # persist any expired-session cleanup
                 raise NotFoundError("OAuthSession", handle)
             if oauth_session.provider != provider:
+                await read_session.commit()
                 raise NotFoundError("OAuthSession", handle)
 
             # If already authenticated, return the existing redemption token
@@ -265,8 +267,10 @@ class OAuthController(Controller):
         async with session_factory() as read_session:
             oauth_session = await _store.get(read_session, handle)
             if oauth_session is None:
+                await read_session.commit()  # persist any expired-session cleanup
                 raise NotFoundError("OAuthSession", handle)
             if oauth_session.provider != provider:
+                await read_session.commit()
                 raise NotFoundError("OAuthSession", handle)
 
             # If already authenticated but not yet redeemed, return existing token
