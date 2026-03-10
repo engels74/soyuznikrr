@@ -1595,6 +1595,30 @@ class TOTPBackupCodesResponse(msgspec.Struct, kw_only=True):
     backup_codes: list[str]
 
 
+class LinkProviderRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
+    """Request to link an external auth provider to the current admin.
+
+    Attributes:
+        method: The auth method name (e.g., "plex", "jellyfin").
+        credentials: Provider-specific credential key-value pairs.
+    """
+
+    method: NonEmptyStr
+    credentials: dict[str, str]
+
+
+class LinkProviderResponse(msgspec.Struct, kw_only=True):
+    """Response after linking an external auth provider.
+
+    Attributes:
+        method: The linked auth method.
+        external_id: The external service identifier.
+    """
+
+    method: str
+    external_id: str
+
+
 class AdminProfileResponse(msgspec.Struct, kw_only=True):
     """Admin profile response for settings page.
 

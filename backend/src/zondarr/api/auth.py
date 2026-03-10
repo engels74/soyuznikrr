@@ -39,6 +39,8 @@ from .schemas import (
     AuthMethodsResponse,
     AuthTokenResponse,
     ExternalLoginRequest,
+    LinkProviderRequest,
+    LinkProviderResponse,
     LoginRequest,
     LoginResponse,
     OnboardingStatusResponse,
@@ -232,6 +234,11 @@ class AuthController(Controller):
         or /api/auth/totp/backup-code to complete login.
         """
         service = self._create_auth_service(session)
+        if await service.setup_required():
+            raise AuthenticationError(
+                "Initial setup must be completed first",
+                "SETUP_REQUIRED",
+            )
         admin = await service.authenticate_local(data.username, data.password)
 
         # Check if TOTP is required
@@ -294,6 +301,11 @@ class AuthController(Controller):
                 credentials["auth_token"] = auth_token
 
         service = self._create_auth_service(session)
+        if await service.setup_required():
+            raise AuthenticationError(
+                "Initial setup must be completed first",
+                "SETUP_REQUIRED",
+            )
         admin = await service.authenticate_external(
             method,
             credentials,
@@ -458,4 +470,30 @@ class AuthController(Controller):
         return PasswordChangeResponse(
             success=True,
             message="Password changed successfully",
+        )
+
+    @post(
+        "/me/link-provider",
+        status_code=HTTP_200_OK,
+        summary="Link external auth provider to current admin",
+    )
+    async def link_provider(
+        self,
+        data: LinkProviderRequest,
+        request: Request[AdminUser, Token, State],
+        session: AsyncSession,
+        settings: Settings,
+    ) -> LinkProviderResponse:
+        """Link an external auth provider to the current admin account."""
+        user: AdminUser = request.user
+        service = self._create_auth_service(session)
+        admin = await service.link_external_provider(
+            user.id,
+            data.method,
+            data.credentials,
+            settings=settings,
+        )
+        return LinkProviderResponse(
+            method=admin.auth_method,
+            external_id=admin.external_id or "",
         )

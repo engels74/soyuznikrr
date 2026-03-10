@@ -8,10 +8,10 @@ import { type SetupFormData, setupSchema } from '$lib/schemas/auth';
 
 interface Props {
 	onComplete: () => void;
-	bootstrapToken?: string | null;
+	tokenAvailable?: boolean;
 }
 
-const { onComplete, bootstrapToken }: Props = $props();
+const { onComplete, tokenAvailable }: Props = $props();
 
 let username = $state('');
 let password = $state('');
@@ -65,7 +65,7 @@ async function handleSubmit(e: SubmitEvent) {
 		username: result.data.username,
 		password: result.data.password,
 		email: result.data.email || undefined,
-		bootstrap_token: bootstrapToken || manualToken.trim() || ''
+		bootstrap_token: tokenAvailable ? '' : manualToken.trim()
 	});
 
 	if (response.error) {
@@ -172,7 +172,7 @@ async function handleSubmit(e: SubmitEvent) {
 				{/if}
 			</div>
 
-			{#if !bootstrapToken}
+			{#if !tokenAvailable}
 				<div class="flex flex-col gap-1.5">
 					<Label for="setup-bootstrap-token" class="text-cr-text">Bootstrap Token</Label>
 					<Input

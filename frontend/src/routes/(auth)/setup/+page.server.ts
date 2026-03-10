@@ -21,8 +21,10 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		const authMethods = await getAuthMethods(fetch);
 
 		if (authMethods.setup_required) {
-			const bootstrapToken = readBootstrapToken();
-			return { onboardingStep: 'account' as OnboardingStep, bootstrapToken };
+			return {
+				onboardingStep: 'account' as OnboardingStep,
+				tokenAvailable: readBootstrapToken() !== null
+			};
 		}
 
 		if (!authMethods.onboarding_required) {

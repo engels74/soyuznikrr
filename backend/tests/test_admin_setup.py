@@ -189,6 +189,34 @@ class TestConcurrentSetup:
 
 
 # =============================================================================
+# Service: authenticate_external blocked during setup
+# =============================================================================
+
+
+class TestAuthenticateExternalBlockedDuringSetup:
+    """Defense-in-depth: authenticate_external raises SETUP_REQUIRED when no admin exists."""
+
+    @pytest.mark.asyncio
+    async def test_authenticate_external_blocked_when_setup_required(self) -> None:
+        """authenticate_external raises AuthenticationError with SETUP_REQUIRED."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                service = _make_service(session)
+                with pytest.raises(
+                    AuthenticationError, match="Initial setup must be completed first"
+                ):
+                    await service.authenticate_external(
+                        "plex",
+                        {"auth_token": "fake"},
+                        settings=Settings(secret_key="a" * 32),
+                    )
+        finally:
+            await engine.dispose()
+
+
+# =============================================================================
 # Helpers
 # =============================================================================
 
@@ -410,5 +438,121 @@ class TestBootstrapTokenValidation:
             with TestClient(app) as client:
                 response = client.get("/api/auth/setup-token")
                 assert response.status_code == 404
+        finally:
+            await engine.dispose()
+
+
+# =============================================================================
+# Login blocked during setup
+# =============================================================================
+
+
+class TestLoginBlockedDuringSetup:
+    """Login endpoints must return SETUP_REQUIRED when no admin exists."""
+
+    @pytest.mark.asyncio
+    async def test_local_login_blocked_when_setup_required(self) -> None:
+        """POST /api/auth/login returns 401 SETUP_REQUIRED with no admins."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32, bootstrap_token="tok")
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/login",
+                    json={"username": "admin", "password": "password"},
+                )
+                assert response.status_code == 401
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["error_code"] == "SETUP_REQUIRED"
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_external_login_blocked_when_setup_required(self) -> None:
+        """POST /api/auth/login/{method} returns 401 SETUP_REQUIRED with no admins."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32, bootstrap_token="tok")
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/auth/login/plex",
+                    json={"credentials": {"auth_token": "fake-token"}},
+                )
+                assert response.status_code == 401
+                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+                assert data["error_code"] == "SETUP_REQUIRED"
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_local_login_works_after_setup(self) -> None:
+        """POST /api/auth/login succeeds (with valid creds) after admin exists."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32, bootstrap_token="tok")
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                # Complete setup first
+                setup_resp = client.post(
+                    "/api/auth/setup",
+                    json={
+                        "username": "admin",
+                        "password": "a_very_strong_password_15",
+                        "bootstrap_token": "tok",
+                    },
+                )
+                assert setup_resp.status_code == 201
+
+                # Now login should not return SETUP_REQUIRED
+                # (it should either succeed or fail with INVALID_CREDENTIALS)
+                login_resp = client.post(
+                    "/api/auth/login",
+                    json={
+                        "username": "admin",
+                        "password": "a_very_strong_password_15",
+                    },
+                )
+                assert login_resp.status_code == 200
+        finally:
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_external_login_not_setup_required_after_setup(self) -> None:
+        """POST /api/auth/login/{method} does not return SETUP_REQUIRED after admin exists."""
+        engine = await create_test_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            settings = Settings(secret_key="a" * 32, bootstrap_token="tok")
+            app = _make_setup_app(session_factory, settings)
+
+            with TestClient(app) as client:
+                # Complete setup first
+                setup_resp = client.post(
+                    "/api/auth/setup",
+                    json={
+                        "username": "admin",
+                        "password": "a_very_strong_password_15",
+                        "bootstrap_token": "tok",
+                    },
+                )
+                assert setup_resp.status_code == 201
+
+                # External login should fail with a different error
+                # (not SETUP_REQUIRED)
+                login_resp = client.post(
+                    "/api/auth/login/plex",
+                    json={"credentials": {"auth_token": "fake-token"}},
+                )
+                # May be 401 for other reasons, but NOT SETUP_REQUIRED
+                data: dict[str, object] = login_resp.json()  # pyright: ignore[reportAny]
+                assert data.get("error_code") != "SETUP_REQUIRED"
         finally:
             await engine.dispose()
