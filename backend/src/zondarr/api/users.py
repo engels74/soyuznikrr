@@ -31,6 +31,7 @@ from .schemas import (
     IdentityResponse,
     InvitationResponse,
     MediaServerResponse,
+    RemoveSharesResponse,
     UpdatePermissionsRequest,
     UserDetailResponse,
     UserListResponse,
@@ -371,7 +372,7 @@ class UserController(Controller):
             Parameter(description="User UUID"),
         ],
         user_service: UserService,
-    ) -> UserDetailResponse:
+    ) -> RemoveSharesResponse:
         """Remove shared library access for a user.
 
         Removes shared server entries on the media server and updates
@@ -382,15 +383,25 @@ class UserController(Controller):
             user_service: UserService from DI.
 
         Returns:
-            Updated user details including relationships.
+            Response with user details, libraries_removed count, and message.
 
         Raises:
             NotFoundError: If the user does not exist.
             ValidationError: If the media server operation fails.
         """
-        _ = await user_service.remove_shared_access(user_id)
+        _, removed = await user_service.remove_shared_access(user_id)
         user = await user_service.get_user_detail(user_id)
-        return self._to_detail_response(user)
+        libraries_removed = 1 if removed else 0
+        message = (
+            "Shared library access removed successfully"
+            if removed
+            else "No shared libraries found on the media server"
+        )
+        return RemoveSharesResponse(
+            user=self._to_detail_response(user),
+            libraries_removed=libraries_removed,
+            message=message,
+        )
 
     @delete(
         "/{user_id:uuid}",

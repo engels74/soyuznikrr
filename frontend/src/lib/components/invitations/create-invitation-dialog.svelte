@@ -132,6 +132,7 @@ function validateForm(): boolean {
  */
 async function handleSubmit() {
 	if (!validateForm()) {
+		showError("Please fix the errors below");
 		return;
 	}
 
