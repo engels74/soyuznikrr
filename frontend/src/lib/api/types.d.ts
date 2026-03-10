@@ -55,6 +55,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/auth/me/link-provider': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Link external auth provider to current admin */
+		post: operations['ApiAuthMeLinkProviderLinkProvider'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/auth/login': {
 		parameters: {
 			query?: never;
@@ -304,6 +321,26 @@ export interface paths {
 		 * @description Generate a PIN for OAuth authentication. The user should be directed to the auth_url to complete authentication. Returns an opaque handle for polling the PIN status.
 		 */
 		post: operations['ApiV1JoinProviderOauthPinCreatePin'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/v1/join/{provider}/oauth/pin/{handle}/test-complete': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Simulate OAuth PIN completion (debug only)
+		 * @description Debug-only endpoint that simulates OAuth PIN completion using test credentials from environment variables. Returns 404 when debug mode is disabled.
+		 */
+		post: operations['ApiV1JoinProviderOauthPinHandleTestCompleteTestCompletePin'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -744,7 +781,7 @@ export interface paths {
 		post?: never;
 		/**
 		 * Delete user
-		 * @description Delete a user from both local database and media server.
+		 * @description Delete a user from both local database and media server. Use force=true to delete the local record even if the user is not found on the media server.
 		 */
 		delete: operations['ApiV1UsersUserIdDeleteUser'];
 		options?: never;
@@ -1100,6 +1137,7 @@ export interface components {
 			username: string;
 			password: string;
 			email?: string | null;
+			bootstrap_token: string;
 		};
 		/** AllSettingsResponse */
 		AllSettingsResponse: {
@@ -1334,6 +1372,18 @@ export interface components {
 			updated_count: number;
 			removed_count: number;
 		};
+		/** LinkProviderRequest */
+		LinkProviderRequest: {
+			method: string;
+			credentials: {
+				[key: string]: string;
+			};
+		};
+		/** LinkProviderResponse */
+		LinkProviderResponse: {
+			method: string;
+			external_id: string;
+		};
 		/** LoginRequest */
 		LoginRequest: {
 			username: string;
@@ -1479,9 +1529,9 @@ export interface components {
 		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
 		 *           "username": "VGFBaiJKfHyEulsYjSBd",
 		 *           "enabled": true,
-		 *           "created_at": "1996-09-10T00:18:57.921080",
-		 *           "expires_at": "2021-04-16T01:30:48.723815",
-		 *           "updated_at": "2006-04-30T13:56:16.944409"
+		 *           "created_at": "1996-09-15T18:10:11.921080",
+		 *           "expires_at": "2021-04-21T19:22:02.723815",
+		 *           "updated_at": "2006-05-06T07:47:30.944409"
 		 *         }
 		 *       ]
 		 *     }
@@ -1509,9 +1559,9 @@ export interface components {
 			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
 			 *         "username": "EMpEHdutFmqCQcDdvDZV",
 			 *         "enabled": false,
-			 *         "created_at": "1996-08-27T10:27:58.852486",
+			 *         "created_at": "1996-09-02T04:19:12.852486",
 			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-08T18:53:17.373028"
+			 *         "updated_at": "1997-02-14T12:44:31.373028"
 			 *       }
 			 *     ]
 			 */
@@ -1663,12 +1713,12 @@ export interface components {
 			expires_at?: string | null;
 			max_uses?: number | null;
 			duration_days?: number | null;
-			enabled?: boolean | null;
-			server_ids?: string[] | null;
-			library_ids?: string[] | null;
+			enabled?: boolean;
+			server_ids?: string[];
+			library_ids?: string[];
 			permissions?: {
 				[key: string]: boolean;
-			} | null;
+			};
 			pre_wizard_id?: string | null;
 			post_wizard_id?: string | null;
 		};
@@ -1888,6 +1938,48 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['AuthMethodsResponse'];
+				};
+			};
+		};
+	};
+	ApiAuthMeLinkProviderLinkProvider: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['LinkProviderRequest'];
+			};
+		};
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['LinkProviderResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
 				};
 			};
 		};
@@ -2545,6 +2637,49 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['OAuthPinResponse'];
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+		};
+	};
+	ApiV1JoinProviderOauthPinHandleTestCompleteTestCompletePin: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Provider name */
+				provider: string;
+				/** @description Opaque PIN handle */
+				handle: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['OAuthCheckResponse'] | unknown;
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -3504,7 +3639,10 @@ export interface operations {
 	};
 	ApiV1UsersUserIdDeleteUser: {
 		parameters: {
-			query?: never;
+			query?: {
+				/** @description Force deletion even if the user is not found on the media server */
+				force?: boolean;
+			};
 			header?: never;
 			path: {
 				/** @description User UUID */
