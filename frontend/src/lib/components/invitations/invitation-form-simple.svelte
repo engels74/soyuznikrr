@@ -179,7 +179,7 @@ function getFieldErrors(field: string): string[] {
 			<span class="text-rose-400">*</span>
 		</Label>
 		<div
-			class="mt-2 grid gap-2 sm:grid-cols-2"
+			class="mt-2 grid gap-2 sm:grid-cols-2 rounded-lg transition-shadow {getFieldErrors('server_ids').length > 0 ? 'ring-2 ring-rose-500/50 p-1' : ''}"
 			role="group"
 			aria-label="Select target servers"
 		>
