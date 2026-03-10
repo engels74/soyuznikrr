@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
+import { consumeNonce } from '$lib/server/setup-nonce';
 import type { RequestHandler } from './$types';
 
 const STRIP_REQUEST_HEADERS = new Set([
@@ -23,7 +24,7 @@ function readBootstrapToken(): string | null {
 	}
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
 	const internalApiUrl =
 		env.INTERNAL_API_URL ?? publicEnv.PUBLIC_API_URL ?? 'http://localhost:8000';
 	const upstream = `${internalApiUrl}/api/auth/setup`;
@@ -38,10 +39,30 @@ export const POST: RequestHandler = async ({ request }) => {
 	let body: string;
 	try {
 		const parsed = await request.json();
-		const fileToken = readBootstrapToken();
-		if ((!parsed.bootstrap_token || parsed.bootstrap_token === '') && fileToken) {
-			parsed.bootstrap_token = fileToken;
+		const hasManualToken = parsed.bootstrap_token && parsed.bootstrap_token !== '';
+
+		if (!hasManualToken) {
+			const fileToken = readBootstrapToken();
+			if (fileToken) {
+				const nonce = cookies.get('zondarr_setup_nonce');
+				cookies.delete('zondarr_setup_nonce', { path: '/api/auth/setup' });
+
+				if (!nonce || !consumeNonce(nonce)) {
+					return new Response(
+						JSON.stringify({
+							detail: 'Setup nonce expired or invalid. Please reload the setup page.'
+						}),
+						{
+							status: 403,
+							headers: { 'content-type': 'application/json' }
+						}
+					);
+				}
+
+				parsed.bootstrap_token = fileToken;
+			}
 		}
+
 		body = JSON.stringify(parsed);
 	} catch {
 		body = await request.text();
