@@ -3,6 +3,7 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getAuthMethods, getMe, type OnboardingStep } from '$lib/api/auth';
 import { isNetworkError } from '$lib/api/errors';
+import { createNonce } from '$lib/server/setup-nonce';
 import type { PageServerLoad } from './$types';
 
 function readBootstrapToken(): string | null {
@@ -16,14 +17,24 @@ function readBootstrapToken(): string | null {
 	}
 }
 
-export const load: PageServerLoad = async ({ fetch }) => {
+export const load: PageServerLoad = async ({ fetch, cookies }) => {
 	try {
 		const authMethods = await getAuthMethods(fetch);
 
 		if (authMethods.setup_required) {
+			const tokenAvailable = readBootstrapToken() !== null;
+			if (tokenAvailable) {
+				const nonce = createNonce();
+				cookies.set('zondarr_setup_nonce', nonce, {
+					httpOnly: true,
+					sameSite: 'strict',
+					path: '/api/auth/setup',
+					maxAge: 600
+				});
+			}
 			return {
 				onboardingStep: 'account' as OnboardingStep,
-				tokenAvailable: readBootstrapToken() !== null
+				tokenAvailable
 			};
 		}
 
