@@ -1529,9 +1529,9 @@ export interface components {
 		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
 		 *           "username": "VGFBaiJKfHyEulsYjSBd",
 		 *           "enabled": true,
-		 *           "created_at": "1996-09-15T18:10:11.921080",
-		 *           "expires_at": "2021-04-21T19:22:02.723815",
-		 *           "updated_at": "2006-05-06T07:47:30.944409"
+		 *           "created_at": "1996-09-15T22:36:08.921080",
+		 *           "expires_at": "2021-04-21T23:47:59.723815",
+		 *           "updated_at": "2006-05-06T12:13:27.944409"
 		 *         }
 		 *       ]
 		 *     }
@@ -1559,9 +1559,9 @@ export interface components {
 			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
 			 *         "username": "EMpEHdutFmqCQcDdvDZV",
 			 *         "enabled": false,
-			 *         "created_at": "1996-09-02T04:19:12.852486",
+			 *         "created_at": "1996-09-02T08:45:09.852486",
 			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-14T12:44:31.373028"
+			 *         "updated_at": "1997-02-14T17:10:28.373028"
 			 *       }
 			 *     ]
 			 */
@@ -1578,6 +1578,12 @@ export interface components {
 		/** RefreshRequest */
 		RefreshRequest: {
 			refresh_token: string;
+		};
+		/** RemoveSharesResponse */
+		RemoveSharesResponse: {
+			user: components['schemas']['UserDetailResponse'];
+			libraries_removed: number;
+			message: string;
 		};
 		/** SecureCookiesResponse */
 		SecureCookiesResponse: {
@@ -3834,7 +3840,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['UserDetailResponse'];
+					'application/json': components['schemas']['RemoveSharesResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

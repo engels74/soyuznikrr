@@ -548,7 +548,7 @@ class UserService:
 
         return user
 
-    async def remove_shared_access(self, user_id: UUID, /) -> User:
+    async def remove_shared_access(self, user_id: UUID, /) -> tuple[User, bool]:
         """Remove shared library access for a user without removing the friend relationship.
 
         Calls the media server client to remove shared server entries, then
@@ -558,7 +558,7 @@ class UserService:
             user_id: The UUID of the user (positional-only).
 
         Returns:
-            The updated User entity with external_user_type changed to "friend".
+            A tuple of (updated User entity, whether libraries were removed).
 
         Raises:
             NotFoundError: If the user does not exist.
@@ -589,6 +589,6 @@ class UserService:
         # Only update local user type when shared access was actually removed
         if removed:
             user.external_user_type = "friend"
-            return await self.user_repository.update(user)
+            return await self.user_repository.update(user), True
 
-        return user
+        return user, False

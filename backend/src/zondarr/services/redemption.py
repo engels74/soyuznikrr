@@ -3,9 +3,9 @@
 Provides the complete redemption flow for invitation codes:
 1. Validate the invitation
 2. Create users on each target media server
-3. Apply library restrictions and permissions
-4. Create local Identity and User records
-5. Increment the invitation use count
+3. Create local Identity and User records
+4. Increment the invitation use count
+5. Apply library restrictions and permissions (background, non-blocking)
 
 Implements rollback on failure to ensure atomicity.
 
@@ -27,6 +27,7 @@ if redemption fails after creating users on some servers including Plex,
 all created users are deleted via delete_user and no local records are created.
 """
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -45,6 +46,9 @@ from zondarr.services.user import UserService
 
 log = structlog.get_logger()  # pyright: ignore[reportAny]  # structlog lacks stubs
 
+# Strong references to fire-and-forget background tasks so they are
+# not garbage-collected before completion.
+_background_tasks: set[asyncio.Task[None]] = set()
 
 # Default permissions applied to newly created users
 DEFAULT_PERMISSIONS: Mapping[str, bool] = {
@@ -61,11 +65,13 @@ class RedemptionService:
     Handles the complete redemption flow:
     1. Validate invitation
     2. Create users on each target server
-    3. Apply library restrictions and permissions
-    4. Create local Identity and User records
-    5. Increment invitation use count
+    3. Create local Identity and User records
+    4. Increment invitation use count
+    5. Apply library restrictions and permissions (background task)
 
     If any step fails, rolls back all changes to ensure atomicity.
+    Library sharing and permission application run in fire-and-forget
+    background tasks to prevent worker exhaustion from slow Plex API calls.
 
     Attributes:
         invitation_service: The InvitationService for invitation operations.
@@ -193,6 +199,8 @@ class RedemptionService:
 
         # Step 3: Create users on each target server
         created_external_users: list[tuple[MediaServer, ExternalUser]] = []
+        # Collect data for background library sharing / permission tasks
+        deferred_tasks: list[tuple[MediaServer, ExternalUser, list[str] | None]] = []
 
         try:
             for server in invitation.target_servers:
@@ -228,49 +236,17 @@ class RedemptionService:
                         external_user_id=external_user.external_user_id,
                     )
 
-                    # Step 4: Apply library restrictions
-                    # For "friend" users, sections were already applied at
-                    # invite time via inviteFriend(sections=...).
-                    # Only call set_library_access for non-friend users as a
-                    # safety net — friend users are in "pending" state and
-                    # not findable via the server API yet.
-                    if server_library_ids and external_user.user_type != "friend":
-                        _ = await client.set_library_access(
-                            external_user.external_user_id,
-                            server_library_ids,
-                        )
-                        log.info(  # pyright: ignore[reportAny]
-                            "Applied library restrictions",
-                            server_name=server.name,
-                            library_count=len(server_library_ids),
-                        )
-                    elif server_library_ids and external_user.user_type == "friend":
-                        log.info(  # pyright: ignore[reportAny]
-                            "Skipping set_library_access for friend user (sections applied at invite time)",
-                            server_name=server.name,
-                            library_count=len(server_library_ids),
-                        )
+                # Defer library sharing and permissions to background
+                deferred_tasks.append((server, external_user, server_library_ids))
 
-                    # Step 5: Apply permissions
-                    permissions = dict(DEFAULT_PERMISSIONS)
-                    _ = await client.update_permissions(
-                        external_user.external_user_id,
-                        permissions=permissions,
-                    )
-                    log.info(  # pyright: ignore[reportAny]
-                        "Applied permissions",
-                        server_name=server.name,
-                        permissions=permissions,
-                    )
-
-            # Step 6: Calculate expiration from duration_days
+            # Step 4: Calculate expiration from duration_days
             expires_at: datetime | None = None
             if invitation.duration_days is not None:
                 expires_at = datetime.now(UTC) + timedelta(
                     days=invitation.duration_days
                 )
 
-            # Step 6.5: Clean up stale local users (e.g. sync-imported duplicates
+            # Step 4.5: Clean up stale local users (e.g. sync-imported duplicates
             # or users from a previous invitation cycle)
             cleaned = await self.user_service.cleanup_stale_local_users(
                 created_external_users,
@@ -282,7 +258,7 @@ class RedemptionService:
                     cleaned_count=cleaned,
                 )
 
-            # Step 7: Create local Identity and User records
+            # Step 5: Create local Identity and User records
             identity, users = await self.user_service.create_identity_with_users(
                 display_name=username,
                 email=email,
@@ -332,7 +308,85 @@ class RedemptionService:
             servers_count=len(created_external_users),
         )
 
+        # Step 6: Fire-and-forget background tasks for library sharing
+        # and permission application. These are non-critical — the user
+        # already has basic access from create_user(). Failures are logged
+        # but do not affect the redemption result.
+        for server, external_user, library_ids in deferred_tasks:
+            task = asyncio.create_task(
+                self._apply_library_and_permissions(server, external_user, library_ids),
+                name=f"library-sharing-{server.name}-{external_user.external_user_id}",
+            )
+            # prevent GC of the fire-and-forget task
+            task.add_done_callback(_background_tasks.discard)
+            _background_tasks.add(task)
+
         return identity, users
+
+    async def _apply_library_and_permissions(
+        self,
+        server: MediaServer,
+        external_user: ExternalUser,
+        library_ids: list[str] | None,
+    ) -> None:
+        """Apply library access and permissions in the background.
+
+        Creates a fresh client connection and applies library restrictions
+        and default permissions. This runs as a fire-and-forget task after
+        the redemption response has been sent.
+
+        Errors are logged but never raised — this is best-effort work.
+        The user already has basic access from create_user().
+
+        Args:
+            server: The target media server.
+            external_user: The created external user.
+            library_ids: Library IDs to restrict access to, or None for all.
+        """
+        try:
+            client = registry.create_client_for_server(server)
+            async with client:
+                # Apply library restrictions
+                # For "friend" users, sections were already applied at
+                # invite time via inviteFriend(sections=...).
+                if library_ids and external_user.user_type != "friend":
+                    _ = await client.set_library_access(
+                        external_user.external_user_id,
+                        library_ids,
+                    )
+                    log.info(  # pyright: ignore[reportAny]
+                        "background_library_access_applied",
+                        server_name=server.name,
+                        library_count=len(library_ids),
+                        external_user_id=external_user.external_user_id,
+                    )
+                elif library_ids and external_user.user_type == "friend":
+                    log.info(  # pyright: ignore[reportAny]
+                        "background_library_access_skipped_friend",
+                        server_name=server.name,
+                        library_count=len(library_ids),
+                    )
+
+                # Apply default permissions
+                permissions = dict(DEFAULT_PERMISSIONS)
+                _ = await client.update_permissions(
+                    external_user.external_user_id,
+                    permissions=permissions,
+                )
+                log.info(  # pyright: ignore[reportAny]
+                    "background_permissions_applied",
+                    server_name=server.name,
+                    permissions=permissions,
+                    external_user_id=external_user.external_user_id,
+                )
+        except Exception as e:
+            log.error(  # pyright: ignore[reportAny]
+                "background_library_sharing_failed",
+                server_name=server.name,
+                external_user_id=external_user.external_user_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def _rollback_users(
         self,

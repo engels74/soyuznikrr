@@ -1006,6 +1006,20 @@ class UserDetailResponse(msgspec.Struct, omit_defaults=True):
     invitation: InvitationResponse | None = None
 
 
+class RemoveSharesResponse(msgspec.Struct, kw_only=True):
+    """Response for the remove-shares endpoint.
+
+    Attributes:
+        user: Updated user details with relationships.
+        libraries_removed: Number of shared libraries removed (0 or 1).
+        message: Human-readable description of what happened.
+    """
+
+    user: UserDetailResponse
+    libraries_removed: int
+    message: str
+
+
 class UserListResponse(msgspec.Struct, kw_only=True):
     """Paginated user list response.
 
