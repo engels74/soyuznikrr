@@ -1,0 +1,72 @@
+import { readFileSync } from 'node:fs';
+import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
+import type { RequestHandler } from './$types';
+
+const STRIP_REQUEST_HEADERS = new Set([
+	'host',
+	'connection',
+	'keep-alive',
+	'transfer-encoding',
+	'upgrade',
+	'content-length'
+]);
+
+function readBootstrapToken(): string | null {
+	const filePath = env.BOOTSTRAP_TOKEN_FILE;
+	if (!filePath) return null;
+	try {
+		const content = readFileSync(filePath, 'utf-8').trim();
+		return content || null;
+	} catch {
+		return null;
+	}
+}
+
+export const POST: RequestHandler = async ({ request }) => {
+	const internalApiUrl =
+		env.INTERNAL_API_URL ?? publicEnv.PUBLIC_API_URL ?? 'http://localhost:8000';
+	const upstream = `${internalApiUrl}/api/auth/setup`;
+
+	const headers = new Headers();
+	for (const [key, value] of request.headers) {
+		if (!STRIP_REQUEST_HEADERS.has(key.toLowerCase())) {
+			headers.set(key, value);
+		}
+	}
+
+	let body: string;
+	try {
+		const parsed = await request.json();
+		const fileToken = readBootstrapToken();
+		if ((!parsed.bootstrap_token || parsed.bootstrap_token === '') && fileToken) {
+			parsed.bootstrap_token = fileToken;
+		}
+		body = JSON.stringify(parsed);
+	} catch {
+		body = await request.text();
+	}
+
+	headers.set('content-type', 'application/json');
+
+	try {
+		const response = await fetch(upstream, {
+			method: 'POST',
+			headers,
+			body,
+			redirect: 'manual'
+		});
+
+		const responseBody = await response.arrayBuffer();
+		return new Response(responseBody, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
+	} catch {
+		return new Response(JSON.stringify({ detail: 'Backend unavailable' }), {
+			status: 502,
+			headers: { 'content-type': 'application/json' }
+		});
+	}
+};

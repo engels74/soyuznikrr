@@ -123,10 +123,30 @@ class AdminAuthProvider(Protocol):
             admin_repo: Repository for admin account lookups/creation.
 
         Returns:
-            The authenticated or newly created AdminAccount.
+            The authenticated AdminAccount.
 
         Raises:
             AuthenticationError: If authentication fails.
+        """
+        ...
+
+    async def verify(
+        self,
+        credentials: Mapping[str, str],
+        *,
+        settings: Settings,
+    ) -> tuple[str, str, str | None]:
+        """Verify credentials without creating or modifying accounts.
+
+        Args:
+            credentials: Provider-specific credential dict.
+            settings: Application settings.
+
+        Returns:
+            A tuple of (external_id, display_name, email_or_none).
+
+        Raises:
+            AuthenticationError: If verification fails.
         """
         ...
 

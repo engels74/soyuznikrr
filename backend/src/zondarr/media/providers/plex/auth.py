@@ -10,10 +10,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from zondarr.core.exceptions import AuthenticationError
-from zondarr.models.admin import AdminAccount
 
 if TYPE_CHECKING:
     from zondarr.config import Settings
+    from zondarr.models.admin import AdminAccount
     from zondarr.repositories.admin import AdminAccountRepository
 
 
@@ -21,27 +21,29 @@ class PlexAdminAuth:
     """Plex admin authentication via OAuth token verification.
 
     Verifies the token is valid and the account matches the configured
-    Plex server owner. Auto-creates an AdminAccount for verified owners.
+    Plex server owner. Looks up an existing linked AdminAccount.
 
     Implements AdminAuthProvider protocol.
     """
 
-    async def authenticate(
+    async def verify(
         self,
         credentials: Mapping[str, str],
         *,
         settings: Settings,
-        admin_repo: AdminAccountRepository,
-    ) -> AdminAccount:
-        """Authenticate via Plex OAuth token.
+    ) -> tuple[str, str, str | None]:
+        """Verify Plex OAuth credentials without creating accounts.
+
+        Validates the token, checks server ownership, and returns
+        identity information.
 
         Args:
             credentials: Must contain "auth_token" key.
             settings: Application settings (needs provider_credentials).
-            admin_repo: Admin account repository.
 
         Returns:
-            The authenticated or auto-created AdminAccount.
+            A tuple of (external_id, display_name, email).
+            For Plex, external_id is the Plex email.
 
         Raises:
             AuthenticationError: If Plex is not configured, verification fails,
@@ -102,8 +104,37 @@ class PlexAdminAuth:
                 "Account is not the Plex server owner", "NOT_SERVER_OWNER"
             )
 
+        return plex_email, plex_username, plex_email
+
+    async def authenticate(
+        self,
+        credentials: Mapping[str, str],
+        *,
+        settings: Settings,
+        admin_repo: AdminAccountRepository,
+    ) -> AdminAccount:
+        """Authenticate via Plex OAuth token.
+
+        Verifies credentials and looks up an existing linked account.
+
+        Args:
+            credentials: Must contain "auth_token" key.
+            settings: Application settings (needs provider_credentials).
+            admin_repo: Admin account repository.
+
+        Returns:
+            The authenticated AdminAccount.
+
+        Raises:
+            AuthenticationError: If Plex is not configured, verification fails,
+                the account is not the server owner, or no linked account exists.
+        """
+        external_id, _display_name, _email = await self.verify(
+            credentials, settings=settings
+        )
+
         # Check for existing account with this external ID
-        admin = await admin_repo.get_by_external_id(plex_email, "plex")
+        admin = await admin_repo.get_by_external_id(external_id, "plex")
 
         if admin is not None:
             if not admin.enabled:
@@ -111,16 +142,10 @@ class PlexAdminAuth:
             admin.last_login_at = datetime.now(UTC)
             return admin
 
-        # Auto-create admin account for verified Plex server owner
-        admin = AdminAccount(
-            username=plex_username.lower().replace(" ", "_")[:32],
-            email=plex_email,
-            auth_method="plex",
-            external_id=plex_email,
-            enabled=True,
-            last_login_at=datetime.now(UTC),
+        raise AuthenticationError(
+            "Account not linked to Zondarr. Link your Plex account in Settings.",
+            "NO_LINKED_ACCOUNT",
         )
-        return await admin_repo.create(admin)
 
     def is_configured(self, settings: Settings) -> bool:
         """Check if Plex auth is configured.

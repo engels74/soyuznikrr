@@ -1,6 +1,7 @@
 <script lang="ts">
 import { KeyRound, User } from '@lucide/svelte';
 import { type AdminMeResponse, changePassword, updateAdminEmail } from '$lib/api/auth';
+import LinkProviderCard from '$lib/components/settings/link-provider-card.svelte';
 import TotpManagementCard from '$lib/components/settings/totp-management-card.svelte';
 import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
@@ -119,6 +120,9 @@ async function handlePasswordChange() {
 			</div>
 		</Card.Content>
 	</Card.Root>
+
+	<!-- Link Provider Card -->
+	<LinkProviderCard authMethod={me.auth_method} />
 
 	<!-- Password Card (only for local auth) -->
 	{#if me.auth_method === 'local'}

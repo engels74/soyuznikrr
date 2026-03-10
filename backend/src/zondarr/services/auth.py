@@ -232,6 +232,13 @@ class AuthService:
         Raises:
             AuthenticationError: If the method is unknown or authentication fails.
         """
+        # Defense-in-depth: block external auth during initial setup
+        if await self.setup_required():
+            raise AuthenticationError(
+                "Initial setup must be completed first",
+                "SETUP_REQUIRED",
+            )
+
         provider = registry.get_admin_auth_provider(method)
         if provider is None:
             raise AuthenticationError(
@@ -250,6 +257,76 @@ class AuthService:
             settings=settings,
             admin_repo=self.admin_repo,
         )
+
+    async def link_external_provider(
+        self,
+        admin_id: UUID,
+        method: str,
+        credentials: Mapping[str, str],
+        *,
+        settings: Settings,
+    ) -> AdminAccount:
+        """Link an external auth provider to an existing admin account.
+
+        Verifies credentials via the provider's verify() method without
+        creating any accounts, then updates the admin's external link.
+
+        Args:
+            admin_id: The admin account UUID to link.
+            method: The auth method name (e.g., "plex", "jellyfin").
+            credentials: Provider-specific credential dict.
+            settings: Application settings.
+
+        Returns:
+            The updated AdminAccount with external link set.
+
+        Raises:
+            AuthenticationError: If the method is unknown, not configured,
+                verification fails, or external_id is already taken.
+        """
+        provider = registry.get_admin_auth_provider(method)
+        if provider is None:
+            raise AuthenticationError(
+                f"Unknown authentication method: {method}",
+                "UNKNOWN_AUTH_METHOD",
+            )
+
+        if not provider.is_configured(settings):
+            raise AuthenticationError(
+                f"Authentication method not configured: {method}",
+                "AUTH_METHOD_NOT_CONFIGURED",
+            )
+
+        # Verify credentials (does NOT create accounts)
+        external_id, _display_name, email = await provider.verify(
+            credentials, settings=settings
+        )
+
+        # Check no other admin already has this external ID
+        existing = await self.admin_repo.get_by_external_id(external_id, method)
+        if existing is not None:
+            raise AuthenticationError(
+                "External account already linked to another admin",
+                "EXTERNAL_ID_TAKEN",
+            )
+
+        # Update admin's external link
+        admin = await self.admin_repo.get_by_id(admin_id)
+        if admin is None:
+            raise AuthenticationError("Account not found", "ACCOUNT_NOT_FOUND")
+
+        admin.auth_method = method
+        admin.external_id = external_id
+        if email and not admin.email:
+            admin.email = email
+
+        logger.info(
+            "admin_external_provider_linked",
+            admin_id=str(admin_id),
+            method=method,
+            external_id=external_id,
+        )
+        return admin
 
     async def create_refresh_token(
         self,

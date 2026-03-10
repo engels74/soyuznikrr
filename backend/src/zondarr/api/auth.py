@@ -39,6 +39,8 @@ from .schemas import (
     AuthMethodsResponse,
     AuthTokenResponse,
     ExternalLoginRequest,
+    LinkProviderRequest,
+    LinkProviderResponse,
     LoginRequest,
     LoginResponse,
     OnboardingStatusResponse,
@@ -232,6 +234,11 @@ class AuthController(Controller):
         or /api/auth/totp/backup-code to complete login.
         """
         service = self._create_auth_service(session)
+        if await service.setup_required():
+            raise AuthenticationError(
+                "Initial setup must be completed first",
+                "SETUP_REQUIRED",
+            )
         admin = await service.authenticate_local(data.username, data.password)
 
         # Check if TOTP is required
@@ -292,8 +299,18 @@ class AuthController(Controller):
                         "PROVIDER_MISMATCH",
                     )
                 credentials["auth_token"] = auth_token
+            else:
+                raise AuthenticationError(
+                    "Invalid or expired redemption token",
+                    "INVALID_REDEMPTION_TOKEN",
+                )
 
         service = self._create_auth_service(session)
+        if await service.setup_required():
+            raise AuthenticationError(
+                "Initial setup must be completed first",
+                "SETUP_REQUIRED",
+            )
         admin = await service.authenticate_external(
             method,
             credentials,
@@ -458,4 +475,50 @@ class AuthController(Controller):
         return PasswordChangeResponse(
             success=True,
             message="Password changed successfully",
+        )
+
+    @post(
+        "/me/link-provider",
+        status_code=HTTP_200_OK,
+        summary="Link external auth provider to current admin",
+    )
+    async def link_provider(
+        self,
+        data: LinkProviderRequest,
+        request: Request[AdminUser, Token, State],
+        session: AsyncSession,
+        settings: Settings,
+    ) -> LinkProviderResponse:
+        """Link an external auth provider to the current admin account."""
+        # Resolve redemption_token to auth_token server-side
+        credentials = dict(data.credentials)
+        if "redemption_token" in credentials:
+            redemption_token = credentials.pop("redemption_token")
+            store = OAuthSessionStore()
+            result = await store.redeem(session, redemption_token)
+            if result is not None:
+                redeemed_provider, auth_token = result
+                if redeemed_provider != data.method:
+                    raise AuthenticationError(
+                        "Redemption token provider mismatch",
+                        "PROVIDER_MISMATCH",
+                    )
+                credentials["auth_token"] = auth_token
+            else:
+                raise AuthenticationError(
+                    "Invalid or expired redemption token",
+                    "INVALID_REDEMPTION_TOKEN",
+                )
+
+        user: AdminUser = request.user
+        service = self._create_auth_service(session)
+        admin = await service.link_external_provider(
+            user.id,
+            data.method,
+            credentials,
+            settings=settings,
+        )
+        return LinkProviderResponse(
+            method=admin.auth_method,
+            external_id=admin.external_id or "",
         )

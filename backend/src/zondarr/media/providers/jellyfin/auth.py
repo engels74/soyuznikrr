@@ -9,10 +9,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from zondarr.core.exceptions import AuthenticationError
-from zondarr.models.admin import AdminAccount
 
 if TYPE_CHECKING:
     from zondarr.config import Settings
+    from zondarr.models.admin import AdminAccount
     from zondarr.repositories.admin import AdminAccountRepository
 
 
@@ -20,30 +20,32 @@ class JellyfinAdminAuth:
     """Jellyfin admin authentication via server credentials.
 
     Verifies the user is a Jellyfin administrator.
-    Auto-creates an AdminAccount if verified admin.
+    Looks up an existing linked AdminAccount.
 
     Implements AdminAuthProvider protocol.
     """
 
-    async def authenticate(
+    async def verify(
         self,
         credentials: Mapping[str, str],
         *,
         settings: Settings,
-        admin_repo: AdminAccountRepository,
-    ) -> AdminAccount:
-        """Authenticate via Jellyfin credentials.
+    ) -> tuple[str, str, str | None]:
+        """Verify Jellyfin credentials without creating accounts.
+
+        Validates the username/password against the Jellyfin server
+        and checks for administrator status.
 
         Args:
             credentials: Must contain "username", "password" keys.
             settings: Application settings (needs provider_credentials).
-            admin_repo: Admin account repository.
 
         Returns:
-            The authenticated or auto-created AdminAccount.
+            A tuple of (external_id, display_name, email_or_none).
+            For Jellyfin, external_id is the Jellyfin user ID; email is None.
 
         Raises:
-            AuthenticationError: If verification fails.
+            AuthenticationError: If verification fails or user is not admin.
         """
         import httpx
 
@@ -108,8 +110,36 @@ class JellyfinAdminAuth:
                 "NOT_ADMIN",
             )
 
+        return jellyfin_user_id, username, None
+
+    async def authenticate(
+        self,
+        credentials: Mapping[str, str],
+        *,
+        settings: Settings,
+        admin_repo: AdminAccountRepository,
+    ) -> AdminAccount:
+        """Authenticate via Jellyfin credentials.
+
+        Verifies credentials and looks up an existing linked account.
+
+        Args:
+            credentials: Must contain "username", "password" keys.
+            settings: Application settings (needs provider_credentials).
+            admin_repo: Admin account repository.
+
+        Returns:
+            The authenticated AdminAccount.
+
+        Raises:
+            AuthenticationError: If verification fails or no linked account exists.
+        """
+        external_id, _display_name, _email = await self.verify(
+            credentials, settings=settings
+        )
+
         # Check for existing account with this external ID
-        admin = await admin_repo.get_by_external_id(jellyfin_user_id, "jellyfin")
+        admin = await admin_repo.get_by_external_id(external_id, "jellyfin")
 
         if admin is not None:
             if not admin.enabled:
@@ -117,15 +147,10 @@ class JellyfinAdminAuth:
             admin.last_login_at = datetime.now(UTC)
             return admin
 
-        # Auto-create admin account for Jellyfin admin
-        admin = AdminAccount(
-            username=username.lower().replace(" ", "_")[:32],
-            auth_method="jellyfin",
-            external_id=jellyfin_user_id,
-            enabled=True,
-            last_login_at=datetime.now(UTC),
+        raise AuthenticationError(
+            "Account not linked to Zondarr. Link your Jellyfin account in Settings.",
+            "NO_LINKED_ACCOUNT",
         )
-        return await admin_repo.create(admin)
 
     def is_configured(self, settings: Settings) -> bool:
         """Check if Jellyfin auth is configured.

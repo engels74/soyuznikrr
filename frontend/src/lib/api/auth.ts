@@ -118,7 +118,7 @@ export async function setupAdmin(
 	data: { username: string; password: string; email?: string; bootstrap_token: string },
 	customFetch: typeof globalThis.fetch = fetch
 ): Promise<{ data?: AuthTokenResponse; error?: unknown }> {
-	const response = await customFetch(`${API_BASE_URL}/api/auth/setup`, {
+	const response = await customFetch(`/api/auth/setup`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data),
@@ -264,6 +264,11 @@ export async function advanceOnboarding(
 	return { data: result };
 }
 
+export interface LinkProviderResponse {
+	method: string;
+	external_id: string;
+}
+
 export interface AdminProfileResponse {
 	id: string;
 	username: string;
@@ -314,6 +319,26 @@ export async function changePassword(
 		return { error };
 	}
 	return { data: (await response.json()) as PasswordChangeResponse };
+}
+
+/**
+ * Link an external auth provider to the current admin account.
+ */
+export async function linkProvider(
+	data: { method: string; credentials: Record<string, string> },
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: LinkProviderResponse; error?: unknown }> {
+	const response = await customFetch(`${API_BASE_URL}/api/auth/me/link-provider`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+		credentials: 'include'
+	});
+	if (!response.ok) {
+		const error = await response.json();
+		return { error };
+	}
+	return { data: (await response.json()) as LinkProviderResponse };
 }
 
 // =============================================================================

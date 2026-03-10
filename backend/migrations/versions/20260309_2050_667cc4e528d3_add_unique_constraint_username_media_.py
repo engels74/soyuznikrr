@@ -10,7 +10,6 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-
 # Revision identifiers, used by Alembic.
 revision: str = "667cc4e528d3"
 down_revision: str | None = "f28e9381c2ea"
