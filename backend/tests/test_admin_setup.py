@@ -207,7 +207,7 @@ class TestAuthenticateExternalBlockedDuringSetup:
                 with pytest.raises(
                     AuthenticationError, match="Initial setup must be completed first"
                 ):
-                    await service.authenticate_external(
+                    _ = await service.authenticate_external(
                         "plex",
                         {"auth_token": "fake"},
                         settings=Settings(secret_key="a" * 32),

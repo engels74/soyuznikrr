@@ -103,7 +103,7 @@ class TestPlexNoLinkedAccount:
                     return_value=("owner@plex.tv", "plexowner", "owner@plex.tv"),
                 ):
                     with pytest.raises(AuthenticationError) as exc_info:
-                        await plex_auth.authenticate(
+                        _ = await plex_auth.authenticate(
                             {"auth_token": "valid-token"},
                             settings=settings,
                             admin_repo=repo,
@@ -120,7 +120,7 @@ class TestPlexNoLinkedAccount:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
             async with session_factory() as session:
                 # Pre-link an admin with Plex external ID
-                await _create_admin(
+                _ = await _create_admin(
                     session,
                     username="plexadmin",
                     auth_method="plex",
@@ -178,7 +178,7 @@ class TestJellyfinNoLinkedAccount:
                     return_value=("jf-user-id-123", "jfadmin", None),
                 ):
                     with pytest.raises(AuthenticationError) as exc_info:
-                        await jf_auth.authenticate(
+                        _ = await jf_auth.authenticate(
                             {"username": "admin", "password": "pass"},
                             settings=settings,
                             admin_repo=repo,
@@ -194,7 +194,7 @@ class TestJellyfinNoLinkedAccount:
         try:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
             async with session_factory() as session:
-                await _create_admin(
+                _ = await _create_admin(
                     session,
                     username="jfadmin",
                     auth_method="jellyfin",
@@ -248,7 +248,7 @@ class TestLinkExternalProvider:
 
             # Mock the registry and provider
             mock_provider = MagicMock()
-            mock_provider.is_configured.return_value = True
+            mock_provider.is_configured.return_value = True  # pyright: ignore[reportAny]
             mock_provider.verify = AsyncMock(
                 return_value=(
                     "owner@plex.tv",
@@ -297,7 +297,7 @@ class TestLinkExternalProvider:
                 new_admin_id = new_admin.id
 
             mock_provider = MagicMock()
-            mock_provider.is_configured.return_value = True
+            mock_provider.is_configured.return_value = True  # pyright: ignore[reportAny]
             mock_provider.verify = AsyncMock(
                 return_value=(
                     "owner@plex.tv",
@@ -313,7 +313,7 @@ class TestLinkExternalProvider:
                     return_value=mock_provider,
                 ):
                     with pytest.raises(AuthenticationError) as exc_info:
-                        await service.link_external_provider(
+                        _ = await service.link_external_provider(
                             new_admin_id,
                             "plex",
                             {"auth_token": "valid-token"},
@@ -341,7 +341,7 @@ class TestLinkExternalProvider:
                     return_value=None,
                 ):
                     with pytest.raises(AuthenticationError) as exc_info:
-                        await service.link_external_provider(
+                        _ = await service.link_external_provider(
                             admin_id,
                             "unknown_method",
                             {},
@@ -368,7 +368,7 @@ class TestLinkExternalProvider:
                 admin_id = admin.id
 
             mock_provider = MagicMock()
-            mock_provider.is_configured.return_value = True
+            mock_provider.is_configured.return_value = True  # pyright: ignore[reportAny]
             mock_provider.verify = AsyncMock(
                 return_value=(
                     "owner@plex.tv",
@@ -433,7 +433,7 @@ class TestPlexVerify:
         settings = _plex_settings()
 
         with pytest.raises(AuthenticationError) as exc_info:
-            await plex_auth.verify({}, settings=settings)
+            _ = await plex_auth.verify({}, settings=settings)
         assert exc_info.value.error_code == "MISSING_AUTH_TOKEN"
 
     @pytest.mark.asyncio
@@ -444,7 +444,7 @@ class TestPlexVerify:
 
         call_count = 0
 
-        def mock_to_thread_fn(*args: object, **kwargs: object) -> object:
+        def mock_to_thread_fn(*_args: object, **_kwargs: object) -> object:
             nonlocal call_count
             call_count += 1
             mock = AsyncMock()
@@ -461,7 +461,9 @@ class TestPlexVerify:
             side_effect=mock_to_thread_fn,
         ):
             with pytest.raises(AuthenticationError) as exc_info:
-                await plex_auth.verify({"auth_token": "user-token"}, settings=settings)
+                _ = await plex_auth.verify(
+                    {"auth_token": "user-token"}, settings=settings
+                )
             assert exc_info.value.error_code == "NOT_SERVER_OWNER"
 
 
@@ -482,7 +484,7 @@ class TestJellyfinVerify:
         # httpx response.json() is sync, so use MagicMock
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
+        mock_response.json.return_value = {  # pyright: ignore[reportAny]
             "User": {
                 "Id": "jf-user-123",
                 "Policy": {"IsAdministrator": True},
@@ -493,7 +495,7 @@ class TestJellyfinVerify:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post.return_value = mock_response
+            mock_client.post.return_value = mock_response  # pyright: ignore[reportAny]
             mock_client_cls.return_value = mock_client
 
             result = await jf_auth.verify(
@@ -510,7 +512,7 @@ class TestJellyfinVerify:
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
+        mock_response.json.return_value = {  # pyright: ignore[reportAny]
             "User": {
                 "Id": "jf-user-456",
                 "Policy": {"IsAdministrator": False},
@@ -521,11 +523,11 @@ class TestJellyfinVerify:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post.return_value = mock_response
+            mock_client.post.return_value = mock_response  # pyright: ignore[reportAny]
             mock_client_cls.return_value = mock_client
 
             with pytest.raises(AuthenticationError) as exc_info:
-                await jf_auth.verify(
+                _ = await jf_auth.verify(
                     {"username": "user", "password": "pass"}, settings=settings
                 )
             assert exc_info.value.error_code == "NOT_ADMIN"
@@ -537,5 +539,5 @@ class TestJellyfinVerify:
         settings = _jellyfin_settings()
 
         with pytest.raises(AuthenticationError) as exc_info:
-            await jf_auth.verify({}, settings=settings)
+            _ = await jf_auth.verify({}, settings=settings)
         assert exc_info.value.error_code == "MISSING_CREDENTIALS"
