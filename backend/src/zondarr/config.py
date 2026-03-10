@@ -84,6 +84,17 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 900
 
+    # Per-server sync timeout (seconds) — wraps each server's library + user
+    # sync in asyncio.wait_for to prevent a single slow server from blocking
+    # the entire sync cycle
+    sync_per_server_timeout_seconds: Annotated[
+        int,
+        msgspec.Meta(
+            ge=30,
+            description="Timeout in seconds for syncing a single media server (default: 300)",
+        ),
+    ] = 300
+
     # Plex API timeout (seconds) — applies to plexapi requests.Session
     # and as an asyncio.wait_for safety net around all PlexClient operations
     plex_api_timeout_seconds: Annotated[
@@ -142,6 +153,9 @@ def load_settings() -> Settings:
         "sync_interval_seconds": int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
         "bootstrap_token": os.environ.get("BOOTSTRAP_TOKEN") or None,
         "bootstrap_token_file": os.environ.get("BOOTSTRAP_TOKEN_FILE") or None,
+        "sync_per_server_timeout_seconds": int(
+            os.environ.get("SYNC_PER_SERVER_TIMEOUT_SECONDS", "300")
+        ),
         "plex_api_timeout_seconds": int(
             os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
         ),

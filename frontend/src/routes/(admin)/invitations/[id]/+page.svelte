@@ -717,7 +717,11 @@ function getFieldErrors(field: string): string[] {
 								<Server class="size-4 text-cr-accent" />
 								Target Servers
 							</Label>
-							<div class="grid gap-2 sm:grid-cols-2">
+							<div
+								class="grid gap-2 sm:grid-cols-2 rounded-lg transition-shadow {getFieldErrors('server_ids').length > 0 ? 'ring-2 ring-rose-500/50 p-1' : ''}"
+								role="group"
+								aria-label="Select target servers"
+							>
 								{#each data.servers as server (server.id)}
 									<button
 										type="button"

@@ -22,6 +22,7 @@ from litestar import Litestar
 from litestar.datastructures import State
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from zondarr.api.schemas import SyncResult
 from zondarr.config import Settings
 from zondarr.models.sync_run import SyncRun
 from zondarr.repositories.admin import RefreshTokenRepository
@@ -31,6 +32,7 @@ from zondarr.repositories.media_server import MediaServerRepository
 from zondarr.repositories.sync_run import SyncRunRepository
 from zondarr.repositories.user import UserRepository
 from zondarr.services.media_server import MediaServerService
+from zondarr.services.oauth_session import OAuthSessionStore
 from zondarr.services.sync import SyncService
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright: ignore[reportAny]
@@ -93,6 +95,12 @@ class BackgroundTaskManager:
             asyncio.create_task(
                 self._run_token_cleanup_task(state),
                 name="token-cleanup",
+            )
+        )
+        self._tasks.append(
+            asyncio.create_task(
+                self._run_oauth_cleanup_task(state),
+                name="oauth-session-cleanup",
             )
         )
 
@@ -272,6 +280,7 @@ class BackgroundTaskManager:
             server_ids_and_names = [(s.id, s.name) for s in servers]
 
         # Sync libraries per server, each with its own session
+        timeout = self.settings.sync_per_server_timeout_seconds
         for server_id, server_name in server_ids_and_names:
             # Yield to event loop between servers so HTTP requests
             # are not starved while sync holds SQLite write locks
@@ -280,11 +289,10 @@ class BackgroundTaskManager:
             started_at = datetime.now(UTC)
             self._libraries_sync_in_progress.add(server_id)
             try:
-                async with session_factory() as session:
-                    server_repo = MediaServerRepository(session)
-                    media_server_service = MediaServerService(server_repo)
-                    _ = await media_server_service.sync_libraries(server_id)
-                    await session.commit()
+                await asyncio.wait_for(
+                    self._sync_server_libraries(session_factory, server_id),
+                    timeout=timeout,
+                )
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -297,6 +305,22 @@ class BackgroundTaskManager:
                     "Library sync completed",
                     server_id=str(server_id),
                     server_name=server_name,
+                )
+            except TimeoutError:
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="libraries",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=f"Timed out after {timeout}s",
+                )
+                logger.warning(
+                    "Library sync timed out",
+                    server_id=str(server_id),
+                    server_name=server_name,
+                    timeout_seconds=timeout,
                 )
             except Exception as exc:
                 await self._record_sync_run(
@@ -328,17 +352,10 @@ class BackgroundTaskManager:
             started_at = datetime.now(UTC)
             self._users_sync_in_progress.add(server_id)
             try:
-                async with session_factory() as session:
-                    server_repo = MediaServerRepository(session)
-                    user_repo = UserRepository(session)
-                    identity_repo = IdentityRepository(session)
-                    sync_service = SyncService(
-                        server_repo,
-                        user_repo,
-                        identity_repo,
-                    )
-                    result = await sync_service.sync_server(server_id, dry_run=False)
-                    await session.commit()
+                result = await asyncio.wait_for(
+                    self._sync_server_users(session_factory, server_id),
+                    timeout=timeout,
+                )
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -355,6 +372,22 @@ class BackgroundTaskManager:
                     stale=len(result.stale_users),
                     matched=result.matched_users,
                     imported=result.imported_users,
+                )
+            except TimeoutError:
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=started_at,
+                    error_message=f"Timed out after {timeout}s",
+                )
+                logger.warning(
+                    "Server sync timed out",
+                    server_id=str(server_id),
+                    server_name=server_name,
+                    timeout_seconds=timeout,
                 )
             except Exception as exc:
                 await self._record_sync_run(
@@ -374,6 +407,37 @@ class BackgroundTaskManager:
                 )
             finally:
                 self._users_sync_in_progress.discard(server_id)
+
+    async def _sync_server_libraries(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        server_id: UUID,
+    ) -> None:
+        """Sync libraries for a single server (awaitable for wait_for)."""
+        async with session_factory() as session:
+            server_repo = MediaServerRepository(session)
+            media_server_service = MediaServerService(server_repo)
+            _ = await media_server_service.sync_libraries(server_id)
+            await session.commit()
+
+    async def _sync_server_users(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        server_id: UUID,
+    ) -> SyncResult:
+        """Sync users for a single server (awaitable for wait_for)."""
+        async with session_factory() as session:
+            server_repo = MediaServerRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            sync_service = SyncService(
+                server_repo,
+                user_repo,
+                identity_repo,
+            )
+            result = await sync_service.sync_server(server_id, dry_run=False)
+            await session.commit()
+        return result
 
     async def _record_sync_run(
         self,
@@ -448,6 +512,33 @@ class BackgroundTaskManager:
             if deleted > 0:
                 await session.commit()
                 logger.info("Cleaned up expired refresh tokens", count=deleted)
+
+    async def _run_oauth_cleanup_task(self, state: State, /) -> None:
+        """Periodically clean up expired OAuth sessions.
+
+        Runs at the same interval as expiration checks.
+        """
+        interval = self.settings.expiration_check_interval_seconds
+
+        while self._running:
+            try:
+                await self._cleanup_expired_oauth_sessions(state)
+            except Exception as exc:
+                logger.exception("OAuth session cleanup task error", exc_info=exc)
+
+            await asyncio.sleep(interval)
+
+    async def _cleanup_expired_oauth_sessions(self, state: State, /) -> None:
+        """Remove expired OAuth sessions from the database."""
+        session_factory = cast(
+            async_sessionmaker[AsyncSession],
+            state.session_factory,
+        )
+
+        async with session_factory() as session:
+            store = OAuthSessionStore()
+            await store.cleanup_expired(session)
+            await session.commit()
 
 
 @asynccontextmanager

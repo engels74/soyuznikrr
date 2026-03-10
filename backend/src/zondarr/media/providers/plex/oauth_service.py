@@ -267,6 +267,13 @@ class PlexOAuthService:
             )
 
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (429, 503):
+                log.warning(
+                    "plex_oauth_pin_check_rate_limited",
+                    pin_id=pin_id,
+                    status_code=exc.response.status_code,
+                )
+                return PlexOAuthResult(authenticated=False)
             if exc.response.status_code == 404:
                 log.warning(
                     "plex_oauth_pin_not_found",
@@ -341,6 +348,16 @@ class PlexOAuthService:
             return email
 
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (429, 503):
+                log.warning(
+                    "plex_oauth_user_email_rate_limited",
+                    status_code=exc.response.status_code,
+                )
+                raise PlexOAuthError(
+                    "Plex API rate limited during email retrieval",
+                    operation="get_user_email",
+                    cause=str(exc),
+                ) from exc
             log.error(
                 "plex_oauth_user_email_failed",
                 status_code=exc.response.status_code,

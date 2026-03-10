@@ -158,7 +158,11 @@ class DevRunner:
                 "--workers-kill-timeout",
                 "10",
                 "--workers",
-                "2",
+                "1",
+                "--runtime-mode",
+                "st",
+                "--respawn-interval",
+                "30",
             ]
             if self.reload:
                 data_dir = str(self.repo_root / "backend" / "data")
