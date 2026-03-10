@@ -299,6 +299,11 @@ class AuthController(Controller):
                         "PROVIDER_MISMATCH",
                     )
                 credentials["auth_token"] = auth_token
+            else:
+                raise AuthenticationError(
+                    "Invalid or expired redemption token",
+                    "INVALID_REDEMPTION_TOKEN",
+                )
 
         service = self._create_auth_service(session)
         if await service.setup_required():
@@ -499,6 +504,11 @@ class AuthController(Controller):
                         "PROVIDER_MISMATCH",
                     )
                 credentials["auth_token"] = auth_token
+            else:
+                raise AuthenticationError(
+                    "Invalid or expired redemption token",
+                    "INVALID_REDEMPTION_TOKEN",
+                )
 
         user: AdminUser = request.user
         service = self._create_auth_service(session)
