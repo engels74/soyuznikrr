@@ -485,12 +485,27 @@ class AuthController(Controller):
         settings: Settings,
     ) -> LinkProviderResponse:
         """Link an external auth provider to the current admin account."""
+        # Resolve redemption_token to auth_token server-side
+        credentials = dict(data.credentials)
+        if "redemption_token" in credentials:
+            redemption_token = credentials.pop("redemption_token")
+            store = OAuthSessionStore()
+            result = await store.redeem(session, redemption_token)
+            if result is not None:
+                redeemed_provider, auth_token = result
+                if redeemed_provider != data.method:
+                    raise AuthenticationError(
+                        "Redemption token provider mismatch",
+                        "PROVIDER_MISMATCH",
+                    )
+                credentials["auth_token"] = auth_token
+
         user: AdminUser = request.user
         service = self._create_auth_service(session)
         admin = await service.link_external_provider(
             user.id,
             data.method,
-            data.credentials,
+            credentials,
             settings=settings,
         )
         return LinkProviderResponse(

@@ -91,6 +91,7 @@ function cancelSelection() {
 }
 
 async function handleOAuthLink(method: string) {
+	stopPolling();
 	linking = true;
 	errorMessage = '';
 	try {
@@ -254,6 +255,7 @@ function getInputType(fieldType: string): string {
 								method.flow_type === 'oauth'
 									? handleOAuthLink(method.method_name)
 									: selectMethod(method.method_name)}
+							disabled={linking}
 							variant="outline"
 							class="w-full justify-start border-cr-border bg-cr-bg text-cr-text"
 							style="--provider-color: {color}"
