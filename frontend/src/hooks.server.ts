@@ -38,8 +38,60 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const user: App.Locals['user'] = await response.json();
 				event.locals.user = user;
 			} else if (response.status === 401 || response.status === 403) {
-				event.cookies.delete('zondarr_access_token', { path: '/' });
-				event.locals.user = null;
+				// Access token expired — try refreshing via refresh token cookie
+				const refreshToken = event.cookies.get('zondarr_refresh_token');
+				let refreshed = false;
+
+				if (refreshToken) {
+					try {
+						const refreshResponse = await fetch(`${SSR_API_URL}/api/auth/refresh`, {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								Cookie: `zondarr_refresh_token=${refreshToken}`
+							},
+							body: JSON.stringify({ refresh_token: refreshToken })
+						});
+
+						if (refreshResponse.ok) {
+							// Extract set-cookie headers from refresh response
+							const setCookieHeaders = refreshResponse.headers.getSetCookie();
+							for (const header of setCookieHeaders) {
+								const nameValue = header.split(';')[0];
+								if (!nameValue) continue;
+								const eqIndex = nameValue.indexOf('=');
+								if (eqIndex === -1) continue;
+								const name = nameValue.slice(0, eqIndex).trim();
+								const value = nameValue.slice(eqIndex + 1).trim();
+
+								if (name === 'zondarr_access_token' || name === 'zondarr_refresh_token') {
+									event.cookies.set(name, value, { path: '/', httpOnly: true });
+								}
+							}
+
+							// Re-call /api/auth/me with the new access token
+							const newAccessToken = event.cookies.get('zondarr_access_token');
+							if (newAccessToken) {
+								const retryResponse = await fetch(`${SSR_API_URL}/api/auth/me`, {
+									headers: { Cookie: `zondarr_access_token=${newAccessToken}` }
+								});
+								if (retryResponse.ok) {
+									const user: App.Locals['user'] = await retryResponse.json();
+									event.locals.user = user;
+									refreshed = true;
+								}
+							}
+						}
+					} catch {
+						// Refresh failed — fall through to clear cookies
+					}
+				}
+
+				if (!refreshed) {
+					event.cookies.delete('zondarr_access_token', { path: '/' });
+					event.cookies.delete('zondarr_refresh_token', { path: '/' });
+					event.locals.user = null;
+				}
 			} else {
 				// Transient backend error (500/503) — keep cookie, skip user
 				event.locals.user = null;

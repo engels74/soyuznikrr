@@ -28,7 +28,7 @@ from zondarr.core.exceptions import AuthenticationError
 from zondarr.models.admin import AdminAccount
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.repositories.app_setting import AppSettingRepository
-from zondarr.services.auth import AuthService
+from zondarr.services.auth import REFRESH_TOKEN_EXPIRY_DAYS, AuthService
 from zondarr.services.password import verify_password
 from zondarr.services.totp import TOTPService
 
@@ -145,6 +145,18 @@ class TOTPController(Controller):
         value, _ = await service.get_secure_cookies()
         return value
 
+    def _create_refresh_cookie(self, raw_token: str, *, secure: bool = False) -> Cookie:
+        """Create HTTP-only cookie for the refresh token."""
+        return Cookie(
+            key="zondarr_refresh_token",
+            value=raw_token,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_EXPIRY_DAYS * 86400,
+            path="/",
+        )
+
     def _create_access_token(
         self, admin_id: str, secret_key: str, *, secure: bool = False
     ) -> tuple[str, Cookie]:
@@ -212,11 +224,12 @@ class TOTPController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         refresh_token = await auth_service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
             AuthTokenResponse(refresh_token=refresh_token),
             status_code=HTTP_200_OK,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
 
     @post(
@@ -265,11 +278,12 @@ class TOTPController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         refresh_token = await auth_service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
             AuthTokenResponse(refresh_token=refresh_token),
             status_code=HTTP_200_OK,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
 
     # =========================================================================

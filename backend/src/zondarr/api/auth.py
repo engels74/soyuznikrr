@@ -25,7 +25,7 @@ from zondarr.core.auth import AdminUser
 from zondarr.core.exceptions import AuthenticationError
 from zondarr.repositories.admin import AdminAccountRepository, RefreshTokenRepository
 from zondarr.repositories.app_setting import AppSettingRepository
-from zondarr.services.auth import AuthService
+from zondarr.services.auth import REFRESH_TOKEN_EXPIRY_DAYS, AuthService
 from zondarr.services.oauth_session import OAuthSessionStore
 from zondarr.services.settings import SettingsService
 
@@ -82,6 +82,18 @@ class AuthController(Controller):
         service = SettingsService(AppSettingRepository(session))
         value, _ = await service.get_secure_cookies()
         return value
+
+    def _create_refresh_cookie(self, raw_token: str, *, secure: bool = False) -> Cookie:
+        """Create HTTP-only cookie for the refresh token."""
+        return Cookie(
+            key="zondarr_refresh_token",
+            value=raw_token,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_EXPIRY_DAYS * 86400,
+            path="/",
+        )
 
     def _create_access_token(
         self, admin_id: str, secret_key: str, *, secure: bool = False
@@ -191,11 +203,12 @@ class AuthController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         refresh_token = await service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         response = Response(
             AuthTokenResponse(refresh_token=refresh_token),
             status_code=HTTP_201_CREATED,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
         return response
 
@@ -256,11 +269,12 @@ class AuthController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         refresh_token = await service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
             LoginResponse(refresh_token=refresh_token),
             status_code=HTTP_200_OK,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
 
     @post(
@@ -332,11 +346,12 @@ class AuthController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         refresh_token = await service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
             LoginResponse(refresh_token=refresh_token),
             status_code=HTTP_200_OK,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
 
     @post(
@@ -347,13 +362,21 @@ class AuthController(Controller):
     )
     async def refresh(
         self,
+        request: Request[None, None, State],
         data: RefreshRequest,
         session: AsyncSession,
         settings: Settings,
     ) -> Response[AuthTokenResponse]:
         """Exchange a refresh token for a new access token."""
+        # Use body token if provided, otherwise fall back to cookie
+        token = data.refresh_token or request.cookies.get("zondarr_refresh_token")
+        if not token:
+            raise AuthenticationError(
+                "No refresh token provided", "MISSING_REFRESH_TOKEN"
+            )
+
         service = self._create_auth_service(session)
-        admin = await service.consume_refresh_token(data.refresh_token)
+        admin = await service.consume_refresh_token(token)
 
         secret_key = settings.secret_key
         secure = await self._resolve_secure_cookies(session, settings)
@@ -361,11 +384,12 @@ class AuthController(Controller):
             str(admin.id), secret_key, secure=secure
         )
         new_refresh_token = await service.create_refresh_token(admin)
+        refresh_cookie = self._create_refresh_cookie(new_refresh_token, secure=secure)
 
         return Response(
             AuthTokenResponse(refresh_token=new_refresh_token),
             status_code=HTTP_200_OK,
-            cookies=[access_cookie],
+            cookies=[access_cookie, refresh_cookie],
         )
 
     @post(
@@ -376,19 +400,35 @@ class AuthController(Controller):
     )
     async def logout(
         self,
+        request: Request[None, None, State],
         session: AsyncSession,
         settings: Settings,
         data: RefreshRequest | None = None,
     ) -> Response[dict[str, bool]]:
         """Revoke tokens and clear cookies."""
-        if data is not None:
+        # Revoke refresh token from body or cookie
+        token = (
+            data.refresh_token
+            if data is not None and data.refresh_token
+            else request.cookies.get("zondarr_refresh_token")
+        )
+        if token:
             service = self._create_auth_service(session)
-            await service.revoke_refresh_token(data.refresh_token)
+            await service.revoke_refresh_token(token)
 
-        # Clear access token cookie
+        # Clear both cookies
         secure = await self._resolve_secure_cookies(session, settings)
-        clear_cookie = Cookie(
+        clear_access_cookie = Cookie(
             key="zondarr_access_token",
+            value="",
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=0,
+            path="/",
+        )
+        clear_refresh_cookie = Cookie(
+            key="zondarr_refresh_token",
             value="",
             httponly=True,
             secure=secure,
@@ -400,7 +440,7 @@ class AuthController(Controller):
         return Response(
             {"success": True},
             status_code=HTTP_200_OK,
-            cookies=[clear_cookie],
+            cookies=[clear_access_cookie, clear_refresh_cookie],
         )
 
     @get(

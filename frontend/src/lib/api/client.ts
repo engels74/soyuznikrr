@@ -27,19 +27,70 @@ export const api = createClient<paths>({
 	credentials: 'include'
 });
 
-// Redirect to /login on 401 responses (client-side only).
+// Auth endpoints that should not trigger a refresh attempt
+const AUTH_ENDPOINTS = ['/api/auth/refresh', '/api/auth/login', '/api/auth/setup'];
+
+// Module-level promise to serialize concurrent refresh attempts
+let refreshPromise: Promise<boolean> | null = null;
+
+async function attemptTokenRefresh(): Promise<boolean> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({}),
+			credentials: 'include'
+		});
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+// Auto-refresh on 401 responses (client-side only).
 // Skipped for SSR and when already on public auth pages to avoid redirect loops.
 api.use({
-	async onResponse({ response }) {
+	async onResponse({ request, response }) {
 		if (
-			response.status === 401 &&
-			typeof window !== 'undefined' &&
-			!window.location.pathname.startsWith('/login') &&
-			!window.location.pathname.startsWith('/join') &&
-			!window.location.pathname.startsWith('/setup')
+			response.status !== 401 ||
+			typeof window === 'undefined' ||
+			window.location.pathname.startsWith('/login') ||
+			window.location.pathname.startsWith('/join') ||
+			window.location.pathname.startsWith('/setup')
 		) {
-			window.location.href = '/login';
+			return response;
 		}
+
+		// Don't try to refresh for auth endpoints themselves
+		const url = new URL(request.url, window.location.origin);
+		if (AUTH_ENDPOINTS.some((ep) => url.pathname === ep || url.pathname.startsWith(`${ep}/`))) {
+			window.location.href = '/login';
+			return response;
+		}
+
+		// Serialize concurrent refresh attempts
+		if (!refreshPromise) {
+			refreshPromise = attemptTokenRefresh().finally(() => {
+				refreshPromise = null;
+			});
+		}
+
+		const refreshed = await refreshPromise;
+
+		if (refreshed) {
+			// Retry the original request with new cookies
+			const retryResponse = await fetch(request.url, {
+				method: request.method,
+				headers: request.headers,
+				body: request.body,
+				credentials: 'include',
+				// @ts-expect-error -- duplex is needed for streaming bodies
+				duplex: request.body ? 'half' : undefined
+			});
+			return retryResponse;
+		}
+
+		window.location.href = '/login';
 		return response;
 	}
 });
