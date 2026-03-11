@@ -657,10 +657,22 @@ class TestAutoAcceptV2Invite:
     Feature: plex-integration
     Property: v2 Auto-Accept Invite Behaviour
 
-    After _share_library_direct creates a server share, it uses the Plex v2
-    API to automatically accept the pending invite on behalf of the user.
+    After _share_library_direct creates a server share, it fires a background
+    task to automatically accept the pending invite via the Plex v2 API.
     This test class covers the retry logic and error handling for that flow.
     """
+
+    @staticmethod
+    async def _drain_background_tasks() -> None:
+        """Await all pending plex auto-accept background tasks."""
+        import asyncio
+
+        from zondarr.media.providers.plex.client import (
+            _background_tasks,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        if _background_tasks:
+            _ = await asyncio.gather(*_background_tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
     async def test_auto_accept_succeeds_on_first_attempt(self) -> None:
@@ -698,8 +710,11 @@ class TestAutoAcceptV2Invite:
 
                 assert result.external_user_id == "12345"
                 assert result.username == "testuser"
-                # auto-accept succeeded → stale invites should have been cleaned up
-                assert mock_account.pending_invites_called
+
+            # Wait for the background auto-accept task to complete
+            await self._drain_background_tasks()
+            # v2 session GET was called once (accepted on first attempt)
+            assert v2_session.get_call_index == 1
 
     @pytest.mark.asyncio
     async def test_auto_accept_succeeds_on_retry(self) -> None:
@@ -739,14 +754,15 @@ class TestAutoAcceptV2Invite:
                 )
 
                 assert result.external_user_id == "12345"
-                # Confirm v2 session GET was called twice (empty then found)
-                assert v2_session.get_call_index == 2
-                # auto-accept succeeded → stale invites cleaned up
-                assert mock_account.pending_invites_called
+
+            # Wait for the background auto-accept task to complete
+            await self._drain_background_tasks()
+            # Confirm v2 session GET was called twice (empty then found)
+            assert v2_session.get_call_index == 2
 
     @pytest.mark.asyncio
     async def test_auto_accept_gives_up_after_max_retries(self) -> None:
-        """v2 auto-accept gives up after 3 attempts; auto_accepted=False."""
+        """v2 auto-accept gives up after 3 attempts in background task."""
         from zondarr.media.providers.plex.client import PlexClient
 
         # All attempts return empty → never finds a matching invite
@@ -779,10 +795,11 @@ class TestAutoAcceptV2Invite:
 
                 # The share itself succeeded even though auto-accept didn't
                 assert result.external_user_id == "12345"
-                # 3 GET attempts were made
-                assert v2_session.get_call_index == 3
-                # auto-accept failed → stale invites NOT cleaned up
-                assert not mock_account.pending_invites_called
+
+            # Wait for the background auto-accept task to complete
+            await self._drain_background_tasks()
+            # 3 GET attempts were made
+            assert v2_session.get_call_index == 3
 
     @pytest.mark.asyncio
     async def test_auto_accept_exception_logged_at_warning(
@@ -820,6 +837,9 @@ class TestAutoAcceptV2Invite:
 
                 # Share succeeded despite auto-accept failure
                 assert result.external_user_id == "12345"
+
+            # Wait for the background auto-accept task to complete
+            await self._drain_background_tasks()
 
         # structlog writes to stdout; verify warning-level log with error detail
         captured = capsys.readouterr()
@@ -884,7 +904,8 @@ class TestAutoAcceptV2Invite:
                 )
 
                 assert result.external_user_id == "12345"
-                # Only 1 GET call needed (matched on first attempt)
-                assert v2_session.get_call_index == 1
-                # auto-accept succeeded → stale invites cleaned up
-                assert mock_account.pending_invites_called
+
+            # Wait for the background auto-accept task to complete
+            await self._drain_background_tasks()
+            # Only 1 GET call needed (matched on first attempt)
+            assert v2_session.get_call_index == 1
