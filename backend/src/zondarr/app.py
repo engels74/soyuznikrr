@@ -24,6 +24,7 @@ import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import cast
+from urllib.parse import quote
 
 import structlog
 from litestar import Litestar
@@ -286,12 +287,12 @@ async def _bootstrap_token_lifespan(app: Litestar):
             bootstrap_logger.warning(
                 "bootstrap_token_write_failed",
                 path=str(token_path),
-                message="Could not write bootstrap token file. Token is still available in console output above.",
+                message="Could not write bootstrap token file.",
             )
 
     # Print setup URL when setup is still needed (regardless of token source)
     if token is not None and admin_count == 0:
-        setup_url = f"/setup?token={token}"
+        setup_url = f"/setup?token={quote(token, safe='')}"
         bootstrap_logger.info(
             "setup_url_available",
             setup_url=setup_url,
