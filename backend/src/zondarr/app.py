@@ -242,32 +242,26 @@ async def _bootstrap_token_lifespan(app: Litestar):
         "zondarr.bootstrap"
     )
     token: str | None = settings.bootstrap_token
-    if token is None:
-        session_factory: async_sessionmaker[AsyncSession] = (  # pyright: ignore[reportAny]
-            app.state.session_factory
+
+    # Check admin count — needed for both auto-generation and URL display
+    session_factory: async_sessionmaker[AsyncSession] = (  # pyright: ignore[reportAny]
+        app.state.session_factory
+    )
+    async with session_factory() as session:
+        repo = AdminAccountRepository(session)
+        admin_count = await repo.count()
+
+    # Auto-generate token when none configured and no admin exists
+    if token is None and admin_count == 0:
+        token = secrets.token_urlsafe(32)
+        app.state.generated_bootstrap_token = token
+        bootstrap_logger.info(
+            "bootstrap_token_generated",
+            message=(
+                "No BOOTSTRAP_TOKEN set and no admin exists. "
+                "Use this token for initial setup."
+            ),
         )
-        async with session_factory() as session:
-            repo = AdminAccountRepository(session)
-            count = await repo.count()
-        if count == 0:
-            token = secrets.token_urlsafe(32)
-            app.state.generated_bootstrap_token = token
-            setup_url = f"/setup?token={token}"
-            bootstrap_logger.info(
-                "bootstrap_token_generated",
-                message=(
-                    "No BOOTSTRAP_TOKEN set and no admin exists. "
-                    "Use this token for initial setup."
-                ),
-                setup_url=setup_url,
-            )
-            # Log token on a separate line for easy copy-paste
-            print(
-                f"\n{'=' * 60}"
-                + f"\n  BOOTSTRAP TOKEN: {token}"
-                + f"\n  SETUP URL:       {setup_url}"
-                + f"\n{'=' * 60}\n"
-            )
 
     # Write token to file for frontend SSR to read
     if token is not None:
@@ -294,6 +288,21 @@ async def _bootstrap_token_lifespan(app: Litestar):
                 path=str(token_path),
                 message="Could not write bootstrap token file. Token is still available in console output above.",
             )
+
+    # Print setup URL when setup is still needed (regardless of token source)
+    if token is not None and admin_count == 0:
+        setup_url = f"/setup?token={token}"
+        bootstrap_logger.info(
+            "setup_url_available",
+            setup_url=setup_url,
+        )
+        print(
+            f"\n{'=' * 60}"
+            + f"\n  BOOTSTRAP TOKEN: {token}"
+            + f"\n  SETUP URL:       {setup_url}"
+            + f"\n{'=' * 60}\n"
+        )
+
     yield
 
 

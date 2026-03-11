@@ -174,15 +174,25 @@ async function handleSubmit(e: SubmitEvent) {
 			</div>
 
 			{#if !tokenAvailable}
-				{#if tokenError}
-					<div
-						class="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
-					>
-						{tokenError}
-					</div>
-				{/if}
+				<div
+					class="rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300"
+				>
+					<p class="mb-1 font-medium">Setup URL required</p>
+					<p class="text-amber-300/80">
+						Use the setup URL printed in your server logs at startup. For Docker, run
+						<code class="rounded bg-amber-500/15 px-1 py-0.5 font-mono text-xs"
+							>docker logs &lt;container&gt;</code
+						>
+						to find it.
+					</p>
+					{#if tokenError}
+						<p class="mt-2 text-red-400">{tokenError}</p>
+					{/if}
+				</div>
 				<div class="flex flex-col gap-1.5">
-					<Label for="setup-bootstrap-token" class="text-cr-text">Bootstrap Token</Label>
+					<Label for="setup-bootstrap-token" class="text-cr-text"
+						>Or paste bootstrap token manually</Label
+					>
 					<Input
 						id="setup-bootstrap-token"
 						type="text"
@@ -190,10 +200,6 @@ async function handleSubmit(e: SubmitEvent) {
 						placeholder="Paste token from server logs"
 						class="border-cr-border bg-cr-bg text-cr-text font-mono text-sm placeholder:text-cr-text-dim"
 					/>
-					<p class="text-xs text-cr-text-muted">
-						Enter the bootstrap token from your server logs, or use the setup URL printed at
-						startup.
-					</p>
 				</div>
 			{/if}
 
