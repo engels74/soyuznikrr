@@ -30,11 +30,11 @@ def upgrade() -> None:
         sa.Column("external_id", sa.String(length=255), nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False),
         sa.Column("last_login_at", sa.DateTime(), nullable=True),
-        sa.Column("totp_enabled", sa.Boolean(), nullable=False),
+        sa.Column("totp_enabled", sa.Boolean(), server_default=sa.text("0"), nullable=False),
         sa.Column("totp_secret_encrypted", sa.Text(), nullable=True),
         sa.Column("totp_backup_codes", sa.Text(), nullable=True),
         sa.Column("totp_enabled_at", sa.DateTime(), nullable=True),
-        sa.Column("totp_failed_attempts", sa.Integer(), nullable=False),
+        sa.Column("totp_failed_attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("totp_last_failed_at", sa.DateTime(), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
