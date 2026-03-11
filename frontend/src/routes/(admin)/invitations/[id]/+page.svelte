@@ -672,6 +672,9 @@ function getFieldErrors(field: string): string[] {
 								<Input
 									type="number"
 									bind:value={formData.max_uses}
+									oninput={(e) => {
+										if (e.currentTarget.value === '') formData.max_uses = '';
+									}}
 									placeholder="Unlimited"
 									class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted"
 									min={1}
@@ -695,6 +698,9 @@ function getFieldErrors(field: string): string[] {
 								<Input
 									type="number"
 									bind:value={formData.duration_days}
+									oninput={(e) => {
+										if (e.currentTarget.value === '') formData.duration_days = '';
+									}}
 									placeholder="Permanent"
 									class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted"
 									min={1}

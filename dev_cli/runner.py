@@ -158,7 +158,7 @@ class DevRunner:
                 "--workers-kill-timeout",
                 "10",
                 "--workers",
-                "1",
+                "1",  # Must stay 1 for SQLite; multiple workers cause write lock contention
                 "--runtime-mode",
                 "st",
                 "--respawn-interval",
