@@ -277,9 +277,10 @@ describe('OAuth Flow Component', () => {
 	});
 
 	/**
-	 * For any valid PIN response, the component SHALL display the PIN code.
+	 * For any valid PIN response, the component SHALL NOT display the PIN code
+	 * to the user (PIN is an internal implementation detail).
 	 */
-	it('should display PIN code after creation', async () => {
+	it('should not display PIN code in waiting state', async () => {
 		vi.clearAllMocks();
 
 		const pinResponse: OAuthPinResponse = {
@@ -311,12 +312,15 @@ describe('OAuth Flow Component', () => {
 		expect(signInButton).toBeTruthy();
 		await user.click(signInButton!);
 
-		// Wait for PIN creation and verify the code is displayed
+		// Wait for the waiting state
 		await vi.waitFor(() => {
-			const pinCodeEl = container.querySelector('[data-pin-code]');
-			expect(pinCodeEl).toBeTruthy();
-			expect(pinCodeEl?.textContent?.trim()).toBe(pinResponse.code);
+			const component = container.querySelector('[data-oauth-join-flow]');
+			expect(component?.getAttribute('data-step')).toBe('waiting');
 		});
+
+		// Verify PIN code is NOT displayed
+		expect(container.querySelector('[data-pin-display]')).toBeNull();
+		expect(container.querySelector('[data-pin-code]')).toBeNull();
 	});
 
 	/**
