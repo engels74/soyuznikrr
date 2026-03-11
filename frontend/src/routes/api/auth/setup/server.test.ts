@@ -82,7 +82,7 @@ describe('POST /api/auth/setup (hardened proxy)', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('auto-injects bootstrap token when nonce is valid and token is empty', async () => {
+	it('auto-injects bootstrap token when validated nonce is present and token is empty', async () => {
 		mockConsumeNonce.mockReturnValue(true);
 		mockReadFileSync.mockReturnValue('secret-bootstrap-token\n');
 
@@ -121,7 +121,7 @@ describe('POST /api/auth/setup (hardened proxy)', () => {
 		expect(response.status).toBe(403);
 
 		const body = await response.json();
-		expect(body.detail).toContain('nonce');
+		expect(body.detail).toContain('Setup authorization expired or invalid');
 	});
 
 	it('returns 403 when nonce cookie is missing and no manual token provided', async () => {
@@ -133,7 +133,7 @@ describe('POST /api/auth/setup (hardened proxy)', () => {
 		expect(response.status).toBe(403);
 
 		const body = await response.json();
-		expect(body.detail).toContain('nonce');
+		expect(body.detail).toContain('Setup authorization expired or invalid');
 	});
 
 	it('passes through when manual bootstrap_token is provided regardless of nonce', async () => {
@@ -175,6 +175,25 @@ describe('POST /api/auth/setup (hardened proxy)', () => {
 		expect(response.status).toBe(403);
 
 		const body = await response.json();
-		expect(body.detail).toContain('nonce');
+		expect(body.detail).toContain('Setup authorization expired or invalid');
+	});
+
+	it('returns 403 when nonce exists but was not validated (no token check performed)', async () => {
+		// A non-validated nonce (created but never confirmed via token check)
+		// is rejected by consumeNonce returning false
+		mockConsumeNonce.mockReturnValue(false);
+		mockReadFileSync.mockReturnValue('secret-bootstrap-token\n');
+
+		const event = makeEvent(
+			{ username: 'admin', password: 'pass', bootstrap_token: '' },
+			'non-validated-nonce'
+		);
+		const response = await POST(event as never);
+
+		expect(mockConsumeNonce).toHaveBeenCalledWith('non-validated-nonce');
+		expect(response.status).toBe(403);
+
+		const body = await response.json();
+		expect(body.detail).toContain('Setup authorization expired or invalid');
 	});
 });
