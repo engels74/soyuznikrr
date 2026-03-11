@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 0bd7d521e15f
+Revision ID: bf231ee80bbd
 Revises:
-Create Date: 2026-03-05 20:32:23.288369
+Create Date: 2026-03-11 19:05:51.359859
 """
 
 from collections.abc import Sequence
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import sqlite
 
 # Revision identifiers, used by Alembic.
-revision: str = "0bd7d521e15f"
+revision: str = "bf231ee80bbd"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -100,6 +100,36 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_table(
+        "oauth_sessions",
+        sa.Column("handle", sa.String(length=64), nullable=False),
+        sa.Column("provider", sa.String(length=50), nullable=False),
+        sa.Column("pin_id", sa.Integer(), nullable=False),
+        sa.Column("ttl", sa.Integer(), nullable=False),
+        sa.Column("auth_token", sa.String(length=512), nullable=True),
+        sa.Column("email", sa.String(length=255), nullable=True),
+        sa.Column("redemption_token", sa.String(length=64), nullable=True),
+        sa.Column("redeemed", sa.Boolean(), nullable=False),
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    with op.batch_alter_table("oauth_sessions", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_oauth_sessions_handle"), ["handle"], unique=True
+        )
+        batch_op.create_index(
+            batch_op.f("ix_oauth_sessions_redemption_token"),
+            ["redemption_token"],
+            unique=True,
+        )
+
     op.create_table(
         "wizards",
         sa.Column("name", sa.String(length=255), nullable=False),
@@ -241,7 +271,7 @@ def upgrade() -> None:
         sa.Column("step_order", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=False),
         sa.Column("content_markdown", sa.Text(), nullable=False),
-        sa.Column("primary_language", sa.String(length=10), server_default=sa.text("'en'"), nullable=False),
+        sa.Column("primary_language", sa.String(length=10), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
@@ -335,6 +365,9 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "external_user_id", "media_server_id", name="uq_users_external_user_server"
         ),
+        sa.UniqueConstraint(
+            "username", "media_server_id", name="uq_users_username_server"
+        ),
     )
     with op.batch_alter_table("users", schema=None) as batch_op:
         batch_op.create_index(
@@ -401,6 +434,11 @@ def downgrade() -> None:
 
     op.drop_table("invitations")
     op.drop_table("wizards")
+    with op.batch_alter_table("oauth_sessions", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_oauth_sessions_redemption_token"))
+        batch_op.drop_index(batch_op.f("ix_oauth_sessions_handle"))
+
+    op.drop_table("oauth_sessions")
     op.drop_table("media_servers")
     op.drop_table("identities")
     op.drop_table("app_settings")
