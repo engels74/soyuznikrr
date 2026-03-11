@@ -36,6 +36,7 @@ _background_tasks: set[asyncio.Task[None]] = set()
 
 async def _auto_accept_plex_invite(
     auth_token: str,
+    admin_token: str,
     admin_username: str,
     machine_id: str,
     email: str,
@@ -166,6 +167,28 @@ async def _auto_accept_plex_invite(
                     time.sleep(1)
         return False
 
+    def _cancel_stale_invites() -> int:
+        """Cancel admin-sent pending invites for email on this server."""
+        from plexapi.myplex import MyPlexAccount
+
+        admin_account: MyPlexAccount = MyPlexAccount(token=admin_token)
+        pending = admin_account.pendingInvites(  # pyright: ignore[reportUnknownVariableType]
+            includeSent=True,
+            includeReceived=False,
+        )
+        cancelled = 0
+        for invite in pending:  # pyright: ignore[reportUnknownVariableType]
+            invite_email: str = getattr(invite, "email", "") or ""  # pyright: ignore[reportUnknownArgumentType]
+            if invite_email.lower() != email.lower():
+                continue
+            invite_servers: list[object] = getattr(invite, "servers", []) or []  # pyright: ignore[reportUnknownArgumentType]
+            for server_share in invite_servers:
+                if getattr(server_share, "machineIdentifier", "") == machine_id:
+                    _ = admin_account.cancelInvite(invite)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType, reportUnknownArgumentType]
+                    cancelled += 1
+                    break
+        return cancelled
+
     log.info(
         "plex_auto_accept_started",
         email=email,
@@ -180,6 +203,23 @@ async def _auto_accept_plex_invite(
                 email=email,
                 plex_user_id=plex_user_id,
             )
+            # Cancel stale admin-sent pending invites now that the user
+            # has accepted.  Best-effort — failures are logged but ignored.
+            try:
+                count = await asyncio.to_thread(_cancel_stale_invites)
+                if count > 0:
+                    log.info(
+                        "plex_pending_invites_cancelled",
+                        email=email,
+                        count=count,
+                    )
+            except Exception as exc:
+                log.warning(
+                    "plex_cancel_pending_invites_failed",
+                    email=email,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
         else:
             log.warning(
                 "plex_auto_accept_exhausted",
@@ -844,6 +884,7 @@ class PlexClient:
             task = asyncio.create_task(
                 _auto_accept_plex_invite(
                     auth_token=auth_token,
+                    admin_token=self.api_key,
                     admin_username=admin_username,
                     machine_id=machine_id,
                     email=email,
