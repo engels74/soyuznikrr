@@ -32,6 +32,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 
 from zondarr.core.exceptions import RedemptionError
 from zondarr.core.wizard_token import verify_wizard_completion
@@ -289,6 +290,17 @@ class RedemptionService:
         except RedemptionError:
             # Already a RedemptionError (e.g. from reservation) — just re-raise
             raise
+        except IntegrityError as e:
+            log.warning(  # pyright: ignore[reportAny]
+                "Duplicate account detected during redemption",
+                error=str(e),
+                created_count=len(created_external_users),
+            )
+            await self._rollback_users(created_external_users)
+            raise RedemptionError(
+                "This account is already linked to this media server",
+                redemption_error_code="ACCOUNT_ALREADY_LINKED",
+            ) from e
         except Exception as e:
             log.error(  # pyright: ignore[reportAny]
                 "Unexpected error during redemption, rolling back",

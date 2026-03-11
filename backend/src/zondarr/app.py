@@ -159,7 +159,13 @@ def _create_structlog_config() -> StructlogConfig:
         processors.append(capture_log_processor)
 
     return StructlogConfig(
-        structlog_logging_config=_StructLoggingConfig(processors=processors),
+        structlog_logging_config=_StructLoggingConfig(
+            processors=processors,
+            # Prevent Litestar's ExceptionHandlerMiddleware from logging
+            # domain exceptions at ERROR level before our custom handlers run.
+            # Our handlers already log at the appropriate level (info/warning).
+            disable_stack_trace={NotFoundError},
+        ),
         middleware_logging_config=LoggingMiddlewareConfig(
             exclude=["/api/v1/logs/stream"],
             request_log_fields=(
