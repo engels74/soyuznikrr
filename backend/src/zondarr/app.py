@@ -264,9 +264,9 @@ async def _bootstrap_token_lifespan(app: Litestar):
             # Log token on a separate line for easy copy-paste
             print(
                 f"\n{'=' * 60}"
-                f"\n  BOOTSTRAP TOKEN: {token}"
-                f"\n  SETUP URL:       {setup_url}"
-                f"\n{'=' * 60}\n"
+                + f"\n  BOOTSTRAP TOKEN: {token}"
+                + f"\n  SETUP URL:       {setup_url}"
+                + f"\n{'=' * 60}\n"
             )
 
     # Write token to file for frontend SSR to read
