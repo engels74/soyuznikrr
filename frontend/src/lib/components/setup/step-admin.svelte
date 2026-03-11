@@ -188,8 +188,7 @@ async function handleSubmit(e: SubmitEvent) {
 							<p>Run this command to find the token in your container logs:</p>
 							<code
 								class="mt-1 block rounded bg-cr-surface px-2 py-1.5 font-mono text-xs text-cr-text"
-								>docker logs zondarr 2&gt;&amp;1 | grep -A 2 "BOOTSTRAP
-								TOKEN"</code
+								>docker logs zondarr 2&gt;&amp;1 | grep -A 2 "BOOTSTRAP TOKEN"</code
 							>
 							<p class="mt-1 text-xs text-cr-text-dim">
 								Replace <code
