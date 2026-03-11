@@ -1455,10 +1455,10 @@ class RefreshRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
     """Refresh token request.
 
     Attributes:
-        refresh_token: The refresh token string.
+        refresh_token: The refresh token string (optional; falls back to cookie).
     """
 
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class AdminMeResponse(msgspec.Struct, kw_only=True):
