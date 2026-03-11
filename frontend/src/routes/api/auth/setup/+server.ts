@@ -50,7 +50,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				if (!nonce || !consumeNonce(nonce)) {
 					return new Response(
 						JSON.stringify({
-							detail: 'Setup nonce expired or invalid. Please reload the setup page.'
+							detail:
+								'Setup authorization expired or invalid. Please use the setup URL from server logs.'
 						}),
 						{
 							status: 403,

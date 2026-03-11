@@ -9,9 +9,10 @@ import { type SetupFormData, setupSchema } from '$lib/schemas/auth';
 interface Props {
 	onComplete: () => void;
 	tokenAvailable?: boolean;
+	tokenError?: string;
 }
 
-const { onComplete, tokenAvailable }: Props = $props();
+const { onComplete, tokenAvailable, tokenError }: Props = $props();
 
 let username = $state('');
 let password = $state('');
@@ -173,6 +174,13 @@ async function handleSubmit(e: SubmitEvent) {
 			</div>
 
 			{#if !tokenAvailable}
+				{#if tokenError}
+					<div
+						class="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+					>
+						{tokenError}
+					</div>
+				{/if}
 				<div class="flex flex-col gap-1.5">
 					<Label for="setup-bootstrap-token" class="text-cr-text">Bootstrap Token</Label>
 					<Input
@@ -183,7 +191,8 @@ async function handleSubmit(e: SubmitEvent) {
 						class="border-cr-border bg-cr-bg text-cr-text font-mono text-sm placeholder:text-cr-text-dim"
 					/>
 					<p class="text-xs text-cr-text-muted">
-						Enter the bootstrap token from your server logs or Docker logs.
+						Enter the bootstrap token from your server logs, or use the setup URL printed at
+						startup.
 					</p>
 				</div>
 			{/if}

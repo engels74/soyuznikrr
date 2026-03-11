@@ -252,15 +252,22 @@ async def _bootstrap_token_lifespan(app: Litestar):
         if count == 0:
             token = secrets.token_urlsafe(32)
             app.state.generated_bootstrap_token = token
+            setup_url = f"/setup?token={token}"
             bootstrap_logger.info(
                 "bootstrap_token_generated",
                 message=(
                     "No BOOTSTRAP_TOKEN set and no admin exists. "
-                    "Use this token for initial setup:"
+                    "Use this token for initial setup."
                 ),
+                setup_url=setup_url,
             )
             # Log token on a separate line for easy copy-paste
-            print(f"\n{'=' * 60}\n  BOOTSTRAP TOKEN: {token}\n{'=' * 60}\n")
+            print(
+                f"\n{'=' * 60}"
+                f"\n  BOOTSTRAP TOKEN: {token}"
+                f"\n  SETUP URL:       {setup_url}"
+                f"\n{'=' * 60}\n"
+            )
 
     # Write token to file for frontend SSR to read
     if token is not None:

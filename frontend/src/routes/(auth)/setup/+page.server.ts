@@ -1,9 +1,10 @@
+import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getAuthMethods, getMe, type OnboardingStep } from '$lib/api/auth';
 import { isNetworkError } from '$lib/api/errors';
-import { createNonce } from '$lib/server/setup-nonce';
+import { createValidatedNonce } from '$lib/server/setup-nonce';
 import type { PageServerLoad } from './$types';
 
 function readBootstrapToken(): string | null {
@@ -17,24 +18,48 @@ function readBootstrapToken(): string | null {
 	}
 }
 
-export const load: PageServerLoad = async ({ fetch, cookies }) => {
+function verifyToken(provided: string, expected: string): boolean {
+	const a = Buffer.from(provided, 'utf-8');
+	const b = Buffer.from(expected, 'utf-8');
+	if (a.length !== b.length) return false;
+	return timingSafeEqual(a, b);
+}
+
+export const load: PageServerLoad = async ({ fetch, cookies, url }) => {
 	try {
 		const authMethods = await getAuthMethods(fetch);
 
 		if (authMethods.setup_required) {
-			const tokenAvailable = readBootstrapToken() !== null;
-			if (tokenAvailable) {
-				const nonce = createNonce();
-				cookies.set('zondarr_setup_nonce', nonce, {
-					httpOnly: true,
-					sameSite: 'strict',
-					path: '/api/auth/setup',
-					maxAge: 600
-				});
+			const diskToken = readBootstrapToken();
+			const urlToken = url.searchParams.get('token');
+
+			// URL token provided — validate and redirect to strip it
+			if (urlToken && diskToken) {
+				if (verifyToken(urlToken, diskToken)) {
+					const nonce = createValidatedNonce();
+					cookies.set('zondarr_setup_nonce', nonce, {
+						httpOnly: true,
+						sameSite: 'strict',
+						path: '/api/auth/setup',
+						maxAge: 600
+					});
+					redirect(302, '/setup');
+				}
+				return {
+					onboardingStep: 'account' as OnboardingStep,
+					tokenAvailable: false,
+					tokenError: 'Invalid setup token'
+				};
 			}
+
+			// No URL token — check for existing nonce cookie (prior validated visit)
+			const existingNonce = cookies.get('zondarr_setup_nonce');
+			const tokenAvailable = existingNonce !== undefined;
+
 			return {
 				onboardingStep: 'account' as OnboardingStep,
-				tokenAvailable
+				tokenAvailable,
+				tokenError: undefined as string | undefined
 			};
 		}
 
