@@ -5,9 +5,8 @@
  * Provides OAuth authentication flow for media servers:
  * - "Sign in" button with provider branding
  * - PIN creation via API
- * - PIN code display
- * - Opens auth URL in new window/tab
  * - Polls PIN status until authenticated or expired
+ * - Opens auth URL in new window/tab
  * - Displays user's email when authenticated
  * - Error handling with retry option
  *
@@ -122,7 +121,7 @@ async function startOAuthFlow() {
 		}
 
 		if (!data) {
-			throw new Error("Failed to create PIN");
+			throw new Error("Failed to start authentication");
 		}
 
 		pinData = data;
@@ -275,14 +274,6 @@ function openAuthUrl() {
 				</CardDescription>
 			</CardHeader>
 			<CardContent class="space-y-4">
-				<!-- PIN Code Display -->
-				<div class="rounded-lg border border-cr-border bg-cr-bg p-4 text-center" data-pin-display>
-					<p class="text-sm text-cr-text-muted mb-2">Your PIN Code</p>
-					<p class="text-3xl font-mono font-bold text-cr-accent tracking-widest" data-pin-code>
-						{pinData.code}
-					</p>
-				</div>
-
 				<!-- Waiting indicator -->
 				<div class="flex items-center justify-center gap-2 text-cr-text-muted">
 					<Loader2 class="size-4 animate-spin" />
@@ -339,7 +330,7 @@ function openAuthUrl() {
 					<div>
 						<CardTitle class="text-cr-text">Authentication Expired</CardTitle>
 						<CardDescription class="text-cr-text-muted">
-							The PIN has expired. Please try again.
+							The authentication session has expired. Please try again.
 						</CardDescription>
 					</div>
 				</div>
