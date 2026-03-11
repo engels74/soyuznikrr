@@ -1,4 +1,5 @@
 <script lang="ts">
+import { CircleHelp } from '@lucide/svelte';
 import { getErrorDetail, setupAdmin } from '$lib/api/auth';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
@@ -174,24 +175,74 @@ async function handleSubmit(e: SubmitEvent) {
 			</div>
 
 			{#if !tokenAvailable}
-				<div
-					class="rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300"
-				>
-					<p class="mb-1 font-medium">Setup URL required</p>
-					<p class="text-amber-300/80">
-						Use the setup URL printed in your server logs at startup. For Docker, run
-						<code class="rounded bg-amber-500/15 px-1 py-0.5 font-mono text-xs"
-							>docker logs &lt;container&gt;</code
-						>
-						to find it.
-					</p>
-					{#if tokenError}
-						<p class="mt-2 text-red-400">{tokenError}</p>
-					{/if}
-				</div>
+				<details class="rounded-md border border-cr-border bg-cr-bg px-4 py-3 text-sm">
+					<summary
+						class="flex cursor-pointer list-none items-center gap-1.5 text-cr-text-muted select-none [&::-webkit-details-marker]:hidden"
+					>
+						<CircleHelp class="size-4 shrink-0" />
+						Need help finding the setup token?
+					</summary>
+					<div class="mt-3 flex flex-col gap-3 text-cr-text-muted">
+						<div>
+							<p class="mb-1 font-medium text-cr-text">Docker</p>
+							<p>Run this command to find the token in your container logs:</p>
+							<code
+								class="mt-1 block rounded bg-cr-surface px-2 py-1.5 font-mono text-xs text-cr-text"
+								>docker logs zondarr 2&gt;&amp;1 | grep -A 2 "BOOTSTRAP
+								TOKEN"</code
+							>
+							<p class="mt-1 text-xs text-cr-text-dim">
+								Replace <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs"
+									>zondarr</code
+								> with your container name if different.
+							</p>
+						</div>
+						<div>
+							<p class="mb-1 font-medium text-cr-text">Bare metal / dev</p>
+							<p>
+								Check the console output where Zondarr is running, or grep your
+								log file for <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>BOOTSTRAP TOKEN</code
+								>.
+							</p>
+						</div>
+						<div>
+							<p class="mb-1 font-medium text-cr-text">What to look for</p>
+							<p>
+								A boxed section surrounded by <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>============</code
+								>
+								containing <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>BOOTSTRAP TOKEN</code
+								>
+								and <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>SETUP URL</code
+								>. If you use JSON logging, look for a line with
+								<code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>"event":"setup_url_available"</code
+								>.
+							</p>
+						</div>
+						<div>
+							<p class="mb-1 font-medium text-cr-text">URL format</p>
+							<p>
+								The setup URL looks like <code
+									class="rounded bg-cr-surface px-1 py-0.5 font-mono text-xs text-cr-text"
+									>/setup?token=xxxxx</code
+								> — paste the full URL into your browser address bar.
+							</p>
+						</div>
+					</div>
+				</details>
 				<div class="flex flex-col gap-1.5">
 					<Label for="setup-bootstrap-token" class="text-cr-text"
-						>Or paste bootstrap token manually</Label
+						>Paste bootstrap token manually</Label
 					>
 					<Input
 						id="setup-bootstrap-token"
@@ -200,6 +251,9 @@ async function handleSubmit(e: SubmitEvent) {
 						placeholder="Paste token from server logs"
 						class="border-cr-border bg-cr-bg text-cr-text font-mono text-sm placeholder:text-cr-text-dim"
 					/>
+					{#if tokenError}
+						<p class="text-xs text-red-400">{tokenError}</p>
+					{/if}
 				</div>
 			{/if}
 
