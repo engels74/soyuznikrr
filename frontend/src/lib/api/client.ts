@@ -47,10 +47,21 @@ async function attemptTokenRefresh(): Promise<boolean> {
 	}
 }
 
+// Store request clones for retry after token refresh (keyed by original request).
+// Cloning in onRequest preserves the body before fetch() consumes it.
+const requestClones = new Map<Request, Request>();
+
 // Auto-refresh on 401 responses (client-side only).
 // Skipped for SSR and when already on public auth pages to avoid redirect loops.
 api.use({
+	onRequest({ request }) {
+		requestClones.set(request, request.clone());
+		return undefined;
+	},
 	async onResponse({ request, response }) {
+		const requestClone = requestClones.get(request);
+		requestClones.delete(request);
+
 		if (
 			response.status !== 401 ||
 			typeof window === 'undefined' ||
@@ -77,17 +88,9 @@ api.use({
 
 		const refreshed = await refreshPromise;
 
-		if (refreshed) {
-			// Retry the original request with new cookies
-			const retryResponse = await fetch(request.url, {
-				method: request.method,
-				headers: request.headers,
-				body: request.body,
-				credentials: 'include',
-				// @ts-expect-error -- duplex is needed for streaming bodies
-				duplex: request.body ? 'half' : undefined
-			});
-			return retryResponse;
+		if (refreshed && requestClone) {
+			// Retry with the cloned request (body stream is still unconsumed)
+			return fetch(requestClone);
 		}
 
 		window.location.href = '/login';

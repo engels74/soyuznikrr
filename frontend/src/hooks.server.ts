@@ -50,7 +50,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 								'Content-Type': 'application/json',
 								Cookie: `zondarr_refresh_token=${refreshToken}`
 							},
-							body: JSON.stringify({ refresh_token: refreshToken })
+							body: JSON.stringify({})
 						});
 
 						if (refreshResponse.ok) {
@@ -65,7 +65,32 @@ export const handle: Handle = async ({ event, resolve }) => {
 								const value = nameValue.slice(eqIndex + 1).trim();
 
 								if (name === 'zondarr_access_token' || name === 'zondarr_refresh_token') {
-									event.cookies.set(name, value, { path: '/', httpOnly: true });
+									// Parse Set-Cookie attributes to preserve secure, sameSite, maxAge
+									const parts = header.split(';').slice(1);
+									let secure = false;
+									let sameSite: 'lax' | 'strict' | 'none' = 'lax';
+									let maxAge: number | undefined;
+									for (const part of parts) {
+										const lower = part.trim().toLowerCase();
+										if (lower === 'secure') {
+											secure = true;
+										} else if (lower.startsWith('samesite=')) {
+											const val = lower.split('=')[1];
+											if (val === 'strict' || val === 'lax' || val === 'none') {
+												sameSite = val;
+											}
+										} else if (lower.startsWith('max-age=')) {
+											const val = part.trim().split('=')[1];
+											if (val) maxAge = parseInt(val, 10);
+										}
+									}
+									event.cookies.set(name, value, {
+										path: '/',
+										httpOnly: true,
+										secure,
+										sameSite,
+										...(maxAge !== undefined ? { maxAge } : {})
+									});
 								}
 							}
 
