@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			const fileToken = readBootstrapToken();
 			if (fileToken) {
 				const nonce = cookies.get('zondarr_setup_nonce');
-				cookies.delete('zondarr_setup_nonce', { path: '/api/auth/setup' });
+				cookies.delete('zondarr_setup_nonce', { path: '/' });
 
 				if (!nonce || !consumeNonce(nonce)) {
 					return new Response(

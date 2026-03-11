@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ fetch, cookies, url }) => {
 					cookies.set('zondarr_setup_nonce', nonce, {
 						httpOnly: true,
 						sameSite: 'strict',
-						path: '/api/auth/setup',
+						path: '/',
 						maxAge: 600
 					});
 					redirect(302, '/setup');
