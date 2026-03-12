@@ -20,8 +20,14 @@ const durationSeconds = $derived(config?.duration_seconds ?? 10);
 // If already completed (navigating back), start at 0
 const alreadyCompleted = (() => completionData?.data?.waited === true)();
 
-// Timer state
-let remainingSeconds = $state(0);
+// Compute initial duration from raw config to avoid SSR flash of "complete" state
+const initialDuration = (() => {
+	const parsed = timerConfigSchema.safeParse(rawConfig);
+	return parsed.data?.duration_seconds ?? 10;
+})();
+
+// Timer state — initialize to actual duration so SSR renders the countdown, not "Timer complete"
+let remainingSeconds = $state(alreadyCompleted ? 0 : initialDuration);
 let startedAt = $state<string | null>((() => completionData?.startedAt ?? null)());
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -86,16 +92,23 @@ onMount(() => {
 });
 
 // Re-emit completion if timer finished but completionData was cleared
-// (e.g., by another interaction's validation failure)
+// (e.g., by another interaction's validation failure).
+// Deferred via setTimeout to avoid suppressing validation errors that were
+// set in the same reactive update cycle (handleInteractionComplete clears
+// validationError, so a synchronous re-emission would wipe the error
+// before the user sees it).
 $effect(() => {
 	if (remainingSeconds <= 0 && !disabled && !completionData && startedAt) {
-		onComplete({
-			interactionId,
-			interactionType: "timer",
-			data: { waited: true },
-			startedAt: startedAt ?? undefined,
-			completedAt: new Date().toISOString(),
-		});
+		const timeout = setTimeout(() => {
+			onComplete({
+				interactionId,
+				interactionType: "timer",
+				data: { waited: true },
+				startedAt: startedAt ?? undefined,
+				completedAt: new Date().toISOString(),
+			});
+		}, 0);
+		return () => clearTimeout(timeout);
 	}
 });
 </script>

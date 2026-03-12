@@ -145,9 +145,9 @@ describe('TimerInteraction', () => {
 			await vi.advanceTimersByTimeAsync(1000);
 		}
 
-		// onComplete is called at least once (interval callback auto-completes;
-		// the $effect may also fire since test props don't update like a real parent)
-		expect(onComplete).toHaveBeenCalled();
+		// The interval callback auto-completes; the $effect re-emission is deferred
+		// via setTimeout so it won't fire synchronously in this test
+		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
 				interactionId: 'test-interaction-id',
