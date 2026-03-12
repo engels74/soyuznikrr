@@ -3,7 +3,7 @@
  * Timer Interaction Component
  *
  * Implements countdown with circular progress indicator.
- * Disables button until timer completes.
+ * Auto-completes when timer reaches zero.
  * Adds pulse animation on final 5 seconds.
  * Tracks startedAt timestamp for validation.
  */
@@ -64,9 +64,17 @@ onMount(() => {
 	intervalId = setInterval(() => {
 		if (remainingSeconds > 0) {
 			remainingSeconds--;
-		} else if (intervalId) {
-			clearInterval(intervalId);
-			intervalId = null;
+			if (remainingSeconds <= 0 && intervalId) {
+				clearInterval(intervalId);
+				intervalId = null;
+				onComplete({
+					interactionId,
+					interactionType: "timer",
+					data: { waited: true },
+					startedAt: startedAt ?? undefined,
+					completedAt: new Date().toISOString(),
+				});
+			}
 		}
 	}, 1000);
 
@@ -77,15 +85,19 @@ onMount(() => {
 	};
 });
 
-function handleComplete() {
-	onComplete({
-		interactionId,
-		interactionType: "timer",
-		data: { waited: true },
-		startedAt: startedAt ?? undefined,
-		completedAt: new Date().toISOString(),
-	});
-}
+// Re-emit completion if timer finished but completionData was cleared
+// (e.g., by another interaction's validation failure)
+$effect(() => {
+	if (remainingSeconds <= 0 && !disabled && !completionData && startedAt) {
+		onComplete({
+			interactionId,
+			interactionType: "timer",
+			data: { waited: true },
+			startedAt: startedAt ?? undefined,
+			completedAt: new Date().toISOString(),
+		});
+	}
+});
 </script>
 
 <div class="timer-interaction">
@@ -110,15 +122,15 @@ function handleComplete() {
 		</div>
 	</div>
 
-	<!-- Continue button -->
-	<button
-		type="button"
-		class="wizard-accent-btn continue-btn"
-		onclick={handleComplete}
-		disabled={!isComplete || disabled}
-	>
-		{isComplete ? 'Continue' : 'Please wait...'}
-	</button>
+	<!-- Completion status -->
+	{#if isComplete}
+		<div class="completion-status">
+			<svg viewBox="0 0 24 24" class="checkmark-icon" aria-hidden="true">
+				<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
+			</svg>
+			<span>Timer complete</span>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -246,13 +258,19 @@ function handleComplete() {
 		}
 	}
 
-	/* Continue button sizing */
-	.continue-btn {
-		min-width: 200px;
-		min-height: 44px;
-		padding: 1rem 2.5rem;
-		font-size: 1.0625rem;
-		border-radius: 0.625rem;
+	/* Completion status indicator */
+	.completion-status {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--wizard-success);
+		font-size: 0.9375rem;
+		font-weight: 500;
+	}
+
+	.checkmark-icon {
+		width: 1.25rem;
+		height: 1.25rem;
 	}
 </style>
 
