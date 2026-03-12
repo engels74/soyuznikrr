@@ -11,6 +11,7 @@ from uuid import UUID
 
 import msgspec
 import structlog
+from jwt.exceptions import InvalidSignatureError
 from litestar.connection import ASGIConnection
 from litestar.exceptions import NotAuthorizedException
 from litestar.middleware.authentication import (
@@ -169,6 +170,12 @@ class FixedJWTCookieMiddleware(JWTCookieAuthenticationMiddleware):
             )
         except NotAuthorizedException:
             raise
+        except InvalidSignatureError as exc:
+            logger.warning(
+                "jwt_signature_mismatch",
+                reason="JWT signature mismatch — likely stale cookie from previous server session",
+            )
+            raise NotAuthorizedException("Invalid or expired token") from exc
         except Exception as exc:
             logger.debug("jwt_token_invalid", reason=str(exc))
             raise NotAuthorizedException("Invalid or expired token") from exc
