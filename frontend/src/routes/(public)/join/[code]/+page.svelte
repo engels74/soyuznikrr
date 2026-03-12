@@ -164,6 +164,16 @@ $effect(() => {
 	}
 });
 
+// Scroll to top when flow phase changes
+$effect(() => {
+	// Track currentStep to trigger on phase changes
+	void currentStep;
+	if (browser) {
+		const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "instant" : "smooth" });
+	}
+});
+
 // Persist join flow state to session storage
 $effect(() => {
 	if (browser && data.code) {

@@ -208,6 +208,17 @@ $effect(() => {
 	}
 });
 
+// Scroll to top of wizard shell when step changes
+let shellElement = $state<HTMLElement | null>(null);
+$effect(() => {
+	// Track currentStepIndex to trigger on step changes
+	void currentStepIndex;
+	if (browser && shellElement) {
+		const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		shellElement.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
+	}
+});
+
 // Persist progress to sessionStorage (skip in preview mode)
 $effect(() => {
 	if (browser && wizard.id && mode !== "preview") {
@@ -386,7 +397,7 @@ async function handleInteractionValidate(
 }
 </script>
 
-<div class="wizard-shell">
+<div class="wizard-shell" bind:this={shellElement}>
 	<div class="wizard-container">
 		<!-- Progress indicator -->
 		<WizardProgress current={currentStepIndex + 1} total={wizard.steps.length} {progress} stepTitle={currentStep?.title} />
