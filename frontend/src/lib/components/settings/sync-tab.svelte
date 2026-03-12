@@ -49,7 +49,7 @@ function formatInterval(seconds: number): string {
 function handleSyncInput(e: Event) {
 	syncDisplay = (e.currentTarget as HTMLInputElement).value;
 	const n = Number(syncDisplay);
-	if (Number.isFinite(n) && n >= 60 && n <= 86400) syncNumeric = n;
+	if (Number.isFinite(n) && Number.isInteger(n) && n >= 60 && n <= 86400) syncNumeric = n;
 }
 
 function handleSyncBlur() {
@@ -59,7 +59,7 @@ function handleSyncBlur() {
 function handleExpInput(e: Event) {
 	expDisplay = (e.currentTarget as HTMLInputElement).value;
 	const n = Number(expDisplay);
-	if (Number.isFinite(n) && n >= 60 && n <= 86400) expNumeric = n;
+	if (Number.isFinite(n) && Number.isInteger(n) && n >= 60 && n <= 86400) expNumeric = n;
 }
 
 function handleExpBlur() {
@@ -67,7 +67,7 @@ function handleExpBlur() {
 }
 
 async function handleSyncSave() {
-	if (syncNumeric < 60 || syncNumeric > 86400) return;
+	if (!Number.isFinite(syncNumeric) || syncNumeric < 60 || syncNumeric > 86400) return;
 	savingSync = true;
 	try {
 		const result = await updateSyncInterval(syncNumeric);
@@ -82,7 +82,7 @@ async function handleSyncSave() {
 }
 
 async function handleExpSave() {
-	if (expNumeric < 60 || expNumeric > 86400) return;
+	if (!Number.isFinite(expNumeric) || expNumeric < 60 || expNumeric > 86400) return;
 	savingExp = true;
 	try {
 		const result = await updateExpirationInterval(expNumeric);

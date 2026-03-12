@@ -30,7 +30,9 @@ function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
 	displayValue = e.currentTarget.value;
 	const parsed = parseInt(displayValue, 10);
 	if (!Number.isNaN(parsed)) {
-		lastValidValue = parsed;
+		if (parsed >= MIN_DURATION && parsed <= MAX_DURATION) {
+			lastValidValue = parsed;
+		}
 		onConfigChange({ ...rawConfig, duration_seconds: parsed });
 	}
 }
