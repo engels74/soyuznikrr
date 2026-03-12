@@ -253,7 +253,8 @@ vite.config.ts.timestamp-*
 # dev_cli PID files
 .dev_cli/
 
-# Runtime bootstrap token artifact
+# Runtime data artifacts (bootstrap token, persisted secret key)
+backend/data/
 .bootstrap_token
 
 # Root package manager artifacts

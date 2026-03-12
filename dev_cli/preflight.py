@@ -68,7 +68,7 @@ def run_checks(
         _check_backend_reachable(backend_port)
 
     # SECRET_KEY
-    _ensure_secret_key()
+    _ensure_secret_key(repo_root)
 
     return ok
 
@@ -240,12 +240,31 @@ def _check_backend_reachable(port: int, /) -> None:
             )
 
 
-def _ensure_secret_key() -> None:
+def _ensure_secret_key(repo_root: Path, /) -> None:
     if os.environ.get("SECRET_KEY"):
         return
-    generated = secrets.token_hex(32)
+
+    key_file = repo_root / "backend" / "data" / ".secret_key"
+
+    # Load persisted key if it exists
+    if key_file.is_file():
+        stored = key_file.read_text().strip()
+        if stored:
+            os.environ["SECRET_KEY"] = stored
+            print_info(f"SECRET_KEY loaded from {key_file.relative_to(repo_root)}")
+            return
+
+    # Generate new key and persist it
+    generated = secrets.token_urlsafe(48)
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(key_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        os.write(fd, generated.encode())
+    finally:
+        os.close(fd)
     os.environ["SECRET_KEY"] = generated
-    print_info(f"SECRET_KEY not set — generated ephemeral key: {generated[:8]}...")
+    print_info(f"SECRET_KEY not set — generated and saved to {key_file.relative_to(repo_root)}")
 
 
 def _load_dotenv(repo_root: Path, /) -> None:
