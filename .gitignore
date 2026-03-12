@@ -255,6 +255,7 @@ vite.config.ts.timestamp-*
 
 # Runtime data artifacts (bootstrap token, persisted secret key)
 backend/data/
+.bootstrap_token
 
 # Root package manager artifacts
 /bun.lock

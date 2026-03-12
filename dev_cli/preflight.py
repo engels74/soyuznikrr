@@ -257,7 +257,12 @@ def _ensure_secret_key(repo_root: Path, /) -> None:
     # Generate new key and persist it
     generated = secrets.token_urlsafe(48)
     key_file.parent.mkdir(parents=True, exist_ok=True)
-    key_file.write_text(generated)
+    fd = os.open(str(key_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        os.write(fd, generated.encode())
+    finally:
+        os.close(fd)
     os.environ["SECRET_KEY"] = generated
     print_info(f"SECRET_KEY not set — generated and saved to {key_file.relative_to(repo_root)}")
 
