@@ -8,7 +8,20 @@
  */
 
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import { type MarkedExtension, marked } from 'marked';
+
+/** Custom renderer that forces links to open in new tabs. */
+const newTabLinks: MarkedExtension = {
+	renderer: {
+		link({ href, title, tokens }) {
+			const text = this.parser.parseInline(tokens);
+			const titleAttr = title ? ` title="${title}"` : '';
+			return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+		}
+	}
+};
+
+marked.use(newTabLinks);
 
 export const ALLOWED_TAGS = [
 	'h1',
