@@ -113,16 +113,15 @@ describe('TimerInteraction', () => {
 		expect(screen.getByText('0:10')).toBeInTheDocument();
 	});
 
-	it('should have disabled button while timer is counting down', () => {
+	it('should not show completion status while timer is counting down', () => {
 		const props = createInteractionProps({ duration_seconds: 10 });
 
 		render(TimerInteraction, { props });
 
-		const button = screen.getByRole('button', { name: 'Please wait...' });
-		expect(button).toBeDisabled();
+		expect(screen.queryByText('Timer complete')).not.toBeInTheDocument();
 	});
 
-	it('should enable button when timer completes', async () => {
+	it('should show completion status when timer completes', async () => {
 		const props = createInteractionProps({ duration_seconds: 3 });
 
 		render(TimerInteraction, { props });
@@ -132,11 +131,10 @@ describe('TimerInteraction', () => {
 			await vi.advanceTimersByTimeAsync(1000);
 		}
 
-		const button = screen.getByRole('button', { name: 'Continue' });
-		expect(button).not.toBeDisabled();
+		expect(screen.getByText('Timer complete')).toBeInTheDocument();
 	});
 
-	it('should call onComplete with waited data when button clicked after timer', async () => {
+	it('should auto-call onComplete when timer reaches zero', async () => {
 		const onComplete = vi.fn();
 		const props = createInteractionProps({ duration_seconds: 2 }, { onComplete });
 
@@ -147,9 +145,8 @@ describe('TimerInteraction', () => {
 			await vi.advanceTimersByTimeAsync(1000);
 		}
 
-		const button = screen.getByRole('button', { name: 'Continue' });
-		await fireEvent.click(button);
-
+		// The interval callback auto-completes; the $effect re-emission is deferred
+		// via setTimeout so it won't fire synchronously in this test
 		expect(onComplete).toHaveBeenCalledTimes(1);
 		expect(onComplete).toHaveBeenCalledWith(
 			expect.objectContaining({
