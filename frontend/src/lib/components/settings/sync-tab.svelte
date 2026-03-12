@@ -20,16 +20,21 @@ interface Props {
 let { syncInterval, expirationInterval }: Props = $props();
 
 // svelte-ignore state_referenced_locally — intentionally captures initial values for editing
-let syncValue = $state(Number(syncInterval.value ?? '900'));
+let syncNumeric = $state(Number(syncInterval.value ?? '900'));
 // svelte-ignore state_referenced_locally
-let expValue = $state(Number(expirationInterval.value ?? '3600'));
+let expNumeric = $state(Number(expirationInterval.value ?? '3600'));
+// svelte-ignore state_referenced_locally
+let syncDisplay = $state(String(syncNumeric));
+// svelte-ignore state_referenced_locally
+let expDisplay = $state(String(expNumeric));
 let savingSync = $state(false);
 let savingExp = $state(false);
 
-const syncPreview = $derived(formatInterval(syncValue));
-const expPreview = $derived(formatInterval(expValue));
+const syncPreview = $derived(formatInterval(syncNumeric));
+const expPreview = $derived(formatInterval(expNumeric));
 
 function formatInterval(seconds: number): string {
+	if (!Number.isFinite(seconds)) return '—';
 	if (seconds < 60) return `${seconds} seconds`;
 	if (seconds < 3600) {
 		const mins = Math.floor(seconds / 60);
@@ -41,11 +46,31 @@ function formatInterval(seconds: number): string {
 	return `${hours}h ${mins}m`;
 }
 
+function handleSyncInput(e: Event) {
+	syncDisplay = (e.currentTarget as HTMLInputElement).value;
+	const n = Number(syncDisplay);
+	if (Number.isFinite(n) && n >= 60 && n <= 86400) syncNumeric = n;
+}
+
+function handleSyncBlur() {
+	syncDisplay = String(syncNumeric);
+}
+
+function handleExpInput(e: Event) {
+	expDisplay = (e.currentTarget as HTMLInputElement).value;
+	const n = Number(expDisplay);
+	if (Number.isFinite(n) && n >= 60 && n <= 86400) expNumeric = n;
+}
+
+function handleExpBlur() {
+	expDisplay = String(expNumeric);
+}
+
 async function handleSyncSave() {
-	if (syncValue < 60 || syncValue > 86400) return;
+	if (syncNumeric < 60 || syncNumeric > 86400) return;
 	savingSync = true;
 	try {
-		const result = await updateSyncInterval(syncValue);
+		const result = await updateSyncInterval(syncNumeric);
 		if (result.error) {
 			showApiError(result.error);
 		} else {
@@ -57,10 +82,10 @@ async function handleSyncSave() {
 }
 
 async function handleExpSave() {
-	if (expValue < 60 || expValue > 86400) return;
+	if (expNumeric < 60 || expNumeric > 86400) return;
 	savingExp = true;
 	try {
-		const result = await updateExpirationInterval(expValue);
+		const result = await updateExpirationInterval(expNumeric);
 		if (result.error) {
 			showApiError(result.error);
 		} else {
@@ -99,7 +124,9 @@ async function handleExpSave() {
 						type="number"
 						min={60}
 						max={86400}
-						bind:value={syncValue}
+						value={syncDisplay}
+						oninput={handleSyncInput}
+						onblur={handleSyncBlur}
 						disabled={syncInterval.is_locked}
 					/>
 					<p class="text-sm text-muted-foreground">
@@ -139,7 +166,9 @@ async function handleExpSave() {
 						type="number"
 						min={60}
 						max={86400}
-						bind:value={expValue}
+						value={expDisplay}
+						oninput={handleExpInput}
+						onblur={handleExpBlur}
 						disabled={expirationInterval.is_locked}
 					/>
 					<p class="text-sm text-muted-foreground">
