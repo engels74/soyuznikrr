@@ -31,6 +31,7 @@ describe('renderMarkdown', () => {
 			expect(anchor.getAttribute('target')).toBe('_blank');
 			expect(anchor.getAttribute('rel')).toBe('noopener noreferrer');
 			expect(anchor.getAttribute('href')).toBe('https://example.com');
+			expect(anchor.getAttribute('title')).toBe('A title');
 		});
 
 		it('should add target="_blank" to multiple links', () => {

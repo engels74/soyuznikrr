@@ -46,7 +46,16 @@ export const ALLOWED_TAGS = [
 	'hr'
 ] as const;
 
-export const ALLOWED_ATTR = ['href', 'target', 'rel', 'src', 'alt', 'width', 'height'] as const;
+export const ALLOWED_ATTR = [
+	'href',
+	'target',
+	'rel',
+	'src',
+	'alt',
+	'width',
+	'height',
+	'title'
+] as const;
 
 /**
  * Render markdown to sanitized HTML.
