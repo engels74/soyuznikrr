@@ -21,13 +21,18 @@ import structlog
 from litestar import Controller, Response, get, post
 from litestar.datastructures import State
 from litestar.params import Parameter
-from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from litestar.status_codes import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_502_BAD_GATEWAY,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.api.schemas import ErrorResponse, OAuthCheckResponse, OAuthPinResponse
 from zondarr.config import Settings
 from zondarr.core.exceptions import NotFoundError
 from zondarr.media.exceptions import UnknownServerTypeError
+from zondarr.media.providers.plex.oauth_service import PlexOAuthError
 from zondarr.media.registry import registry
 from zondarr.services.oauth_session import OAuthSessionStore
 
@@ -90,7 +95,7 @@ class OAuthController(Controller):
         settings: Settings,
         state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
-    ) -> OAuthPinResponse:
+    ) -> OAuthPinResponse | Response[ErrorResponse]:
         """Generate OAuth PIN and return auth URL with opaque handle.
 
         Args:
@@ -105,6 +110,21 @@ class OAuthController(Controller):
         flow = _resolve_flow(provider, settings)
         try:
             pin = await flow.create_pin()
+        except PlexOAuthError as exc:
+            logger.warning(
+                "oauth_create_pin_external_failure",
+                provider=provider,
+                operation=exc.operation,
+                error=exc.message,
+            )
+            return Response(
+                ErrorResponse(
+                    detail=f"External service unavailable: {provider}",
+                    error_code="EXTERNAL_SERVICE_ERROR",
+                    timestamp=datetime.now(UTC),
+                ),
+                status_code=HTTP_502_BAD_GATEWAY,
+            )
         finally:
             await flow.close()
 
@@ -142,7 +162,7 @@ class OAuthController(Controller):
         state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
-    ) -> OAuthCheckResponse:
+    ) -> OAuthCheckResponse | Response[ErrorResponse]:
         """Check if PIN has been authenticated.
 
         Uses short-lived database sessions to avoid holding SQLite's write lock
@@ -190,6 +210,22 @@ class OAuthController(Controller):
         flow = _resolve_flow(provider, settings)
         try:
             result = await flow.check_pin(pin_id)
+        except PlexOAuthError as exc:
+            logger.warning(
+                "oauth_check_pin_external_failure",
+                provider=provider,
+                handle_prefix=handle[:8],
+                operation=exc.operation,
+                error=exc.message,
+            )
+            return Response(
+                ErrorResponse(
+                    detail=f"External service unavailable: {provider}",
+                    error_code="EXTERNAL_SERVICE_ERROR",
+                    timestamp=datetime.now(UTC),
+                ),
+                status_code=HTTP_502_BAD_GATEWAY,
+            )
         finally:
             await flow.close()
 
