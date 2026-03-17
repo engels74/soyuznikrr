@@ -165,17 +165,12 @@ class UserService:
             if existing is None:
                 continue
 
-            # Preserve invitation-linked users unless we know they're stale.
-            # When current_invitation_id is None (no redemption context),
-            # preserve ALL invitation-linked users (safe default).
-            # When provided, only skip if the invitation matches (same
-            # transaction — don't clean up our own work).
-            if existing.invitation_id is not None:
-                if (
-                    current_invitation_id is None
-                    or existing.invitation_id == current_invitation_id
-                ):
-                    continue
+            # Preserve invitation-linked users only when there's no redemption context.
+            # When current_invitation_id is None, preserve ALL invitation-linked users
+            # (safe default). When provided, we're in a redemption flow and should
+            # clean up stale users regardless of which invitation created them.
+            if existing.invitation_id is not None and current_invitation_id is None:
+                continue
 
             identity_id = existing.identity_id
 
