@@ -230,11 +230,13 @@ class RedemptionService:
                         library_ids=server_library_ids,
                     )
                     created_external_users.append((server, external_user))
+                    # Use resolved credentials from the client (decrypted /
+                    # env-overridden) so rollback never sees encrypted keys.
                     rollback_data.append(
                         (
                             server.server_type,
-                            server.url,
-                            server.api_key,
+                            client.url,  # pyright: ignore[reportAttributeAccessIssue]
+                            client.api_key,  # pyright: ignore[reportAttributeAccessIssue]
                             server.name,
                             external_user.external_user_id,
                         )
@@ -302,18 +304,21 @@ class RedemptionService:
             # Already a RedemptionError (e.g. from reservation) — just re-raise
             raise
         except RepositoryError as e:
+            log.warning(  # pyright: ignore[reportAny]
+                "Repository error during redemption, rolling back",
+                error=str(e),
+                created_count=len(rollback_data),
+            )
+            await self._rollback_users(rollback_data)
             if isinstance(e.original, IntegrityError):
-                log.warning(  # pyright: ignore[reportAny]
-                    "Duplicate account detected during redemption",
-                    error=str(e),
-                    created_count=len(rollback_data),
-                )
-                await self._rollback_users(rollback_data)
                 raise RedemptionError(
                     "This account is already linked to this media server",
                     redemption_error_code="ACCOUNT_ALREADY_LINKED",
                 ) from e
-            raise
+            raise RedemptionError(
+                f"Redemption failed: {e}",
+                redemption_error_code="SERVER_ERROR",
+            ) from e
         except Exception as e:
             log.error(  # pyright: ignore[reportAny]
                 "Unexpected error during redemption, rolling back",

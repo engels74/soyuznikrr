@@ -149,10 +149,11 @@ class UserService:
         Args:
             external_users: Sequence of (MediaServer, ExternalUser) tuples
                 to check against.
-            current_invitation_id: The invitation ID being redeemed. If the
-                existing user's invitation_id matches this, skip cleanup
-                (same transaction). If it differs, clean up (stale from a
-                previous invitation cycle).
+            current_invitation_id: The invitation ID being redeemed. When
+                None (no redemption context), preserve all existing users
+                that have an invitation_id (safe default). When provided,
+                clean up stale users regardless of which invitation
+                created them.
 
         Returns:
             Count of local User records cleaned up.
