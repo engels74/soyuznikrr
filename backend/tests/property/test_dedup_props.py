@@ -18,6 +18,7 @@ from hypothesis import strategies as st
 from tests.conftest import TestDB
 from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ExternalUser
+from zondarr.models import Invitation
 from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
@@ -521,3 +522,94 @@ class TestSyncSkipsAlreadyImportedUsers:
             all_users = await user_repo.get_by_server(server.id)
             ext_ids = [u.external_user_id for u in all_users]
             assert ext_ids.count(ext_id) == 1
+
+
+# =============================================================================
+# Dedup: Same-invitation retry cleanup
+# =============================================================================
+
+
+class TestSameInvitationRetryCleanup:
+    """Cleanup removes stale users even when invitation_id matches current_invitation_id.
+
+    This covers the retry scenario: a user redeems the same invitation code
+    again (e.g. after a partial failure). The first redemption created a User
+    with invitation_id=X. The second redemption passes current_invitation_id=X.
+    The cleanup should still delete the stale user so the new one can be created.
+    """
+
+    @given(
+        ext_id=external_id_strategy,
+        username=username_strategy,
+    )
+    @pytest.mark.asyncio
+    async def test_cleanup_removes_user_with_same_invitation_id(
+        self,
+        db: TestDB,
+        ext_id: str,
+        username: str,
+    ) -> None:
+        """cleanup_stale_local_users deletes a User even when invitation_id matches."""
+        await db.clean()
+        async with db.session_factory() as session:
+            # Create server
+            server = MediaServer()
+            server.name = "Test Server"
+            server.server_type = "plex"
+            server.url = "http://localhost:32400"
+            server.api_key = "test-key"
+            server.enabled = True
+            session.add(server)
+            await session.flush()
+
+            # Create invitation
+            invitation = Invitation(
+                code="RETRY123",
+                enabled=True,
+                expires_at=None,
+                max_uses=100,
+                use_count=1,
+            )
+            invitation.target_servers = [server]
+            session.add(invitation)
+            await session.flush()
+
+            # Create identity + user from first redemption (has invitation_id set)
+            identity = Identity()
+            identity.display_name = username
+            identity.enabled = True
+            session.add(identity)
+            await session.flush()
+
+            user = User()
+            user.identity_id = identity.id
+            user.media_server_id = server.id
+            user.external_user_id = ext_id
+            user.username = username
+            user.invitation_id = invitation.id  # Linked to the same invitation
+            user.enabled = True
+            session.add(user)
+            await session.commit()
+
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            external_user = ExternalUser(
+                external_user_id=ext_id,
+                username=username,
+                email=None,
+            )
+
+            # Pass current_invitation_id equal to the existing user's invitation_id
+            cleaned = await user_service.cleanup_stale_local_users(
+                [(server, external_user)],
+                current_invitation_id=invitation.id,
+            )
+            await session.commit()
+
+            assert cleaned == 1
+
+            # Verify user is gone
+            remaining = await user_repo.get_by_external_and_server(ext_id, server.id)
+            assert remaining is None

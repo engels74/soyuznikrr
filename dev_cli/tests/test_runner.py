@@ -16,7 +16,7 @@ def _build_runner(*, repo_root: Path, reload: bool) -> DevRunner:
         frontend_only=False,
         reload=reload,
     )
-    runner._build_servers()
+    runner._build_servers()  # pyright: ignore[reportPrivateUsage]  # testing internal method
     return runner
 
 

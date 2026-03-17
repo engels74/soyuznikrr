@@ -1315,6 +1315,28 @@ class TestRollbackOnFailure:
             side_effect=create_client_side_effect
         )
 
+        def create_client_for_rollback(
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
+        ) -> AsyncMock:
+            _ = url, api_key, apply_settings
+            mock_client = AsyncMock()
+
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
+
+            mock_client.delete_user = mock_delete_user
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_for_rollback)
+
         # Execute redemption - should fail
         async with session_factory() as session:
             invitation_repo = InvitationRepository(session)
@@ -1917,6 +1939,28 @@ class TestPlexRedemptionRollbackOnFailure:
             side_effect=create_client_side_effect
         )
 
+        def create_client_for_rollback(
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
+        ) -> AsyncMock:
+            _ = url, api_key, apply_settings
+            mock_client = AsyncMock()
+
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
+
+            mock_client.delete_user = mock_delete_user
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_for_rollback)
+
         # Execute redemption - should fail on Plex server
         async with session_factory() as session:
             invitation_repo = InvitationRepository(session)
@@ -2255,6 +2299,28 @@ class TestPlexRedemptionRollbackOnFailure:
             side_effect=create_client_side_effect
         )
 
+        def create_client_for_rollback(
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
+        ) -> AsyncMock:
+            _ = url, api_key, apply_settings
+            mock_client = AsyncMock()
+
+            async def mock_delete_user(ext_user_id: str, /) -> bool:
+                deleted_user_ids.append(ext_user_id)
+                return True
+
+            mock_client.delete_user = mock_delete_user
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            return mock_client
+
+        mock_registry.create_client = MagicMock(side_effect=create_client_for_rollback)
+
         # Execute redemption - should fail on third server
         async with session_factory() as session:
             invitation_repo = InvitationRepository(session)
@@ -2460,3 +2526,182 @@ class TestAtomicReservation:
             await sess.commit()
 
         assert result is False
+
+
+# =============================================================================
+# Rollback with Plain Data
+# =============================================================================
+
+
+class TestRollbackWithPlainData:
+    """Rollback uses plain data (not SQLAlchemy objects) for client creation.
+
+    The _rollback_users method receives tuples of (server_type, url, api_key,
+    server_name, external_user_id) as plain strings. It calls
+    registry.create_client(server_type, url=url, api_key=api_key) instead of
+    create_client_for_server(server_obj).
+    """
+
+    @pytest.mark.asyncio
+    async def test_rollback_calls_create_client_with_plain_data(
+        self,
+        db: TestDB,
+    ) -> None:
+        """_rollback_users calls registry.create_client with raw string args."""
+        await db.clean()
+        session_factory = db.session_factory
+
+        servers = await create_media_servers(session_factory, 1)
+
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        # Track what create_client receives
+        create_client_calls: list[tuple[str, str, str]] = []
+        deleted_user_ids: list[str] = []
+
+        mock_rollback_client = AsyncMock()
+
+        def _track_delete(uid: str) -> bool:
+            deleted_user_ids.append(uid)
+            return True
+
+        mock_rollback_client.delete_user = AsyncMock(side_effect=_track_delete)
+        mock_rollback_client.__aenter__ = AsyncMock(return_value=mock_rollback_client)
+        mock_rollback_client.__aexit__ = AsyncMock(return_value=None)
+
+        def mock_create_client(
+            server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
+        ) -> AsyncMock:
+            _ = apply_settings
+            create_client_calls.append((server_type, url, api_key))
+            return mock_rollback_client
+
+        mock_registry.create_client = MagicMock(side_effect=mock_create_client)
+
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            rollback_data: list[tuple[str, str, str, str, str]] = [
+                (
+                    servers[0].server_type,
+                    servers[0].url,
+                    servers[0].api_key,
+                    servers[0].name,
+                    "ext-user-id-123",
+                ),
+            ]
+
+            with patch("zondarr.services.redemption.registry", mock_registry):
+                await redemption_service._rollback_users(rollback_data)  # pyright: ignore[reportPrivateUsage]
+
+        # Verify create_client was called with plain string args
+        assert len(create_client_calls) == 1
+        server_type, url, api_key = create_client_calls[0]
+        assert server_type == servers[0].server_type
+        assert url == servers[0].url
+        assert api_key == servers[0].api_key
+
+        # Verify delete_user was called with the external_user_id
+        assert deleted_user_ids == ["ext-user-id-123"]
+
+
+# =============================================================================
+# RepositoryError wrapping IntegrityError → ACCOUNT_ALREADY_LINKED
+# =============================================================================
+
+
+class TestRepositoryErrorWithIntegrityError:
+    """RepositoryError wrapping an IntegrityError during create_identity_with_users
+    is caught and re-raised as RedemptionError with ACCOUNT_ALREADY_LINKED.
+    """
+
+    @given(
+        code=code_strategy,
+        username=username_strategy,
+        password=password_strategy,
+    )
+    @settings(max_examples=10, deadline=None)
+    @pytest.mark.asyncio
+    async def test_integrity_error_raises_account_already_linked(
+        self,
+        db: TestDB,
+        code: str,
+        username: str,
+        password: str,
+    ) -> None:
+        """RepositoryError(original=IntegrityError) → ACCOUNT_ALREADY_LINKED."""
+        from sqlalchemy.exc import IntegrityError
+
+        from zondarr.core.exceptions import RedemptionError, RepositoryError
+
+        await db.clean()
+        session_factory = db.session_factory
+
+        servers = await create_media_servers(session_factory, 1)
+        _invitation = await create_invitation_with_servers(
+            session_factory, code, servers
+        )
+
+        mock_registry = MagicMock(spec=ClientRegistry)
+
+        def create_client_side_effect(server: MediaServer, /) -> AsyncMock:
+            del server
+            return create_mock_client(str(uuid4()), username, None)
+
+        mock_registry.create_client_for_server = MagicMock(
+            side_effect=create_client_side_effect
+        )
+
+        # Also mock create_client for rollback
+        mock_rollback_client = AsyncMock()
+        mock_rollback_client.delete_user = AsyncMock(return_value=True)
+        mock_rollback_client.__aenter__ = AsyncMock(return_value=mock_rollback_client)
+        mock_rollback_client.__aexit__ = AsyncMock(return_value=None)
+        mock_registry.create_client = MagicMock(return_value=mock_rollback_client)
+
+        async with session_factory() as session:
+            invitation_repo = InvitationRepository(session)
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+
+            invitation_service = InvitationService(invitation_repo)
+            user_service = UserService(user_repo, identity_repo)
+            redemption_service = RedemptionService(invitation_service, user_service)
+
+            # Make create_identity_with_users raise RepositoryError wrapping IntegrityError
+            integrity_error = IntegrityError(
+                "UNIQUE constraint failed", params=None, orig=Exception()
+            )
+            repo_error = RepositoryError(
+                "Duplicate record",
+                operation="create",
+                original=integrity_error,
+            )
+
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch.object(
+                    user_service,
+                    "create_identity_with_users",
+                    side_effect=repo_error,
+                ),
+                pytest.raises(RedemptionError) as exc_info,
+            ):
+                _ = await redemption_service.redeem(
+                    code,
+                    username=username,
+                    password=password,
+                )
+
+            assert exc_info.value.redemption_error_code == "ACCOUNT_ALREADY_LINKED"

@@ -149,10 +149,11 @@ class UserService:
         Args:
             external_users: Sequence of (MediaServer, ExternalUser) tuples
                 to check against.
-            current_invitation_id: The invitation ID being redeemed. If the
-                existing user's invitation_id matches this, skip cleanup
-                (same transaction). If it differs, clean up (stale from a
-                previous invitation cycle).
+            current_invitation_id: The invitation ID being redeemed. When
+                None (no redemption context), preserve all existing users
+                that have an invitation_id (safe default). When provided,
+                clean up stale users regardless of which invitation
+                created them.
 
         Returns:
             Count of local User records cleaned up.
@@ -165,17 +166,12 @@ class UserService:
             if existing is None:
                 continue
 
-            # Preserve invitation-linked users unless we know they're stale.
-            # When current_invitation_id is None (no redemption context),
-            # preserve ALL invitation-linked users (safe default).
-            # When provided, only skip if the invitation matches (same
-            # transaction — don't clean up our own work).
-            if existing.invitation_id is not None:
-                if (
-                    current_invitation_id is None
-                    or existing.invitation_id == current_invitation_id
-                ):
-                    continue
+            # Preserve invitation-linked users only when there's no redemption context.
+            # When current_invitation_id is None, preserve ALL invitation-linked users
+            # (safe default). When provided, we're in a redemption flow and should
+            # clean up stale users regardless of which invitation created them.
+            if existing.invitation_id is not None and current_invitation_id is None:
+                continue
 
             identity_id = existing.identity_id
 

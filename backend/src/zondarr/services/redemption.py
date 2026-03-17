@@ -34,7 +34,7 @@ from datetime import UTC, datetime, timedelta
 import structlog
 from sqlalchemy.exc import IntegrityError
 
-from zondarr.core.exceptions import RedemptionError
+from zondarr.core.exceptions import RedemptionError, RepositoryError
 from zondarr.core.wizard_token import verify_wizard_completion
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.provider import JoinFlowType
@@ -200,6 +200,8 @@ class RedemptionService:
 
         # Step 3: Create users on each target server
         created_external_users: list[tuple[MediaServer, ExternalUser]] = []
+        # Plain data for rollback — avoids accessing expired SQLAlchemy objects
+        rollback_data: list[tuple[str, str, str, str, str]] = []
         # Collect data for background library sharing / permission tasks
         deferred_tasks: list[tuple[MediaServer, ExternalUser, list[str] | None]] = []
 
@@ -228,6 +230,17 @@ class RedemptionService:
                         library_ids=server_library_ids,
                     )
                     created_external_users.append((server, external_user))
+                    # Use resolved credentials from the client (decrypted /
+                    # env-overridden) so rollback never sees encrypted keys.
+                    rollback_data.append(
+                        (
+                            server.server_type,
+                            client.url,
+                            client.api_key,
+                            server.name,
+                            external_user.external_user_id,
+                        )
+                    )
 
                     log.info(  # pyright: ignore[reportAny]
                         "Created user on media server",
@@ -273,9 +286,9 @@ class RedemptionService:
             log.warning(  # pyright: ignore[reportAny]
                 "Redemption failed, rolling back created users",
                 error=str(e),
-                created_count=len(created_external_users),
+                created_count=len(rollback_data),
             )
-            await self._rollback_users(created_external_users)
+            await self._rollback_users(rollback_data)
 
             error_code = (
                 "USERNAME_TAKEN"
@@ -290,24 +303,30 @@ class RedemptionService:
         except RedemptionError:
             # Already a RedemptionError (e.g. from reservation) — just re-raise
             raise
-        except IntegrityError as e:
+        except RepositoryError as e:
             log.warning(  # pyright: ignore[reportAny]
-                "Duplicate account detected during redemption",
+                "Repository error during redemption, rolling back",
                 error=str(e),
-                created_count=len(created_external_users),
+                created_count=len(rollback_data),
             )
-            await self._rollback_users(created_external_users)
+            await self._rollback_users(rollback_data)
+            if isinstance(e.original, IntegrityError):
+                error_msg, error_code = self._classify_integrity_error(e.original)
+                raise RedemptionError(
+                    error_msg,
+                    redemption_error_code=error_code,
+                ) from e
             raise RedemptionError(
-                "This account is already linked to this media server",
-                redemption_error_code="ACCOUNT_ALREADY_LINKED",
+                f"Redemption failed: {e}",
+                redemption_error_code="SERVER_ERROR",
             ) from e
         except Exception as e:
             log.error(  # pyright: ignore[reportAny]
                 "Unexpected error during redemption, rolling back",
                 error=str(e),
-                created_count=len(created_external_users),
+                created_count=len(rollback_data),
             )
-            await self._rollback_users(created_external_users)
+            await self._rollback_users(rollback_data)
             raise RedemptionError(
                 f"Redemption failed: {e}",
                 redemption_error_code="SERVER_ERROR",
@@ -402,7 +421,7 @@ class RedemptionService:
 
     async def _rollback_users(
         self,
-        created_users: list[tuple[MediaServer, ExternalUser]],
+        rollback_data: list[tuple[str, str, str, str, str]],
     ) -> None:
         """Delete users created during a failed redemption.
 
@@ -411,33 +430,66 @@ class RedemptionService:
         deletions fail.
 
         Args:
-            created_users: List of (MediaServer, ExternalUser) tuples to delete.
+            rollback_data: List of (server_type, url, api_key, server_name,
+                external_user_id) tuples — plain data safe to use after
+                SQLAlchemy session rollback.
         """
-        for server, external_user in created_users:
+        for server_type, url, api_key, server_name, external_user_id in rollback_data:
             try:
-                client = registry.create_client_for_server(server)
+                client = registry.create_client(
+                    server_type, url=url, api_key=api_key, apply_settings=True
+                )
                 async with client:
-                    deleted = await client.delete_user(external_user.external_user_id)
+                    deleted = await client.delete_user(external_user_id)
                     if deleted:
                         log.info(  # pyright: ignore[reportAny]
                             "Rolled back user creation",
-                            server_name=server.name,
-                            external_user_id=external_user.external_user_id,
+                            server_name=server_name,
+                            external_user_id=external_user_id,
                         )
                     else:
                         log.warning(  # pyright: ignore[reportAny]
                             "User not found during rollback",
-                            server_name=server.name,
-                            external_user_id=external_user.external_user_id,
+                            server_name=server_name,
+                            external_user_id=external_user_id,
                         )
             except Exception as e:
                 # Log but don't raise - best effort cleanup
                 log.error(  # pyright: ignore[reportAny]
                     "Failed to rollback user creation",
-                    server_name=server.name,
-                    external_user_id=external_user.external_user_id,
+                    server_name=server_name,
+                    external_user_id=external_user_id,
                     error=str(e),
                 )
+
+    @staticmethod
+    def _classify_integrity_error(exc: IntegrityError) -> tuple[str, str]:
+        """Classify an IntegrityError by inspecting the constraint name.
+
+        Disambiguates between different unique constraint violations on the
+        User model so the correct error code is returned to the client.
+
+        Args:
+            exc: The SQLAlchemy IntegrityError to classify.
+
+        Returns:
+            A (message, error_code) tuple.
+        """
+        detail = str(exc).lower()
+        if "uq_users_username_server" in detail:
+            return (
+                "Username is already taken on this media server",
+                "USERNAME_TAKEN",
+            )
+        if "uq_users_external_user_server" in detail:
+            return (
+                "This account is already linked to this media server",
+                "ACCOUNT_ALREADY_LINKED",
+            )
+        return (
+            "This account is already linked to this media server",
+            "ACCOUNT_ALREADY_LINKED",
+        )
 
     def _failure_message(self, failure: InvitationValidationFailure | None) -> str:
         """Convert failure enum to user-friendly message.
