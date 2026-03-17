@@ -2545,9 +2545,12 @@ class TestRollbackWithPlainData:
         deleted_user_ids: list[str] = []
 
         mock_rollback_client = AsyncMock()
-        mock_rollback_client.delete_user = AsyncMock(
-            side_effect=lambda uid: deleted_user_ids.append(uid) or True
-        )
+
+        def _track_delete(uid: str) -> bool:
+            deleted_user_ids.append(uid)
+            return True
+
+        mock_rollback_client.delete_user = AsyncMock(side_effect=_track_delete)
         mock_rollback_client.__aenter__ = AsyncMock(return_value=mock_rollback_client)
         mock_rollback_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -2579,7 +2582,7 @@ class TestRollbackWithPlainData:
             ]
 
             with patch("zondarr.services.redemption.registry", mock_registry):
-                await redemption_service._rollback_users(rollback_data)
+                await redemption_service._rollback_users(rollback_data)  # pyright: ignore[reportPrivateUsage]
 
         # Verify create_client was called with plain string args
         assert len(create_client_calls) == 1
@@ -2674,7 +2677,7 @@ class TestRepositoryErrorWithIntegrityError:
                 ),
                 pytest.raises(RedemptionError) as exc_info,
             ):
-                await redemption_service.redeem(
+                _ = await redemption_service.redeem(
                     code,
                     username=username,
                     password=password,
