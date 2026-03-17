@@ -235,8 +235,8 @@ class RedemptionService:
                     rollback_data.append(
                         (
                             server.server_type,
-                            client.url,  # pyright: ignore[reportAttributeAccessIssue]
-                            client.api_key,  # pyright: ignore[reportAttributeAccessIssue]
+                            client.url,
+                            client.api_key,
                             server.name,
                             external_user.external_user_id,
                         )

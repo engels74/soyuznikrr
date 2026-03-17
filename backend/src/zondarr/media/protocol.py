@@ -44,6 +44,9 @@ class MediaClient(Protocol):
                 await c.set_library_access(user.external_user_id, [lib.external_id for lib in libraries])
     """
 
+    url: str
+    api_key: str
+
     @classmethod
     def capabilities(cls) -> set[Capability]:
         """Return the set of capabilities this client supports.
