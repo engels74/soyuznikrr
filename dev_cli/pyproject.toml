@@ -1,0 +1,5 @@
+[tool.basedpyright]
+typeCheckingMode = "recommended"
+pythonVersion = "3.14"
+pythonPlatform = "All"
+extraPaths = [".."]

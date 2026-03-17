@@ -260,7 +260,7 @@ def _ensure_secret_key(repo_root: Path, /) -> None:
     fd = os.open(str(key_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
         os.fchmod(fd, 0o600)
-        os.write(fd, generated.encode())
+        _ = os.write(fd, generated.encode())
     finally:
         os.close(fd)
     os.environ["SECRET_KEY"] = generated

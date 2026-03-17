@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from dev_cli.preflight import _ensure_secret_key
+from dev_cli.preflight import _ensure_secret_key as _ensure_secret_key  # pyright: ignore[reportPrivateUsage]  # testing private function
 
 
 def test_generates_and_persists_key_when_missing() -> None:
@@ -28,7 +28,7 @@ def test_loads_persisted_key_on_subsequent_run() -> None:
         repo = Path(tmp)
         key_file = repo / "backend" / "data" / ".secret_key"
         key_file.parent.mkdir(parents=True)
-        key_file.write_text("persisted-secret-value")
+        _ = key_file.write_text("persisted-secret-value")
 
         with patch.dict(os.environ, {}, clear=True):
             _ensure_secret_key(repo)
@@ -66,7 +66,7 @@ def test_skips_empty_key_file() -> None:
         repo = Path(tmp)
         key_file = repo / "backend" / "data" / ".secret_key"
         key_file.parent.mkdir(parents=True)
-        key_file.write_text("")
+        _ = key_file.write_text("")
 
         with patch.dict(os.environ, {}, clear=True):
             _ensure_secret_key(repo)
