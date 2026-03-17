@@ -1316,9 +1316,14 @@ class TestRollbackOnFailure:
         )
 
         def create_client_for_rollback(
-            _server_type: str, /, *, url: str, api_key: str
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
         ) -> AsyncMock:
-            _ = url, api_key
+            _ = url, api_key, apply_settings
             mock_client = AsyncMock()
 
             async def mock_delete_user(ext_user_id: str, /) -> bool:
@@ -1935,9 +1940,14 @@ class TestPlexRedemptionRollbackOnFailure:
         )
 
         def create_client_for_rollback(
-            _server_type: str, /, *, url: str, api_key: str
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
         ) -> AsyncMock:
-            _ = url, api_key
+            _ = url, api_key, apply_settings
             mock_client = AsyncMock()
 
             async def mock_delete_user(ext_user_id: str, /) -> bool:
@@ -2290,9 +2300,14 @@ class TestPlexRedemptionRollbackOnFailure:
         )
 
         def create_client_for_rollback(
-            _server_type: str, /, *, url: str, api_key: str
+            _server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
         ) -> AsyncMock:
-            _ = url, api_key
+            _ = url, api_key, apply_settings
             mock_client = AsyncMock()
 
             async def mock_delete_user(ext_user_id: str, /) -> bool:
@@ -2555,8 +2570,14 @@ class TestRollbackWithPlainData:
         mock_rollback_client.__aexit__ = AsyncMock(return_value=None)
 
         def mock_create_client(
-            server_type: str, /, *, url: str, api_key: str
+            server_type: str,
+            /,
+            *,
+            url: str,
+            api_key: str,
+            apply_settings: bool = False,
         ) -> AsyncMock:
+            _ = apply_settings
             create_client_calls.append((server_type, url, api_key))
             return mock_rollback_client
 

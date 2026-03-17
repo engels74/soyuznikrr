@@ -311,9 +311,10 @@ class RedemptionService:
             )
             await self._rollback_users(rollback_data)
             if isinstance(e.original, IntegrityError):
+                error_msg, error_code = self._classify_integrity_error(e.original)
                 raise RedemptionError(
-                    "This account is already linked to this media server",
-                    redemption_error_code="ACCOUNT_ALREADY_LINKED",
+                    error_msg,
+                    redemption_error_code=error_code,
                 ) from e
             raise RedemptionError(
                 f"Redemption failed: {e}",
@@ -435,7 +436,9 @@ class RedemptionService:
         """
         for server_type, url, api_key, server_name, external_user_id in rollback_data:
             try:
-                client = registry.create_client(server_type, url=url, api_key=api_key)
+                client = registry.create_client(
+                    server_type, url=url, api_key=api_key, apply_settings=True
+                )
                 async with client:
                     deleted = await client.delete_user(external_user_id)
                     if deleted:
@@ -458,6 +461,35 @@ class RedemptionService:
                     external_user_id=external_user_id,
                     error=str(e),
                 )
+
+    @staticmethod
+    def _classify_integrity_error(exc: IntegrityError) -> tuple[str, str]:
+        """Classify an IntegrityError by inspecting the constraint name.
+
+        Disambiguates between different unique constraint violations on the
+        User model so the correct error code is returned to the client.
+
+        Args:
+            exc: The SQLAlchemy IntegrityError to classify.
+
+        Returns:
+            A (message, error_code) tuple.
+        """
+        detail = str(exc).lower()
+        if "uq_users_username_server" in detail:
+            return (
+                "Username is already taken on this media server",
+                "USERNAME_TAKEN",
+            )
+        if "uq_users_external_user_server" in detail:
+            return (
+                "This account is already linked to this media server",
+                "ACCOUNT_ALREADY_LINKED",
+            )
+        return (
+            "This account is already linked to this media server",
+            "ACCOUNT_ALREADY_LINKED",
+        )
 
     def _failure_message(self, failure: InvitationValidationFailure | None) -> str:
         """Convert failure enum to user-friendly message.

@@ -164,6 +164,7 @@ class ClientRegistry:
         *,
         url: str,
         api_key: str,
+        apply_settings: bool = False,
     ) -> MediaClient:
         """Create a client instance for a media server.
 
@@ -171,6 +172,8 @@ class ClientRegistry:
             server_type: The server type string.
             url: The base URL of the media server.
             api_key: The API key for authentication.
+            apply_settings: If True, apply provider-specific settings
+                (e.g. Plex timeout) from the registry's injected Settings.
 
         Returns:
             A new client instance.
@@ -178,6 +181,15 @@ class ClientRegistry:
         Raises:
             UnknownServerTypeError: If no client is registered.
         """
+        if apply_settings and server_type == "plex" and self._settings is not None:
+            from zondarr.media.providers.plex.client import PlexClient
+
+            return PlexClient(
+                url=url,
+                api_key=api_key,
+                timeout_seconds=self._settings.plex_api_timeout_seconds,
+            )
+
         client_class = self.get_client_class(server_type)
         return client_class(url=url, api_key=api_key)
 
@@ -310,17 +322,9 @@ class ClientRegistry:
             db_api_key=server.api_key,
         )
 
-        # Pass provider-specific settings when available
-        if server.server_type == "plex" and self._settings is not None:
-            from zondarr.media.providers.plex.client import PlexClient
-
-            return PlexClient(
-                url=url,
-                api_key=api_key,
-                timeout_seconds=self._settings.plex_api_timeout_seconds,
-            )
-
-        return self.create_client(server.server_type, url=url, api_key=api_key)
+        return self.create_client(
+            server.server_type, url=url, api_key=api_key, apply_settings=True
+        )
 
     def clear(self) -> None:
         """Clear all registered providers."""
