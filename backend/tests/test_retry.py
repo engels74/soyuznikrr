@@ -1,6 +1,7 @@
 """Tests for retry and circuit-breaker infrastructure."""
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -14,6 +15,12 @@ from zondarr.core.retry import (
     is_retryable_sync_error,
 )
 from zondarr.media.exceptions import MediaClientError
+
+
+def _force_open_at(cb: CircuitBreaker, opened_at: datetime) -> None:
+    """Backdoor to set _opened_at for testing time-dependent transitions."""
+    cb._opened_at = opened_at  # pyright: ignore[reportPrivateUsage]
+
 
 # ---------------------------------------------------------------------------
 # is_retryable_sync_error
@@ -106,7 +113,7 @@ class TestRetryPolicy:
         policy = RetryPolicy(max_retries=3, backoff_base=1.0)
         operation = AsyncMock(return_value="ok")
 
-        result = await policy.execute(operation)
+        result: str = await policy.execute(operation)
 
         assert result == "ok"
         assert operation.await_count == 1
@@ -118,7 +125,7 @@ class TestRetryPolicy:
         )
 
         with patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock):
-            result = await policy.execute(operation)
+            result: str = await policy.execute(operation)
 
         assert result == "ok"
         assert operation.await_count == 3
@@ -159,11 +166,11 @@ class TestRetryPolicy:
 
         assert sleep_mock.await_count == 2
         # attempt 0: base * 2^0 = 1.0, with jitter [1.0, 1.1]
-        delay_0 = sleep_mock.call_args_list[0][0][0]
+        delay_0 = cast(float, sleep_mock.call_args_list[0][0][0])
         assert 1.0 <= delay_0 <= 1.1
 
         # attempt 1: base * 2^1 = 2.0, with jitter [2.0, 2.2]
-        delay_1 = sleep_mock.call_args_list[1][0][0]
+        delay_1 = cast(float, sleep_mock.call_args_list[1][0][0])
         assert 2.0 <= delay_1 <= 2.2
 
     async def test_backoff_respects_max_delay(self) -> None:
@@ -204,17 +211,19 @@ class TestRetryPolicy:
             await policy.execute(operation, on_retry=on_retry)
 
         on_retry.assert_called_once()
-        args = on_retry.call_args[0]
-        assert args[0] == 0  # attempt
-        assert args[1] == 1.0  # delay (backoff_base * 2^0 * 1.0)
-        assert args[2] is err  # exception
+        attempt = cast(int, on_retry.call_args[0][0])
+        delay = cast(float, on_retry.call_args[0][1])
+        exc = cast(Exception, on_retry.call_args[0][2])
+        assert attempt == 0
+        assert delay == 1.0  # backoff_base * 2^0 * 1.0
+        assert exc is err
 
     async def test_zero_max_retries_behaves_like_direct_execution(self) -> None:
         policy = RetryPolicy(max_retries=0, backoff_base=1.0)
 
         # Success case
         operation = AsyncMock(return_value="ok")
-        result = await policy.execute(operation)
+        result: str = await policy.execute(operation)
         assert result == "ok"
 
         # Failure case — raises immediately
@@ -230,7 +239,7 @@ class TestRetryPolicy:
         )
 
         with patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock):
-            result = await policy.execute(
+            result: str = await policy.execute(
                 operation,
                 is_retryable=lambda exc: isinstance(exc, ValueError),
             )
@@ -287,7 +296,7 @@ class TestCircuitBreaker:
         assert cb.state == "OPEN"
 
         past = datetime.now(UTC) - timedelta(seconds=31)
-        cb._opened_at = past
+        _force_open_at(cb, past)
 
         assert cb.should_allow() is True
         assert cb.state == "HALF_OPEN"
@@ -295,8 +304,8 @@ class TestCircuitBreaker:
     def test_closes_on_success_in_half_open(self) -> None:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
         cb.record_failure()
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
-        cb.should_allow()  # transitions to HALF_OPEN
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
+        _ = cb.should_allow()  # transitions to HALF_OPEN
         assert cb.state == "HALF_OPEN"
 
         cb.record_success()
@@ -307,8 +316,8 @@ class TestCircuitBreaker:
     def test_reopens_on_failure_in_half_open(self) -> None:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
         cb.record_failure()
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
-        cb.should_allow()  # transitions to HALF_OPEN
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
+        _ = cb.should_allow()  # transitions to HALF_OPEN
         assert cb.state == "HALF_OPEN"
 
         cb.record_failure()
@@ -317,7 +326,7 @@ class TestCircuitBreaker:
     def test_half_open_allows_only_single_probe(self) -> None:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
         cb.record_failure()
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
 
         # First call transitions to HALF_OPEN and allows the probe.
         assert cb.should_allow() is True
@@ -330,8 +339,8 @@ class TestCircuitBreaker:
     def test_probe_gate_resets_on_success(self) -> None:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
         cb.record_failure()
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
-        cb.should_allow()  # HALF_OPEN, probe sent
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
+        _ = cb.should_allow()  # HALF_OPEN, probe sent
         assert cb.should_allow() is False
 
         cb.record_success()
@@ -341,14 +350,14 @@ class TestCircuitBreaker:
     def test_probe_gate_resets_on_failure(self) -> None:
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
         cb.record_failure()
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
-        cb.should_allow()  # HALF_OPEN, probe sent
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
+        _ = cb.should_allow()  # HALF_OPEN, probe sent
         assert cb.should_allow() is False
 
         cb.record_failure()
         assert cb.state == "OPEN"
         # After re-opening and waiting for recovery, a new probe should be allowed.
-        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+        _force_open_at(cb, datetime.now(UTC) - timedelta(seconds=31))
         assert cb.should_allow() is True
         assert cb.state == "HALF_OPEN"
 
@@ -399,7 +408,9 @@ class TestCircuitBreakerRegistry:
     def test_remove_deletes_breaker(self) -> None:
         reg = CircuitBreakerRegistry()
         server_id = uuid4()
-        reg.get_or_create(server_id, failure_threshold=3, recovery_timeout_seconds=60)
+        _ = reg.get_or_create(
+            server_id, failure_threshold=3, recovery_timeout_seconds=60
+        )
         reg.remove(server_id)
         assert reg.get_state(server_id) is None
 

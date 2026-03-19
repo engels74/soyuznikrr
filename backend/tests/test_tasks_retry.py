@@ -12,9 +12,20 @@ from tests.conftest import create_test_engine
 from zondarr.api.schemas import SyncResult
 from zondarr.config import Settings
 from zondarr.core.exceptions import ExternalServiceError, NotFoundError
+from zondarr.core.retry import CircuitBreaker, CircuitBreakerRegistry
 from zondarr.core.tasks import BackgroundTaskManager
 from zondarr.models.media_server import MediaServer
 from zondarr.models.sync_run import SyncRun
+
+
+def _get_registry(manager: BackgroundTaskManager) -> CircuitBreakerRegistry:
+    """Access the circuit registry for testing."""
+    return manager._circuit_registry  # pyright: ignore[reportPrivateUsage]
+
+
+def _force_open_at(cb: CircuitBreaker, opened_at: datetime) -> None:
+    """Backdoor to set _opened_at for testing time-dependent transitions."""
+    cb._opened_at = opened_at  # pyright: ignore[reportPrivateUsage]
 
 
 def _make_test_settings(
@@ -210,7 +221,7 @@ class TestCircuitRecovery:
             state = State({"session_factory": session_factory})
 
             # Manually trip the circuit breaker to OPEN
-            breaker = manager._circuit_registry.get_or_create(
+            breaker = _get_registry(manager).get_or_create(
                 server_id,
                 failure_threshold=2,
                 recovery_timeout_seconds=60,
@@ -220,7 +231,7 @@ class TestCircuitRecovery:
             assert breaker.state == "OPEN"
 
             # Simulate recovery timeout elapsed by backdating _opened_at
-            breaker._opened_at = datetime.now(UTC) - timedelta(seconds=120)
+            _force_open_at(breaker, datetime.now(UTC) - timedelta(seconds=120))
 
             lib_mock = AsyncMock(return_value=None)
             user_mock = AsyncMock(return_value=_make_sync_result(server_id))
@@ -258,7 +269,7 @@ class TestCircuitRecovery:
             state = State({"session_factory": session_factory})
 
             # Trip the circuit breaker to OPEN
-            breaker = manager._circuit_registry.get_or_create(
+            breaker = _get_registry(manager).get_or_create(
                 server_id,
                 failure_threshold=2,
                 recovery_timeout_seconds=60,
@@ -268,7 +279,7 @@ class TestCircuitRecovery:
             assert breaker.state == "OPEN"
 
             # Simulate recovery timeout elapsed
-            breaker._opened_at = datetime.now(UTC) - timedelta(seconds=120)
+            _force_open_at(breaker, datetime.now(UTC) - timedelta(seconds=120))
 
             lib_mock = AsyncMock(
                 side_effect=ExternalServiceError("plex", "Still broken"),
