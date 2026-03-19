@@ -24,6 +24,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.api.schemas import SyncResult
 from zondarr.config import Settings
+from zondarr.core.retry import (
+    CircuitBreakerRegistry,
+    RetryPolicy,
+    is_retryable_sync_error,
+)
 from zondarr.models.sync_run import SyncRun
 from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.identity import IdentityRepository
@@ -53,6 +58,8 @@ class BackgroundTaskManager:
     _next_sync_run_at: datetime | None
     _libraries_sync_in_progress: set[UUID]
     _users_sync_in_progress: set[UUID]
+    _retry_policy: RetryPolicy
+    _circuit_registry: CircuitBreakerRegistry
     settings: Settings
 
     def __init__(self, settings: Settings, /) -> None:
@@ -66,6 +73,11 @@ class BackgroundTaskManager:
         self._next_sync_run_at = None
         self._libraries_sync_in_progress = set()
         self._users_sync_in_progress = set()
+        self._retry_policy = RetryPolicy(
+            max_retries=settings.sync_max_retries,
+            backoff_base=settings.sync_backoff_base_seconds,
+        )
+        self._circuit_registry = CircuitBreakerRegistry()
         self.settings = settings
 
     async def start(self, state: State, /) -> None:
@@ -147,6 +159,28 @@ class BackgroundTaskManager:
     def is_users_sync_in_progress(self, server_id: UUID, /) -> bool:
         """Return whether a user sync is currently running for a server."""
         return server_id in self._users_sync_in_progress
+
+    def get_circuit_state(
+        self, server_id: UUID, /
+    ) -> tuple[str, int, datetime | None] | None:
+        """Return circuit breaker state for a media server.
+
+        Args:
+            server_id: UUID of the media server (positional-only).
+
+        Returns:
+            A tuple of ``(state, consecutive_failures, next_attempt_at)`` or
+            ``None`` if no breaker exists for the given server.
+        """
+        return self._circuit_registry.get_state(server_id)
+
+    def reset_circuit_breaker(self, server_id: UUID, /) -> None:
+        """Manually reset the circuit breaker for a media server to CLOSED.
+
+        Args:
+            server_id: UUID of the media server (positional-only).
+        """
+        self._circuit_registry.reset(server_id)
 
     async def _run_expiration_task(self, state: State, /) -> None:
         """Periodically check and disable expired invitations.
@@ -264,6 +298,10 @@ class BackgroundTaskManager:
         Individual server failures are logged but don't stop processing
         of remaining servers.
 
+        Each server has a shared circuit breaker across library and user phases.
+        If library sync opens the circuit, user sync is also skipped.
+        Retries use exponential backoff with jitter via the configured RetryPolicy.
+
         Args:
             state: Application state containing session factory (positional-only).
         """
@@ -279,20 +317,73 @@ class BackgroundTaskManager:
             # Detach server data before closing session
             server_ids_and_names = [(s.id, s.name) for s in servers]
 
-        # Sync libraries per server, each with its own session
         timeout = self.settings.sync_per_server_timeout_seconds
+        failure_threshold = self.settings.sync_circuit_failure_threshold
+        recovery_seconds = self.settings.sync_circuit_recovery_seconds
+
+        # Mutable counter tracking the number of retries performed by the
+        # current ``_retry_policy.execute()`` call.  Reset before each call;
+        # the ``_on_retry`` callback increments it so the error message
+        # reports the *actual* attempt count instead of ``max_retries + 1``.
+        retry_count: list[int] = [0]
+
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            retry_count[0] += 1
+            logger.info(
+                "sync_retry",
+                attempt=attempt + 1,
+                max_retries=self._retry_policy.max_retries,
+                delay=round(delay, 3),
+                error=str(exc),
+            )
+
+        # Sync libraries per server, each with its own session
         for server_id, server_name in server_ids_and_names:
             # Yield to event loop between servers so HTTP requests
             # are not starved while sync holds SQLite write locks
             await asyncio.sleep(0)
 
+            breaker = self._circuit_registry.get_or_create(
+                server_id,
+                failure_threshold=failure_threshold,
+                recovery_timeout_seconds=recovery_seconds,
+            )
+
+            if not breaker.should_allow():
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="libraries",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=datetime.now(UTC),
+                    error_message=(
+                        f"Circuit breaker open after {breaker.consecutive_failures}"
+                        " consecutive failures"
+                    ),
+                )
+                logger.warning(
+                    "sync_skipped_circuit_open",
+                    server_id=str(server_id),
+                    server_name=server_name,
+                    sync_type="libraries",
+                    consecutive_failures=breaker.consecutive_failures,
+                )
+                continue
+
             started_at = datetime.now(UTC)
             self._libraries_sync_in_progress.add(server_id)
+            retry_count[0] = 0
             try:
-                await asyncio.wait_for(
-                    self._sync_server_libraries(session_factory, server_id),
-                    timeout=timeout,
+                await self._retry_policy.execute(
+                    lambda sid=server_id: asyncio.wait_for(
+                        self._sync_server_libraries(session_factory, sid),
+                        timeout=timeout,
+                    ),
+                    is_retryable=is_retryable_sync_error,
+                    on_retry=_on_retry,
                 )
+                breaker.record_success()
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -306,23 +397,13 @@ class BackgroundTaskManager:
                     server_id=str(server_id),
                     server_name=server_name,
                 )
-            except TimeoutError:
-                await self._record_sync_run(
-                    state,
-                    media_server_id=server_id,
-                    sync_type="libraries",
-                    trigger="automatic",
-                    status="failed",
-                    started_at=started_at,
-                    error_message=f"Timed out after {timeout}s",
-                )
-                logger.warning(
-                    "Library sync timed out",
-                    server_id=str(server_id),
-                    server_name=server_name,
-                    timeout_seconds=timeout,
-                )
             except Exception as exc:
+                breaker.record_failure()
+                error_message = (
+                    f"Timed out after {timeout}s"
+                    if isinstance(exc, TimeoutError)
+                    else str(exc)
+                )
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -330,13 +411,15 @@ class BackgroundTaskManager:
                     trigger="automatic",
                     status="failed",
                     started_at=started_at,
-                    error_message=str(exc),
+                    error_message=(
+                        f"Failed after {retry_count[0] + 1} attempt(s): {error_message}"
+                    ),
                 )
                 logger.warning(
                     "Library sync failed",
                     server_id=str(server_id),
                     server_name=server_name,
-                    error=str(exc),
+                    error=error_message,
                 )
             finally:
                 self._libraries_sync_in_progress.discard(server_id)
@@ -349,13 +432,47 @@ class BackgroundTaskManager:
             # Yield to event loop between servers
             await asyncio.sleep(0)
 
+            breaker = self._circuit_registry.get_or_create(
+                server_id,
+                failure_threshold=failure_threshold,
+                recovery_timeout_seconds=recovery_seconds,
+            )
+
+            if not breaker.should_allow():
+                await self._record_sync_run(
+                    state,
+                    media_server_id=server_id,
+                    sync_type="users",
+                    trigger="automatic",
+                    status="failed",
+                    started_at=datetime.now(UTC),
+                    error_message=(
+                        f"Circuit breaker open after {breaker.consecutive_failures}"
+                        " consecutive failures"
+                    ),
+                )
+                logger.warning(
+                    "sync_skipped_circuit_open",
+                    server_id=str(server_id),
+                    server_name=server_name,
+                    sync_type="users",
+                    consecutive_failures=breaker.consecutive_failures,
+                )
+                continue
+
             started_at = datetime.now(UTC)
             self._users_sync_in_progress.add(server_id)
+            retry_count[0] = 0
             try:
-                result = await asyncio.wait_for(
-                    self._sync_server_users(session_factory, server_id),
-                    timeout=timeout,
+                result = await self._retry_policy.execute(
+                    lambda sid=server_id: asyncio.wait_for(
+                        self._sync_server_users(session_factory, sid),
+                        timeout=timeout,
+                    ),
+                    is_retryable=is_retryable_sync_error,
+                    on_retry=_on_retry,
                 )
+                breaker.record_success()
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -373,23 +490,13 @@ class BackgroundTaskManager:
                     matched=result.matched_users,
                     imported=result.imported_users,
                 )
-            except TimeoutError:
-                await self._record_sync_run(
-                    state,
-                    media_server_id=server_id,
-                    sync_type="users",
-                    trigger="automatic",
-                    status="failed",
-                    started_at=started_at,
-                    error_message=f"Timed out after {timeout}s",
-                )
-                logger.warning(
-                    "Server sync timed out",
-                    server_id=str(server_id),
-                    server_name=server_name,
-                    timeout_seconds=timeout,
-                )
             except Exception as exc:
+                breaker.record_failure()
+                error_message = (
+                    f"Timed out after {timeout}s"
+                    if isinstance(exc, TimeoutError)
+                    else str(exc)
+                )
                 await self._record_sync_run(
                     state,
                     media_server_id=server_id,
@@ -397,13 +504,15 @@ class BackgroundTaskManager:
                     trigger="automatic",
                     status="failed",
                     started_at=started_at,
-                    error_message=str(exc),
+                    error_message=(
+                        f"Failed after {retry_count[0] + 1} attempt(s): {error_message}"
+                    ),
                 )
                 logger.warning(
                     "Server sync failed",
                     server_id=str(server_id),
                     server_name=server_name,
-                    error=str(exc),
+                    error=error_message,
                 )
             finally:
                 self._users_sync_in_progress.discard(server_id)

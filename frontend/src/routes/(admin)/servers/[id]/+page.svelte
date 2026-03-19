@@ -22,6 +22,7 @@ import {
 	Lock,
 	RefreshCw,
 	Server,
+	ShieldAlert,
 	Trash2,
 } from "@lucide/svelte";
 import { onMount } from "svelte";
@@ -29,6 +30,7 @@ import { goto, invalidateAll } from "$app/navigation";
 import {
 	deleteServer,
 	type LibrarySyncResult,
+	resetCircuitBreaker,
 	type SyncChannelStatus,
 	type SyncResult,
 	syncServer,
@@ -62,6 +64,9 @@ let showLibrarySyncDialog = $state(false);
 // Status refresh state
 let nowMs = $state(Date.now());
 
+// Circuit breaker state
+let resettingCircuit = $state(false);
+
 // Delete state
 let deleting = $state(false);
 let showDeleteDialog = $state(false);
@@ -74,7 +79,10 @@ const librariesStatus = $derived<SyncChannelStatus | null>(
 const usersStatus = $derived<SyncChannelStatus | null>(
 	data.server?.sync_status?.users ?? null,
 );
-const actionBusy = $derived(syncingUsers || syncingLibraries || deleting);
+const actionBusy = $derived(syncingUsers || syncingLibraries || deleting || resettingCircuit);
+const anyCircuitOpen = $derived(
+	librariesStatus?.circuit_state === 'open' || usersStatus?.circuit_state === 'open',
+);
 const urlLocked = $derived(data.credentialLocks?.url_locked ?? false);
 const apiKeyLocked = $derived(data.credentialLocks?.api_key_locked ?? false);
 
@@ -206,6 +214,32 @@ async function handleLibrarySync() {
 		}
 	} finally {
 		syncingLibraries = false;
+	}
+}
+
+/**
+ * Handle circuit breaker reset.
+ */
+async function handleResetCircuit() {
+	if (!data.server) return;
+	const serverId = data.server.id;
+
+	resettingCircuit = true;
+	try {
+		const result = await withErrorHandling(
+			() => resetCircuitBreaker(serverId),
+			{ showErrorToast: false },
+		);
+
+		if (result.error) {
+			showError("Failed to reset circuit breaker");
+			return;
+		}
+
+		showSuccess("Circuit breaker reset successfully");
+		await invalidateAll();
+	} finally {
+		resettingCircuit = false;
 	}
 }
 
@@ -458,12 +492,24 @@ async function handleDelete() {
 				<Card.Content>
 					<div class="grid gap-3 md:grid-cols-2">
 						<div
-							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							class="rounded-lg border p-4 space-y-2 {librariesStatus?.circuit_state === 'open' ? 'border-rose-500/50 bg-rose-500/5' : 'border-cr-border bg-cr-bg'}"
 							data-sync-channel="libraries"
 						>
 							<div class="flex items-center justify-between gap-3">
 								<div>
-									<div class="font-medium text-cr-text">Libraries</div>
+									<div class="font-medium text-cr-text flex items-center gap-2">
+										Libraries
+										{#if librariesStatus?.circuit_state === 'open'}
+											<span class="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-400">
+												<ShieldAlert class="size-3" />
+												Circuit Open
+											</span>
+										{:else if librariesStatus?.circuit_state === 'half_open'}
+											<span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+												Recovering
+											</span>
+										{/if}
+									</div>
 									<div class="text-xs text-cr-text-muted">Media library sync</div>
 								</div>
 								<div class="text-right">
@@ -488,15 +534,36 @@ async function handleDelete() {
 							<div class="text-xs text-cr-text-muted">
 								Last completed: {formatDate(librariesStatus?.last_completed_at)}
 							</div>
+							{#if librariesStatus?.circuit_state === 'open' && librariesStatus.consecutive_failures}
+								<div class="text-xs text-rose-400">
+									{librariesStatus.consecutive_failures} consecutive failure{librariesStatus.consecutive_failures === 1 ? '' : 's'}
+								</div>
+							{:else if (librariesStatus?.consecutive_failures ?? 0) > 0 && librariesStatus?.circuit_state !== 'open'}
+								<div class="text-xs text-cr-text-muted">
+									{librariesStatus?.consecutive_failures} recent failure{librariesStatus?.consecutive_failures === 1 ? '' : 's'}
+								</div>
+							{/if}
 						</div>
 
 						<div
-							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							class="rounded-lg border p-4 space-y-2 {usersStatus?.circuit_state === 'open' ? 'border-rose-500/50 bg-rose-500/5' : 'border-cr-border bg-cr-bg'}"
 							data-sync-channel="users"
 						>
 							<div class="flex items-center justify-between gap-3">
 								<div>
-									<div class="font-medium text-cr-text">Users</div>
+									<div class="font-medium text-cr-text flex items-center gap-2">
+										Users
+										{#if usersStatus?.circuit_state === 'open'}
+											<span class="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-400">
+												<ShieldAlert class="size-3" />
+												Circuit Open
+											</span>
+										{:else if usersStatus?.circuit_state === 'half_open'}
+											<span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+												Recovering
+											</span>
+										{/if}
+									</div>
 									<div class="text-xs text-cr-text-muted">Account state sync</div>
 								</div>
 								<div class="text-right">
@@ -518,6 +585,15 @@ async function handleDelete() {
 							<div class="text-xs text-cr-text-muted">
 								Last completed: {formatDate(usersStatus?.last_completed_at)}
 							</div>
+							{#if usersStatus?.circuit_state === 'open' && usersStatus.consecutive_failures}
+								<div class="text-xs text-rose-400">
+									{usersStatus.consecutive_failures} consecutive failure{usersStatus.consecutive_failures === 1 ? '' : 's'}
+								</div>
+							{:else if (usersStatus?.consecutive_failures ?? 0) > 0 && usersStatus?.circuit_state !== 'open'}
+								<div class="text-xs text-cr-text-muted">
+									{usersStatus?.consecutive_failures} recent failure{usersStatus?.consecutive_failures === 1 ? '' : 's'}
+								</div>
+							{/if}
 						</div>
 					</div>
 				</Card.Content>
@@ -566,6 +642,25 @@ async function handleDelete() {
 								Sync Libraries
 							{/if}
 						</Button>
+
+						<!-- Reset Circuit Breaker Button -->
+						{#if anyCircuitOpen}
+							<Button
+								variant="outline"
+								onclick={handleResetCircuit}
+								disabled={actionBusy}
+								class="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500"
+								data-action-reset-circuit
+							>
+								{#if resettingCircuit}
+									<span class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+									Resetting...
+								{:else}
+									<ShieldAlert class="size-4" />
+									Reset Circuit Breaker
+								{/if}
+							</Button>
+						{/if}
 
 						<!-- Delete Button -->
 						<Button

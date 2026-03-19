@@ -94,6 +94,7 @@ class _FakeBackgroundTaskManager:
     _next_sync_at: datetime | None
     _libraries_in_progress: bool
     _users_in_progress: bool
+    _circuit_state: tuple[str, int, datetime | None] | None
 
     def __init__(
         self,
@@ -101,10 +102,12 @@ class _FakeBackgroundTaskManager:
         next_sync_at: datetime | None = None,
         libraries_in_progress: bool = False,
         users_in_progress: bool = False,
+        circuit_state: tuple[str, int, datetime | None] | None = None,
     ) -> None:
         self._next_sync_at = next_sync_at
         self._libraries_in_progress = libraries_in_progress
         self._users_in_progress = users_in_progress
+        self._circuit_state = circuit_state
 
     def get_next_sync_run_at(self) -> datetime | None:
         return self._next_sync_at
@@ -114,6 +117,14 @@ class _FakeBackgroundTaskManager:
 
     def is_users_sync_in_progress(self, _server_id: UUID) -> bool:
         return self._users_in_progress
+
+    def get_circuit_state(
+        self, _server_id: UUID
+    ) -> tuple[str, int, datetime | None] | None:
+        return self._circuit_state
+
+    def reset_circuit_breaker(self, _server_id: UUID) -> None:
+        self._circuit_state = None
 
 
 class TestServerSyncStatus:

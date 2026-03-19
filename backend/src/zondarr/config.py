@@ -95,6 +95,40 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 300
 
+    # Retry / circuit-breaker settings for media-server sync
+    sync_max_retries: Annotated[
+        int,
+        msgspec.Meta(
+            ge=0,
+            le=10,
+            description="Maximum retry attempts per server sync operation (default: 2)",
+        ),
+    ] = 2
+    sync_backoff_base_seconds: Annotated[
+        float,
+        msgspec.Meta(
+            ge=0.5,
+            le=60.0,
+            description="Base delay in seconds for exponential backoff between retries (default: 2.0)",
+        ),
+    ] = 2.0
+    sync_circuit_failure_threshold: Annotated[
+        int,
+        msgspec.Meta(
+            ge=1,
+            le=20,
+            description="Consecutive failures before circuit breaker opens (default: 3)",
+        ),
+    ] = 3
+    sync_circuit_recovery_seconds: Annotated[
+        int,
+        msgspec.Meta(
+            ge=60,
+            le=3600,
+            description="Seconds before a tripped circuit breaker allows a retry (default: 300)",
+        ),
+    ] = 300
+
     # Plex API timeout (seconds) — applies to plexapi requests.Session
     # and as an asyncio.wait_for safety net around all PlexClient operations
     plex_api_timeout_seconds: Annotated[
@@ -155,6 +189,16 @@ def load_settings() -> Settings:
         "bootstrap_token_file": os.environ.get("BOOTSTRAP_TOKEN_FILE") or None,
         "sync_per_server_timeout_seconds": int(
             os.environ.get("SYNC_PER_SERVER_TIMEOUT_SECONDS", "300")
+        ),
+        "sync_max_retries": int(os.environ.get("SYNC_MAX_RETRIES", "2")),
+        "sync_backoff_base_seconds": float(
+            os.environ.get("SYNC_BACKOFF_BASE_SECONDS", "2.0")
+        ),
+        "sync_circuit_failure_threshold": int(
+            os.environ.get("SYNC_CIRCUIT_FAILURE_THRESHOLD", "3")
+        ),
+        "sync_circuit_recovery_seconds": int(
+            os.environ.get("SYNC_CIRCUIT_RECOVERY_SECONDS", "300")
         ),
         "plex_api_timeout_seconds": int(
             os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
