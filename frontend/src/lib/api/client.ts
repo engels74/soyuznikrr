@@ -146,10 +146,21 @@ export interface SyncResult {
 	imported_users: number;
 }
 
+export interface SyncRunEntry {
+	status: string;
+	started_at: string;
+	finished_at?: string | null;
+	error_message?: string | null;
+	trigger: string;
+}
+
 export interface SyncChannelStatus {
 	in_progress: boolean;
 	last_completed_at?: string | null;
 	next_scheduled_at?: string | null;
+	last_error_message?: string | null;
+	last_failed_at?: string | null;
+	recent_runs?: SyncRunEntry[];
 }
 
 export interface ServerSyncStatus {

@@ -62,3 +62,25 @@ class SyncRunRepository(Repository[SyncRun]):
                 operation="get_latest_success_by_type",
                 original=e,
             ) from e
+
+    async def get_recent_by_type(
+        self, media_server_id: UUID, sync_type: str, /, *, limit: int = 5
+    ) -> list[SyncRun]:
+        """Return the most recent runs for a server and sync type."""
+        try:
+            result = await self.session.scalars(
+                select(SyncRun)
+                .where(
+                    SyncRun.media_server_id == media_server_id,
+                    SyncRun.sync_type == sync_type,
+                )
+                .order_by(SyncRun.started_at.desc())
+                .limit(limit)
+            )
+            return list(result.all())
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to get recent sync runs by type",
+                operation="get_recent_by_type",
+                original=e,
+            ) from e

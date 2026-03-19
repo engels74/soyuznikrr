@@ -13,16 +13,20 @@
  */
 
 import {
+	AlertTriangle,
 	ArrowLeft,
 	Calendar,
+	CheckCircle2,
 	Clock3,
 	Database,
 	ExternalLink,
+	History,
 	KeyRound,
 	Lock,
 	RefreshCw,
 	Server,
 	Trash2,
+	XCircle,
 } from "@lucide/svelte";
 import { onMount } from "svelte";
 import { goto, invalidateAll } from "$app/navigation";
@@ -31,6 +35,7 @@ import {
 	type LibrarySyncResult,
 	type SyncChannelStatus,
 	type SyncResult,
+	type SyncRunEntry,
 	syncServer,
 	syncServerLibraries,
 	withErrorHandling,
@@ -146,6 +151,52 @@ function formatCountdown(
 	if (minutes > 0) return `in ${minutes}m ${seconds}s`;
 	return `in ${seconds}s`;
 }
+
+/**
+ * Format a relative time ago label.
+ */
+function formatTimeAgo(dateInput: string | null | undefined): string {
+	if (!dateInput) return "—";
+	const date = parseDate(dateInput);
+	if (!date) return "—";
+
+	const diffMs = nowMs - date.getTime();
+	if (diffMs < 0) return "just now";
+
+	const totalSeconds = Math.floor(diffMs / 1000);
+	if (totalSeconds < 60) return "just now";
+
+	const minutes = Math.floor(totalSeconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+
+	const days = Math.floor(hours / 24);
+	return `${days}d ago`;
+}
+
+/**
+ * Merge and sort recent runs from both channels for a unified history view.
+ */
+const allRecentRuns = $derived.by(() => {
+	const libRuns: Array<SyncRunEntry & { channel: string }> = (librariesStatus?.recent_runs ?? []).map(
+		(r) => ({ ...r, channel: "libraries" }),
+	);
+	const usrRuns: Array<SyncRunEntry & { channel: string }> = (usersStatus?.recent_runs ?? []).map(
+		(r) => ({ ...r, channel: "users" }),
+	);
+	return [...libRuns, ...usrRuns]
+		.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
+		.slice(0, 10);
+});
+
+/**
+ * Whether the last sync for either channel failed.
+ */
+const hasRecentFailure = $derived(
+	!!(librariesStatus?.last_error_message || usersStatus?.last_error_message),
+);
 
 /**
  * Handle user sync button click.
@@ -444,6 +495,49 @@ async function handleDelete() {
 				</Card.Content>
 			</Card.Root>
 
+			<!-- Sync Failure Alert -->
+			{#if hasRecentFailure}
+				<div
+					class="lg:col-span-2 rounded-lg border border-rose-500/30 bg-rose-500/5 p-4"
+					role="alert"
+					data-sync-failure-alert
+				>
+					<div class="flex items-start gap-3">
+						<AlertTriangle class="size-5 text-rose-400 mt-0.5 shrink-0" />
+						<div class="space-y-1 min-w-0">
+							<div class="font-medium text-rose-400 text-sm">Last sync failed</div>
+							{#if librariesStatus?.last_error_message}
+								<div class="text-xs text-cr-text-muted">
+									<span class="font-medium text-cr-text">Libraries:</span>
+									{librariesStatus.last_error_message}
+									{#if librariesStatus.last_failed_at}
+										<span class="text-cr-text-muted/60">
+											&mdash; {formatTimeAgo(librariesStatus.last_failed_at)}
+										</span>
+									{/if}
+								</div>
+							{/if}
+							{#if usersStatus?.last_error_message}
+								<div class="text-xs text-cr-text-muted">
+									<span class="font-medium text-cr-text">Users:</span>
+									{usersStatus.last_error_message}
+									{#if usersStatus.last_failed_at}
+										<span class="text-cr-text-muted/60">
+											&mdash; {formatTimeAgo(usersStatus.last_failed_at)}
+										</span>
+									{/if}
+								</div>
+							{/if}
+							{#if librariesStatus?.next_scheduled_at || usersStatus?.next_scheduled_at}
+								<div class="text-xs text-amber-400 mt-1">
+									Will retry automatically at next scheduled sync.
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Sync Status Card -->
 			<Card.Root class="border-cr-border bg-cr-surface lg:col-span-2" data-sync-status>
 				<Card.Header>
@@ -458,12 +552,19 @@ async function handleDelete() {
 				<Card.Content>
 					<div class="grid gap-3 md:grid-cols-2">
 						<div
-							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							class="rounded-lg border p-4 space-y-2 {librariesStatus?.last_error_message ? 'border-rose-500/20 bg-rose-500/5' : 'border-cr-border bg-cr-bg'}"
 							data-sync-channel="libraries"
 						>
 							<div class="flex items-center justify-between gap-3">
 								<div>
-									<div class="font-medium text-cr-text">Libraries</div>
+									<div class="font-medium text-cr-text flex items-center gap-1.5">
+										Libraries
+										{#if librariesStatus?.last_error_message}
+											<XCircle class="size-3.5 text-rose-400" />
+										{:else if librariesStatus?.last_completed_at}
+											<CheckCircle2 class="size-3.5 text-emerald-400" />
+										{/if}
+									</div>
 									<div class="text-xs text-cr-text-muted">Media library sync</div>
 								</div>
 								<div class="text-right">
@@ -474,29 +575,33 @@ async function handleDelete() {
 										</div>
 									{:else}
 										<div class="text-sm text-cr-text">
-											Next: {formatDate(librariesStatus?.next_scheduled_at)}
+											Next: {formatCountdown(librariesStatus?.next_scheduled_at, false)}
 										</div>
 										<div class="text-xs text-cr-text-muted">
-											{formatCountdown(
-												librariesStatus?.next_scheduled_at,
-												false,
-											)}
+											{formatDate(librariesStatus?.next_scheduled_at)}
 										</div>
 									{/if}
 								</div>
 							</div>
 							<div class="text-xs text-cr-text-muted">
-								Last completed: {formatDate(librariesStatus?.last_completed_at)}
+								Last success: {formatDate(librariesStatus?.last_completed_at)}
 							</div>
 						</div>
 
 						<div
-							class="rounded-lg border border-cr-border bg-cr-bg p-4 space-y-2"
+							class="rounded-lg border p-4 space-y-2 {usersStatus?.last_error_message ? 'border-rose-500/20 bg-rose-500/5' : 'border-cr-border bg-cr-bg'}"
 							data-sync-channel="users"
 						>
 							<div class="flex items-center justify-between gap-3">
 								<div>
-									<div class="font-medium text-cr-text">Users</div>
+									<div class="font-medium text-cr-text flex items-center gap-1.5">
+										Users
+										{#if usersStatus?.last_error_message}
+											<XCircle class="size-3.5 text-rose-400" />
+										{:else if usersStatus?.last_completed_at}
+											<CheckCircle2 class="size-3.5 text-emerald-400" />
+										{/if}
+									</div>
 									<div class="text-xs text-cr-text-muted">Account state sync</div>
 								</div>
 								<div class="text-right">
@@ -507,21 +612,77 @@ async function handleDelete() {
 										</div>
 									{:else}
 										<div class="text-sm text-cr-text">
-											Next: {formatDate(usersStatus?.next_scheduled_at)}
+											Next: {formatCountdown(usersStatus?.next_scheduled_at, false)}
 										</div>
 										<div class="text-xs text-cr-text-muted">
-											{formatCountdown(usersStatus?.next_scheduled_at, false)}
+											{formatDate(usersStatus?.next_scheduled_at)}
 										</div>
 									{/if}
 								</div>
 							</div>
 							<div class="text-xs text-cr-text-muted">
-								Last completed: {formatDate(usersStatus?.last_completed_at)}
+								Last success: {formatDate(usersStatus?.last_completed_at)}
 							</div>
 						</div>
 					</div>
 				</Card.Content>
 			</Card.Root>
+
+			<!-- Sync History Card -->
+			{#if allRecentRuns.length > 0}
+				<Card.Root class="border-cr-border bg-cr-surface lg:col-span-2" data-sync-history>
+					<Card.Header>
+						<Card.Title class="text-cr-text flex items-center gap-2">
+							<History class="size-5 text-cr-accent" />
+							Sync History
+						</Card.Title>
+						<Card.Description class="text-cr-text-muted">
+							Recent synchronization runs.
+						</Card.Description>
+					</Card.Header>
+					<Card.Content>
+						<div class="space-y-2">
+							{#each allRecentRuns as run (run.started_at + run.channel)}
+								<div
+									class="flex items-center gap-3 rounded-lg border border-cr-border bg-cr-bg px-3 py-2"
+									data-sync-run
+								>
+									<!-- Status icon -->
+									{#if run.status === "success"}
+										<CheckCircle2 class="size-4 text-emerald-400 shrink-0" />
+									{:else}
+										<XCircle class="size-4 text-rose-400 shrink-0" />
+									{/if}
+
+									<!-- Channel badge -->
+									<span class="text-xs font-medium px-1.5 py-0.5 rounded border border-cr-border text-cr-text-muted capitalize shrink-0">
+										{run.channel}
+									</span>
+
+									<!-- Trigger -->
+									<span class="text-xs text-cr-text-muted capitalize shrink-0">
+										{run.trigger}
+									</span>
+
+									<!-- Error message (if failed) -->
+									{#if run.status === "failed" && run.error_message}
+										<span class="text-xs text-rose-400 truncate min-w-0 flex-1" title={run.error_message}>
+											{run.error_message}
+										</span>
+									{:else}
+										<span class="flex-1"></span>
+									{/if}
+
+									<!-- Time -->
+									<span class="text-xs text-cr-text-muted shrink-0 tabular-nums">
+										{formatTimeAgo(run.started_at)}
+									</span>
+								</div>
+							{/each}
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
 			<!-- Actions Card -->
 			<Card.Root class="border-cr-border bg-cr-surface lg:col-span-2" data-actions>

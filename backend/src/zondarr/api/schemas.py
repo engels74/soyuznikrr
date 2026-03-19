@@ -308,12 +308,25 @@ class MediaServerWithLibrariesResponse(msgspec.Struct, omit_defaults=True):
     supported_permissions: list[str] | None = None
 
 
+class SyncRunResponse(msgspec.Struct, kw_only=True):
+    """A single sync run entry for display in sync history."""
+
+    status: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    error_message: str | None = None
+    trigger: str = "automatic"
+
+
 class SyncChannelStatusResponse(msgspec.Struct, kw_only=True, omit_defaults=True):
     """Sync status details for a single sync channel."""
 
     in_progress: bool
     last_completed_at: datetime | None = None
     next_scheduled_at: datetime | None = None
+    last_error_message: str | None = None
+    last_failed_at: datetime | None = None
+    recent_runs: list[SyncRunResponse] = []
 
 
 class ServerSyncStatusResponse(msgspec.Struct, kw_only=True):

@@ -56,6 +56,7 @@ from .schemas import (
     SyncChannelStatusResponse,
     SyncRequest,
     SyncResult,
+    SyncRunResponse,
 )
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
@@ -311,16 +312,54 @@ class ServerController(Controller):
             settings=settings,
         )
 
+        # Fetch latest run (including failures) and recent history
+        libraries_latest = await sync_run_repository.get_latest_by_type(
+            server_id, "libraries"
+        )
+        users_latest = await sync_run_repository.get_latest_by_type(server_id, "users")
+        libraries_recent = await sync_run_repository.get_recent_by_type(
+            server_id, "libraries", limit=5
+        )
+        users_recent = await sync_run_repository.get_recent_by_type(
+            server_id, "users", limit=5
+        )
+
+        def _last_error(run: SyncRun | None) -> tuple[str | None, datetime | None]:
+            if run is not None and run.status == "failed":
+                return run.error_message, run.finished_at
+            return None, None
+
+        lib_err_msg, lib_err_at = _last_error(libraries_latest)
+        usr_err_msg, usr_err_at = _last_error(users_latest)
+
+        def _to_run_responses(runs: list[SyncRun]) -> list[SyncRunResponse]:
+            return [
+                SyncRunResponse(
+                    status=r.status,
+                    started_at=r.started_at,
+                    finished_at=r.finished_at,
+                    error_message=r.error_message,
+                    trigger=r.trigger,
+                )
+                for r in runs
+            ]
+
         return ServerSyncStatusResponse(
             libraries=SyncChannelStatusResponse(
                 in_progress=libraries_in_progress,
                 last_completed_at=libraries_last_completed,
                 next_scheduled_at=libraries_next,
+                last_error_message=lib_err_msg,
+                last_failed_at=lib_err_at,
+                recent_runs=_to_run_responses(libraries_recent),
             ),
             users=SyncChannelStatusResponse(
                 in_progress=users_in_progress,
                 last_completed_at=users_last_completed,
                 next_scheduled_at=users_next,
+                last_error_message=usr_err_msg,
+                last_failed_at=usr_err_at,
+                recent_runs=_to_run_responses(users_recent),
             ),
         )
 

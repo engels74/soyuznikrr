@@ -95,6 +95,16 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 300
 
+    # Maximum retry attempts for transient sync failures per server
+    sync_max_retries: Annotated[
+        int,
+        msgspec.Meta(
+            ge=0,
+            le=10,
+            description="Max retry attempts for transient sync failures per server (default: 2)",
+        ),
+    ] = 2
+
     # Plex API timeout (seconds) — applies to plexapi requests.Session
     # and as an asyncio.wait_for safety net around all PlexClient operations
     plex_api_timeout_seconds: Annotated[
@@ -104,6 +114,16 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
             description="Timeout in seconds for Plex API requests (default: 30)",
         ),
     ] = 30
+
+    # Maximum retry attempts for transient Plex API failures (read operations only)
+    plex_max_retries: Annotated[
+        int,
+        msgspec.Meta(
+            ge=0,
+            le=10,
+            description="Max retry attempts for transient Plex API failures (default: 3, 0 disables)",
+        ),
+    ] = 3
 
     # Test credentials for E2E OAuth flow testing (debug-only)
     plex_test_token: str | None = None
@@ -156,9 +176,11 @@ def load_settings() -> Settings:
         "sync_per_server_timeout_seconds": int(
             os.environ.get("SYNC_PER_SERVER_TIMEOUT_SECONDS", "300")
         ),
+        "sync_max_retries": int(os.environ.get("SYNC_MAX_RETRIES", "2")),
         "plex_api_timeout_seconds": int(
             os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
         ),
+        "plex_max_retries": int(os.environ.get("PLEX_MAX_RETRIES", "3")),
         "plex_test_token": os.environ.get("PLEX_TEST_TOKEN") or None,
         "plex_test_email": os.environ.get("PLEX_TEST_EMAIL") or None,
     }

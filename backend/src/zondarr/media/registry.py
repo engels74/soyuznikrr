@@ -188,6 +188,7 @@ class ClientRegistry:
                 url=url,
                 api_key=api_key,
                 timeout_seconds=self._settings.plex_api_timeout_seconds,
+                max_retries=self._settings.plex_max_retries,
             )
 
         client_class = self.get_client_class(server_type)

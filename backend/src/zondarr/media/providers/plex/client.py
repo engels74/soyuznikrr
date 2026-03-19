@@ -14,7 +14,7 @@ Uses Python 3.14 features:
 
 import asyncio
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import TYPE_CHECKING, Any, Self, cast, final
 
 import structlog
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 from zondarr.core.exceptions import ExternalServiceError
 from zondarr.media.exceptions import MediaClientError
+from zondarr.media.providers.plex.retry import retry_async
 from zondarr.media.types import Capability, ExternalUser, LibraryInfo, ServerInfo
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
@@ -424,20 +425,31 @@ class PlexClient:
     url: str
     api_key: str
     timeout_seconds: int
+    max_retries: int
     _server: PlexServer | None
     _account: MyPlexAccount | None
 
-    def __init__(self, *, url: str, api_key: str, timeout_seconds: int = 30) -> None:
+    def __init__(
+        self,
+        *,
+        url: str,
+        api_key: str,
+        timeout_seconds: int = 30,
+        max_retries: int = 3,
+    ) -> None:
         """Initialize a PlexClient.
 
         Args:
             url: The Plex server URL (keyword-only).
             api_key: The API key (X-Plex-Token) for authentication (keyword-only).
             timeout_seconds: Timeout for Plex API requests (keyword-only).
+            max_retries: Max retry attempts for transient failures on read
+                operations (keyword-only). 0 disables retries.
         """
         self.url = url
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
         self._server = None
         self._account = None
 
@@ -497,6 +509,37 @@ class PlexClient:
             msg = f"Plex API operation '{operation}' timed out after {self.timeout_seconds}s"
             raise TimeoutError(msg) from exc
 
+    async def _run_with_retry[T](
+        self,
+        func: Callable[[], Awaitable[T]],
+        *,
+        operation: str,
+    ) -> T:
+        """Run an async callable with retry on transient failures.
+
+        Wraps the callable with ``retry_async`` using
+        ``_is_external_service_error`` as the retryable predicate.
+
+        When ``max_retries`` is 0, the callable is invoked directly
+        without any retry wrapper (identical to pre-retry behaviour).
+
+        Args:
+            func: The async callable to execute.
+            operation: Human-readable name for structured logging.
+
+        Returns:
+            The result of the callable.
+        """
+        if self.max_retries == 0:
+            return await func()
+
+        return await retry_async(
+            func,
+            operation_name=operation,
+            max_retries=self.max_retries,
+            retryable=_is_external_service_error,
+        )
+
     async def __aenter__(self) -> Self:
         """Enter async context, establishing connection.
 
@@ -540,8 +583,9 @@ class PlexClient:
 
         log.info("plex_client_connecting", url=self.url)
         try:
-            self._server, self._account = await self._run_with_timeout(
-                _connect, operation="connect"
+            self._server, self._account = await self._run_with_retry(
+                lambda: self._run_with_timeout(_connect, operation="connect"),
+                operation="connect",
             )
         except TimeoutError as exc:
             raise _create_external_service_error(
@@ -606,8 +650,11 @@ class PlexClient:
                 name: str = self._server.friendlyName  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
                 return name  # pyright: ignore[reportUnknownVariableType]
 
-            server_name = await self._run_with_timeout(
-                _query_server_info, operation="test_connection"
+            server_name = await self._run_with_retry(
+                lambda: self._run_with_timeout(
+                    _query_server_info, operation="test_connection"
+                ),
+                operation="test_connection",
             )
             log.info("plex_connection_test_success", url=self.url, server=server_name)
             return True
@@ -686,8 +733,11 @@ class PlexClient:
                     for section in sections  # pyright: ignore[reportUnknownVariableType]
                 ]
 
-            libraries = await self._run_with_timeout(
-                _get_sections, operation="get_libraries"
+            libraries = await self._run_with_retry(
+                lambda: self._run_with_timeout(
+                    _get_sections, operation="get_libraries"
+                ),
+                operation="get_libraries",
             )
             log.info(
                 "plex_libraries_retrieved",
@@ -2216,7 +2266,10 @@ class PlexClient:
 
                 return result
 
-            users = await self._run_with_timeout(_list_users, operation="list_users")
+            users = await self._run_with_retry(
+                lambda: self._run_with_timeout(_list_users, operation="list_users"),
+                operation="list_users",
+            )
 
             log.info(
                 "plex_users_listed",

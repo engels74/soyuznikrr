@@ -24,6 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.api.schemas import SyncResult
 from zondarr.config import Settings
+from zondarr.core.exceptions import ExternalServiceError
+from zondarr.media.providers.plex.retry import retry_async
 from zondarr.models.sync_run import SyncRun
 from zondarr.repositories.admin import RefreshTokenRepository
 from zondarr.repositories.identity import IdentityRepository
@@ -256,6 +258,11 @@ class BackgroundTaskManager:
                     checked_at=now.isoformat(),
                 )
 
+    @staticmethod
+    def _is_retryable(exc: Exception) -> bool:
+        """Return True for transient errors that should be retried."""
+        return isinstance(exc, ExternalServiceError | TimeoutError)
+
     async def _sync_all_servers(self, state: State, /) -> None:
         """Sync users with all enabled media servers.
 
@@ -263,6 +270,10 @@ class BackgroundTaskManager:
         write lock during external API calls (which can take several seconds).
         Individual server failures are logged but don't stop processing
         of remaining servers.
+
+        Transient errors (ExternalServiceError, TimeoutError) are retried
+        up to ``sync_max_retries`` times with exponential backoff before
+        recording a failed SyncRun.
 
         Args:
             state: Application state containing session factory (positional-only).
@@ -279,8 +290,10 @@ class BackgroundTaskManager:
             # Detach server data before closing session
             server_ids_and_names = [(s.id, s.name) for s in servers]
 
-        # Sync libraries per server, each with its own session
+        max_retries = self.settings.sync_max_retries
         timeout = self.settings.sync_per_server_timeout_seconds
+
+        # Sync libraries per server, each with its own session
         for server_id, server_name in server_ids_and_names:
             # Yield to event loop between servers so HTTP requests
             # are not starved while sync holds SQLite write locks
@@ -289,9 +302,14 @@ class BackgroundTaskManager:
             started_at = datetime.now(UTC)
             self._libraries_sync_in_progress.add(server_id)
             try:
-                await asyncio.wait_for(
-                    self._sync_server_libraries(session_factory, server_id),
-                    timeout=timeout,
+                await retry_async(
+                    lambda sid=server_id: asyncio.wait_for(
+                        self._sync_server_libraries(session_factory, sid),
+                        timeout=timeout,
+                    ),
+                    operation_name=f"library sync for {server_name}",
+                    max_retries=max_retries,
+                    retryable=self._is_retryable,
                 )
                 await self._record_sync_run(
                     state,
@@ -305,22 +323,6 @@ class BackgroundTaskManager:
                     "Library sync completed",
                     server_id=str(server_id),
                     server_name=server_name,
-                )
-            except TimeoutError:
-                await self._record_sync_run(
-                    state,
-                    media_server_id=server_id,
-                    sync_type="libraries",
-                    trigger="automatic",
-                    status="failed",
-                    started_at=started_at,
-                    error_message=f"Timed out after {timeout}s",
-                )
-                logger.warning(
-                    "Library sync timed out",
-                    server_id=str(server_id),
-                    server_name=server_name,
-                    timeout_seconds=timeout,
                 )
             except Exception as exc:
                 await self._record_sync_run(
@@ -352,9 +354,14 @@ class BackgroundTaskManager:
             started_at = datetime.now(UTC)
             self._users_sync_in_progress.add(server_id)
             try:
-                result = await asyncio.wait_for(
-                    self._sync_server_users(session_factory, server_id),
-                    timeout=timeout,
+                result = await retry_async(
+                    lambda sid=server_id: asyncio.wait_for(
+                        self._sync_server_users(session_factory, sid),
+                        timeout=timeout,
+                    ),
+                    operation_name=f"user sync for {server_name}",
+                    max_retries=max_retries,
+                    retryable=self._is_retryable,
                 )
                 await self._record_sync_run(
                     state,
@@ -372,22 +379,6 @@ class BackgroundTaskManager:
                     stale=len(result.stale_users),
                     matched=result.matched_users,
                     imported=result.imported_users,
-                )
-            except TimeoutError:
-                await self._record_sync_run(
-                    state,
-                    media_server_id=server_id,
-                    sync_type="users",
-                    trigger="automatic",
-                    status="failed",
-                    started_at=started_at,
-                    error_message=f"Timed out after {timeout}s",
-                )
-                logger.warning(
-                    "Server sync timed out",
-                    server_id=str(server_id),
-                    server_name=server_name,
-                    timeout_seconds=timeout,
                 )
             except Exception as exc:
                 await self._record_sync_run(
