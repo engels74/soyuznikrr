@@ -314,6 +314,44 @@ class TestCircuitBreaker:
         cb.record_failure()
         assert cb.state == "OPEN"
 
+    def test_half_open_allows_only_single_probe(self) -> None:
+        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
+        cb.record_failure()
+        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+
+        # First call transitions to HALF_OPEN and allows the probe.
+        assert cb.should_allow() is True
+        assert cb.state == "HALF_OPEN"
+
+        # Subsequent calls in HALF_OPEN must be rejected.
+        assert cb.should_allow() is False
+        assert cb.should_allow() is False
+
+    def test_probe_gate_resets_on_success(self) -> None:
+        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
+        cb.record_failure()
+        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+        cb.should_allow()  # HALF_OPEN, probe sent
+        assert cb.should_allow() is False
+
+        cb.record_success()
+        # After closing, requests should be allowed again.
+        assert cb.should_allow() is True
+
+    def test_probe_gate_resets_on_failure(self) -> None:
+        cb = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=30)
+        cb.record_failure()
+        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+        cb.should_allow()  # HALF_OPEN, probe sent
+        assert cb.should_allow() is False
+
+        cb.record_failure()
+        assert cb.state == "OPEN"
+        # After re-opening and waiting for recovery, a new probe should be allowed.
+        cb._opened_at = datetime.now(UTC) - timedelta(seconds=31)
+        assert cb.should_allow() is True
+        assert cb.state == "HALF_OPEN"
+
     def test_record_success_resets_from_closed(self) -> None:
         cb = CircuitBreaker(failure_threshold=3, recovery_timeout_seconds=60)
         cb.record_failure()

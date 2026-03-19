@@ -999,7 +999,11 @@ class ServerController(Controller):
             BackgroundTaskManager | None,
             getattr(request.app.state, "background_task_manager", None),
         )
-        if manager is not None:
-            manager.reset_circuit_breaker(server_id)
+        if manager is None:
+            return {
+                "status": "no_op",
+                "message": "Background task manager not available",
+            }
 
-        return {"status": "ok"}
+        manager.reset_circuit_breaker(server_id)
+        return {"status": "reset"}

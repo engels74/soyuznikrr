@@ -321,7 +321,14 @@ class BackgroundTaskManager:
         failure_threshold = self.settings.sync_circuit_failure_threshold
         recovery_seconds = self.settings.sync_circuit_recovery_seconds
 
+        # Mutable counter tracking the number of retries performed by the
+        # current ``_retry_policy.execute()`` call.  Reset before each call;
+        # the ``_on_retry`` callback increments it so the error message
+        # reports the *actual* attempt count instead of ``max_retries + 1``.
+        retry_count: list[int] = [0]
+
         def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            retry_count[0] += 1
             logger.info(
                 "sync_retry",
                 attempt=attempt + 1,
@@ -366,6 +373,7 @@ class BackgroundTaskManager:
 
             started_at = datetime.now(UTC)
             self._libraries_sync_in_progress.add(server_id)
+            retry_count[0] = 0
             try:
                 await self._retry_policy.execute(
                     lambda sid=server_id: asyncio.wait_for(
@@ -404,8 +412,7 @@ class BackgroundTaskManager:
                     status="failed",
                     started_at=started_at,
                     error_message=(
-                        f"Failed after {self._retry_policy.max_retries + 1}"
-                        f" attempt(s): {error_message}"
+                        f"Failed after {retry_count[0] + 1} attempt(s): {error_message}"
                     ),
                 )
                 logger.warning(
@@ -455,6 +462,7 @@ class BackgroundTaskManager:
 
             started_at = datetime.now(UTC)
             self._users_sync_in_progress.add(server_id)
+            retry_count[0] = 0
             try:
                 result = await self._retry_policy.execute(
                     lambda sid=server_id: asyncio.wait_for(
@@ -497,8 +505,7 @@ class BackgroundTaskManager:
                     status="failed",
                     started_at=started_at,
                     error_message=(
-                        f"Failed after {self._retry_policy.max_retries + 1}"
-                        f" attempt(s): {error_message}"
+                        f"Failed after {retry_count[0] + 1} attempt(s): {error_message}"
                     ),
                 )
                 logger.warning(

@@ -188,6 +188,7 @@ class CircuitBreaker:
     _state: str
     _consecutive_failures: int
     _opened_at: datetime | None
+    _probe_sent: bool
 
     def __init__(
         self,
@@ -208,6 +209,7 @@ class CircuitBreaker:
         self._state = "CLOSED"
         self._consecutive_failures = 0
         self._opened_at = None
+        self._probe_sent = False
 
     @property
     def state(self) -> str:
@@ -230,18 +232,24 @@ class CircuitBreaker:
         """Return whether a request should be allowed through the circuit.
 
         When OPEN, the circuit transitions to HALF_OPEN once the recovery
-        timeout has elapsed, allowing a single probe request.
+        timeout has elapsed, allowing a single probe request.  Subsequent
+        calls while still in HALF_OPEN return ``False`` until
+        ``record_success`` or ``record_failure`` resets the probe gate.
         """
         if self._state == "CLOSED":
             return True
 
         if self._state == "HALF_OPEN":
+            if self._probe_sent:
+                return False
+            self._probe_sent = True
             return True
 
         # OPEN — check if recovery timeout has elapsed.
         if self._opened_at is not None:
             if datetime.now(UTC) >= self._opened_at + self.recovery_timeout:
                 self._state = "HALF_OPEN"
+                self._probe_sent = True
                 logger.info(
                     "circuit_half_open",
                     previous_failures=self._consecutive_failures,
@@ -261,6 +269,7 @@ class CircuitBreaker:
         self._state = "CLOSED"
         self._consecutive_failures = 0
         self._opened_at = None
+        self._probe_sent = False
 
     def record_failure(self) -> None:
         """Record a failed operation, potentially opening the circuit."""
@@ -269,6 +278,7 @@ class CircuitBreaker:
         if self._state == "HALF_OPEN":
             self._state = "OPEN"
             self._opened_at = datetime.now(UTC)
+            self._probe_sent = False
             logger.warning(
                 "circuit_opened",
                 trigger="half_open_failure",
