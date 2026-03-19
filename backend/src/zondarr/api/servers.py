@@ -25,7 +25,7 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
-from zondarr.core.exceptions import ValidationError
+from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.core.tasks import BackgroundTaskManager
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
@@ -311,16 +311,34 @@ class ServerController(Controller):
             settings=settings,
         )
 
+        # Circuit breaker state is shared per server
+        circuit_state: str | None = None
+        consecutive_failures: int | None = None
+        next_retry_at: datetime | None = None
+        if manager is not None:
+            cb_state = manager.get_circuit_state(server_id)
+            if cb_state is not None:
+                state_str, failures, retry_at = cb_state
+                circuit_state = state_str.lower()
+                consecutive_failures = failures
+                next_retry_at = retry_at
+
         return ServerSyncStatusResponse(
             libraries=SyncChannelStatusResponse(
                 in_progress=libraries_in_progress,
                 last_completed_at=libraries_last_completed,
                 next_scheduled_at=libraries_next,
+                circuit_state=circuit_state,
+                consecutive_failures=consecutive_failures,
+                next_retry_at=next_retry_at,
             ),
             users=SyncChannelStatusResponse(
                 in_progress=users_in_progress,
                 last_completed_at=users_last_completed,
                 next_scheduled_at=users_next,
+                circuit_state=circuit_state,
+                consecutive_failures=consecutive_failures,
+                next_retry_at=next_retry_at,
             ),
         )
 
@@ -941,3 +959,47 @@ class ServerController(Controller):
                     error_message=str(exc),
                 )
             raise
+
+    @post(
+        "/{server_id:uuid}/reset-circuit",
+        status_code=200,
+        summary="Reset circuit breaker",
+        description="Manually reset the circuit breaker for a media server, allowing sync to resume immediately.",
+    )
+    async def reset_circuit(
+        self,
+        server_id: Annotated[
+            UUID,
+            Parameter(description="Media server UUID"),
+        ],
+        request: Request[object, object, State],
+        server_repository: MediaServerRepository,
+    ) -> dict[str, str]:
+        """Reset the circuit breaker for a media server.
+
+        Validates the server exists, then resets the breaker to CLOSED
+        so syncs can resume immediately.
+
+        Args:
+            server_id: The UUID of the media server.
+            request: The current request (for app state access).
+            server_repository: MediaServerRepository from DI.
+
+        Returns:
+            A simple status dict.
+
+        Raises:
+            NotFoundError: If the server does not exist.
+        """
+        server = await server_repository.get_by_id(server_id)
+        if server is None:
+            raise NotFoundError("MediaServer", str(server_id))
+
+        manager = cast(
+            BackgroundTaskManager | None,
+            getattr(request.app.state, "background_task_manager", None),
+        )
+        if manager is not None:
+            manager.reset_circuit_breaker(server_id)
+
+        return {"status": "ok"}

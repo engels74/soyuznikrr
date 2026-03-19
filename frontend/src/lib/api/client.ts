@@ -150,6 +150,9 @@ export interface SyncChannelStatus {
 	in_progress: boolean;
 	last_completed_at?: string | null;
 	next_scheduled_at?: string | null;
+	circuit_state?: string | null;
+	consecutive_failures?: number | null;
+	next_retry_at?: string | null;
 }
 
 export interface ServerSyncStatus {
@@ -511,6 +514,27 @@ export async function syncServerLibraries(
 		) => Promise<{ data?: LibrarySyncResult; error?: unknown }>;
 	};
 	return untypedClient.POST('/api/v1/servers/{server_id}/sync-libraries', {
+		params: { path: { server_id: serverId } }
+	});
+}
+
+/**
+ * Reset the circuit breaker for a media server's sync channels.
+ *
+ * @param serverId - UUID of the server
+ * @returns Empty response on success
+ */
+export async function resetCircuitBreaker(
+	serverId: string,
+	client: ApiClient = api
+): Promise<{ data?: unknown; error?: unknown }> {
+	const untypedClient = client as unknown as {
+		POST: (
+			path: string,
+			init?: { params?: { path?: { server_id: string } } }
+		) => Promise<{ data?: unknown; error?: unknown }>;
+	};
+	return untypedClient.POST('/api/v1/servers/{server_id}/reset-circuit', {
 		params: { path: { server_id: serverId } }
 	});
 }

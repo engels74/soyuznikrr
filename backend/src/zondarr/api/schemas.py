@@ -314,6 +314,9 @@ class SyncChannelStatusResponse(msgspec.Struct, kw_only=True, omit_defaults=True
     in_progress: bool
     last_completed_at: datetime | None = None
     next_scheduled_at: datetime | None = None
+    circuit_state: str | None = None
+    consecutive_failures: int | None = None
+    next_retry_at: datetime | None = None
 
 
 class ServerSyncStatusResponse(msgspec.Struct, kw_only=True):
