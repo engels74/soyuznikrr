@@ -478,10 +478,13 @@ class TestTOTPReplayProtection:
         assert admin.totp_last_used_code is None
         assert admin.totp_last_used_at is None
 
-        service.verify_code(admin, code)  # pyright: ignore[reportUnusedCallResult]
+        fixed_time = 1700000000.0
+        with patch("zondarr.services.totp.time") as mock_time:
+            mock_time.time.return_value = fixed_time
+            service.verify_code(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
         assert admin.totp_last_used_code == code
-        assert admin.totp_last_used_at == int(time.time()) // TOTP_INTERVAL
+        assert admin.totp_last_used_at == int(fixed_time) // TOTP_INTERVAL
 
     @pytest.mark.asyncio
     async def test_confirm_setup_rejects_replayed_code(
@@ -510,11 +513,14 @@ class TestTOTPReplayProtection:
         secret = _setup_totp_for_admin(admin)
 
         code = _get_valid_totp_code(secret)
-        result = service.confirm_setup(admin, code)
+        fixed_time = 1700000000.0
+        with patch("zondarr.services.totp.time") as mock_time:
+            mock_time.time.return_value = fixed_time
+            result = service.confirm_setup(admin, code)
 
         assert result is True
         assert admin.totp_last_used_code == code
-        assert admin.totp_last_used_at == int(time.time()) // TOTP_INTERVAL
+        assert admin.totp_last_used_at == int(fixed_time) // TOTP_INTERVAL
 
 
 class TestTOTPServiceDisable:

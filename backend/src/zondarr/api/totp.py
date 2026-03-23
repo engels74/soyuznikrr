@@ -204,18 +204,20 @@ class TOTPController(Controller):
         # Validate challenge token and extract nonce
         admin_id, nonce = validate_challenge_token(data.challenge_token, secret_key)
 
-        # Load admin
+        # Atomically consume the challenge nonce to prevent replay.
+        # If two requests race with the same token, only one will succeed.
         admin_repo = AdminAccountRepository(session)
+        nonce_consumed = await admin_repo.consume_challenge_nonce(admin_id, nonce)
+        if not nonce_consumed:
+            raise AuthenticationError(
+                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
+            )
+
+        # Load admin (after nonce is consumed to avoid unnecessary loads on replay)
         admin = await admin_repo.get_by_id(admin_id)
         if admin is None or not admin.enabled:
             raise AuthenticationError(
                 "Account not found or disabled", "ACCOUNT_DISABLED"
-            )
-
-        # Verify nonce matches (single-use enforcement)
-        if admin.totp_challenge_nonce is None or admin.totp_challenge_nonce != nonce:
-            raise AuthenticationError(
-                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
             )
 
         # Check rate limit
@@ -228,8 +230,7 @@ class TOTPController(Controller):
             await session.commit()
             raise AuthenticationError("Invalid TOTP code", "INVALID_TOTP_CODE")
 
-        # Success — consume nonce, reset failed attempts, and issue tokens
-        admin.totp_challenge_nonce = None
+        # Success — nonce already consumed above, reset failed attempts and issue tokens
         totp_service.reset_failed_attempts(admin)
         admin.last_login_at = datetime.now(UTC)
 
@@ -265,18 +266,20 @@ class TOTPController(Controller):
         # Validate challenge token and extract nonce
         admin_id, nonce = validate_challenge_token(data.challenge_token, secret_key)
 
-        # Load admin
+        # Atomically consume the challenge nonce to prevent replay.
+        # If two requests race with the same token, only one will succeed.
         admin_repo = AdminAccountRepository(session)
+        nonce_consumed = await admin_repo.consume_challenge_nonce(admin_id, nonce)
+        if not nonce_consumed:
+            raise AuthenticationError(
+                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
+            )
+
+        # Load admin (after nonce is consumed to avoid unnecessary loads on replay)
         admin = await admin_repo.get_by_id(admin_id)
         if admin is None or not admin.enabled:
             raise AuthenticationError(
                 "Account not found or disabled", "ACCOUNT_DISABLED"
-            )
-
-        # Verify nonce matches (single-use enforcement)
-        if admin.totp_challenge_nonce is None or admin.totp_challenge_nonce != nonce:
-            raise AuthenticationError(
-                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
             )
 
         # Check rate limit
@@ -289,8 +292,7 @@ class TOTPController(Controller):
             await session.commit()
             raise AuthenticationError("Invalid backup code", "INVALID_BACKUP_CODE")
 
-        # Success — consume nonce, reset failed attempts, and issue tokens
-        admin.totp_challenge_nonce = None
+        # Success — nonce already consumed above, reset failed attempts and issue tokens
         totp_service.reset_failed_attempts(admin)
         admin.last_login_at = datetime.now(UTC)
 
