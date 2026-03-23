@@ -214,7 +214,9 @@ def load_settings() -> Settings:
         "plex_api_timeout_seconds": int(
             os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
         ),
-        "allow_private_networks": os.environ.get("ALLOW_PRIVATE_NETWORKS", "").lower()
+        "allow_private_networks": os.environ.get("ALLOW_PRIVATE_NETWORKS", "")
+        .strip()
+        .lower()
         not in ("false", "0", "no"),
         "plex_test_token": os.environ.get("PLEX_TEST_TOKEN") or None,
         "plex_test_email": os.environ.get("PLEX_TEST_EMAIL") or None,

@@ -281,7 +281,7 @@ class MediaServerService:
                 and ``allow_private_networks`` is disabled.
         """
         allow_private = (
-            self.settings.allow_private_networks if self.settings is not None else True
+            self.settings.allow_private_networks if self.settings is not None else False
         )
         await validate_url_host(url, allow_private=allow_private)
 
@@ -322,7 +322,7 @@ class MediaServerService:
                 and ``allow_private_networks`` is disabled.
         """
         allow_private = (
-            self.settings.allow_private_networks if self.settings is not None else True
+            self.settings.allow_private_networks if self.settings is not None else False
         )
         await validate_url_host(url, allow_private=allow_private)
 

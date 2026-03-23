@@ -13,7 +13,7 @@ class TestAllowPrivateBypass:
 
     @pytest.mark.asyncio
     async def test_allow_private_skips_all_checks(self) -> None:
-        """Private IPs are allowed when allow_private=True (the default)."""
+        """Private IPs are allowed when allow_private=True."""
         await validate_url_host("http://192.168.1.1:8096", allow_private=True)
         await validate_url_host("http://127.0.0.1:32400", allow_private=True)
         await validate_url_host("http://10.0.0.5:8096", allow_private=True)
@@ -119,9 +119,9 @@ class TestDNSResolution:
         import socket
 
         with patch("zondarr.core.url_validation.asyncio.get_event_loop") as mock_loop:
-            mock_loop.return_value.getaddrinfo = AsyncMock(
+            mock_loop.return_value.getaddrinfo = AsyncMock(  # pyright: ignore[reportAny]
                 side_effect=socket.gaierror("Name resolution failed")
-            )  # pyright: ignore[reportAny]
+            )
             with pytest.raises(ValidationError) as exc_info:
                 await validate_url_host(
                     "http://nonexistent.invalid:8096", allow_private=False

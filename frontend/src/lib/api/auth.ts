@@ -56,8 +56,8 @@ export interface AuthSuccessResponse {
 }
 
 export interface LoginResponse {
-	totp_required: boolean;
-	challenge_token: string | null;
+	totp_required?: boolean;
+	challenge_token?: string | null;
 }
 
 export interface TotpVerifyResponse {
