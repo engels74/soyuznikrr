@@ -8,6 +8,7 @@ Tests cover:
 """
 
 import re
+import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.core.exceptions import AuthenticationError
 from zondarr.models.admin import AdminAccount
+from zondarr.repositories.admin import AdminAccountRepository
 from zondarr.services.password import hash_password
 from zondarr.services.totp import (
     BACKUP_CODE_COUNT,
@@ -84,6 +86,20 @@ def _get_valid_totp_code(secret: str) -> str:
     """Generate a currently-valid TOTP code from a raw secret."""
     totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
     return totp.now()
+
+
+def _enable_totp_for_admin(admin: AdminAccount, secret: str) -> None:
+    """Enable TOTP on an admin by confirming setup and clearing code-reuse tracking.
+
+    This avoids code-reuse rejection when the same TOTP time-window code
+    is used later in the test for verification.
+    """
+    totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+    code = _get_valid_totp_code(secret)
+    totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+    # Clear code-reuse tracking so the same code can be used in verification
+    admin.totp_last_used_code = None
+    admin.totp_last_used_at = None
 
 
 # =============================================================================
@@ -314,15 +330,12 @@ class TestTOTPServiceVerify:
     @pytest.mark.asyncio
     async def test_verify_code_with_valid_totp(self, session: AsyncSession) -> None:
         """verify_code returns True for a valid TOTP code."""
-        admin = await _create_admin(session)
+        admin = await _create_admin(session, totp_enabled=True)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
+        admin.totp_enabled = True  # re-set after helper
 
-        # Enable TOTP
-        code = _get_valid_totp_code(secret)
-        service.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
-
-        # Verify with a fresh code
+        # Verify with a valid code (no prior code used, so no replay rejection)
         fresh_code = _get_valid_totp_code(secret)
         assert service.verify_code(admin, fresh_code) is True
 
@@ -392,6 +405,118 @@ class TestTOTPServiceVerify:
             service.verify_backup_code(admin, "ABCD-1234")  # pyright: ignore[reportUnusedCallResult]
 
 
+class TestTOTPReplayProtection:
+    """Tests for TOTP code replay protection in verify_code and confirm_setup."""
+
+    @pytest.mark.asyncio
+    async def test_verify_code_rejects_replayed_code(
+        self, session: AsyncSession
+    ) -> None:
+        """verify_code rejects a code that was already used in the same window."""
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+        admin.totp_enabled = True  # re-set after _setup_totp_for_admin
+
+        code = _get_valid_totp_code(secret)
+        # First use succeeds
+        assert service.verify_code(admin, code) is True
+        # Same code in same window is rejected
+        assert service.verify_code(admin, code) is False
+
+    @pytest.mark.asyncio
+    async def test_verify_code_accepts_different_code(
+        self, session: AsyncSession
+    ) -> None:
+        """verify_code accepts a different valid code after one was used."""
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+        admin.totp_enabled = True
+
+        current_code = _get_valid_totp_code(secret)
+        assert service.verify_code(admin, current_code) is True
+
+        # A code from the previous time step (valid with valid_window=1)
+        totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
+        prev_counter = int(time.time()) // TOTP_INTERVAL - 1
+        prev_code = totp.at(prev_counter * TOTP_INTERVAL)
+        # Only test if it's actually a different code
+        if prev_code != current_code:
+            assert service.verify_code(admin, prev_code) is True
+
+    @pytest.mark.asyncio
+    async def test_verify_code_accepts_reuse_after_window_expires(
+        self, session: AsyncSession
+    ) -> None:
+        """verify_code allows a code when the last-used counter is far in the past."""
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+        admin.totp_enabled = True
+
+        code = _get_valid_totp_code(secret)
+
+        # Simulate that the same code was used 5 intervals ago
+        admin.totp_last_used_code = code
+        admin.totp_last_used_at = (int(time.time()) // TOTP_INTERVAL) - 5
+
+        # Code should be accepted since the window has moved
+        assert service.verify_code(admin, code) is True
+
+    @pytest.mark.asyncio
+    async def test_verify_code_records_used_code_fields(
+        self, session: AsyncSession
+    ) -> None:
+        """verify_code sets totp_last_used_code and totp_last_used_at on success."""
+        admin = await _create_admin(session, totp_enabled=True)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+        admin.totp_enabled = True
+
+        code = _get_valid_totp_code(secret)
+        assert admin.totp_last_used_code is None
+        assert admin.totp_last_used_at is None
+
+        service.verify_code(admin, code)  # pyright: ignore[reportUnusedCallResult]
+
+        assert admin.totp_last_used_code == code
+        assert admin.totp_last_used_at == int(time.time()) // TOTP_INTERVAL
+
+    @pytest.mark.asyncio
+    async def test_confirm_setup_rejects_replayed_code(
+        self, session: AsyncSession
+    ) -> None:
+        """confirm_setup rejects a code that was already recorded as used."""
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+
+        code = _get_valid_totp_code(secret)
+
+        # Simulate a previously used code in the current window
+        admin.totp_last_used_code = code
+        admin.totp_last_used_at = int(time.time()) // TOTP_INTERVAL
+
+        result = service.confirm_setup(admin, code)
+        assert result is False
+        assert admin.totp_enabled is False
+
+    @pytest.mark.asyncio
+    async def test_confirm_setup_records_used_code(self, session: AsyncSession) -> None:
+        """confirm_setup records the code in replay protection fields on success."""
+        admin = await _create_admin(session)
+        service = TOTPService(secret_key=TEST_SECRET_KEY)
+        secret = _setup_totp_for_admin(admin)
+
+        code = _get_valid_totp_code(secret)
+        result = service.confirm_setup(admin, code)
+
+        assert result is True
+        assert admin.totp_last_used_code == code
+        assert admin.totp_last_used_at == int(time.time()) // TOTP_INTERVAL
+
+
 class TestTOTPServiceDisable:
     """Tests for TOTPService.disable."""
 
@@ -414,6 +539,9 @@ class TestTOTPServiceDisable:
         assert admin.totp_enabled_at is None
         assert admin.totp_failed_attempts == 0
         assert admin.totp_last_failed_at is None
+        assert admin.totp_last_used_code is None
+        assert admin.totp_last_used_at is None
+        assert admin.totp_challenge_nonce is None
 
     @pytest.mark.asyncio
     async def test_disable_raises_if_not_enabled(self, session: AsyncSession) -> None:
@@ -613,16 +741,18 @@ class TestChallengeToken:
         from zondarr.api.totp import create_challenge_token, validate_challenge_token
 
         admin_id = uuid4()
-        token = create_challenge_token(str(admin_id), TEST_SECRET_KEY)
-        result_id = validate_challenge_token(token, TEST_SECRET_KEY)
+        nonce = "test-nonce-abc123"
+        token = create_challenge_token(str(admin_id), TEST_SECRET_KEY, nonce)
+        result_id, result_nonce = validate_challenge_token(token, TEST_SECRET_KEY)
         assert result_id == admin_id
+        assert result_nonce == nonce
 
     def test_validate_with_wrong_key_raises(self) -> None:
         """Validation fails with a different secret key."""
         from zondarr.api.totp import create_challenge_token, validate_challenge_token
 
         admin_id = uuid4()
-        token = create_challenge_token(str(admin_id), TEST_SECRET_KEY)
+        token = create_challenge_token(str(admin_id), TEST_SECRET_KEY, "nonce")
         with pytest.raises(AuthenticationError, match="Invalid challenge token"):
             validate_challenge_token(token, "different-secret-key-also-32-chars-long!!")  # pyright: ignore[reportUnusedCallResult]
 
@@ -639,6 +769,7 @@ class TestChallengeToken:
             "exp": (datetime.now(UTC) - timedelta(minutes=1)).timestamp(),
             "iss": "zondarr",
             "purpose": "totp_challenge",
+            "nonce": "test-nonce",
         }
         encoded = pyjwt.encode(payload, TEST_SECRET_KEY, algorithm="HS256")
 
@@ -656,7 +787,7 @@ class TestChallengeToken:
             sub=str(admin_id),
             exp=datetime.now(UTC) + timedelta(minutes=5),
             iss="zondarr",
-            extras={"purpose": "not_totp"},
+            extras={"purpose": "not_totp", "nonce": "test"},
         )
         encoded = token.encode(secret=TEST_SECRET_KEY, algorithm="HS256")
 
@@ -688,6 +819,24 @@ class TestChallengeToken:
         with pytest.raises(AuthenticationError, match="purpose"):
             validate_challenge_token(encoded, TEST_SECRET_KEY)  # pyright: ignore[reportUnusedCallResult]
 
+    def test_validate_token_without_nonce_raises(self) -> None:
+        """A token missing the nonce extra raises AuthenticationError."""
+        from litestar.security.jwt import Token
+
+        from zondarr.api.totp import validate_challenge_token
+
+        admin_id = uuid4()
+        token = Token(
+            sub=str(admin_id),
+            exp=datetime.now(UTC) + timedelta(minutes=5),
+            iss="zondarr",
+            extras={"purpose": "totp_challenge"},
+        )
+        encoded = token.encode(secret=TEST_SECRET_KEY, algorithm="HS256")
+
+        with pytest.raises(AuthenticationError, match="nonce"):
+            validate_challenge_token(encoded, TEST_SECRET_KEY)  # pyright: ignore[reportUnusedCallResult]
+
 
 # =============================================================================
 # External Login TOTP Enforcement Tests
@@ -705,6 +854,7 @@ def _make_external_login_app(
     from litestar.di import Provide
 
     from zondarr.api.auth import AuthController
+    from zondarr.api.errors import authentication_error_handler
     from zondarr.api.totp import TOTPController
     from zondarr.config import Settings
 
@@ -729,6 +879,9 @@ def _make_external_login_app(
             "session": Provide(provide_session),
             "settings": Provide(provide_settings, sync_to_thread=False),
         },
+        exception_handlers={
+            AuthenticationError: authentication_error_handler,
+        },
     )
 
 
@@ -751,9 +904,7 @@ class TestExternalLoginTOTPEnforcement:
         async with session_factory() as session:
             admin = await _create_admin(session, username="extadmin")
             secret = _setup_totp_for_admin(admin)
-            totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
-            code = _get_valid_totp_code(secret)
-            totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+            _enable_totp_for_admin(admin, secret)
             assert admin.totp_enabled is True
             await session.commit()
 
@@ -823,9 +974,7 @@ class TestExternalLoginTOTPEnforcement:
         async with session_factory() as session:
             admin = await _create_admin(session, username="extadmin3")
             secret = _setup_totp_for_admin(admin)
-            totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
-            code = _get_valid_totp_code(secret)
-            totp_svc.confirm_setup(admin, code)  # pyright: ignore[reportUnusedCallResult]
+            _enable_totp_for_admin(admin, secret)
             assert admin.totp_enabled is True
             await session.commit()
 
@@ -865,3 +1014,238 @@ class TestExternalLoginTOTPEnforcement:
         verify_data: dict[str, object] = verify_resp.json()  # pyright: ignore[reportAny]
         assert verify_data.get("success") is True
         assert "zondarr_access_token" in verify_resp.cookies
+
+
+# =============================================================================
+# Challenge Token Nonce Enforcement Tests
+# =============================================================================
+
+
+class TestChallengeTokenNonceEnforcement:
+    """Tests for single-use nonce enforcement on challenge tokens.
+
+    Ensures that challenge tokens can only be consumed once, preventing
+    replay attacks where an attacker reuses a captured challenge token.
+    """
+
+    @pytest.mark.asyncio
+    async def test_totp_verify_clears_nonce_on_success(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Successful TOTP verification clears the challenge nonce."""
+        from litestar.testing import TestClient
+
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="nonce_clear")
+            secret = _setup_totp_for_admin(admin)
+            _enable_totp_for_admin(admin, secret)
+            assert admin.totp_enabled is True
+            await session.commit()
+
+        app = _make_external_login_app(session_factory)
+
+        # Step 1: Login to get challenge token (sets nonce on admin)
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
+
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        challenge_token = data["challenge_token"]
+        assert isinstance(challenge_token, str)
+
+        # Step 2: Verify TOTP (should succeed and clear nonce)
+        totp_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            verify_resp = client.post(
+                "/api/auth/totp/verify",
+                json={"challenge_token": challenge_token, "code": totp_code},
+            )
+
+        assert verify_resp.status_code == 200
+
+        # Verify nonce was cleared in DB
+        async with session_factory() as session:
+            admin_repo = AdminAccountRepository(session)
+            refreshed_admin = await admin_repo.get_by_id(admin.id)
+            assert refreshed_admin is not None
+            assert refreshed_admin.totp_challenge_nonce is None
+
+    @pytest.mark.asyncio
+    async def test_totp_verify_rejects_replayed_challenge_token(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Second use of the same challenge token is rejected."""
+        from litestar.testing import TestClient
+
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="nonce_replay")
+            secret = _setup_totp_for_admin(admin)
+            _enable_totp_for_admin(admin, secret)
+            assert admin.totp_enabled is True
+            await session.commit()
+
+        app = _make_external_login_app(session_factory)
+
+        # Step 1: Login to get challenge token
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
+
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        challenge_token = data["challenge_token"]
+        assert isinstance(challenge_token, str)
+
+        # Step 2: First verification succeeds
+        totp_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            verify_resp = client.post(
+                "/api/auth/totp/verify",
+                json={"challenge_token": challenge_token, "code": totp_code},
+            )
+        assert verify_resp.status_code == 200
+
+        # Step 3: Replay the same challenge token — must be rejected
+        fresh_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            replay_resp = client.post(
+                "/api/auth/totp/verify",
+                json={"challenge_token": challenge_token, "code": fresh_code},
+            )
+        assert replay_resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_backup_code_verify_rejects_replayed_challenge_token(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Second use of challenge token via backup code endpoint is rejected."""
+        from litestar.testing import TestClient
+
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="nonce_backup_replay")
+            secret = _setup_totp_for_admin(admin)
+            _enable_totp_for_admin(admin, secret)
+            assert admin.totp_enabled is True
+            totp_svc = TOTPService(secret_key=TEST_SECRET_KEY)
+            backup_codes = totp_svc.regenerate_backup_codes(admin)
+            await session.commit()
+
+        app = _make_external_login_app(session_factory)
+
+        # Step 1: Login to get challenge token
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
+
+        data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
+        challenge_token = data["challenge_token"]
+        assert isinstance(challenge_token, str)
+
+        # Step 2: First verification with backup code succeeds
+        with TestClient(app) as client:
+            verify_resp = client.post(
+                "/api/auth/totp/backup-code",
+                json={"challenge_token": challenge_token, "code": backup_codes[0]},
+            )
+        assert verify_resp.status_code == 200
+
+        # Step 3: Replay the same challenge token — must be rejected
+        with TestClient(app) as client:
+            replay_resp = client.post(
+                "/api/auth/totp/backup-code",
+                json={"challenge_token": challenge_token, "code": backup_codes[1]},
+            )
+        assert replay_resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_new_login_generates_fresh_nonce(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Each login generates a new nonce, invalidating previous challenge tokens."""
+        from litestar.testing import TestClient
+
+        async with session_factory() as session:
+            admin = await _create_admin(session, username="nonce_fresh")
+            secret = _setup_totp_for_admin(admin)
+            _enable_totp_for_admin(admin, secret)
+            assert admin.totp_enabled is True
+            await session.commit()
+
+        app = _make_external_login_app(session_factory)
+
+        # Step 1: First login — get challenge token #1
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp1 = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
+
+        data1: dict[str, object] = resp1.json()  # pyright: ignore[reportAny]
+        challenge_token_1 = data1["challenge_token"]
+
+        # Step 2: Second login — get challenge token #2 (overwrites nonce)
+        with (
+            patch(
+                "zondarr.services.auth.AuthService.authenticate_external",
+                return_value=admin,
+            ),
+            TestClient(app) as client,
+        ):
+            resp2 = client.post(
+                "/api/auth/login/plex",
+                json={"credentials": {"token": "fake"}},
+            )
+
+        data2: dict[str, object] = resp2.json()  # pyright: ignore[reportAny]
+        challenge_token_2 = data2["challenge_token"]
+
+        # Step 3: Challenge token #1 should be rejected (nonce was overwritten)
+        totp_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            stale_resp = client.post(
+                "/api/auth/totp/verify",
+                json={"challenge_token": challenge_token_1, "code": totp_code},
+            )
+        assert stale_resp.status_code == 401
+
+        # Step 4: Challenge token #2 should work
+        fresh_code = _get_valid_totp_code(secret)
+        with TestClient(app) as client:
+            fresh_resp = client.post(
+                "/api/auth/totp/verify",
+                json={"challenge_token": challenge_token_2, "code": fresh_code},
+            )
+        assert fresh_resp.status_code == 200

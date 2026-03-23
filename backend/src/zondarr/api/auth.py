@@ -11,6 +11,7 @@ Provides endpoints for admin authentication:
 """
 
 import hmac
+import secrets
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -255,7 +256,13 @@ class AuthController(Controller):
 
         # Check if TOTP is required
         if admin.totp_enabled:
-            challenge = create_challenge_token(str(admin.id), settings.secret_key)
+            nonce = secrets.token_hex(32)
+            admin = await session.merge(admin)
+            admin.totp_challenge_nonce = nonce
+            await session.commit()
+            challenge = create_challenge_token(
+                str(admin.id), settings.secret_key, nonce
+            )
             return Response(
                 LoginResponse(totp_required=True, challenge_token=challenge),
                 status_code=HTTP_200_OK,
@@ -332,7 +339,13 @@ class AuthController(Controller):
 
         # Check if TOTP is required
         if admin.totp_enabled:
-            challenge = create_challenge_token(str(admin.id), settings.secret_key)
+            nonce = secrets.token_hex(32)
+            admin = await session.merge(admin)
+            admin.totp_challenge_nonce = nonce
+            await session.commit()
+            challenge = create_challenge_token(
+                str(admin.id), settings.secret_key, nonce
+            )
             return Response(
                 LoginResponse(totp_required=True, challenge_token=challenge),
                 status_code=HTTP_200_OK,

@@ -50,34 +50,35 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)  # pyright
 CHALLENGE_TOKEN_MINUTES = 5
 
 
-def create_challenge_token(admin_id: str, secret_key: str) -> str:
+def create_challenge_token(admin_id: str, secret_key: str, nonce: str) -> str:
     """Create a short-lived JWT challenge token for TOTP verification.
 
     Args:
         admin_id: The admin account UUID as a string.
         secret_key: Application secret key for signing.
+        nonce: Single-use nonce to prevent token replay.
 
     Returns:
-        Encoded JWT string with purpose="totp_challenge".
+        Encoded JWT string with purpose="totp_challenge" and embedded nonce.
     """
     token = Token(
         sub=admin_id,
         exp=datetime.now(UTC) + timedelta(minutes=CHALLENGE_TOKEN_MINUTES),
         iss="zondarr",
-        extras={"purpose": "totp_challenge"},
+        extras={"purpose": "totp_challenge", "nonce": nonce},
     )
     return token.encode(secret=secret_key, algorithm="HS256")
 
 
-def validate_challenge_token(encoded_token: str, secret_key: str) -> UUID:
-    """Validate a TOTP challenge token and return the admin ID.
+def validate_challenge_token(encoded_token: str, secret_key: str) -> tuple[UUID, str]:
+    """Validate a TOTP challenge token and return the admin ID and nonce.
 
     Args:
         encoded_token: The encoded JWT challenge token.
         secret_key: Application secret key for verification.
 
     Returns:
-        The admin account UUID.
+        A tuple of (admin account UUID, nonce string).
 
     Raises:
         AuthenticationError: If the token is invalid, expired, or not a challenge token.
@@ -105,8 +106,15 @@ def validate_challenge_token(encoded_token: str, secret_key: str) -> UUID:
             "Challenge token has expired", "CHALLENGE_TOKEN_EXPIRED"
         )
 
+    # Extract nonce
+    nonce = token.extras.get("nonce")
+    if not isinstance(nonce, str) or not nonce:
+        raise AuthenticationError(
+            "Invalid challenge token nonce", "INVALID_CHALLENGE_TOKEN"
+        )
+
     try:
-        return UUID(token.sub)
+        return UUID(token.sub), nonce
     except ValueError, TypeError:
         raise AuthenticationError(
             "Invalid challenge token subject", "INVALID_CHALLENGE_TOKEN"
@@ -193,8 +201,8 @@ class TOTPController(Controller):
         """Verify a TOTP code using the challenge token from login."""
         secret_key = settings.secret_key
 
-        # Validate challenge token
-        admin_id = validate_challenge_token(data.challenge_token, secret_key)
+        # Validate challenge token and extract nonce
+        admin_id, nonce = validate_challenge_token(data.challenge_token, secret_key)
 
         # Load admin
         admin_repo = AdminAccountRepository(session)
@@ -202,6 +210,12 @@ class TOTPController(Controller):
         if admin is None or not admin.enabled:
             raise AuthenticationError(
                 "Account not found or disabled", "ACCOUNT_DISABLED"
+            )
+
+        # Verify nonce matches (single-use enforcement)
+        if admin.totp_challenge_nonce is None or admin.totp_challenge_nonce != nonce:
+            raise AuthenticationError(
+                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
             )
 
         # Check rate limit
@@ -214,7 +228,8 @@ class TOTPController(Controller):
             await session.commit()
             raise AuthenticationError("Invalid TOTP code", "INVALID_TOTP_CODE")
 
-        # Success — reset failed attempts and issue tokens
+        # Success — consume nonce, reset failed attempts, and issue tokens
+        admin.totp_challenge_nonce = None
         totp_service.reset_failed_attempts(admin)
         admin.last_login_at = datetime.now(UTC)
 
@@ -247,8 +262,8 @@ class TOTPController(Controller):
         """Verify a backup code using the challenge token from login."""
         secret_key = settings.secret_key
 
-        # Validate challenge token
-        admin_id = validate_challenge_token(data.challenge_token, secret_key)
+        # Validate challenge token and extract nonce
+        admin_id, nonce = validate_challenge_token(data.challenge_token, secret_key)
 
         # Load admin
         admin_repo = AdminAccountRepository(session)
@@ -256,6 +271,12 @@ class TOTPController(Controller):
         if admin is None or not admin.enabled:
             raise AuthenticationError(
                 "Account not found or disabled", "ACCOUNT_DISABLED"
+            )
+
+        # Verify nonce matches (single-use enforcement)
+        if admin.totp_challenge_nonce is None or admin.totp_challenge_nonce != nonce:
+            raise AuthenticationError(
+                "Challenge token already used or invalid", "INVALID_CHALLENGE_TOKEN"
             )
 
         # Check rate limit
@@ -268,7 +289,8 @@ class TOTPController(Controller):
             await session.commit()
             raise AuthenticationError("Invalid backup code", "INVALID_BACKUP_CODE")
 
-        # Success — reset failed attempts and issue tokens
+        # Success — consume nonce, reset failed attempts, and issue tokens
+        admin.totp_challenge_nonce = None
         totp_service.reset_failed_attempts(admin)
         admin.last_login_at = datetime.now(UTC)
 

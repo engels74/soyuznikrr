@@ -51,6 +51,9 @@ class AdminAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     totp_enabled_at: Mapped[datetime | None] = mapped_column(default=None)
     totp_failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
     totp_last_failed_at: Mapped[datetime | None] = mapped_column(default=None)
+    totp_challenge_nonce: Mapped[str | None] = mapped_column(String(64), default=None)
+    totp_last_used_code: Mapped[str | None] = mapped_column(String(6), default=None)
+    totp_last_used_at: Mapped[int | None] = mapped_column(Integer, default=None)
 
     # Relationships
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
