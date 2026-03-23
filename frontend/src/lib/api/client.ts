@@ -37,8 +37,6 @@ async function attemptTokenRefresh(): Promise<boolean> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({}),
 			credentials: 'include'
 		});
 		return response.ok;

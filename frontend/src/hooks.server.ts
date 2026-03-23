@@ -47,10 +47,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 						const refreshResponse = await fetch(`${SSR_API_URL}/api/auth/refresh`, {
 							method: 'POST',
 							headers: {
-								'Content-Type': 'application/json',
 								Cookie: `zondarr_refresh_token=${refreshToken}`
-							},
-							body: JSON.stringify({})
+							}
 						});
 
 						if (refreshResponse.ok) {
