@@ -480,7 +480,7 @@ class TestTOTPReplayProtection:
 
         fixed_time = 1700000000.0
         with patch("zondarr.services.totp.time") as mock_time:
-            mock_time.time.return_value = fixed_time
+            mock_time.time.return_value = fixed_time  # pyright: ignore[reportAny]
             service.verify_code(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
         assert admin.totp_last_used_code == code
@@ -515,7 +515,7 @@ class TestTOTPReplayProtection:
         code = _get_valid_totp_code(secret)
         fixed_time = 1700000000.0
         with patch("zondarr.services.totp.time") as mock_time:
-            mock_time.time.return_value = fixed_time
+            mock_time.time.return_value = fixed_time  # pyright: ignore[reportAny]
             result = service.confirm_setup(admin, code)
 
         assert result is True
