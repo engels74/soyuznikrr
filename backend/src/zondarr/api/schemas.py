@@ -38,8 +38,10 @@ from zondarr.media.provider import AuthFlowType
 # Non-empty string with max length for names and identifiers
 NonEmptyStr = Annotated[str, msgspec.Meta(min_length=1, max_length=255)]
 
-# URL string with reasonable max length
-UrlStr = Annotated[str, msgspec.Meta(min_length=1, max_length=2048)]
+# URL string with reasonable max length (HTTP(S) only)
+UrlStr = Annotated[
+    str, msgspec.Meta(min_length=1, max_length=2048, pattern=r"^https?://")
+]
 
 # API key string (may be longer for some services)
 ApiKeyStr = Annotated[str, msgspec.Meta(min_length=1, max_length=512)]
@@ -1454,16 +1456,6 @@ class ExternalLoginRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=T
     credentials: dict[str, str]
 
 
-class RefreshRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
-    """Refresh token request.
-
-    Attributes:
-        refresh_token: The refresh token string (optional; falls back to cookie).
-    """
-
-    refresh_token: str | None = None
-
-
 class AdminMeResponse(msgspec.Struct, kw_only=True):
     """Current admin info response.
 
@@ -1486,14 +1478,14 @@ class AdminMeResponse(msgspec.Struct, kw_only=True):
     auth_method: str = "local"
 
 
-class AuthTokenResponse(msgspec.Struct, kw_only=True):
-    """Authentication token response.
+class AuthSuccessResponse(msgspec.Struct, kw_only=True):
+    """Authentication success response.
 
     Attributes:
-        refresh_token: Refresh token for obtaining new access tokens.
+        success: Indicates the operation completed successfully.
     """
 
-    refresh_token: str
+    success: bool = True
 
 
 class LoginResponse(msgspec.Struct, kw_only=True, omit_defaults=True):
@@ -1502,18 +1494,16 @@ class LoginResponse(msgspec.Struct, kw_only=True, omit_defaults=True):
     When totp_required is True, the client must call the TOTP verify
     endpoint with the challenge_token. No access token cookie is set.
 
-    When totp_required is False (or absent), refresh_token is provided
-    and the access token cookie is set normally.
+    When totp_required is False (or absent), login is complete and
+    the access token cookie is set normally.
 
     Attributes:
         totp_required: True if TOTP verification is needed.
         challenge_token: Short-lived JWT for TOTP verification step.
-        refresh_token: Refresh token (only when login is complete).
     """
 
     totp_required: bool = False
     challenge_token: str | None = None
-    refresh_token: str | None = None
 
 
 # TOTP 6-digit code

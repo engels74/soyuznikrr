@@ -455,6 +455,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/servers/{server_id}/reset-circuit': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Reset circuit breaker
+		 * @description Manually reset the circuit breaker for a media server, allowing sync to resume immediately.
+		 */
+		post: operations['ApiV1ServersServerIdResetCircuitResetCircuit'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/servers/{server_id}/sync-libraries': {
 		parameters: {
 			query?: never;
@@ -1171,9 +1191,10 @@ export interface components {
 			onboarding_step: 'account' | 'security' | 'server' | 'complete';
 			provider_auth?: components['schemas']['ProviderAuthInfo'][];
 		};
-		/** AuthTokenResponse */
-		AuthTokenResponse: {
-			refresh_token: string;
+		/** AuthSuccessResponse */
+		AuthSuccessResponse: {
+			/** @default true */
+			success: boolean;
 		};
 		/** ConnectionTestRequest */
 		ConnectionTestRequest: {
@@ -1394,7 +1415,6 @@ export interface components {
 			/** @default false */
 			totp_required: boolean;
 			challenge_token?: string | null;
-			refresh_token?: string | null;
 		};
 		/** MediaServerCreate */
 		MediaServerCreate: {
@@ -1529,9 +1549,9 @@ export interface components {
 		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
 		 *           "username": "VGFBaiJKfHyEulsYjSBd",
 		 *           "enabled": true,
-		 *           "created_at": "1996-09-15T22:36:08.921080",
-		 *           "expires_at": "2021-04-21T23:47:59.723815",
-		 *           "updated_at": "2006-05-06T12:13:27.944409"
+		 *           "created_at": "1996-09-28T19:46:53.921080",
+		 *           "expires_at": "2021-05-04T20:58:44.723815",
+		 *           "updated_at": "2006-05-19T09:24:12.944409"
 		 *         }
 		 *       ]
 		 *     }
@@ -1559,9 +1579,9 @@ export interface components {
 			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
 			 *         "username": "EMpEHdutFmqCQcDdvDZV",
 			 *         "enabled": false,
-			 *         "created_at": "1996-09-02T08:45:09.852486",
+			 *         "created_at": "1996-09-15T05:55:54.852486",
 			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-14T17:10:28.373028"
+			 *         "updated_at": "1997-02-27T14:21:13.373028"
 			 *       }
 			 *     ]
 			 */
@@ -1574,10 +1594,6 @@ export interface components {
 			identity_id: string;
 			users_created: components['schemas']['UserResponse'][];
 			message?: string | null;
-		};
-		/** RefreshRequest */
-		RefreshRequest: {
-			refresh_token: string;
 		};
 		/** RemoveSharesResponse */
 		RemoveSharesResponse: {
@@ -1655,6 +1671,9 @@ export interface components {
 			in_progress: boolean;
 			last_completed_at?: string | null;
 			next_scheduled_at?: string | null;
+			circuit_state?: string | null;
+			consecutive_failures?: number | null;
+			next_retry_at?: string | null;
 		};
 		/** SyncIntervalUpdate */
 		SyncIntervalUpdate: {
@@ -2083,11 +2102,7 @@ export interface operations {
 			path?: never;
 			cookie?: never;
 		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RefreshRequest'] | null;
-			};
-		};
+		requestBody?: never;
 		responses: {
 			/** @description Request fulfilled, document follows */
 			200: {
@@ -2097,24 +2112,6 @@ export interface operations {
 				content: {
 					'application/json': {
 						[key: string]: boolean;
-					};
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
 					};
 				};
 			};
@@ -2189,11 +2186,7 @@ export interface operations {
 			path?: never;
 			cookie?: never;
 		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RefreshRequest'];
-			};
-		};
+		requestBody?: never;
 		responses: {
 			/** @description Request fulfilled, document follows */
 			200: {
@@ -2201,25 +2194,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
-				};
-			};
-			/** @description Bad request syntax or unsupported method */
-			400: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
+					'application/json': components['schemas']['AuthSuccessResponse'];
 				};
 			};
 		};
@@ -2243,7 +2218,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
+					'application/json': components['schemas']['AuthSuccessResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2601,7 +2576,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['OAuthCheckResponse'];
+					'application/json': components['schemas']['OAuthCheckResponse'] | unknown;
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2642,7 +2617,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['OAuthPinResponse'];
+					'application/json': components['schemas']['OAuthPinResponse'] | unknown;
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2948,6 +2923,49 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['EnvCredentialsResponse'];
+				};
+			};
+		};
+	};
+	ApiV1ServersServerIdResetCircuitResetCircuit: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Media server UUID */
+				server_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						[key: string]: string;
+					};
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
 				};
 			};
 		};
@@ -3537,7 +3555,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
+					'application/json': components['schemas']['AuthSuccessResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -3579,7 +3597,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['AuthTokenResponse'];
+					'application/json': components['schemas']['AuthSuccessResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */

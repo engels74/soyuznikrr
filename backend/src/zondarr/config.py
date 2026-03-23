@@ -139,6 +139,17 @@ class Settings(msgspec.Struct, kw_only=True, forbid_unknown_fields=True):
         ),
     ] = 30
 
+    # Allow media server URLs pointing to private/internal networks.
+    # Default True because Zondarr is self-hosted and most users run
+    # Plex/Jellyfin on the same LAN.  Set False in multi-tenant or
+    # public-facing deployments to block SSRF to internal hosts.
+    allow_private_networks: Annotated[
+        bool,
+        msgspec.Meta(
+            description="Allow media server URLs targeting private/internal IP ranges (default: True)",
+        ),
+    ] = True
+
     # Test credentials for E2E OAuth flow testing (debug-only)
     plex_test_token: str | None = None
     plex_test_email: str | None = None
@@ -203,6 +214,10 @@ def load_settings() -> Settings:
         "plex_api_timeout_seconds": int(
             os.environ.get("PLEX_API_TIMEOUT_SECONDS", "30")
         ),
+        "allow_private_networks": os.environ.get("ALLOW_PRIVATE_NETWORKS", "")
+        .strip()
+        .lower()
+        not in ("false", "0", "no"),
         "plex_test_token": os.environ.get("PLEX_TEST_TOKEN") or None,
         "plex_test_email": os.environ.get("PLEX_TEST_EMAIL") or None,
     }

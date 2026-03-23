@@ -792,11 +792,17 @@ class ServerController(Controller):
                 message=exc.message,
             )
 
-        success, detected_type, info = await media_server_service.detect_and_test(
-            url=data.url,
-            api_key=api_key,
-            server_type=data.server_type,
-        )
+        try:
+            success, detected_type, info = await media_server_service.detect_and_test(
+                url=data.url,
+                api_key=api_key,
+                server_type=data.server_type,
+            )
+        except ValidationError as exc:
+            return ConnectionTestResponse(
+                success=False,
+                message=exc.message,
+            )
 
         if success:
             return ConnectionTestResponse(

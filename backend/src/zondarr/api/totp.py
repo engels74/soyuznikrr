@@ -33,7 +33,7 @@ from zondarr.services.password import verify_password
 from zondarr.services.totp import TOTPService
 
 from .schemas import (
-    AuthTokenResponse,
+    AuthSuccessResponse,
     TOTPBackupCodeRequest,
     TOTPBackupCodesResponse,
     TOTPConfirmSetupRequest,
@@ -189,7 +189,7 @@ class TOTPController(Controller):
         data: TOTPVerifyRequest,
         session: AsyncSession,
         settings: Settings,
-    ) -> Response[AuthTokenResponse]:
+    ) -> Response[AuthSuccessResponse]:
         """Verify a TOTP code using the challenge token from login."""
         secret_key = settings.secret_key
 
@@ -227,7 +227,7 @@ class TOTPController(Controller):
         refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
-            AuthTokenResponse(refresh_token=refresh_token),
+            AuthSuccessResponse(),
             status_code=HTTP_200_OK,
             cookies=[access_cookie, refresh_cookie],
         )
@@ -243,7 +243,7 @@ class TOTPController(Controller):
         data: TOTPBackupCodeRequest,
         session: AsyncSession,
         settings: Settings,
-    ) -> Response[AuthTokenResponse]:
+    ) -> Response[AuthSuccessResponse]:
         """Verify a backup code using the challenge token from login."""
         secret_key = settings.secret_key
 
@@ -281,7 +281,7 @@ class TOTPController(Controller):
         refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
-            AuthTokenResponse(refresh_token=refresh_token),
+            AuthSuccessResponse(),
             status_code=HTTP_200_OK,
             cookies=[access_cookie, refresh_cookie],
         )

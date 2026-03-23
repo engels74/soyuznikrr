@@ -4,8 +4,9 @@ Feature: zondarr-foundation
 Properties: 10, 11
 """
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from hypothesis import given
@@ -35,6 +36,20 @@ url_strategy = st.from_regex(r"https?://[a-z0-9]+\.[a-z]{2,}", fullmatch=True)
 server_type_strategy = st.sampled_from(KNOWN_SERVER_TYPES)
 # Use UUIDs for codes to ensure uniqueness across Hypothesis examples
 code_strategy = st.uuids().map(lambda u: str(u).replace("-", "")[:12].upper())
+
+
+@pytest.fixture(autouse=True)
+def _bypass_url_validation() -> Iterator[None]:  # pyright: ignore[reportUnusedFunction]
+    """Patch validate_url_host as a no-op for property tests.
+
+    Property tests use Hypothesis-generated URLs with mock clients,
+    so real DNS resolution would fail.
+    """
+    with patch(
+        "zondarr.services.media_server.validate_url_host",
+        new_callable=AsyncMock,
+    ):
+        yield
 
 
 class TestServiceValidatesBeforePersisting:
