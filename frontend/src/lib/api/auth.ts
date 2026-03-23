@@ -51,18 +51,17 @@ export interface AdminMeResponse {
 	onboarding_step: OnboardingStep;
 }
 
-export interface AuthTokenResponse {
-	refresh_token: string;
+export interface AuthSuccessResponse {
+	success: boolean;
 }
 
 export interface LoginResponse {
 	totp_required: boolean;
 	challenge_token: string | null;
-	refresh_token: string | null;
 }
 
 export interface TotpVerifyResponse {
-	refresh_token: string;
+	success: boolean;
 }
 
 export interface OnboardingStatusResponse {
@@ -117,7 +116,7 @@ export async function getAuthMethods(
 export async function setupAdmin(
 	data: { username: string; password: string; email?: string; bootstrap_token: string },
 	customFetch: typeof globalThis.fetch = fetch
-): Promise<{ data?: AuthTokenResponse; error?: unknown }> {
+): Promise<{ data?: AuthSuccessResponse; error?: unknown }> {
 	const response = await customFetch(`/api/auth/setup`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -128,7 +127,7 @@ export async function setupAdmin(
 		const error = await response.json();
 		return { error };
 	}
-	const result = (await response.json()) as AuthTokenResponse;
+	const result = (await response.json()) as AuthSuccessResponse;
 	return { data: result };
 }
 
@@ -215,36 +214,9 @@ export async function loginExternal(
 	return { data: result };
 }
 
-export async function refreshToken(
-	token: string,
-	customFetch: typeof globalThis.fetch = fetch
-): Promise<{ data?: AuthTokenResponse; error?: unknown }> {
-	const response = await customFetch(`${API_BASE_URL}/api/auth/refresh`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ refresh_token: token }),
-		credentials: 'include'
-	});
-	if (!response.ok) {
-		const error = await response.json();
-		return { error };
-	}
-	const result = (await response.json()) as AuthTokenResponse;
-	return { data: result };
-}
-
-export async function logout(
-	token?: string,
-	customFetch: typeof globalThis.fetch = fetch
-): Promise<void> {
+export async function logout(customFetch: typeof globalThis.fetch = fetch): Promise<void> {
 	await customFetch(`${API_BASE_URL}/api/auth/logout`, {
 		method: 'POST',
-		...(token
-			? {
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ refresh_token: token })
-				}
-			: {}),
 		credentials: 'include'
 	});
 }

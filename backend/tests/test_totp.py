@@ -784,7 +784,7 @@ class TestExternalLoginTOTPEnforcement:
         self,
         session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
-        """External login without TOTP returns refresh_token + access cookie."""
+        """External login without TOTP returns success + access cookie."""
         from litestar.testing import TestClient
 
         async with session_factory() as session:
@@ -808,7 +808,6 @@ class TestExternalLoginTOTPEnforcement:
 
         assert resp.status_code == 200
         data: dict[str, object] = resp.json()  # pyright: ignore[reportAny]
-        assert data.get("refresh_token") is not None
         assert data.get("totp_required") is not True
         # Access cookie should be set
         assert "zondarr_access_token" in resp.cookies
@@ -864,5 +863,5 @@ class TestExternalLoginTOTPEnforcement:
 
         assert verify_resp.status_code == 200
         verify_data: dict[str, object] = verify_resp.json()  # pyright: ignore[reportAny]
-        assert verify_data.get("refresh_token") is not None
+        assert verify_data.get("success") is True
         assert "zondarr_access_token" in verify_resp.cookies

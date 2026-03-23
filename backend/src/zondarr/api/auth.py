@@ -37,7 +37,7 @@ from .schemas import (
     AdminSetupRequest,
     AuthFieldInfo,
     AuthMethodsResponse,
-    AuthTokenResponse,
+    AuthSuccessResponse,
     ExternalLoginRequest,
     LinkProviderRequest,
     LinkProviderResponse,
@@ -46,7 +46,6 @@ from .schemas import (
     OnboardingStatusResponse,
     PasswordChangeResponse,
     ProviderAuthInfo,
-    RefreshRequest,
 )
 from .totp import create_challenge_token
 
@@ -176,7 +175,7 @@ class AuthController(Controller):
         request: Request[None, None, State],
         session: AsyncSession,
         settings: Settings,
-    ) -> Response[AuthTokenResponse]:
+    ) -> Response[AuthSuccessResponse]:
         """Create the first admin account (only when no admins exist)."""
         # Validate bootstrap token (always required)
         expected_token: str | None = settings.bootstrap_token or getattr(
@@ -206,7 +205,7 @@ class AuthController(Controller):
         refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         response = Response(
-            AuthTokenResponse(refresh_token=refresh_token),
+            AuthSuccessResponse(),
             status_code=HTTP_201_CREATED,
             cookies=[access_cookie, refresh_cookie],
         )
@@ -272,7 +271,7 @@ class AuthController(Controller):
         refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
-            LoginResponse(refresh_token=refresh_token),
+            LoginResponse(),
             status_code=HTTP_200_OK,
             cookies=[access_cookie, refresh_cookie],
         )
@@ -349,7 +348,7 @@ class AuthController(Controller):
         refresh_cookie = self._create_refresh_cookie(refresh_token, secure=secure)
 
         return Response(
-            LoginResponse(refresh_token=refresh_token),
+            LoginResponse(),
             status_code=HTTP_200_OK,
             cookies=[access_cookie, refresh_cookie],
         )
@@ -363,13 +362,11 @@ class AuthController(Controller):
     async def refresh(
         self,
         request: Request[None, None, State],
-        data: RefreshRequest,
         session: AsyncSession,
         settings: Settings,
-    ) -> Response[AuthTokenResponse]:
+    ) -> Response[AuthSuccessResponse]:
         """Exchange a refresh token for a new access token."""
-        # Use body token if provided, otherwise fall back to cookie
-        token = data.refresh_token or request.cookies.get("zondarr_refresh_token")
+        token = request.cookies.get("zondarr_refresh_token")
         if not token:
             raise AuthenticationError(
                 "No refresh token provided", "MISSING_REFRESH_TOKEN"
@@ -387,7 +384,7 @@ class AuthController(Controller):
         refresh_cookie = self._create_refresh_cookie(new_refresh_token, secure=secure)
 
         return Response(
-            AuthTokenResponse(refresh_token=new_refresh_token),
+            AuthSuccessResponse(),
             status_code=HTTP_200_OK,
             cookies=[access_cookie, refresh_cookie],
         )
@@ -403,15 +400,9 @@ class AuthController(Controller):
         request: Request[None, None, State],
         session: AsyncSession,
         settings: Settings,
-        data: RefreshRequest | None = None,
     ) -> Response[dict[str, bool]]:
         """Revoke tokens and clear cookies."""
-        # Revoke refresh token from body or cookie
-        token = (
-            data.refresh_token
-            if data is not None and data.refresh_token
-            else request.cookies.get("zondarr_refresh_token")
-        )
+        token = request.cookies.get("zondarr_refresh_token")
         if token:
             service = self._create_auth_service(session)
             await service.revoke_refresh_token(token)

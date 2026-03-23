@@ -74,7 +74,7 @@ describe('SetupWizard', () => {
 	it('moves from admin step to the TOTP step after creating an admin', async () => {
 		const user = userEvent.setup();
 		vi.mocked(authApi.setupAdmin).mockResolvedValue({
-			data: { refresh_token: 'token' },
+			data: { success: true },
 			error: undefined
 		});
 
@@ -89,7 +89,7 @@ describe('SetupWizard', () => {
 	it('navigates to dashboard when server step is skipped after CSRF step', async () => {
 		const user = userEvent.setup();
 		vi.mocked(authApi.setupAdmin).mockResolvedValue({
-			data: { refresh_token: 'token' },
+			data: { success: true },
 			error: undefined
 		});
 		vi.mocked(authApi.advanceOnboarding).mockResolvedValue({

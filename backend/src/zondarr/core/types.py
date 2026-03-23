@@ -21,8 +21,10 @@ import msgspec
 NonEmptyStr = Annotated[str, msgspec.Meta(min_length=1, max_length=255)]
 """Non-empty string with reasonable max length for names and titles."""
 
-UrlStr = Annotated[str, msgspec.Meta(min_length=1, max_length=2048)]
-"""URL string with max length suitable for most URLs."""
+UrlStr = Annotated[
+    str, msgspec.Meta(min_length=1, max_length=2048, pattern=r"^https?://")
+]
+"""URL string with max length suitable for most URLs. Only HTTP(S) schemes allowed."""
 
 Email = Annotated[str, msgspec.Meta(pattern=r"^[\w.-]+@[\w.-]+\.\w+$", max_length=255)]
 """Email address with basic pattern validation."""

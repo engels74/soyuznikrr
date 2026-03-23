@@ -18,6 +18,7 @@ import structlog
 
 from zondarr.config import Settings
 from zondarr.core.exceptions import NotFoundError, ValidationError
+from zondarr.core.url_validation import validate_url_host
 from zondarr.media.registry import ClientRegistry
 from zondarr.media.types import ServerInfo
 from zondarr.models.media_server import Library, MediaServer
@@ -274,7 +275,16 @@ class MediaServerService:
 
         Returns:
             True if the connection is successful, False otherwise.
+
+        Raises:
+            ValidationError: If the URL targets a private/internal network
+                and ``allow_private_networks`` is disabled.
         """
+        allow_private = (
+            self.settings.allow_private_networks if self.settings is not None else True
+        )
+        await validate_url_host(url, allow_private=allow_private)
+
         try:
             client = self.registry.create_client(
                 server_type,
@@ -306,7 +316,16 @@ class MediaServerService:
 
         Returns:
             Tuple of (success, detected_server_type, server_info).
+
+        Raises:
+            ValidationError: If the URL targets a private/internal network
+                and ``allow_private_networks`` is disabled.
         """
+        allow_private = (
+            self.settings.allow_private_networks if self.settings is not None else True
+        )
+        await validate_url_host(url, allow_private=allow_private)
+
         if server_type is not None:
             # Test a specific server type (with timeout)
             try:
