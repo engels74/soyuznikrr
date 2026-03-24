@@ -7,6 +7,7 @@ rendering for admin accounts.
 import io
 import secrets
 import string
+import time
 from datetime import UTC, datetime
 
 import msgspec
@@ -258,6 +259,19 @@ class TOTPService:
         if not totp.verify(code, valid_window=1):
             return False
 
+        # Replay protection: reject if the time counter has not advanced.
+        # See verify_code for the detailed rationale on counter-based tracking.
+        current_counter = int(time.time()) // TOTP_INTERVAL
+        if (
+            admin.totp_last_used_at is not None
+            and current_counter <= admin.totp_last_used_at
+        ):
+            return False
+
+        # Record the time counter (not the code string)
+        admin.totp_last_used_code = None
+        admin.totp_last_used_at = current_counter
+
         admin.totp_enabled = True
         admin.totp_enabled_at = datetime.now(UTC)
         logger.info(
@@ -270,12 +284,15 @@ class TOTPService:
     def verify_code(self, admin: AdminAccount, code: str) -> bool:
         """Verify a TOTP code during login.
 
+        Includes replay protection: a code that was already used within
+        the same or adjacent TOTP time window is rejected.
+
         Args:
             admin: The admin account to verify against.
             code: The 6-digit TOTP code.
 
         Returns:
-            True if the code is valid.
+            True if the code is valid and has not been replayed.
 
         Raises:
             AuthenticationError: If TOTP is not enabled or secret is missing.
@@ -285,7 +302,26 @@ class TOTPService:
 
         secret = self._decrypt_secret(admin)
         totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
-        return totp.verify(code, valid_window=1)
+        if not totp.verify(code, valid_window=1):
+            return False
+
+        # Replay protection: reject if the time counter has not advanced.
+        # With valid_window=1, pyotp accepts codes from counters C-1, C, C+1.
+        # Tracking only the code string would leave a gap: a different valid
+        # code from an adjacent counter could overwrite the last-used record,
+        # allowing the original code to be replayed.  Counter-based tracking
+        # closes this gap by blocking ALL codes until the window moves forward.
+        current_counter = int(time.time()) // TOTP_INTERVAL
+        if (
+            admin.totp_last_used_at is not None
+            and current_counter <= admin.totp_last_used_at
+        ):
+            return False
+
+        # Record the time counter (not the code string)
+        admin.totp_last_used_code = None
+        admin.totp_last_used_at = current_counter
+        return True
 
     def verify_backup_code(self, admin: AdminAccount, code: str) -> bool:
         """Verify and consume a backup code during login.
@@ -340,6 +376,9 @@ class TOTPService:
         admin.totp_enabled_at = None
         admin.totp_failed_attempts = 0
         admin.totp_last_failed_at = None
+        admin.totp_last_used_code = None
+        admin.totp_last_used_at = None
+        admin.totp_challenge_nonce = None
 
         logger.info(
             "totp_disabled",

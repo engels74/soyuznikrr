@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import override
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import delete, exists, func, insert, literal, select, update
 from sqlalchemy.exc import IntegrityError
@@ -80,6 +80,40 @@ class AdminAccountRepository(Repository[AdminAccount]):
             raise RepositoryError(
                 "Failed to count AdminAccounts",
                 operation="count",
+                original=e,
+            ) from e
+
+    async def consume_challenge_nonce(self, admin_id: UUID, nonce: str) -> bool:
+        """Atomically consume a TOTP challenge nonce.
+
+        Uses a conditional UPDATE to ensure the nonce matches the expected
+        value. If the nonce was already consumed by a concurrent request,
+        rowcount will be 0 and we return False. This prevents TOCTOU races
+        where two parallel requests could both observe the same nonce.
+
+        Args:
+            admin_id: The UUID of the admin account.
+            nonce: The expected nonce value to consume.
+
+        Returns:
+            True if the nonce was consumed, False if it was already
+            consumed or didn't match.
+        """
+        try:
+            stmt = (
+                update(AdminAccount)
+                .where(
+                    AdminAccount.id == admin_id,
+                    AdminAccount.totp_challenge_nonce == nonce,
+                )
+                .values(totp_challenge_nonce=None)
+            )
+            result = await self.session.execute(stmt)
+            return result.rowcount > 0  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownVariableType]
+        except Exception as e:
+            raise RepositoryError(
+                "Failed to consume challenge nonce",
+                operation="consume_challenge_nonce",
                 original=e,
             ) from e
 
