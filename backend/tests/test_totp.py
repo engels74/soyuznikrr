@@ -425,10 +425,16 @@ class TestTOTPReplayProtection:
         assert service.verify_code(admin, code) is False
 
     @pytest.mark.asyncio
-    async def test_verify_code_accepts_different_code(
+    async def test_verify_code_rejects_different_code_in_same_window(
         self, session: AsyncSession
     ) -> None:
-        """verify_code accepts a different valid code after one was used."""
+        """verify_code rejects a different valid code within the same counter window.
+
+        Counter-based replay protection blocks ALL codes until the time
+        counter advances, not just the exact code that was already used.
+        This closes the gap where adjacent-window codes could be interleaved
+        to replay a previously used code.
+        """
         admin = await _create_admin(session, totp_enabled=True)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
@@ -441,15 +447,15 @@ class TestTOTPReplayProtection:
         totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
         prev_counter = int(time.time()) // TOTP_INTERVAL - 1
         prev_code = totp.at(prev_counter * TOTP_INTERVAL)
-        # Only test if it's actually a different code
+        # Even a different valid code must be rejected in the same window
         if prev_code != current_code:
-            assert service.verify_code(admin, prev_code) is True
+            assert service.verify_code(admin, prev_code) is False
 
     @pytest.mark.asyncio
-    async def test_verify_code_accepts_reuse_after_window_expires(
+    async def test_verify_code_accepts_after_counter_advances(
         self, session: AsyncSession
     ) -> None:
-        """verify_code allows a code when the last-used counter is far in the past."""
+        """verify_code allows a code when the last-used counter is in the past."""
         admin = await _create_admin(session, totp_enabled=True)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
@@ -457,18 +463,17 @@ class TestTOTPReplayProtection:
 
         code = _get_valid_totp_code(secret)
 
-        # Simulate that the same code was used 5 intervals ago
-        admin.totp_last_used_code = code
+        # Simulate that a code was used 5 intervals ago
         admin.totp_last_used_at = (int(time.time()) // TOTP_INTERVAL) - 5
 
-        # Code should be accepted since the window has moved
+        # Code should be accepted since the counter has advanced
         assert service.verify_code(admin, code) is True
 
     @pytest.mark.asyncio
-    async def test_verify_code_records_used_code_fields(
+    async def test_verify_code_records_counter_not_code_string(
         self, session: AsyncSession
     ) -> None:
-        """verify_code sets totp_last_used_code and totp_last_used_at on success."""
+        """verify_code sets totp_last_used_at to the counter and clears totp_last_used_code."""
         admin = await _create_admin(session, totp_enabled=True)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
@@ -483,22 +488,21 @@ class TestTOTPReplayProtection:
             mock_time.time.return_value = fixed_time  # pyright: ignore[reportAny]
             service.verify_code(admin, code)  # pyright: ignore[reportUnusedCallResult]
 
-        assert admin.totp_last_used_code == code
+        assert admin.totp_last_used_code is None
         assert admin.totp_last_used_at == int(fixed_time) // TOTP_INTERVAL
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_rejects_replayed_code(
+    async def test_confirm_setup_rejects_when_counter_not_advanced(
         self, session: AsyncSession
     ) -> None:
-        """confirm_setup rejects a code that was already recorded as used."""
+        """confirm_setup rejects any code when the counter has not advanced."""
         admin = await _create_admin(session)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
 
         code = _get_valid_totp_code(secret)
 
-        # Simulate a previously used code in the current window
-        admin.totp_last_used_code = code
+        # Simulate that a code was already used in the current window
         admin.totp_last_used_at = int(time.time()) // TOTP_INTERVAL
 
         result = service.confirm_setup(admin, code)
@@ -506,8 +510,10 @@ class TestTOTPReplayProtection:
         assert admin.totp_enabled is False
 
     @pytest.mark.asyncio
-    async def test_confirm_setup_records_used_code(self, session: AsyncSession) -> None:
-        """confirm_setup records the code in replay protection fields on success."""
+    async def test_confirm_setup_records_counter_not_code_string(
+        self, session: AsyncSession
+    ) -> None:
+        """confirm_setup records the counter and clears code string on success."""
         admin = await _create_admin(session)
         service = TOTPService(secret_key=TEST_SECRET_KEY)
         secret = _setup_totp_for_admin(admin)
@@ -519,7 +525,7 @@ class TestTOTPReplayProtection:
             result = service.confirm_setup(admin, code)
 
         assert result is True
-        assert admin.totp_last_used_code == code
+        assert admin.totp_last_used_code is None
         assert admin.totp_last_used_at == int(fixed_time) // TOTP_INTERVAL
 
 

@@ -259,18 +259,17 @@ class TOTPService:
         if not totp.verify(code, valid_window=1):
             return False
 
-        # Replay protection: reject if same code was already used in this time window
+        # Replay protection: reject if the time counter has not advanced.
+        # See verify_code for the detailed rationale on counter-based tracking.
         current_counter = int(time.time()) // TOTP_INTERVAL
         if (
-            admin.totp_last_used_code is not None
-            and admin.totp_last_used_code == code
-            and admin.totp_last_used_at is not None
-            and abs(current_counter - admin.totp_last_used_at) <= 1
+            admin.totp_last_used_at is not None
+            and current_counter <= admin.totp_last_used_at
         ):
             return False
 
-        # Record the used code
-        admin.totp_last_used_code = code
+        # Record the time counter (not the code string)
+        admin.totp_last_used_code = None
         admin.totp_last_used_at = current_counter
 
         admin.totp_enabled = True
@@ -306,18 +305,21 @@ class TOTPService:
         if not totp.verify(code, valid_window=1):
             return False
 
-        # Replay protection: reject if same code was already used in this time window
+        # Replay protection: reject if the time counter has not advanced.
+        # With valid_window=1, pyotp accepts codes from counters C-1, C, C+1.
+        # Tracking only the code string would leave a gap: a different valid
+        # code from an adjacent counter could overwrite the last-used record,
+        # allowing the original code to be replayed.  Counter-based tracking
+        # closes this gap by blocking ALL codes until the window moves forward.
         current_counter = int(time.time()) // TOTP_INTERVAL
         if (
-            admin.totp_last_used_code is not None
-            and admin.totp_last_used_code == code
-            and admin.totp_last_used_at is not None
-            and abs(current_counter - admin.totp_last_used_at) <= 1
+            admin.totp_last_used_at is not None
+            and current_counter <= admin.totp_last_used_at
         ):
             return False
 
-        # Record the used code
-        admin.totp_last_used_code = code
+        # Record the time counter (not the code string)
+        admin.totp_last_used_code = None
         admin.totp_last_used_at = current_counter
         return True
 
