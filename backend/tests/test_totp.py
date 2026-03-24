@@ -418,11 +418,17 @@ class TestTOTPReplayProtection:
         secret = _setup_totp_for_admin(admin)
         admin.totp_enabled = True  # re-set after _setup_totp_for_admin
 
-        code = _get_valid_totp_code(secret)
-        # First use succeeds
-        assert service.verify_code(admin, code) is True
-        # Same code in same window is rejected
-        assert service.verify_code(admin, code) is False
+        # Pin time to 10s into the current interval so we can't cross a boundary
+        fixed_time = (int(time.time()) // TOTP_INTERVAL) * TOTP_INTERVAL + 10
+        totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
+        code = totp.at(fixed_time)
+
+        with patch("zondarr.services.totp.time") as mock_time:
+            mock_time.time.return_value = fixed_time  # pyright: ignore[reportAny]
+            # First use succeeds
+            assert service.verify_code(admin, code) is True
+            # Same code in same window is rejected
+            assert service.verify_code(admin, code) is False
 
     @pytest.mark.asyncio
     async def test_verify_code_rejects_different_code_in_same_window(
@@ -440,16 +446,21 @@ class TestTOTPReplayProtection:
         secret = _setup_totp_for_admin(admin)
         admin.totp_enabled = True
 
-        current_code = _get_valid_totp_code(secret)
-        assert service.verify_code(admin, current_code) is True
-
-        # A code from the previous time step (valid with valid_window=1)
+        # Pin time to 10s into the current interval so we can't cross a boundary
+        fixed_time = (int(time.time()) // TOTP_INTERVAL) * TOTP_INTERVAL + 10
         totp = pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
-        prev_counter = int(time.time()) // TOTP_INTERVAL - 1
-        prev_code = totp.at(prev_counter * TOTP_INTERVAL)
-        # Even a different valid code must be rejected in the same window
-        if prev_code != current_code:
-            assert service.verify_code(admin, prev_code) is False
+        current_code = totp.at(fixed_time)
+
+        with patch("zondarr.services.totp.time") as mock_time:
+            mock_time.time.return_value = fixed_time  # pyright: ignore[reportAny]
+            assert service.verify_code(admin, current_code) is True
+
+            # A code from the previous time step (valid with valid_window=1)
+            prev_counter = int(fixed_time) // TOTP_INTERVAL - 1
+            prev_code = totp.at(prev_counter * TOTP_INTERVAL)
+            # Even a different valid code must be rejected in the same window
+            if prev_code != current_code:
+                assert service.verify_code(admin, prev_code) is False
 
     @pytest.mark.asyncio
     async def test_verify_code_accepts_after_counter_advances(
