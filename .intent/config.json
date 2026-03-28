@@ -1,0 +1,22 @@
+{
+  "scripts": [
+    {
+      "name": "prepare",
+      "command": "npm run prepare",
+      "mode": "command",
+      "category": "other"
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "mode": "command",
+      "category": "lint"
+    },
+    {
+      "name": "lint:staged",
+      "command": "npm run lint:staged",
+      "mode": "command",
+      "category": "lint"
+    }
+  ]
+}
