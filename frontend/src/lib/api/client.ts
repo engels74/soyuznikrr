@@ -704,12 +704,12 @@ export async function redeemInvitation(
  * Check target server health for an invitation code.
  *
  * @param code - Invitation code to check health for
- * @returns Health response with per-server reachability
+ * @returns Health response with per-server reachability, including HTTP status on error
  */
 export async function checkJoinHealth(
 	code: string,
 	customFetch: typeof globalThis.fetch = fetch
-): Promise<{ data?: JoinHealthResponse; error?: unknown }> {
+): Promise<{ data?: JoinHealthResponse; error?: unknown; status?: number }> {
 	const response = await customFetch(
 		`${API_BASE_URL}/api/v1/join/health/${encodeURIComponent(code)}`,
 		{
@@ -723,7 +723,7 @@ export async function checkJoinHealth(
 		} catch {
 			error = { detail: response.statusText || 'Request failed' };
 		}
-		return { error };
+		return { error, status: response.status };
 	}
 	return { data: (await response.json()) as JoinHealthResponse };
 }

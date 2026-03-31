@@ -28,6 +28,7 @@ all created users are deleted via delete_user and no local records are created.
 """
 
 import asyncio
+import sys
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 
@@ -454,7 +455,7 @@ class RedemptionService:
                 library_ids=library_ids,
             )
         except BaseException:
-            await client.__aexit__(None, None, None)
+            await client.__aexit__(*sys.exc_info())
             raise
         else:
             await client.__aexit__(None, None, None)

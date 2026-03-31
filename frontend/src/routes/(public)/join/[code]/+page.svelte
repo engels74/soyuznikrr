@@ -263,8 +263,12 @@ async function handleContinue() {
 		const result = await checkJoinHealth(data.code);
 
 		if (result.error) {
-			// Health endpoint itself failed — allow proceeding anyway
-			// (the endpoint might not be deployed yet, or network is flaky)
+			if (result.status === 404) {
+				// 404 means the invitation code is invalid or expired — do not proceed
+				toast.error("This invitation code is no longer valid.");
+				return;
+			}
+			// Other errors (5xx, network flaky, endpoint not deployed) — allow proceeding
 			proceedAfterHealthGate();
 			return;
 		}
