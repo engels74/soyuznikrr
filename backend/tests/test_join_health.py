@@ -233,7 +233,9 @@ class TestJoinHealthEndpoint:
                 original_wait_for = asyncio.wait_for
 
                 async def short_timeout_wait_for(
-                    coro: object, *, timeout: float
+                    coro: object,
+                    *,
+                    timeout: float,  # pyright: ignore[reportUnusedParameter]
                 ) -> object:
                     return await original_wait_for(coro, timeout=0.01)  # pyright: ignore[reportArgumentType,reportUnknownVariableType]
 
