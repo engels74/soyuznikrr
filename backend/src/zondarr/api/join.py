@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
 from zondarr.media.registry import registry
+from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
 from zondarr.repositories.invitation import InvitationRepository
 from zondarr.repositories.media_server import MediaServerRepository
@@ -41,6 +42,50 @@ from .schemas import (
 )
 
 logger = structlog.get_logger()
+
+_HEALTH_PROBE_TIMEOUT_SECONDS = 10.0
+
+
+async def _probe_server(server: MediaServer) -> ServerHealthStatus:
+    """Probe a single media server's reachability with a timeout.
+
+    Wraps the entire probe — client context manager entry and
+    ``test_connection()`` call — in a single ``asyncio.wait_for`` so that
+    a slow ``__aenter__`` cannot block beyond the timeout budget.
+
+    Args:
+        server: The media server to probe.
+
+    Returns:
+        A ``ServerHealthStatus`` indicating whether the server is reachable.
+    """
+    reachable = False
+    try:
+
+        async def _connect_and_test() -> bool:
+            client = registry.create_client_for_server(server)
+            async with client:
+                return await client.test_connection()
+
+        reachable = await asyncio.wait_for(
+            _connect_and_test(),
+            timeout=_HEALTH_PROBE_TIMEOUT_SECONDS,
+        )
+    except Exception as exc:
+        logger.info(
+            "join_health_check_failed",
+            server_name=server.name,
+            server_type=server.server_type,
+            error=str(exc),
+            exc_info=True,
+        )
+        reachable = False
+
+    return ServerHealthStatus(
+        name=server.name,
+        server_type=server.server_type,
+        reachable=reachable,
+    )
 
 
 async def provide_invitation_repository(
@@ -189,8 +234,8 @@ class JoinController(Controller):
         """Check target server reachability for an invitation code.
 
         Validates the invitation code, then probes each target server's
-        connectivity with a timeout. Returns per-server health status
-        without exposing sensitive server details.
+        connectivity concurrently with a per-server timeout. Returns
+        per-server health status without exposing sensitive server details.
 
         Args:
             code: The invitation code to check.
@@ -208,32 +253,14 @@ class JoinController(Controller):
             )
 
         invitation = await invitation_service.get_by_code(code)
-        statuses: list[ServerHealthStatus] = []
 
-        for server in invitation.target_servers:
-            reachable = False
-            try:
-                client = registry.create_client_for_server(server)
-                async with client:
-                    reachable = await asyncio.wait_for(
-                        client.test_connection(),
-                        timeout=10.0,
-                    )
-            except Exception:
-                logger.info(
-                    "join_health_check_failed",
-                    server_name=server.name,
-                    server_type=server.server_type,
-                )
-                reachable = False
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(_probe_server(server))
+                for server in invitation.target_servers
+            ]
 
-            statuses.append(
-                ServerHealthStatus(
-                    name=server.name,
-                    server_type=server.server_type,
-                    reachable=reachable,
-                )
-            )
+        statuses = [task.result() for task in tasks]
 
         return Response(
             content=JoinHealthResponse(

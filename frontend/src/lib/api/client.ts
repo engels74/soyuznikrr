@@ -717,7 +717,12 @@ export async function checkJoinHealth(
 		}
 	);
 	if (!response.ok) {
-		const error = await response.json();
+		let error: unknown;
+		try {
+			error = await response.json();
+		} catch {
+			error = { detail: response.statusText || 'Request failed' };
+		}
 		return { error };
 	}
 	return { data: (await response.json()) as JoinHealthResponse };
