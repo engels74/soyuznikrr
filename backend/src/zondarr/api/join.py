@@ -41,7 +41,7 @@ from .schemas import (
     UserResponse,
 )
 
-logger = structlog.get_logger()
+logger = structlog.get_logger()  # pyright: ignore[reportAny]
 
 _HEALTH_PROBE_TIMEOUT_SECONDS = 10.0
 
@@ -72,7 +72,7 @@ async def _probe_server(server: MediaServer) -> ServerHealthStatus:
             timeout=_HEALTH_PROBE_TIMEOUT_SECONDS,
         )
     except Exception as exc:
-        logger.info(
+        logger.info(  # pyright: ignore[reportAny]
             "join_health_check_failed",
             server_name=server.name,
             server_type=server.server_type,

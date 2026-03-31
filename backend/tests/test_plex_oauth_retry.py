@@ -45,15 +45,6 @@ def _make_user_email_response(email: str = "test@example.com") -> MagicMock:
     return resp
 
 
-def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
-    """Create an HTTPStatusError with the given status code."""
-    mock_response = MagicMock()
-    mock_response.status_code = status_code
-    return httpx.HTTPStatusError(
-        f"HTTP {status_code}", request=MagicMock(), response=mock_response
-    )
-
-
 class TestCreatePinRetry:
     """Retry logic for transient errors in create_pin()."""
 
