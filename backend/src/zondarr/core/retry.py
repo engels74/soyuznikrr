@@ -5,6 +5,8 @@ Provides:
 - CircuitBreaker: Per-server state machine (CLOSED → OPEN → HALF_OPEN → CLOSED).
 - CircuitBreakerRegistry: Container for per-server circuit breakers.
 - is_retryable_sync_error: Provider-agnostic error classifier for sync operations.
+- is_retryable_httpx_error: httpx error classifier for one-shot operations.
+- is_retryable_httpx_connection: httpx error classifier for polled connections.
 """
 
 import asyncio
@@ -13,6 +15,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+import httpx
 import structlog
 
 from zondarr.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
@@ -67,6 +70,56 @@ def is_retryable_sync_error(exc: Exception, /) -> bool:
 
     # Unknown exceptions — fail safe.
     return False
+
+
+# HTTP status codes that represent transient server-side errors.
+_RETRYABLE_HTTP_STATUS_CODES: frozenset[int] = frozenset({429, 502, 503, 504})
+
+
+def is_retryable_httpx_error(exc: Exception, /) -> bool:
+    """Determine whether an httpx exception is retryable for one-shot operations.
+
+    Use this predicate with ``RetryPolicy`` when executing a single httpx
+    request that should be retried on transient failures.  It classifies:
+
+    - Connection-level errors (``ConnectError``, ``TimeoutException``) as
+      retryable — the server may not have received the request at all.
+    - HTTP status errors with codes 429, 502, 503, or 504 as retryable —
+      these indicate transient server-side overload or downtime.
+    - All other exceptions (including client errors like 400/401/404) as
+      non-retryable.
+
+    Args:
+        exc: The exception to classify.
+
+    Returns:
+        ``True`` if the operation that raised *exc* should be retried.
+    """
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException)):
+        return True
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_HTTP_STATUS_CODES
+
+    return False
+
+
+def is_retryable_httpx_connection(exc: Exception, /) -> bool:
+    """Determine whether an httpx exception is retryable for polled connections.
+
+    Use this predicate when the caller already retries at a higher level
+    (e.g. polling for a PIN or waiting for an OAuth callback).  Only
+    connection-level errors are retried — HTTP status errors are propagated
+    immediately because the server *did* respond, and the higher-level
+    retry logic should decide how to handle it.
+
+    Args:
+        exc: The exception to classify.
+
+    Returns:
+        ``True`` if the connection-level error warrants a retry.
+    """
+    return isinstance(exc, (httpx.ConnectError, httpx.TimeoutException))
 
 
 class RetryPolicy:

@@ -35,6 +35,7 @@ import structlog
 from sqlalchemy.exc import IntegrityError
 
 from zondarr.core.exceptions import RedemptionError, RepositoryError
+from zondarr.core.retry import RetryPolicy, is_retryable_sync_error
 from zondarr.core.wizard_token import verify_wizard_completion
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.provider import JoinFlowType
@@ -207,8 +208,6 @@ class RedemptionService:
 
         try:
             for server in invitation.target_servers:
-                client = registry.create_client_for_server(server)
-
                 # Compute per-server library IDs before user creation
                 # so they can be applied at share/invite time (not just after)
                 server_library_ids: list[str] | None = None
@@ -221,34 +220,39 @@ class RedemptionService:
                     if ids:
                         server_library_ids = ids
 
-                async with client:
-                    external_user = await client.create_user(
-                        username,
-                        password,
-                        email=email,
-                        auth_token=auth_token,
-                        library_ids=server_library_ids,
-                    )
-                    created_external_users.append((server, external_user))
-                    # Use resolved credentials from the client (decrypted /
-                    # env-overridden) so rollback never sees encrypted keys.
-                    rollback_data.append(
-                        (
-                            server.server_type,
-                            client.url,
-                            client.api_key,
-                            server.name,
-                            external_user.external_user_id,
-                        )
-                    )
+                (
+                    external_user,
+                    resolved_url,
+                    resolved_api_key,
+                ) = await self._create_user_with_retry(
+                    server=server,
+                    username=username,
+                    password=password,
+                    email=email,
+                    auth_token=auth_token,
+                    library_ids=server_library_ids,
+                )
 
-                    log.info(  # pyright: ignore[reportAny]
-                        "Created user on media server",
-                        server_name=server.name,
-                        server_type=server.server_type,
-                        username=username,
-                        external_user_id=external_user.external_user_id,
+                created_external_users.append((server, external_user))
+                # Use resolved credentials from the client (decrypted /
+                # env-overridden) so rollback never sees encrypted keys.
+                rollback_data.append(
+                    (
+                        server.server_type,
+                        resolved_url,
+                        resolved_api_key,
+                        server.name,
+                        external_user.external_user_id,
                     )
+                )
+
+                log.info(  # pyright: ignore[reportAny]
+                    "Created user on media server",
+                    server_name=server.name,
+                    server_type=server.server_type,
+                    username=username,
+                    external_user_id=external_user.external_user_id,
+                )
 
                 # Defer library sharing and permissions to background
                 deferred_tasks.append((server, external_user, server_library_ids))
@@ -353,6 +357,78 @@ class RedemptionService:
             _background_tasks.add(task)
 
         return identity, users
+
+    @staticmethod
+    async def _create_user_with_retry(
+        *,
+        server: MediaServer,
+        username: str,
+        password: str,
+        email: str | None,
+        auth_token: str | None,
+        library_ids: list[str] | None,
+    ) -> tuple[ExternalUser, str, str]:
+        """Create a user on a media server with retry for transient errors.
+
+        Wraps the entire connect + create_user flow in a ``RetryPolicy``
+        so that transient DNS/connection failures (which occur during
+        ``__aenter__`` / ``connect()``) are retried with exponential
+        backoff.  A fresh client is created for each attempt.
+
+        Args:
+            server: The target media server.
+            username: Username for the new account.
+            password: Password for the new account.
+            email: Optional email address.
+            auth_token: Optional auth token for OAuth flows.
+            library_ids: Library IDs to pass to create_user.
+
+        Returns:
+            Tuple of (ExternalUser, resolved_url, resolved_api_key).
+            The resolved URL and API key come from the client (decrypted /
+            env-overridden) and are safe for use in rollback.
+
+        Raises:
+            MediaClientError: If all retries are exhausted or a
+                non-retryable error occurs.
+            ExternalServiceError: If all retries are exhausted on a
+                connection/DNS failure.
+        """
+        retry_policy = RetryPolicy(max_retries=5, backoff_base=1.0, max_delay=30.0)
+        # Capture resolved credentials from the last successful client
+        resolved_url: str = ""
+        resolved_api_key: str = ""
+
+        async def _attempt() -> ExternalUser:
+            nonlocal resolved_url, resolved_api_key
+            client = registry.create_client_for_server(server)
+            resolved_url = client.url
+            resolved_api_key = client.api_key
+            async with client:
+                return await client.create_user(
+                    username,
+                    password,
+                    email=email,
+                    auth_token=auth_token,
+                    library_ids=library_ids,
+                )
+
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            log.warning(  # pyright: ignore[reportAny]
+                "Retrying user creation on media server",
+                server_name=server.name,
+                server_type=server.server_type,
+                attempt=attempt + 1,
+                delay=round(delay, 3),
+                error=str(exc),
+            )
+
+        external_user = await retry_policy.execute(
+            _attempt,
+            is_retryable=is_retryable_sync_error,
+            on_retry=_on_retry,
+        )
+        return external_user, resolved_url, resolved_api_key
 
     async def _apply_library_and_permissions(
         self,

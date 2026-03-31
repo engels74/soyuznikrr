@@ -22,12 +22,17 @@ import {
 	Calendar,
 	CheckCircle,
 	Library,
+	Loader2,
+	RefreshCw,
 	Server,
+	WifiOff,
 } from "@lucide/svelte";
 import { toast } from "svelte-sonner";
 import { browser } from "$app/environment";
 import { invalidateAll } from "$app/navigation";
 import {
+	checkJoinHealth,
+	type JoinHealthResponse,
 	type RedemptionErrorResponse,
 	type RedemptionResponse,
 	redeemInvitation,
@@ -93,6 +98,11 @@ let oauthRedemptionToken = $state<string | null>(null);
 // Response data
 let redemptionResponse = $state<RedemptionResponse | null>(null);
 let redemptionError = $state<RedemptionErrorResponse | null>(null);
+
+// Health gate state
+let isCheckingHealth = $state(false);
+let healthResult = $state<JoinHealthResponse | null>(null);
+let healthError = $state<string | null>(null);
 
 // Wizard state
 let preWizardCompleted = $state(false);
@@ -220,9 +230,9 @@ async function handleRetry() {
 }
 
 /**
- * Proceed to registration flow (or pre-wizard if configured).
+ * Proceed after health gate passes — go to pre-wizard or registration.
  */
-function handleContinue() {
+function proceedAfterHealthGate() {
 	// Check if pre-wizard needs to be completed first
 	if (hasPreWizard && !preWizardCompleted) {
 		currentStep = "pre_wizard";
@@ -235,6 +245,68 @@ function handleContinue() {
 	} else {
 		currentStep = "registration";
 	}
+}
+
+/**
+ * Proceed to registration flow — runs health gate first.
+ *
+ * Checks that all target servers are reachable before allowing the user
+ * to start registration or OAuth. This prevents frustrating failures
+ * partway through the flow when servers are down.
+ */
+async function handleContinue() {
+	isCheckingHealth = true;
+	healthError = null;
+	healthResult = null;
+
+	try {
+		const result = await checkJoinHealth(data.code);
+
+		if (result.error) {
+			// Health endpoint itself failed — allow proceeding anyway
+			// (the endpoint might not be deployed yet, or network is flaky)
+			proceedAfterHealthGate();
+			return;
+		}
+
+		if (!result.data) {
+			proceedAfterHealthGate();
+			return;
+		}
+
+		healthResult = result.data;
+
+		if (result.data.all_reachable) {
+			proceedAfterHealthGate();
+		} else {
+			// Some servers unreachable — show health gate
+			const unreachable = result.data.servers.filter((s) => !s.reachable);
+			toast.error(
+				`${unreachable.length} server${unreachable.length > 1 ? 's' : ''} unreachable`,
+			);
+		}
+	} catch {
+		// Network error on health check itself — allow proceeding
+		proceedAfterHealthGate();
+	} finally {
+		isCheckingHealth = false;
+	}
+}
+
+/**
+ * Retry the health gate check.
+ */
+async function retryHealthCheck() {
+	await handleContinue();
+}
+
+/**
+ * Skip the health gate and proceed anyway (user override).
+ */
+function skipHealthGate() {
+	healthResult = null;
+	healthError = null;
+	proceedAfterHealthGate();
 }
 
 /**
@@ -761,13 +833,71 @@ function handleRegistrationRetry() {
 						</div>
 					{/if}
 
-					<!-- Continue button -->
-					<Button
-						onclick={handleContinue}
-						class="w-full bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
-					>
-						{hasPreWizard && !preWizardCompleted ? 'Continue to Required Steps' : 'Continue to Registration'}
-					</Button>
+					<!-- Health gate: unreachable servers warning -->
+					{#if healthResult && !healthResult.all_reachable}
+						<div class="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
+							<div class="flex items-center gap-3">
+								<div class="rounded-full bg-rose-500/15 p-2 text-rose-400">
+									<WifiOff class="size-5" />
+								</div>
+								<div>
+									<p class="font-medium text-cr-text">Server Connection Issue</p>
+									<p class="text-sm text-cr-text-muted">
+										Some servers are currently unreachable. Registration may fail.
+									</p>
+								</div>
+							</div>
+							<div class="space-y-1">
+								{#each healthResult.servers as server}
+									<div class="flex items-center gap-2 text-sm">
+										{#if server.reachable}
+											<CheckCircle class="size-3.5 text-emerald-400" />
+											<span class="text-cr-text">{server.name}</span>
+										{:else}
+											<WifiOff class="size-3.5 text-rose-400" />
+											<span class="text-cr-text-muted">{server.name} — unreachable</span>
+										{/if}
+									</div>
+								{/each}
+							</div>
+							<div class="flex gap-2">
+								<Button
+									onclick={retryHealthCheck}
+									disabled={isCheckingHealth}
+									class="flex-1 bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
+								>
+									{#if isCheckingHealth}
+										<Loader2 class="size-4 mr-2 animate-spin" />
+										Checking...
+									{:else}
+										<RefreshCw class="size-4 mr-2" />
+										Retry
+									{/if}
+								</Button>
+								<Button
+									variant="outline"
+									onclick={skipHealthGate}
+									class="border-cr-border text-cr-text-muted hover:text-cr-text"
+								>
+									Continue Anyway
+								</Button>
+							</div>
+						</div>
+					{:else}
+						<!-- Continue button -->
+						<Button
+							onclick={handleContinue}
+							disabled={isCheckingHealth}
+							class="w-full bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
+						>
+							{#if isCheckingHealth}
+								<Loader2 class="size-4 mr-2 animate-spin" />
+								Checking servers...
+							{:else}
+								{hasPreWizard && !preWizardCompleted ? 'Continue to Required Steps' : 'Continue to Registration'}
+							{/if}
+						</Button>
+					{/if}
 				</CardContent>
 			</Card>
 		</div>

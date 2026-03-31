@@ -1132,6 +1132,37 @@ class IdentityWithUsersResponse(msgspec.Struct, omit_defaults=True):
 
 
 # =============================================================================
+# Join Health Check Schemas
+# =============================================================================
+
+
+class ServerHealthStatus(msgspec.Struct):
+    """Health status of a single target server.
+
+    Attributes:
+        name: Human-readable name for the server.
+        server_type: Type of media server (e.g., "plex", "jellyfin").
+        reachable: Whether the server is reachable and responding.
+    """
+
+    name: str
+    server_type: str
+    reachable: bool
+
+
+class JoinHealthResponse(msgspec.Struct):
+    """Response from join health check endpoint.
+
+    Attributes:
+        all_reachable: Whether all target servers are reachable.
+        servers: Per-server health status.
+    """
+
+    all_reachable: bool
+    servers: list[ServerHealthStatus]
+
+
+# =============================================================================
 # Redemption Response Schemas
 # =============================================================================
 
