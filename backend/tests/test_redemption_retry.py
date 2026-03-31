@@ -238,3 +238,43 @@ class TestRedemptionRetry:
         assert len(users) == 1
         # 2 client creations: 1 failure + 1 success
         assert call_count == 2
+
+    async def test_create_user_no_retry_on_generic_media_error(self) -> None:
+        """Generic MediaClientError from create_user is NOT retried.
+
+        This guards against orphan accounts: if create_user succeeds on the
+        server but the response is lost (e.g. timeout wrapped as
+        MediaClientError), retrying would create a duplicate.
+        """
+        service, invitation_service, _user_service = _make_redemption_service()
+        server = _make_server()
+        invitation = _make_invitation(servers=[server])
+        invitation_service.get_by_code = AsyncMock(return_value=invitation)
+
+        # A generic MediaClientError (no specific error_code) that
+        # is_retryable_sync_error would classify as retryable.
+        ambiguous_error = MediaClientError(
+            "Request timed out after server may have processed it",
+            operation="create_user",
+            server_url=server.url,
+        )
+
+        client = _make_client(url=server.url, api_key=server.api_key)
+        client.create_user = AsyncMock(side_effect=ambiguous_error)
+
+        mock_registry = MagicMock()
+        mock_registry.create_client_for_server = MagicMock(return_value=client)
+        mock_registry.get_provider = MagicMock()
+
+        with (
+            patch("zondarr.services.redemption.registry", mock_registry),
+            patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            with pytest.raises(RedemptionError) as exc_info:
+                await service.redeem(
+                    "TEST-CODE", username="testuser", password="testpass"
+                )
+
+        assert exc_info.value.redemption_error_code == "SERVER_ERROR"
+        # Only 1 client created — create_user errors are never retried
+        assert mock_registry.create_client_for_server.call_count == 1

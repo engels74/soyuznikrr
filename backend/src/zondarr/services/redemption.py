@@ -34,10 +34,15 @@ from datetime import UTC, datetime, timedelta
 import structlog
 from sqlalchemy.exc import IntegrityError
 
-from zondarr.core.exceptions import RedemptionError, RepositoryError
-from zondarr.core.retry import RetryPolicy, is_retryable_sync_error
+from zondarr.core.exceptions import (
+    ExternalServiceError,
+    RedemptionError,
+    RepositoryError,
+)
+from zondarr.core.retry import RetryPolicy
 from zondarr.core.wizard_token import verify_wizard_completion
 from zondarr.media.exceptions import MediaClientError
+from zondarr.media.protocol import MediaClient
 from zondarr.media.provider import JoinFlowType
 from zondarr.media.registry import registry
 from zondarr.media.types import ExternalUser
@@ -368,12 +373,17 @@ class RedemptionService:
         auth_token: str | None,
         library_ids: list[str] | None,
     ) -> tuple[ExternalUser, str, str]:
-        """Create a user on a media server with retry for transient errors.
+        """Create a user on a media server with retry for connection errors.
 
-        Wraps the entire connect + create_user flow in a ``RetryPolicy``
-        so that transient DNS/connection failures (which occur during
-        ``__aenter__`` / ``connect()``) are retried with exponential
-        backoff.  A fresh client is created for each attempt.
+        Only the **connection phase** (``__aenter__`` / ``connect()``) is
+        retried with exponential backoff.  Once the connection is
+        established, ``create_user`` is called exactly once without retry.
+
+        This prevents orphan accounts: if ``create_user`` succeeds on the
+        server but the response is lost (e.g. timeout), retrying would
+        create a second account or surface a misleading ``USERNAME_TAKEN``
+        error while the original account has no ``external_user_id`` for
+        rollback.
 
         Args:
             server: The target media server.
@@ -389,33 +399,26 @@ class RedemptionService:
             env-overridden) and are safe for use in rollback.
 
         Raises:
-            MediaClientError: If all retries are exhausted or a
-                non-retryable error occurs.
-            ExternalServiceError: If all retries are exhausted on a
-                connection/DNS failure.
+            MediaClientError: If ``create_user`` fails.
+            ExternalServiceError: If all connection retries are exhausted.
         """
-        retry_policy = RetryPolicy(max_retries=5, backoff_base=1.0, max_delay=30.0)
-        # Capture resolved credentials from the last successful client
-        resolved_url: str = ""
-        resolved_api_key: str = ""
 
-        async def _attempt() -> ExternalUser:
-            nonlocal resolved_url, resolved_api_key
-            client = registry.create_client_for_server(server)
-            resolved_url = client.url
-            resolved_api_key = client.api_key
-            async with client:
-                return await client.create_user(
-                    username,
-                    password,
-                    email=email,
-                    auth_token=auth_token,
-                    library_ids=library_ids,
-                )
+        def _is_connection_error(exc: Exception, /) -> bool:
+            """Only retry pre-connection errors (DNS, TCP, TLS).
+
+            ``MediaClientError`` is never retried here because it can only
+            originate from ``create_user`` — by that point the server may
+            have already processed the request.
+            """
+            return isinstance(
+                exc, (ExternalServiceError, TimeoutError, ConnectionError, OSError)
+            )
+
+        retry_policy = RetryPolicy(max_retries=5, backoff_base=1.0, max_delay=30.0)
 
         def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
             log.warning(  # pyright: ignore[reportAny]
-                "Retrying user creation on media server",
+                "Retrying connection to media server",
                 server_name=server.name,
                 server_type=server.server_type,
                 attempt=attempt + 1,
@@ -423,11 +426,39 @@ class RedemptionService:
                 error=str(exc),
             )
 
-        external_user = await retry_policy.execute(
-            _attempt,
-            is_retryable=is_retryable_sync_error,
+        # Phase 1: Establish connection with retries for transient failures.
+        # A fresh client is created per attempt.
+        async def _connect() -> tuple[MediaClient, str, str]:
+            client = registry.create_client_for_server(server)
+            resolved_url = client.url
+            resolved_api_key = client.api_key
+            _ = await client.__aenter__()
+            return client, resolved_url, resolved_api_key
+
+        client, resolved_url, resolved_api_key = await retry_policy.execute(
+            _connect,
+            is_retryable=_is_connection_error,
             on_retry=_on_retry,
         )
+
+        # Phase 2: Create user exactly once — no retry.
+        # If this fails ambiguously (e.g. timeout after server-side
+        # create), the error propagates and rollback handles cleanup
+        # for any previously created users on other servers.
+        try:
+            external_user = await client.create_user(
+                username,
+                password,
+                email=email,
+                auth_token=auth_token,
+                library_ids=library_ids,
+            )
+        except BaseException:
+            await client.__aexit__(None, None, None)
+            raise
+        else:
+            await client.__aexit__(None, None, None)
+
         return external_user, resolved_url, resolved_api_key
 
     async def _apply_library_and_permissions(
