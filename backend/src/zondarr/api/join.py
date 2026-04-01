@@ -264,7 +264,7 @@ class JoinController(Controller):
 
         return Response(
             content=JoinHealthResponse(
-                all_reachable=all(s.reachable for s in statuses),
+                all_reachable=bool(statuses) and all(s.reachable for s in statuses),
                 servers=statuses,
             ),
             status_code=HTTP_200_OK,

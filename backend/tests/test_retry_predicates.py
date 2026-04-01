@@ -5,6 +5,7 @@ import pytest
 
 from zondarr.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
 from zondarr.core.retry import (
+    _extract_retry_after,  # pyright: ignore[reportPrivateUsage]
     is_retryable_httpx_connection,
     is_retryable_httpx_error,
     is_retryable_sync_error,
@@ -12,10 +13,13 @@ from zondarr.core.retry import (
 from zondarr.media.exceptions import MediaClientError
 
 
-def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
-    """Create an HTTPStatusError with the given status code."""
+def _make_http_status_error(
+    status_code: int,
+    headers: dict[str, str] | None = None,
+) -> httpx.HTTPStatusError:
+    """Create an HTTPStatusError with the given status code and headers."""
     request = httpx.Request("GET", "https://example.com")
-    response = httpx.Response(status_code, request=request)
+    response = httpx.Response(status_code, request=request, headers=headers or {})
     return httpx.HTTPStatusError(
         f"{status_code} Error", request=request, response=response
     )
@@ -133,3 +137,45 @@ class TestIsRetryableSyncErrorRegression:
 
     def test_unknown_exception_is_not_retryable(self) -> None:
         assert is_retryable_sync_error(RuntimeError("unknown")) is False
+
+
+# ---------------------------------------------------------------------------
+# _extract_retry_after
+# ---------------------------------------------------------------------------
+
+
+class TestExtractRetryAfter:
+    def test_returns_seconds_from_429_with_header(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "5"})
+        assert _extract_retry_after(exc, max_delay=60.0) == 5.0
+
+    def test_clamps_to_max_delay(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "120"})
+        assert _extract_retry_after(exc, max_delay=30.0) == 30.0
+
+    def test_returns_none_for_non_429_status(self) -> None:
+        exc = _make_http_status_error(503, headers={"retry-after": "5"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_when_header_absent(self) -> None:
+        exc = _make_http_status_error(429)
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_for_non_httpx_exception(self) -> None:
+        assert _extract_retry_after(ValueError("bad"), max_delay=60.0) is None
+
+    def test_returns_none_for_unparseable_header(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "not-a-number"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_for_negative_value(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "-1"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_handles_fractional_seconds(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "1.5"})
+        assert _extract_retry_after(exc, max_delay=60.0) == 1.5
+
+    def test_zero_seconds_is_valid(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "0"})
+        assert _extract_retry_after(exc, max_delay=60.0) == 0.0

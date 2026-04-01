@@ -4,12 +4,11 @@
  *
  * Provides OAuth authentication flow for media servers:
  * - "Sign in" button with provider branding
- * - PIN creation via API with automatic retry on transient errors
+ * - PIN creation via API (backend handles transient retries)
  * - Polls PIN status until authenticated or expired
  * - Opens auth URL in new window/tab
  * - Displays user's email when authenticated
- * - Error handling with retry option
- * - Shows attempt count and status during retries
+ * - Error handling with manual retry option
  *
  * @module $lib/components/join/oauth-join-flow
  */
@@ -69,11 +68,6 @@ let pinData = $state<OAuthPinResponse | null>(null);
 let authenticatedEmail = $state<string | null>(null);
 let errorMessage = $state<string | null>(null);
 
-// Retry state for PIN creation
-const MAX_PIN_RETRIES = 5;
-let pinAttempt = $state(0);
-let pinRetrying = $state(false);
-
 // Popup window reference
 let popupWindow = $state<Window | null>(null);
 
@@ -116,70 +110,44 @@ function isPinExpired(expiresAt: string): boolean {
 }
 
 /**
- * Delay helper for retry backoff.
- */
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Start the OAuth flow with automatic retry for PIN creation.
+ * Start the OAuth flow.
  *
- * Retries up to MAX_PIN_RETRIES times with exponential backoff
- * (1s, 2s, 4s, 8s, 16s) on transient errors. Shows progress to user.
+ * PIN creation is a single attempt — the backend already retries
+ * transient failures (up to 6 attempts with exponential backoff).
+ * Adding a frontend retry loop would multiply total requests and latency.
  */
 async function startOAuthFlow() {
 	currentStep = "creating_pin";
 	errorMessage = null;
-	pinAttempt = 0;
-	pinRetrying = false;
 
-	for (let attempt = 0; attempt <= MAX_PIN_RETRIES; attempt++) {
-		pinAttempt = attempt + 1;
+	try {
+		const { data, error } = await createOAuthPin(serverType);
 
-		if (attempt > 0) {
-			pinRetrying = true;
-			const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 16000);
-			await delay(backoffMs);
+		if (error) {
+			throw new Error(getErrorMessage(error));
 		}
 
-		try {
-			const { data, error } = await createOAuthPin(serverType);
-
-			if (error) {
-				throw new Error(getErrorMessage(error));
-			}
-
-			if (!data) {
-				throw new Error("Failed to start authentication");
-			}
-
-			// Success — reset retry state and proceed
-			pinRetrying = false;
-			pinData = data;
-			currentStep = "waiting";
-
-			// Open auth URL in popup window (named window allows control + auto-close).
-			// Note: We intentionally omit noopener/noreferrer to retain a popup reference for
-			// auto-close. Referrer leakage is mitigated by the join page's <meta name="referrer"
-			// content="no-referrer"> tag. Reverse-tabnabbing risk is minimal since auth_url is
-			// generated server-side pointing to trusted OAuth providers (e.g. Plex.tv).
-			popupWindow = window.open(pinData.auth_url, `${serverType}-auth`, "width=800,height=600");
-
-			// Start polling for PIN status
-			startPolling();
-			return;
-		} catch (err) {
-			// Last attempt — give up
-			if (attempt >= MAX_PIN_RETRIES) {
-				closePopup();
-				errorMessage = getErrorMessage(err);
-				currentStep = "error";
-				toast.error(`Failed to start ${providerLabel} authentication after ${MAX_PIN_RETRIES + 1} attempts`);
-				return;
-			}
-			// Otherwise loop continues with next attempt
+		if (!data) {
+			throw new Error("Failed to start authentication");
 		}
+
+		pinData = data;
+		currentStep = "waiting";
+
+		// Open auth URL in popup window (named window allows control + auto-close).
+		// Note: We intentionally omit noopener/noreferrer to retain a popup reference for
+		// auto-close. Referrer leakage is mitigated by the join page's <meta name="referrer"
+		// content="no-referrer"> tag. Reverse-tabnabbing risk is minimal since auth_url is
+		// generated server-side pointing to trusted OAuth providers (e.g. Plex.tv).
+		popupWindow = window.open(pinData.auth_url, `${serverType}-auth`, "width=800,height=600");
+
+		// Start polling for PIN status
+		startPolling();
+	} catch (err) {
+		closePopup();
+		errorMessage = getErrorMessage(err);
+		currentStep = "error";
+		toast.error(`Failed to start ${providerLabel} authentication`);
 	}
 }
 
@@ -302,24 +270,15 @@ function openAuthUrl() {
 			</Button>
 		</div>
 
-	<!-- Creating PIN state (with retry progress) -->
+	<!-- Creating PIN state -->
 	{:else if currentStep === 'creating_pin'}
 		<div class="text-center space-y-4">
 			<div class="flex justify-center">
 				<Loader2 class="size-8 animate-spin text-cr-accent" />
 			</div>
 			<p class="text-cr-text-muted">
-				{#if pinRetrying}
-					Connecting to {providerLabel}... (attempt {pinAttempt} of {MAX_PIN_RETRIES + 1})
-				{:else}
-					Preparing {providerLabel} authentication...
-				{/if}
+				Preparing {providerLabel} authentication...
 			</p>
-			{#if pinRetrying}
-				<p class="text-xs text-cr-text-muted">
-					Retrying automatically — the server may be temporarily unavailable.
-				</p>
-			{/if}
 		</div>
 
 	<!-- Waiting for authentication -->

@@ -104,6 +104,36 @@ def is_retryable_httpx_error(exc: Exception, /) -> bool:
     return False
 
 
+def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None:
+    """Extract a ``Retry-After`` delay from an HTTP 429 response.
+
+    Parses the ``Retry-After`` header (seconds form only) and clamps
+    the result to *max_delay*.  Returns ``None`` when the header is
+    absent, unparseable, or the exception is not a 429 status error.
+
+    Args:
+        exc: The exception to inspect.
+        max_delay: Upper bound applied to the parsed value.
+
+    Returns:
+        The clamped delay in seconds, or ``None``.
+    """
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return None
+    if exc.response.status_code != 429:
+        return None
+    raw: str | None = exc.response.headers.get("retry-after")  # pyright: ignore[reportAny]
+    if raw is None:
+        return None
+    try:
+        seconds = float(raw)
+    except ValueError:
+        return None
+    if seconds < 0:
+        return None
+    return min(seconds, max_delay)
+
+
 def is_retryable_httpx_connection(exc: Exception, /) -> bool:
     """Determine whether an httpx exception is retryable for polled connections.
 
@@ -128,6 +158,10 @@ class RetryPolicy:
     The delay between attempts is computed as::
 
         min(backoff_base * 2 ^ attempt, max_delay) * (1 + random(0, jitter))
+
+    For HTTP 429 responses with a ``Retry-After`` header, the server-
+    requested delay (clamped to ``max_delay``) is used instead of the
+    computed backoff.
 
     Attributes:
         max_retries: Maximum number of retries (total attempts = max_retries + 1).
@@ -198,10 +232,14 @@ class RetryPolicy:
                 if not is_retryable(exc) or attempt >= self.max_retries:
                     raise
 
-                delay: float = min(
-                    self.backoff_base * (1 << attempt),
-                    self.max_delay,
-                ) * (1.0 + random.random() * self.jitter)  # noqa: S311
+                retry_after = _extract_retry_after(exc, max_delay=self.max_delay)
+                if retry_after is not None:
+                    delay: float = retry_after
+                else:
+                    delay = min(
+                        self.backoff_base * (1 << attempt),
+                        self.max_delay,
+                    ) * (1.0 + random.random() * self.jitter)  # noqa: S311
 
                 if on_retry is not None:
                     on_retry(attempt, delay, exc)
