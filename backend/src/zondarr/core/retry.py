@@ -168,7 +168,7 @@ class RetryPolicy:
 
     The delay between attempts is computed as::
 
-        min(backoff_base * 2 ^ attempt, max_delay) * (1 + random(0, jitter))
+        min(backoff_base * 2**attempt, max_delay) * (1 + random(0, jitter))
 
     For HTTP 429 responses with a ``Retry-After`` header, the server-
     requested delay (clamped to ``max_delay``) is used instead of the
