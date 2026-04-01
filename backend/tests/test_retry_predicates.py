@@ -215,6 +215,22 @@ class TestExtractRetryAfter:
         assert result is not None
         assert 28.0 <= result <= 31.0
 
+    def test_returns_none_for_nan(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "nan"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_for_inf(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "inf"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_for_negative_inf(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "-inf"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
+    def test_returns_none_for_infinity(self) -> None:
+        exc = _make_http_status_error(429, headers={"retry-after": "infinity"})
+        assert _extract_retry_after(exc, max_delay=60.0) is None
+
     def test_malformed_http_date_returns_none(self) -> None:
         exc = _make_http_status_error(
             429, headers={"retry-after": "not-a-number-or-date"}

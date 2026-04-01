@@ -21,6 +21,7 @@ from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
+from zondarr.core.exceptions import NotFoundError
 from zondarr.media.registry import registry
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
@@ -258,7 +259,13 @@ class JoinController(Controller):
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-        invitation = await invitation_service.get_by_code(code)
+        try:
+            invitation = await invitation_service.get_by_code(code)
+        except NotFoundError:
+            return Response(
+                content={"detail": "Invalid invitation code"},
+                status_code=HTTP_404_NOT_FOUND,
+            )
 
         async with asyncio.TaskGroup() as tg:
             tasks = [

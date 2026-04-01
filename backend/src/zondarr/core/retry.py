@@ -10,6 +10,7 @@ Provides:
 """
 
 import asyncio
+import math
 import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
@@ -139,7 +140,7 @@ def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None
             retry_dt = retry_dt.replace(tzinfo=UTC)
         seconds = max(0.0, (retry_dt - datetime.now(UTC)).total_seconds())
         return min(seconds, max_delay)
-    if seconds < 0:
+    if not math.isfinite(seconds) or seconds < 0:
         return None
     return min(seconds, max_delay)
 
