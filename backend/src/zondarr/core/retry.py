@@ -135,6 +135,8 @@ def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None
             retry_dt = parsedate_to_datetime(raw)
         except ValueError, TypeError:
             return None
+        if retry_dt.tzinfo is None:
+            retry_dt = retry_dt.replace(tzinfo=UTC)
         seconds = max(0.0, (retry_dt - datetime.now(UTC)).total_seconds())
         return min(seconds, max_delay)
     if seconds < 0:

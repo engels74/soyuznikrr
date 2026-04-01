@@ -204,6 +204,17 @@ class TestExtractRetryAfter:
         exc = _make_http_status_error(429, headers={"retry-after": date_str})
         assert _extract_retry_after(exc, max_delay=30.0) == 30.0
 
+    def test_naive_datetime_treated_as_utc(self) -> None:
+        """Naive datetime from parsedate_to_datetime is assumed UTC."""
+        future = datetime.now(UTC) + timedelta(seconds=30)
+        # Craft a date string without timezone — parsedate_to_datetime
+        # returns a naive datetime for such inputs.
+        naive_date_str = future.strftime("%a, %d %b %Y %H:%M:%S")
+        exc = _make_http_status_error(429, headers={"retry-after": naive_date_str})
+        result = _extract_retry_after(exc, max_delay=60.0)
+        assert result is not None
+        assert 28.0 <= result <= 31.0
+
     def test_malformed_http_date_returns_none(self) -> None:
         exc = _make_http_status_error(
             429, headers={"retry-after": "not-a-number-or-date"}

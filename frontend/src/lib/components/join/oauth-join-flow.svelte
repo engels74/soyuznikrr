@@ -76,6 +76,8 @@ let pollingInterval = $state<ReturnType<typeof setTimeout> | null>(null);
 const POLL_INTERVAL_MS = 2000;
 // Track consecutive polling errors to show status to user
 let consecutivePollingErrors = $state(0);
+// Guard against in-flight checkOAuthPin() resolving after cancellation
+let pollCancelled = $state(false);
 
 /**
  * Close the popup window if it's still open.
@@ -89,6 +91,7 @@ function closePopup() {
  * Clean up polling interval.
  */
 function stopPolling() {
+	pollCancelled = true;
 	if (pollingInterval) {
 		clearTimeout(pollingInterval);
 		pollingInterval = null;
@@ -160,6 +163,7 @@ async function startOAuthFlow() {
  */
 function startPolling() {
 	if (!pinData) return;
+	pollCancelled = false;
 	consecutivePollingErrors = 0;
 
 	async function poll() {
@@ -178,6 +182,9 @@ function startPolling() {
 
 		try {
 			const { data, error } = await checkOAuthPin(serverType, pinData.handle);
+
+			// Cancelled while the request was in-flight
+			if (pollCancelled) return;
 
 			if (error) {
 				consecutivePollingErrors++;
