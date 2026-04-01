@@ -72,7 +72,7 @@ let errorMessage = $state<string | null>(null);
 let popupWindow = $state<Window | null>(null);
 
 // Polling
-let pollingInterval = $state<ReturnType<typeof setInterval> | null>(null);
+let pollingInterval = $state<ReturnType<typeof setTimeout> | null>(null);
 const POLL_INTERVAL_MS = 2000;
 // Track consecutive polling errors to show status to user
 let consecutivePollingErrors = $state(0);
@@ -90,7 +90,7 @@ function closePopup() {
  */
 function stopPolling() {
 	if (pollingInterval) {
-		clearInterval(pollingInterval);
+		clearTimeout(pollingInterval);
 		pollingInterval = null;
 	}
 	consecutivePollingErrors = 0;
@@ -162,7 +162,7 @@ function startPolling() {
 	if (!pinData) return;
 	consecutivePollingErrors = 0;
 
-	pollingInterval = setInterval(async () => {
+	async function poll() {
 		if (!pinData) {
 			stopPolling();
 			return;
@@ -182,36 +182,46 @@ function startPolling() {
 			if (error) {
 				consecutivePollingErrors++;
 				console.error("PIN check error:", error);
-				return;
-			}
+			} else {
+				// Successful response — reset error counter
+				consecutivePollingErrors = 0;
 
-			// Successful response — reset error counter
-			consecutivePollingErrors = 0;
-
-			if (!data) return;
-
-			if (data.authenticated && data.email && data.redemption_token) {
-				stopPolling();
-				closePopup();
-				authenticatedEmail = data.email;
-				currentStep = "authenticated";
-				onAuthenticated(data.email, data.redemption_token);
-			} else if (data.authenticated && data.email) {
-				stopPolling();
-				closePopup();
-				errorMessage = "OAuth succeeded but no redemption token was returned.";
-				currentStep = "error";
-			} else if (data.error) {
-				stopPolling();
-				closePopup();
-				errorMessage = data.error;
-				currentStep = "error";
+				if (data) {
+					if (data.authenticated && data.email && data.redemption_token) {
+						stopPolling();
+						closePopup();
+						authenticatedEmail = data.email;
+						currentStep = "authenticated";
+						onAuthenticated(data.email, data.redemption_token);
+						return;
+					} else if (data.authenticated && data.email) {
+						stopPolling();
+						closePopup();
+						errorMessage = "OAuth succeeded but no redemption token was returned.";
+						currentStep = "error";
+						return;
+					} else if (data.error) {
+						stopPolling();
+						closePopup();
+						errorMessage = data.error;
+						currentStep = "error";
+						return;
+					}
+				}
 			}
 		} catch {
 			// Don't stop polling on network errors — increment counter for UX
 			consecutivePollingErrors++;
 		}
-	}, POLL_INTERVAL_MS);
+
+		// Schedule next poll only after this one completes
+		if (pollingInterval !== null) {
+			pollingInterval = setTimeout(poll, POLL_INTERVAL_MS);
+		}
+	}
+
+	// Start first poll after interval delay (matching current behavior)
+	pollingInterval = setTimeout(poll, POLL_INTERVAL_MS);
 }
 
 /**
