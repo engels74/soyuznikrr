@@ -458,7 +458,16 @@ class RedemptionService:
             await client.__aexit__(*sys.exc_info())
             raise
         else:
-            await client.__aexit__(None, None, None)
+            try:
+                await client.__aexit__(None, None, None)
+            except Exception:
+                log.warning(  # pyright: ignore[reportAny]
+                    "Client teardown failed after successful user creation",
+                    server_name=server.name,
+                    server_type=server.server_type,
+                    username=username,
+                    external_user_id=external_user.external_user_id,
+                )
 
         return external_user, resolved_url, resolved_api_key
 

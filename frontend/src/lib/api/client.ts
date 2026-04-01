@@ -725,7 +725,11 @@ export async function checkJoinHealth(
 		}
 		return { error, status: response.status };
 	}
-	return { data: (await response.json()) as JoinHealthResponse };
+	try {
+		return { data: (await response.json()) as JoinHealthResponse };
+	} catch {
+		return { error: { detail: 'Invalid response format' }, status: response.status };
+	}
 }
 
 // =============================================================================
