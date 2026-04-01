@@ -1,5 +1,8 @@
 """Tests for retry predicate functions in zondarr.core.retry."""
 
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
+
 import httpx
 import pytest
 
@@ -179,3 +182,30 @@ class TestExtractRetryAfter:
     def test_zero_seconds_is_valid(self) -> None:
         exc = _make_http_status_error(429, headers={"retry-after": "0"})
         assert _extract_retry_after(exc, max_delay=60.0) == 0.0
+
+    def test_http_date_future_returns_positive_delay(self) -> None:
+        future = datetime.now(UTC) + timedelta(seconds=30)
+        date_str = format_datetime(future, usegmt=True)
+        exc = _make_http_status_error(429, headers={"retry-after": date_str})
+        result = _extract_retry_after(exc, max_delay=60.0)
+        assert result is not None
+        # Allow some tolerance for test execution time.
+        assert 28.0 <= result <= 31.0
+
+    def test_http_date_past_returns_zero(self) -> None:
+        past = datetime.now(UTC) - timedelta(seconds=10)
+        date_str = format_datetime(past, usegmt=True)
+        exc = _make_http_status_error(429, headers={"retry-after": date_str})
+        assert _extract_retry_after(exc, max_delay=60.0) == 0.0
+
+    def test_http_date_clamped_to_max_delay(self) -> None:
+        future = datetime.now(UTC) + timedelta(seconds=120)
+        date_str = format_datetime(future, usegmt=True)
+        exc = _make_http_status_error(429, headers={"retry-after": date_str})
+        assert _extract_retry_after(exc, max_delay=30.0) == 30.0
+
+    def test_malformed_http_date_returns_none(self) -> None:
+        exc = _make_http_status_error(
+            429, headers={"retry-after": "not-a-number-or-date"}
+        )
+        assert _extract_retry_after(exc, max_delay=60.0) is None

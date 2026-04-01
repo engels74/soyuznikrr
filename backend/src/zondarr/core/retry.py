@@ -13,6 +13,7 @@ import asyncio
 import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from uuid import UUID
 
 import httpx
@@ -107,7 +108,8 @@ def is_retryable_httpx_error(exc: Exception, /) -> bool:
 def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None:
     """Extract a ``Retry-After`` delay from an HTTP 429 response.
 
-    Parses the ``Retry-After`` header (seconds form only) and clamps
+    Parses the ``Retry-After`` header in both delta-seconds and
+    HTTP-date (IMF-fixdate) forms per RFC 9110 §10.2.3, and clamps
     the result to *max_delay*.  Returns ``None`` when the header is
     absent, unparseable, or the exception is not a 429 status error.
 
@@ -128,7 +130,13 @@ def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None
     try:
         seconds = float(raw)
     except ValueError:
-        return None
+        # Try HTTP-date form (IMF-fixdate, RFC 9110 §5.6.7).
+        try:
+            retry_dt = parsedate_to_datetime(raw)
+        except ValueError, TypeError:
+            return None
+        seconds = max(0.0, (retry_dt - datetime.now(UTC)).total_seconds())
+        return min(seconds, max_delay)
     if seconds < 0:
         return None
     return min(seconds, max_delay)
