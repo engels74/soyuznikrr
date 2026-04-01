@@ -280,11 +280,11 @@ async function handleContinue() {
 
 		healthResult = result.data;
 
-		if (result.data.all_reachable) {
+		const unreachable = result.data.servers.filter((s) => !s.reachable);
+		if (result.data.all_reachable || unreachable.length === 0) {
 			proceedAfterHealthGate();
 		} else {
 			// Some servers unreachable — show health gate
-			const unreachable = result.data.servers.filter((s) => !s.reachable);
 			toast.error(
 				`${unreachable.length} server${unreachable.length > 1 ? 's' : ''} unreachable`,
 			);

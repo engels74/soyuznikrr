@@ -455,7 +455,15 @@ class RedemptionService:
                 library_ids=library_ids,
             )
         except BaseException:
-            await client.__aexit__(*sys.exc_info())
+            try:
+                await client.__aexit__(*sys.exc_info())
+            except Exception:
+                log.warning(  # pyright: ignore[reportAny]
+                    "Client teardown failed after create_user error",
+                    server_name=server.name,
+                    server_type=server.server_type,
+                    username=username,
+                )
             raise
         else:
             try:

@@ -222,6 +222,12 @@ class JoinController(Controller):
         summary="Check target server health",
         description="Check reachability of target media servers for an invitation code.",
         exclude_from_auth=True,
+        responses={
+            404: ResponseSpec(
+                data_container=dict[str, str],
+                description="Invalid or expired invitation code.",
+            ),
+        },
     )
     async def check_health(
         self,
