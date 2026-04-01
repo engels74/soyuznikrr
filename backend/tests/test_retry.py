@@ -5,6 +5,7 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from zondarr.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
@@ -12,6 +13,7 @@ from zondarr.core.retry import (
     CircuitBreaker,
     CircuitBreakerRegistry,
     RetryPolicy,
+    is_retryable_httpx_error,
     is_retryable_sync_error,
 )
 from zondarr.media.exceptions import MediaClientError
@@ -246,6 +248,66 @@ class TestRetryPolicy:
 
         assert result == "ok"
         assert operation.await_count == 2
+
+    async def test_retry_after_header_overrides_backoff(self) -> None:
+        """When a 429 response includes Retry-After, use it as the delay."""
+        policy = RetryPolicy(
+            max_retries=2, backoff_base=1.0, max_delay=60.0, jitter=0.1
+        )
+        request = httpx.Request("GET", "https://example.com")
+        response = httpx.Response(429, request=request, headers={"retry-after": "10"})
+        exc = httpx.HTTPStatusError("429", request=request, response=response)
+        operation = AsyncMock(side_effect=[exc, "ok"])
+        sleep_mock = AsyncMock()
+
+        with patch("zondarr.core.retry.asyncio.sleep", sleep_mock):
+            result: str = await policy.execute(
+                operation, is_retryable=is_retryable_httpx_error
+            )
+
+        assert result == "ok"
+        # Should use Retry-After value (10) not computed backoff (1.0 * 2^0)
+        assert sleep_mock.call_args_list[0][0][0] == 10.0
+
+    async def test_retry_after_header_clamped_to_max_delay(self) -> None:
+        """Retry-After values exceeding max_delay are clamped."""
+        policy = RetryPolicy(max_retries=2, backoff_base=1.0, max_delay=5.0, jitter=0.1)
+        request = httpx.Request("GET", "https://example.com")
+        response = httpx.Response(429, request=request, headers={"retry-after": "120"})
+        exc = httpx.HTTPStatusError("429", request=request, response=response)
+        operation = AsyncMock(side_effect=[exc, "ok"])
+        sleep_mock = AsyncMock()
+
+        with patch("zondarr.core.retry.asyncio.sleep", sleep_mock):
+            result: str = await policy.execute(
+                operation, is_retryable=is_retryable_httpx_error
+            )
+
+        assert result == "ok"
+        assert sleep_mock.call_args_list[0][0][0] == 5.0
+
+    async def test_429_without_retry_after_uses_computed_backoff(self) -> None:
+        """429 without Retry-After header falls back to exponential backoff."""
+        policy = RetryPolicy(
+            max_retries=2, backoff_base=1.0, max_delay=60.0, jitter=0.0
+        )
+        request = httpx.Request("GET", "https://example.com")
+        response = httpx.Response(429, request=request)
+        exc = httpx.HTTPStatusError("429", request=request, response=response)
+        operation = AsyncMock(side_effect=[exc, "ok"])
+        sleep_mock = AsyncMock()
+
+        with (
+            patch("zondarr.core.retry.asyncio.sleep", sleep_mock),
+            patch("zondarr.core.retry.random.random", return_value=0.0),
+        ):
+            result: str = await policy.execute(
+                operation, is_retryable=is_retryable_httpx_error
+            )
+
+        assert result == "ok"
+        # Should use computed backoff: 1.0 * 2^0 * 1.0 = 1.0
+        assert sleep_mock.call_args_list[0][0][0] == 1.0
 
 
 # ---------------------------------------------------------------------------

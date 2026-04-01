@@ -4,11 +4,11 @@
  *
  * Provides OAuth authentication flow for media servers:
  * - "Sign in" button with provider branding
- * - PIN creation via API
+ * - PIN creation via API (backend handles transient retries)
  * - Polls PIN status until authenticated or expired
  * - Opens auth URL in new window/tab
  * - Displays user's email when authenticated
- * - Error handling with retry option
+ * - Error handling with manual retry option
  *
  * @module $lib/components/join/oauth-join-flow
  */
@@ -72,8 +72,12 @@ let errorMessage = $state<string | null>(null);
 let popupWindow = $state<Window | null>(null);
 
 // Polling
-let pollingInterval = $state<ReturnType<typeof setInterval> | null>(null);
+let pollingInterval = $state<ReturnType<typeof setTimeout> | null>(null);
 const POLL_INTERVAL_MS = 2000;
+// Track consecutive polling errors to show status to user
+let consecutivePollingErrors = $state(0);
+// Guard against in-flight checkOAuthPin() resolving after cancellation
+let pollCancelled = $state(false);
 
 /**
  * Close the popup window if it's still open.
@@ -87,10 +91,12 @@ function closePopup() {
  * Clean up polling interval.
  */
 function stopPolling() {
+	pollCancelled = true;
 	if (pollingInterval) {
-		clearInterval(pollingInterval);
+		clearTimeout(pollingInterval);
 		pollingInterval = null;
 	}
+	consecutivePollingErrors = 0;
 }
 
 // Clean up on component destroy
@@ -108,6 +114,10 @@ function isPinExpired(expiresAt: string): boolean {
 
 /**
  * Start the OAuth flow.
+ *
+ * PIN creation is a single attempt — the backend already retries
+ * transient failures (up to 6 attempts with exponential backoff).
+ * Adding a frontend retry loop would multiply total requests and latency.
  */
 async function startOAuthFlow() {
 	currentStep = "creating_pin";
@@ -146,11 +156,17 @@ async function startOAuthFlow() {
 
 /**
  * Start polling for PIN status.
+ *
+ * Resilient to transient network errors — continues polling and tracks
+ * consecutive failures. Only stops on terminal conditions (authentication,
+ * expiration, or server-reported errors).
  */
 function startPolling() {
 	if (!pinData) return;
+	pollCancelled = false;
+	consecutivePollingErrors = 0;
 
-	pollingInterval = setInterval(async () => {
+	async function poll() {
 		if (!pinData) {
 			stopPolling();
 			return;
@@ -167,36 +183,52 @@ function startPolling() {
 		try {
 			const { data, error } = await checkOAuthPin(serverType, pinData.handle);
 
+			// Cancelled while the request was in-flight
+			if (pollCancelled) return;
+
 			if (error) {
-				// Don't stop polling on transient errors
+				consecutivePollingErrors++;
 				console.error("PIN check error:", error);
-				return;
-			}
+			} else {
+				// Successful response — reset error counter
+				consecutivePollingErrors = 0;
 
-			if (!data) return;
-
-			if (data.authenticated && data.email && data.redemption_token) {
-				stopPolling();
-				closePopup();
-				authenticatedEmail = data.email;
-				currentStep = "authenticated";
-				onAuthenticated(data.email, data.redemption_token);
-			} else if (data.authenticated && data.email) {
-				stopPolling();
-				closePopup();
-				errorMessage = "OAuth succeeded but no redemption token was returned.";
-				currentStep = "error";
-			} else if (data.error) {
-				stopPolling();
-				closePopup();
-				errorMessage = data.error;
-				currentStep = "error";
+				if (data) {
+					if (data.authenticated && data.email && data.redemption_token) {
+						stopPolling();
+						closePopup();
+						authenticatedEmail = data.email;
+						currentStep = "authenticated";
+						onAuthenticated(data.email, data.redemption_token);
+						return;
+					} else if (data.authenticated && data.email) {
+						stopPolling();
+						closePopup();
+						errorMessage = "OAuth succeeded but no redemption token was returned.";
+						currentStep = "error";
+						return;
+					} else if (data.error) {
+						stopPolling();
+						closePopup();
+						errorMessage = data.error;
+						currentStep = "error";
+						return;
+					}
+				}
 			}
-		} catch (err) {
-			// Don't stop polling on network errors, just log
-			console.error("PIN polling error:", err);
+		} catch {
+			// Don't stop polling on network errors — increment counter for UX
+			consecutivePollingErrors++;
 		}
-	}, POLL_INTERVAL_MS);
+
+		// Schedule next poll only after this one completes
+		if (pollingInterval !== null) {
+			pollingInterval = setTimeout(poll, POLL_INTERVAL_MS);
+		}
+	}
+
+	// Start first poll after interval delay (matching current behavior)
+	pollingInterval = setTimeout(poll, POLL_INTERVAL_MS);
 }
 
 /**
@@ -261,7 +293,9 @@ function openAuthUrl() {
 			<div class="flex justify-center">
 				<Loader2 class="size-8 animate-spin text-cr-accent" />
 			</div>
-			<p class="text-cr-text-muted">Preparing {providerLabel} authentication...</p>
+			<p class="text-cr-text-muted">
+				Preparing {providerLabel} authentication...
+			</p>
 		</div>
 
 	<!-- Waiting for authentication -->
@@ -277,7 +311,13 @@ function openAuthUrl() {
 				<!-- Waiting indicator -->
 				<div class="flex items-center justify-center gap-2 text-cr-text-muted">
 					<Loader2 class="size-4 animate-spin" />
-					<span class="text-sm">Waiting for authentication...</span>
+					<span class="text-sm">
+						{#if consecutivePollingErrors > 2}
+							Reconnecting... ({consecutivePollingErrors} check{consecutivePollingErrors === 1 ? '' : 's'} missed)
+						{:else}
+							Waiting for authentication...
+						{/if}
+					</span>
 				</div>
 
 				<!-- Action buttons -->

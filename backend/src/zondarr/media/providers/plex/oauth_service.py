@@ -9,12 +9,17 @@ Implements the Plex PIN-based OAuth flow:
 Uses httpx for async HTTP requests to Plex.tv API.
 """
 
-import asyncio
 from datetime import datetime
 
 import httpx
 import msgspec
 import structlog
+
+from zondarr.core.retry import (
+    RetryPolicy,
+    is_retryable_httpx_connection,
+    is_retryable_httpx_error,
+)
 
 log: structlog.stdlib.BoundLogger = structlog.get_logger()  # pyright: ignore[reportAny]
 
@@ -127,8 +132,8 @@ class PlexOAuthService:
         user authentication. The user should be directed to the auth_url
         to complete authentication.
 
-        Retries up to 2 times with exponential backoff (0.5s, 1s) on
-        transient network errors (ConnectError, TimeoutException).
+        Retries up to 5 times with exponential backoff on transient
+        network errors and HTTP 429/502/503/504.
 
         Returns:
             PlexOAuthPin with pin_id, code, auth_url, and expires_at.
@@ -142,113 +147,86 @@ class PlexOAuthService:
             "Accept": "application/json",
         }
 
-        max_retries = 2
-        backoff_delays = (0.5, 1.0)
-        last_exc: Exception | None = None
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            log.warning(
+                "plex_oauth_pin_creation_retrying",
+                attempt=attempt + 1,
+                delay=round(delay, 3),
+                error_type=type(exc).__name__,
+            )
 
-        for attempt in range(max_retries + 1):
-            try:
-                response = await self._http_client.post(
-                    PLEX_TV_PINS_URL,
-                    headers=headers,
-                    data={"strong": "true"},
-                )
-                _ = response.raise_for_status()
+        async def _do_create_pin() -> PlexOAuthPin:
+            response = await self._http_client.post(
+                PLEX_TV_PINS_URL,
+                headers=headers,
+                data={"strong": "true"},
+            )
+            _ = response.raise_for_status()
 
-                data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
+            data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
 
-                pin_id: int = int(data["id"])  # pyright: ignore[reportArgumentType]
-                code: str = str(data["code"])
-                expires_at_str: str = str(data["expiresAt"])
+            pin_id: int = int(data["id"])  # pyright: ignore[reportArgumentType]
+            code: str = str(data["code"])
+            expires_at_str: str = str(data["expiresAt"])
 
-                # Parse the expiration timestamp
-                # Plex returns ISO 8601 format: "2024-01-15T12:00:00Z"
-                expires_at = datetime.fromisoformat(
-                    expires_at_str.replace("Z", "+00:00")
-                )
+            expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
 
-                # Build the auth URL
-                # Format: https://app.plex.tv/auth#?clientID=xxx&code=xxx&context[device][product]=Zondarr
-                auth_url = (
-                    f"{PLEX_TV_AUTH_URL}?clientID={self._client_id}"
-                    f"&code={code}"
-                    f"&context%5Bdevice%5D%5Bproduct%5D=Zondarr"
-                )
+            auth_url = (
+                f"{PLEX_TV_AUTH_URL}?clientID={self._client_id}"
+                f"&code={code}"
+                f"&context%5Bdevice%5D%5Bproduct%5D=Zondarr"
+            )
 
-                log.info(
-                    "plex_oauth_pin_created",
-                    pin_id=pin_id,
-                    expires_at=expires_at.isoformat(),
-                )
+            log.info(
+                "plex_oauth_pin_created",
+                pin_id=pin_id,
+                expires_at=expires_at.isoformat(),
+            )
 
-                return PlexOAuthPin(
-                    pin_id=pin_id,
-                    code=code,
-                    auth_url=auth_url,
-                    expires_at=expires_at,
-                )
+            return PlexOAuthPin(
+                pin_id=pin_id,
+                code=code,
+                auth_url=auth_url,
+                expires_at=expires_at,
+            )
 
-            except httpx.HTTPStatusError as exc:
-                log.error(
-                    "plex_oauth_pin_creation_failed",
-                    status_code=exc.response.status_code,
-                    error=str(exc),
-                )
-                raise PlexOAuthError(
-                    f"Failed to create Plex OAuth PIN: HTTP {exc.response.status_code}",
-                    operation="create_pin",
-                    cause=str(exc),
-                ) from exc
-            except (httpx.ConnectError, httpx.TimeoutException) as exc:
-                last_exc = exc
-                if attempt < max_retries:
-                    delay = backoff_delays[attempt]
-                    log.warning(
-                        "plex_oauth_pin_creation_retrying",
-                        attempt=attempt + 1,
-                        max_retries=max_retries,
-                        delay=delay,
-                        error=str(exc),
-                    )
-                    await asyncio.sleep(delay)
-                    continue
-                log.error(
-                    "plex_oauth_pin_creation_failed",
-                    error=str(exc),
-                    attempts=attempt + 1,
-                )
-                raise PlexOAuthError(
-                    f"Failed to create Plex OAuth PIN: {exc}",
-                    operation="create_pin",
-                    cause=str(exc),
-                ) from exc
-            except httpx.RequestError as exc:
-                log.error(
-                    "plex_oauth_pin_creation_failed",
-                    error=str(exc),
-                )
-                raise PlexOAuthError(
-                    f"Failed to create Plex OAuth PIN: {exc}",
-                    operation="create_pin",
-                    cause=str(exc),
-                ) from exc
-            except (KeyError, ValueError) as exc:
-                log.error(
-                    "plex_oauth_pin_creation_failed",
-                    error=str(exc),
-                )
-                raise PlexOAuthError(
-                    f"Failed to parse Plex OAuth PIN response: {exc}",
-                    operation="create_pin",
-                    cause=str(exc),
-                ) from exc
-
-        # Should not reach here, but satisfy type checker
-        raise PlexOAuthError(  # pragma: no cover
-            f"Failed to create Plex OAuth PIN after {max_retries + 1} attempts",
-            operation="create_pin",
-            cause=str(last_exc),
+        policy = RetryPolicy(
+            max_retries=5,
+            backoff_base=1.0,
+            max_delay=30.0,
         )
+
+        try:
+            return await policy.execute(
+                _do_create_pin,
+                is_retryable=is_retryable_httpx_error,
+                on_retry=_on_retry,
+            )
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            log.error(
+                "plex_oauth_pin_creation_failed",
+                error=str(exc),
+            )
+            status = (
+                f"HTTP {exc.response.status_code}"
+                if isinstance(exc, httpx.HTTPStatusError)
+                else str(exc)
+            )
+            raise PlexOAuthError(
+                f"Failed to create Plex OAuth PIN: {status}",
+                operation="create_pin",
+                cause=str(exc),
+            ) from exc
+        except (KeyError, ValueError) as exc:
+            log.error(
+                "plex_oauth_pin_creation_failed",
+                error=str(exc),
+            )
+            raise PlexOAuthError(
+                f"Failed to parse Plex OAuth PIN response: {exc}",
+                operation="create_pin",
+                cause=str(exc),
+            ) from exc
 
     async def check_pin(self, pin_id: int, /) -> PlexOAuthResult:
         """Check if a PIN has been authenticated.
@@ -256,6 +234,9 @@ class PlexOAuthService:
         Polls the Plex.tv API to check if the user has completed
         authentication for the given PIN. If authenticated, retrieves
         the user's email address.
+
+        Retries connection errors up to 3 times (frontend polls every
+        2s anyway, so HTTP status errors are not retried).
 
         Args:
             pin_id: The PIN ID to check (positional-only).
@@ -271,12 +252,35 @@ class PlexOAuthService:
             "Accept": "application/json",
         }
 
-        try:
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            log.warning(
+                "plex_oauth_pin_check_retrying",
+                attempt=attempt + 1,
+                delay=round(delay, 3),
+                error_type=type(exc).__name__,
+                pin_id=pin_id,
+            )
+
+        async def _do_check_pin() -> httpx.Response:
             response = await self._http_client.get(
                 f"{PLEX_TV_PINS_URL}/{pin_id}",
                 headers=headers,
             )
             _ = response.raise_for_status()
+            return response
+
+        policy = RetryPolicy(
+            max_retries=3,
+            backoff_base=0.5,
+            max_delay=10.0,
+        )
+
+        try:
+            response = await policy.execute(
+                _do_check_pin,
+                is_retryable=is_retryable_httpx_connection,
+                on_retry=_on_retry,
+            )
 
             data: dict[str, object] = response.json()  # pyright: ignore[reportAny]
 
@@ -285,7 +289,6 @@ class PlexOAuthService:
             auth_token: str | None = str(auth_token_value) if auth_token_value else None
 
             if not auth_token:
-                # Not yet authenticated
                 log.debug(
                     "plex_oauth_pin_not_authenticated",
                     pin_id=pin_id,
@@ -356,6 +359,9 @@ class PlexOAuthService:
         Fetches the user's account information from Plex.tv using
         the provided auth token and extracts the email address.
 
+        Retries up to 3 times on transient network errors and
+        HTTP 429/502/503/504.
+
         Args:
             auth_token: The Plex auth token (positional-only).
 
@@ -371,7 +377,15 @@ class PlexOAuthService:
             "Accept": "application/json",
         }
 
-        try:
+        def _on_retry(attempt: int, delay: float, exc: Exception) -> None:
+            log.warning(
+                "plex_oauth_user_email_retrying",
+                attempt=attempt + 1,
+                delay=round(delay, 3),
+                error_type=type(exc).__name__,
+            )
+
+        async def _do_get_email() -> str:
             response = await self._http_client.get(
                 PLEX_TV_USER_URL,
                 headers=headers,
@@ -388,17 +402,19 @@ class PlexOAuthService:
 
             return email
 
+        policy = RetryPolicy(
+            max_retries=3,
+            backoff_base=1.0,
+            max_delay=15.0,
+        )
+
+        try:
+            return await policy.execute(
+                _do_get_email,
+                is_retryable=is_retryable_httpx_error,
+                on_retry=_on_retry,
+            )
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (429, 503):
-                log.warning(
-                    "plex_oauth_user_email_rate_limited",
-                    status_code=exc.response.status_code,
-                )
-                raise PlexOAuthError(
-                    "Plex API rate limited during email retrieval",
-                    operation="get_user_email",
-                    cause=str(exc),
-                ) from exc
             log.error(
                 "plex_oauth_user_email_failed",
                 status_code=exc.response.status_code,

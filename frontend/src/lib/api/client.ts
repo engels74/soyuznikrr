@@ -184,6 +184,19 @@ export type LanguageResponse = components['schemas']['LanguageResponse'];
 export type OAuthPinResponse = components['schemas']['OAuthPinResponse'];
 export type OAuthCheckResponse = components['schemas']['OAuthCheckResponse'];
 
+/** Per-server health status from join health check */
+export interface ServerHealthStatus {
+	name: string;
+	server_type: string;
+	reachable: boolean;
+}
+
+/** Response from join health check endpoint */
+export interface JoinHealthResponse {
+	all_reachable: boolean;
+	servers: ServerHealthStatus[];
+}
+
 // ErrorResponse is manually defined because it's not used directly in endpoint responses
 export interface ErrorResponse {
 	detail: string;
@@ -685,6 +698,38 @@ export async function redeemInvitation(
 		params: { path: { code } },
 		body: data
 	});
+}
+
+/**
+ * Check target server health for an invitation code.
+ *
+ * @param code - Invitation code to check health for
+ * @returns Health response with per-server reachability, including HTTP status on error
+ */
+export async function checkJoinHealth(
+	code: string,
+	customFetch: typeof globalThis.fetch = fetch
+): Promise<{ data?: JoinHealthResponse; error?: unknown; status?: number }> {
+	const response = await customFetch(
+		`${API_BASE_URL}/api/v1/join/health/${encodeURIComponent(code)}`,
+		{
+			credentials: 'include'
+		}
+	);
+	if (!response.ok) {
+		let error: unknown;
+		try {
+			error = await response.json();
+		} catch {
+			error = { detail: response.statusText || 'Request failed' };
+		}
+		return { error, status: response.status };
+	}
+	try {
+		return { data: (await response.json()) as JoinHealthResponse };
+	} catch {
+		return { error: { detail: 'Invalid response format' }, status: response.status };
+	}
 }
 
 // =============================================================================

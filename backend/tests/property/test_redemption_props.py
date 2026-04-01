@@ -1284,8 +1284,9 @@ class TestRollbackOnFailure:
                 nonlocal create_call_count
                 create_call_count += 1
 
-                # Fail on the Nth call (1-indexed fail_at_server)
-                if create_call_count == fail_at_server + 1:
+                # Fail persistently from the Nth call onwards so
+                # retry logic cannot recover.
+                if create_call_count >= fail_at_server + 1:
                     raise MediaClientError(
                         "Simulated failure",
                         operation="create_user",
@@ -1347,7 +1348,10 @@ class TestRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -1443,8 +1447,9 @@ class TestRollbackOnFailure:
                 nonlocal create_call_count
                 create_call_count += 1
 
-                # Fail on the Nth call (1-indexed fail_at_server)
-                if create_call_count == fail_at_server + 1:
+                # Fail persistently from the Nth call onwards so
+                # retry logic cannot recover.
+                if create_call_count >= fail_at_server + 1:
                     raise MediaClientError(
                         "Simulated failure",
                         operation="create_user",
@@ -1479,7 +1484,10 @@ class TestRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -1575,8 +1583,9 @@ class TestRollbackOnFailure:
                 nonlocal create_call_count
                 create_call_count += 1
 
-                # Fail on the Nth call (1-indexed fail_at_server)
-                if create_call_count == fail_at_server + 1:
+                # Fail persistently from the Nth call onwards so
+                # retry logic cannot recover.
+                if create_call_count >= fail_at_server + 1:
                     raise MediaClientError(
                         "Simulated failure",
                         operation="create_user",
@@ -1611,7 +1620,10 @@ class TestRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -1722,8 +1734,9 @@ class TestRollbackOnFailure:
                 nonlocal create_call_count
                 create_call_count += 1
 
-                # Fail on the first call
-                if create_call_count == 1:
+                # Fail persistently from the first call onwards so
+                # retry logic cannot recover.
+                if create_call_count >= 1:
                     raise MediaClientError(
                         "First server failure",
                         operation="create_user",
@@ -1762,7 +1775,10 @@ class TestRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -1971,7 +1987,10 @@ class TestPlexRedemptionRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -2132,7 +2151,10 @@ class TestPlexRedemptionRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,
@@ -2267,8 +2289,9 @@ class TestPlexRedemptionRollbackOnFailure:
 
                 create_call_count += 1
 
-                # Fail on the third server (Jellyfin2)
-                if create_call_count == 3:
+                # Fail persistently from the third server onwards so
+                # retry logic cannot recover.
+                if create_call_count >= 3:
                     raise MediaClientError(
                         "Third server failure",
                         operation="create_user",
@@ -2331,7 +2354,10 @@ class TestPlexRedemptionRollbackOnFailure:
             user_service = UserService(user_repo, identity_repo)
             redemption_service = RedemptionService(invitation_service, user_service)
 
-            with patch("zondarr.services.redemption.registry", mock_registry):
+            with (
+                patch("zondarr.services.redemption.registry", mock_registry),
+                patch("zondarr.core.retry.asyncio.sleep", new_callable=AsyncMock),
+            ):
                 with pytest.raises(ValidationError):
                     _ = await redemption_service.redeem(
                         code,

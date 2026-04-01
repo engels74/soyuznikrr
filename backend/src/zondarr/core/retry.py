@@ -5,14 +5,19 @@ Provides:
 - CircuitBreaker: Per-server state machine (CLOSED → OPEN → HALF_OPEN → CLOSED).
 - CircuitBreakerRegistry: Container for per-server circuit breakers.
 - is_retryable_sync_error: Provider-agnostic error classifier for sync operations.
+- is_retryable_httpx_error: httpx error classifier for one-shot operations.
+- is_retryable_httpx_connection: httpx error classifier for polled connections.
 """
 
 import asyncio
+import math
 import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from uuid import UUID
 
+import httpx
 import structlog
 
 from zondarr.core.exceptions import ExternalServiceError, NotFoundError, ValidationError
@@ -69,12 +74,105 @@ def is_retryable_sync_error(exc: Exception, /) -> bool:
     return False
 
 
+# HTTP status codes that represent transient server-side errors.
+_RETRYABLE_HTTP_STATUS_CODES: frozenset[int] = frozenset({429, 502, 503, 504})
+
+
+def is_retryable_httpx_error(exc: Exception, /) -> bool:
+    """Determine whether an httpx exception is retryable for one-shot operations.
+
+    Use this predicate with ``RetryPolicy`` when executing a single httpx
+    request that should be retried on transient failures.  It classifies:
+
+    - Connection-level errors (``ConnectError``, ``TimeoutException``) as
+      retryable — the server may not have received the request at all.
+    - HTTP status errors with codes 429, 502, 503, or 504 as retryable —
+      these indicate transient server-side overload or downtime.
+    - All other exceptions (including client errors like 400/401/404) as
+      non-retryable.
+
+    Args:
+        exc: The exception to classify.
+
+    Returns:
+        ``True`` if the operation that raised *exc* should be retried.
+    """
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException)):
+        return True
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_HTTP_STATUS_CODES
+
+    return False
+
+
+def _extract_retry_after(exc: Exception, /, *, max_delay: float) -> float | None:
+    """Extract a ``Retry-After`` delay from an HTTP 429 response.
+
+    Parses the ``Retry-After`` header in both delta-seconds and
+    HTTP-date (IMF-fixdate) forms per RFC 9110 §10.2.3, and clamps
+    the result to *max_delay*.  Returns ``None`` when the header is
+    absent, unparseable, or the exception is not a 429 status error.
+
+    Args:
+        exc: The exception to inspect.
+        max_delay: Upper bound applied to the parsed value.
+
+    Returns:
+        The clamped delay in seconds, or ``None``.
+    """
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return None
+    if exc.response.status_code != 429:
+        return None
+    raw: str | None = exc.response.headers.get("retry-after")  # pyright: ignore[reportAny]
+    if raw is None:
+        return None
+    try:
+        seconds = float(raw)
+    except ValueError:
+        # Try HTTP-date form (IMF-fixdate, RFC 9110 §5.6.7).
+        try:
+            retry_dt = parsedate_to_datetime(raw)
+        except ValueError, TypeError:
+            return None
+        if retry_dt.tzinfo is None:
+            retry_dt = retry_dt.replace(tzinfo=UTC)
+        seconds = max(0.0, (retry_dt - datetime.now(UTC)).total_seconds())
+        return min(seconds, max_delay)
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    return min(seconds, max_delay)
+
+
+def is_retryable_httpx_connection(exc: Exception, /) -> bool:
+    """Determine whether an httpx exception is retryable for polled connections.
+
+    Use this predicate when the caller already retries at a higher level
+    (e.g. polling for a PIN or waiting for an OAuth callback).  Only
+    connection-level errors are retried — HTTP status errors are propagated
+    immediately because the server *did* respond, and the higher-level
+    retry logic should decide how to handle it.
+
+    Args:
+        exc: The exception to classify.
+
+    Returns:
+        ``True`` if the connection-level error warrants a retry.
+    """
+    return isinstance(exc, (httpx.ConnectError, httpx.TimeoutException))
+
+
 class RetryPolicy:
     """Pure-async retry executor with exponential back-off and jitter.
 
     The delay between attempts is computed as::
 
-        min(backoff_base * 2 ^ attempt, max_delay) * (1 + random(0, jitter))
+        min(backoff_base * 2**attempt, max_delay) * (1 + random(0, jitter))
+
+    For HTTP 429 responses with a ``Retry-After`` header, the server-
+    requested delay (clamped to ``max_delay``) is used instead of the
+    computed backoff.
 
     Attributes:
         max_retries: Maximum number of retries (total attempts = max_retries + 1).
@@ -145,10 +243,14 @@ class RetryPolicy:
                 if not is_retryable(exc) or attempt >= self.max_retries:
                     raise
 
-                delay: float = min(
-                    self.backoff_base * (1 << attempt),
-                    self.max_delay,
-                ) * (1.0 + random.random() * self.jitter)  # noqa: S311
+                retry_after = _extract_retry_after(exc, max_delay=self.max_delay)
+                if retry_after is not None:
+                    delay: float = retry_after
+                else:
+                    delay = min(
+                        self.backoff_base * (1 << attempt),
+                        self.max_delay,
+                    ) * (1.0 + random.random() * self.jitter)  # noqa: S311
 
                 if on_retry is not None:
                     on_retry(attempt, delay, exc)
