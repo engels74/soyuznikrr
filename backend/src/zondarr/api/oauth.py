@@ -261,6 +261,10 @@ class OAuthController(Controller):
         ),
         exclude_from_auth=True,
         responses={
+            200: ResponseSpec(
+                data_container=OAuthCheckResponse,
+                description="OAuth PIN completion result.",
+            ),
             400: ResponseSpec(
                 data_container=ErrorResponse,
                 description="Test credentials missing or session already redeemed.",
@@ -273,7 +277,7 @@ class OAuthController(Controller):
         state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
-    ) -> Response[OAuthCheckResponse] | Response[ErrorResponse]:
+    ) -> OAuthCheckResponse | Response[ErrorResponse]:
         """Simulate OAuth PIN completion for E2E testing.
 
         Only available when debug mode is enabled and test credentials
@@ -318,13 +322,10 @@ class OAuthController(Controller):
                 oauth_session.redemption_token is not None
                 and not oauth_session.redeemed
             ):
-                return Response(
-                    OAuthCheckResponse(
-                        authenticated=True,
-                        redemption_token=oauth_session.redemption_token,
-                        email=oauth_session.email,
-                    ),
-                    status_code=HTTP_200_OK,
+                return OAuthCheckResponse(
+                    authenticated=True,
+                    redemption_token=oauth_session.redemption_token,
+                    email=oauth_session.email,
                 )
 
             # If already redeemed, the session has been consumed
@@ -359,11 +360,8 @@ class OAuthController(Controller):
             has_email=True,
         )
 
-        return Response(
-            OAuthCheckResponse(
-                authenticated=True,
-                redemption_token=redemption_token,
-                email=settings.plex_test_email,
-            ),
-            status_code=HTTP_200_OK,
+        return OAuthCheckResponse(
+            authenticated=True,
+            redemption_token=redemption_token,
+            email=settings.plex_test_email,
         )

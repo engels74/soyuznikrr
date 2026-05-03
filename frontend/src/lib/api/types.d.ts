@@ -1303,7 +1303,7 @@ export interface components {
 		 * @example {
 		 *       "detail": "dueXWxItGmpndvrqpUKE",
 		 *       "error_code": "voiQUvZgiPQBXBLnzSvg",
-		 *       "timestamp": "2008-07-18T15:34:50.008312",
+		 *       "timestamp": "2008-07-18T16:12:37.008312",
 		 *       "correlation_id": null
 		 *     }
 		 */
@@ -1314,7 +1314,7 @@ export interface components {
 			error_code: string;
 			/**
 			 * Format: date-time
-			 * @example 2006-05-16T19:37:24.423369
+			 * @example 2006-05-16T20:15:11.423369
 			 */
 			timestamp: string;
 			/** @example gGCCJMLRlAzRIOjdLiFB */
@@ -1591,9 +1591,9 @@ export interface components {
 		 *           "external_user_id": "babcOYguawIGUCctxrbG",
 		 *           "username": "zKsdnjxheBhfgKPQDHNw",
 		 *           "enabled": false,
-		 *           "created_at": "2000-09-18T10:23:39.770009",
-		 *           "expires_at": "1998-02-12T14:52:48.488298",
-		 *           "updated_at": "1998-01-13T16:07:00.279514"
+		 *           "created_at": "2000-09-18T11:01:26.770009",
+		 *           "expires_at": "1998-02-12T15:30:35.488298",
+		 *           "updated_at": "1998-01-13T16:44:47.279514"
 		 *         }
 		 *       ]
 		 *     }
@@ -1621,9 +1621,9 @@ export interface components {
 			 *         "external_user_id": "PriLBPewTdWxyxwFswQX",
 			 *         "username": "AufHcSHjwVUDXFiXlEfD",
 			 *         "enabled": true,
-			 *         "created_at": "2005-06-01T10:01:29.848019",
+			 *         "created_at": "2005-06-01T10:39:16.848019",
 			 *         "external_user_type": "SuNeNziQYWrbRjKhHKYu",
-			 *         "updated_at": "2020-09-24T09:56:34.527288"
+			 *         "updated_at": "2020-09-24T10:34:21.527288"
 			 *       }
 			 *     ]
 			 */
@@ -2779,13 +2779,13 @@ export interface operations {
 		};
 		requestBody?: never;
 		responses: {
-			/** @description Request fulfilled, document follows */
+			/** @description OAuth PIN completion result. */
 			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['OAuthCheckResponse'];
 				};
 			};
 			/** @description Test credentials missing or session already redeemed. */
