@@ -219,7 +219,7 @@ async function handleSubmit() {
 					bind:value={origin}
 					oninput={onOriginChange}
 					placeholder="https://zondarr.example.com"
-					disabled={isLocked || submitting || testing}
+					disabled={isLocked || submitting || testing || !lockedSourceLoaded}
 					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
 				/>
 				<p class="text-xs text-cr-text-muted">
@@ -230,7 +230,7 @@ async function handleSubmit() {
 				{/if}
 			</div>
 
-			{#if !isLocked}
+			{#if lockedSourceLoaded && !isLocked}
 				<!-- Test Origin -->
 				<div class="space-y-2">
 					<Button
