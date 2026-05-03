@@ -131,18 +131,7 @@ export type MediaServerWithLibrariesResponse =
 export type LibraryResponse = components['schemas']['LibraryResponse'];
 
 export type SyncRequest = components['schemas']['SyncRequest'];
-
-// SyncResult is manually defined because the OpenAPI generator doesn't handle
-// Union return types well (Response[SyncResult] | Response[ErrorResponse])
-export interface SyncResult {
-	server_id: string;
-	server_name: string;
-	synced_at: string;
-	orphaned_users: string[];
-	stale_users: string[];
-	matched_users: number;
-	imported_users: number;
-}
+export type SyncResult = components['schemas']['SyncResult'];
 
 export interface SyncChannelStatus {
 	in_progress: boolean;

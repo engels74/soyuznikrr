@@ -27,11 +27,13 @@ from litestar.status_codes import (
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_502_BAD_GATEWAY,
+    HTTP_503_SERVICE_UNAVAILABLE,
 )
 
 from ..core.exceptions import (
     AuthenticationError,
     ExternalServiceError,
+    MediaServerUnreachableError,
     NotFoundError,
     RedemptionError,
     ValidationError,
@@ -316,4 +318,40 @@ def external_service_error_handler(
             correlation_id=correlation_id,
         ),
         status_code=HTTP_502_BAD_GATEWAY,
+    )
+
+
+def media_server_unreachable_error_handler(
+    request: Request[object, object, State],
+    exc: MediaServerUnreachableError,
+) -> Response[ErrorResponse]:
+    """Handle MediaServerUnreachableError exceptions.
+
+    Returns HTTP 503 with server identification.
+    Logs the unreachable event with correlation ID for debugging.
+
+    Args:
+        request: The incoming request.
+        exc: The MediaServerUnreachableError exception.
+
+    Returns:
+        Response with ErrorResponse body and HTTP 503 status.
+    """
+    correlation_id = _generate_correlation_id()
+
+    logger.warning(
+        "Media server unreachable",
+        correlation_id=correlation_id,
+        server_id=exc.server_id,
+        path=str(request.url.path),
+    )
+
+    return Response(
+        ErrorResponse(
+            detail=f"Media server unreachable: {exc.message}",
+            error_code=exc.error_code,
+            timestamp=datetime.now(UTC),
+            correlation_id=correlation_id,
+        ),
+        status_code=HTTP_503_SERVICE_UNAVAILABLE,
     )

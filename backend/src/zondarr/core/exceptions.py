@@ -184,3 +184,33 @@ class ExternalServiceError(ZondarrError):
         )
         self.service_name = service_name
         self.original = original
+
+
+class MediaServerUnreachableError(ZondarrError):
+    """Raised when a media server cannot be reached during sync.
+
+    Mapped to HTTP 503 by ``media_server_unreachable_error_handler``.
+
+    Attributes:
+        server_id: The UUID of the media server that was unreachable.
+        original: The underlying ``MediaClientError`` that triggered this, if any.
+    """
+
+    server_id: str
+    original: Exception | None
+
+    def __init__(
+        self,
+        server_id: str,
+        message: str,
+        /,
+        *,
+        original: Exception | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            "SERVER_UNREACHABLE",
+            server_id=server_id,
+        )
+        self.server_id = server_id
+        self.original = original

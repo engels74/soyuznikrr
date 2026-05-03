@@ -267,6 +267,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/v1/join/health/{code}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Check target server health
+		 * @description Check reachability of target media servers for an invitation code.
+		 */
+		get: operations['ApiV1JoinHealthCodeCheckHealth'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/v1/join/{code}': {
 		parameters: {
 			query?: never;
@@ -1278,6 +1298,28 @@ export interface components {
 		EnvCredentialsResponse: {
 			credentials: components['schemas']['EnvCredentialResponse'][];
 		};
+		/**
+		 * ErrorResponse
+		 * @example {
+		 *       "detail": "dueXWxItGmpndvrqpUKE",
+		 *       "error_code": "voiQUvZgiPQBXBLnzSvg",
+		 *       "timestamp": "2008-07-18T15:34:50.008312",
+		 *       "correlation_id": null
+		 *     }
+		 */
+		ErrorResponse: {
+			/** @example dkahSRhbAKyyyVhuiIKQ */
+			detail: string;
+			/** @example jAycEiKZzsXNStUXMqcc */
+			error_code: string;
+			/**
+			 * Format: date-time
+			 * @example 2006-05-16T19:37:24.423369
+			 */
+			timestamp: string;
+			/** @example gGCCJMLRlAzRIOjdLiFB */
+			correlation_id?: string | null;
+		};
 		/** ExpirationIntervalUpdate */
 		ExpirationIntervalUpdate: {
 			expiration_check_interval_seconds: number;
@@ -1536,22 +1578,22 @@ export interface components {
 		/**
 		 * RedemptionErrorResponse
 		 * @example {
-		 *       "success": false,
-		 *       "error_code": "AsuEshTKFLZjQQrDxkwh",
-		 *       "message": "WjGDYPstccqXcjHsjXcF",
+		 *       "success": true,
+		 *       "error_code": "fLqpHUrVGFBaiJKfHyEu",
+		 *       "message": "lsYjSBdQaRrVLsGZikpQ",
 		 *       "correlation_id": null,
 		 *       "failed_server": null,
 		 *       "partial_users": [
 		 *         {
-		 *           "id": "c2713ce2-5868-405b-93e6-d9036dc3ccee",
-		 *           "identity_id": "2b1acaa9-29ad-405f-bddd-cc7231e6ff39",
-		 *           "media_server_id": "f69b0ae6-c099-4c4c-8f10-8ed367d731e1",
-		 *           "external_user_id": "yOTjTEvAUueXgfLqpHUr",
-		 *           "username": "VGFBaiJKfHyEulsYjSBd",
-		 *           "enabled": true,
-		 *           "created_at": "1996-09-28T19:46:53.921080",
-		 *           "expires_at": "2021-05-04T20:58:44.723815",
-		 *           "updated_at": "2006-05-19T09:24:12.944409"
+		 *           "id": "62e6750a-3f13-491d-a7fc-c18b3f36d149",
+		 *           "identity_id": "9875bad1-95a6-4ea9-8b87-3e099d5d310b",
+		 *           "media_server_id": "c2cc1d38-8d15-4800-9fad-ea816b327c79",
+		 *           "external_user_id": "babcOYguawIGUCctxrbG",
+		 *           "username": "zKsdnjxheBhfgKPQDHNw",
+		 *           "enabled": false,
+		 *           "created_at": "2000-09-18T10:23:39.770009",
+		 *           "expires_at": "1998-02-12T14:52:48.488298",
+		 *           "updated_at": "1998-01-13T16:07:00.279514"
 		 *         }
 		 *       ]
 		 *     }
@@ -1562,26 +1604,26 @@ export interface components {
 			 * @example false
 			 */
 			success: boolean;
-			/** @example bzayzoQbzdXMsvhsvQnj */
-			error_code: string;
-			/** @example psxSmwtEmkVBOmIxyHqA */
-			message: string;
 			/** @example xJhBSnpIXjjOrlCcUmnv */
+			error_code: string;
+			/** @example iVzUMZozziJUhCsuKDfY */
+			message: string;
+			/** @example MqbkVDGbgpSmpeFCZfQi */
 			correlation_id?: string | null;
-			/** @example RTwdshFRPhSOVrnPxrBB */
+			/** @example gOawvtQkOPQsswkMypzV */
 			failed_server?: string | null;
 			/**
 			 * @example [
 			 *       {
-			 *         "id": "4133e4d7-5916-4281-8e24-d9ccd2ea3f17",
-			 *         "identity_id": "c2680192-6c96-4b0e-b4f5-add55c37849a",
-			 *         "media_server_id": "4850e927-bfdb-43be-a0fb-c247319115d0",
-			 *         "external_user_id": "ypzVvHsoVSEeCtLViFvD",
-			 *         "username": "EMpEHdutFmqCQcDdvDZV",
-			 *         "enabled": false,
-			 *         "created_at": "1996-09-15T05:55:54.852486",
-			 *         "external_user_type": "kSDBQNXqcJcDSuFiiFSZ",
-			 *         "updated_at": "1997-02-27T14:21:13.373028"
+			 *         "id": "65a3a495-ef67-4106-9c17-ae6e5daffa15",
+			 *         "identity_id": "2be2d8c9-a36b-4de4-99e5-8ba2531670d8",
+			 *         "media_server_id": "9b266ccc-1e0e-47c5-a861-5e14c5d09b94",
+			 *         "external_user_id": "PriLBPewTdWxyxwFswQX",
+			 *         "username": "AufHcSHjwVUDXFiXlEfD",
+			 *         "enabled": true,
+			 *         "created_at": "2005-06-01T10:01:29.848019",
+			 *         "external_user_type": "SuNeNziQYWrbRjKhHKYu",
+			 *         "updated_at": "2020-09-24T09:56:34.527288"
 			 *       }
 			 *     ]
 			 */
@@ -1683,6 +1725,19 @@ export interface components {
 		SyncRequest: {
 			/** @default true */
 			dry_run: boolean;
+		};
+		/** SyncResult */
+		SyncResult: {
+			/** Format: uuid */
+			server_id: string;
+			server_name: string;
+			/** Format: date-time */
+			synced_at: string;
+			orphaned_users: string[];
+			stale_users: string[];
+			matched_users: number;
+			/** @default 0 */
+			imported_users: number;
 		};
 		/** TOTPBackupCodeRequest */
 		TOTPBackupCodeRequest: {
@@ -2520,6 +2575,58 @@ export interface operations {
 			};
 		};
 	};
+	ApiV1JoinHealthCodeCheckHealth: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				/** @description Invitation code to check health for */
+				code: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Request fulfilled, document follows */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Bad request syntax or unsupported method */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						status_code: number;
+						detail: string;
+						extra?:
+							| null
+							| {
+									[key: string]: unknown;
+							  }
+							| unknown[];
+					};
+				};
+			};
+			/** @description Invalid or expired invitation code. */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						[key: string]: string;
+					};
+				};
+			};
+		};
+	};
 	ApiV1JoinCodeRedeemInvitation: {
 		parameters: {
 			query?: never;
@@ -2576,7 +2683,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['OAuthCheckResponse'] | unknown;
+					'application/json': components['schemas']['OAuthCheckResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2595,6 +2702,15 @@ export interface operations {
 							  }
 							| unknown[];
 					};
+				};
+			};
+			/** @description External provider unavailable. */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
 		};
@@ -2617,7 +2733,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['OAuthPinResponse'] | unknown;
+					'application/json': components['schemas']['OAuthPinResponse'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -2636,6 +2752,15 @@ export interface operations {
 							  }
 							| unknown[];
 					};
+				};
+			};
+			/** @description External provider unavailable. */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
 		};
@@ -2660,25 +2785,16 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['OAuthCheckResponse'] | unknown;
+					'application/json': unknown;
 				};
 			};
-			/** @description Bad request syntax or unsupported method */
+			/** @description Test credentials missing or session already redeemed. */
 			400: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': {
-						status_code: number;
-						detail: string;
-						extra?:
-							| null
-							| {
-									[key: string]: unknown;
-							  }
-							| unknown[];
-					};
+					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
 		};
@@ -3027,13 +3143,13 @@ export interface operations {
 			};
 		};
 		responses: {
-			/** @description Document created, URL follows */
-			201: {
+			/** @description Request fulfilled, document follows */
+			200: {
 				headers: {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['SyncResult'];
 				};
 			};
 			/** @description Bad request syntax or unsupported method */
@@ -3052,6 +3168,15 @@ export interface operations {
 							  }
 							| unknown[];
 					};
+				};
+			};
+			/** @description Media server unreachable. */
+			503: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
 		};
