@@ -956,6 +956,8 @@ class UserResponse(msgspec.Struct, omit_defaults=True):
         media_server_id: ID of the media server.
         external_user_id: The user's ID on the media server.
         username: The username on the media server.
+        email: Email captured for the parent identity (OAuth-supplied or
+            user-entered), or None if unknown.
         expires_at: Optional expiration timestamp.
         enabled: Whether the user account is currently active.
         created_at: When the user was created.
@@ -969,6 +971,7 @@ class UserResponse(msgspec.Struct, omit_defaults=True):
     username: str
     enabled: bool
     created_at: datetime
+    email: str | None = None
     external_user_type: str | None = None
     expires_at: datetime | None = None
     updated_at: datetime | None = None

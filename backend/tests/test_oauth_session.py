@@ -106,7 +106,7 @@ class TestAuthentication:
 class TestOneTimeRedemption:
     """Redemption tokens are consumed once."""
 
-    async def test_redeem_returns_provider_and_auth_token(
+    async def test_redeem_returns_provider_auth_token_and_email(
         self, store: OAuthSessionStore, session: AsyncSession
     ) -> None:
         handle = await store.create(session, "plex", 1)
@@ -116,9 +116,39 @@ class TestOneTimeRedemption:
         assert redemption_token is not None
         result = await store.redeem(session, redemption_token)
         assert result is not None
-        provider, auth_token = result
+        provider, auth_token, email = result
         assert provider == "plex"
         assert auth_token == "raw_token_abc"  # noqa: S105
+        assert email == "a@b.com"
+
+    async def test_redeem_returns_none_email_when_not_supplied(
+        self, store: OAuthSessionStore, session: AsyncSession
+    ) -> None:
+        handle = await store.create(session, "plex", 1)
+        redemption_token = await store.set_authenticated(
+            session, handle, auth_token="raw_token_abc", email=None
+        )
+        assert redemption_token is not None
+        result = await store.redeem(session, redemption_token)
+        assert result is not None
+        provider, auth_token, email = result
+        assert provider == "plex"
+        assert auth_token == "raw_token_abc"  # noqa: S105
+        assert email is None
+
+    async def test_redeem_preserves_email_after_consumption(
+        self, store: OAuthSessionStore, session: AsyncSession
+    ) -> None:
+        """Email is kept on the session after redemption for audit."""
+        handle = await store.create(session, "plex", 1)
+        redemption_token = await store.set_authenticated(
+            session, handle, auth_token="x", email="audit@example.com"
+        )
+        assert redemption_token is not None
+        _ = await store.redeem(session, redemption_token)
+        oauth_session = await store.get(session, handle)
+        assert oauth_session is not None
+        assert oauth_session.email == "audit@example.com"
 
     async def test_redeem_clears_auth_token_from_session(
         self, store: OAuthSessionStore, session: AsyncSession

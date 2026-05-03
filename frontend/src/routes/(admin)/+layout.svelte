@@ -198,7 +198,7 @@ $effect(() => {
 		</aside>
 
 		<!-- Main Content Area -->
-		<div class="flex-1 md:ml-64">
+		<div class="flex-1 min-w-0 md:ml-64">
 			<!-- Desktop Header -->
 			<header class="sticky top-0 z-30 hidden h-14 items-center justify-between border-b border-cr-border bg-cr-bg px-6 md:flex">
 				<PageTitle>{currentTitle}</PageTitle>

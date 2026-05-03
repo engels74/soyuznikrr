@@ -312,7 +312,7 @@ class AuthController(Controller):
             store = OAuthSessionStore()
             result = await store.redeem(session, redemption_token)
             if result is not None:
-                redeemed_provider, auth_token = result
+                redeemed_provider, auth_token, _ = result
                 if redeemed_provider != method:
                     raise AuthenticationError(
                         "Redemption token provider mismatch",
@@ -541,7 +541,7 @@ class AuthController(Controller):
             store = OAuthSessionStore()
             result = await store.redeem(session, redemption_token)
             if result is not None:
-                redeemed_provider, auth_token = result
+                redeemed_provider, auth_token, _ = result
                 if redeemed_provider != data.method:
                     raise AuthenticationError(
                         "Redemption token provider mismatch",

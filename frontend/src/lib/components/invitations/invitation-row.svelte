@@ -33,18 +33,40 @@ interface Props {
 const { invitation, onEdit, onDelete }: Props = $props();
 
 /**
+ * True when the invitation has a max_uses cap that's been fully consumed.
+ * "Used up" beats the generic "Expired" so admins can tell why redemption
+ * is blocked.
+ */
+const isUsedUp = $derived(
+	invitation.max_uses != null &&
+		invitation.remaining_uses != null &&
+		invitation.remaining_uses <= 0,
+);
+
+/**
+ * True when the invitation has an expiry date in the past.
+ */
+const isDateExpired = $derived(
+	invitation.expires_at != null &&
+		new Date(invitation.expires_at).getTime() < Date.now(),
+);
+
+/**
  * Derive the status for the badge based on invitation state.
+ * Both "used up" and "date expired" share the visually expired styling, but
+ * are labelled differently below so admins can distinguish them.
  */
 const status = $derived.by((): StatusBadgeStatus => {
 	if (!invitation.enabled) return "disabled";
+	if (isUsedUp) return "expired";
+	if (isDateExpired) return "expired";
 	if (!invitation.is_active) return "expired";
-	// Check if limited (has max_uses and getting close)
 	if (
 		invitation.remaining_uses !== null &&
-		invitation.remaining_uses !== undefined
+		invitation.remaining_uses !== undefined &&
+		invitation.remaining_uses <= 3
 	) {
-		if (invitation.remaining_uses <= 0) return "expired";
-		if (invitation.remaining_uses <= 3) return "limited";
+		return "limited";
 	}
 	return "active";
 });
@@ -54,13 +76,15 @@ const status = $derived.by((): StatusBadgeStatus => {
  */
 const statusLabel = $derived.by(() => {
 	if (!invitation.enabled) return "Disabled";
-	if (!invitation.is_active) return "Expired";
+	if (isUsedUp) return "Used up";
+	if (isDateExpired) return "Expired";
+	if (!invitation.is_active) return "Inactive";
 	if (
 		invitation.remaining_uses !== null &&
-		invitation.remaining_uses !== undefined
+		invitation.remaining_uses !== undefined &&
+		invitation.remaining_uses <= 3
 	) {
-		if (invitation.remaining_uses <= 0) return "Exhausted";
-		if (invitation.remaining_uses <= 3) return "Limited";
+		return "Limited";
 	}
 	return "Active";
 });

@@ -6,15 +6,16 @@
  * @module $lib/components/setup/step-csrf.svelte.test
  */
 
-import { cleanup, render } from '@testing-library/svelte';
+import { cleanup, render, waitFor } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$app/environment', () => ({ browser: true }));
 vi.mock('$lib/api/client', async () => {
 	const actual = await vi.importActual('$lib/api/client');
 	return {
 		...actual,
+		getCsrfOrigin: vi.fn(),
 		setCsrfOrigin: vi.fn(),
 		testCsrfOrigin: vi.fn(),
 		withErrorHandling: vi.fn()
@@ -29,11 +30,29 @@ afterEach(() => {
 	vi.resetAllMocks();
 });
 
+beforeEach(() => {
+	// Default getCsrfOrigin response: not locked. The component's $effect
+	// always issues this call on mount via withErrorHandling, so each test
+	// must enqueue a leading mock for it before the test-specific calls.
+	vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+		data: { csrf_origin: 'http://localhost:3000', is_locked: false },
+		error: undefined
+	});
+});
+
 /** Helper to find a button by text content. */
 function findButton(container: HTMLElement, text: string): HTMLButtonElement | undefined {
 	return Array.from(container.querySelectorAll('button')).find((b) =>
 		b.textContent?.includes(text)
 	) as HTMLButtonElement | undefined;
+}
+
+/** Mock for the $effect's getCsrfOrigin call. Returns unlocked by default. */
+function mockGetCsrfOriginUnlocked() {
+	vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+		data: { csrf_origin: 'http://localhost:3000', is_locked: false },
+		error: undefined
+	});
 }
 
 describe('Step CSRF Component', () => {
@@ -57,9 +76,14 @@ describe('Step CSRF Component', () => {
 		expect(input.value).toBe(window.location.origin);
 	});
 
-	it('should render Test, Skip and Save buttons', () => {
+	it('should render Test, Skip and Save buttons', async () => {
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		// Wait for the $effect to settle and footer buttons to appear.
+		await waitFor(() => {
+			expect(findButton(container, 'Save')).toBeTruthy();
 		});
 
 		expect(findButton(container, 'Test Origin')).toBeTruthy();
@@ -67,9 +91,13 @@ describe('Step CSRF Component', () => {
 		expect(findButton(container, 'Save')).toBeTruthy();
 	});
 
-	it('should have Save and Skip disabled before test attempt', () => {
+	it('should have Save and Skip disabled before test attempt', async () => {
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Save')).toBeTruthy();
 		});
 
 		const saveBtn = findButton(container, 'Save');
@@ -80,13 +108,20 @@ describe('Step CSRF Component', () => {
 
 	it('should enable Save and Skip after successful test', async () => {
 		const user = userEvent.setup();
-		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+
+		// First call from effect (unlocked), second from test button (success)
+		mockGetCsrfOriginUnlocked();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
 			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
 			error: undefined
 		});
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
 		});
 
 		const testBtn = findButton(container, 'Test Origin')!;
@@ -100,7 +135,9 @@ describe('Step CSRF Component', () => {
 
 	it('should display success result after test', async () => {
 		const user = userEvent.setup();
-		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+
+		mockGetCsrfOriginUnlocked();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
 			data: {
 				success: true,
 				message: 'Origin matches — CSRF protection will work correctly.',
@@ -113,6 +150,10 @@ describe('Step CSRF Component', () => {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
 		});
 
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
+		});
+
 		await user.click(findButton(container, 'Test Origin')!);
 
 		expect(container.textContent).toContain('Origin matches');
@@ -122,7 +163,9 @@ describe('Step CSRF Component', () => {
 
 	it('should display failure result after test', async () => {
 		const user = userEvent.setup();
-		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
+
+		mockGetCsrfOriginUnlocked();
+		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
 			data: {
 				success: false,
 				message:
@@ -136,6 +179,10 @@ describe('Step CSRF Component', () => {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
 		});
 
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
+		});
+
 		await user.click(findButton(container, 'Test Origin')!);
 
 		expect(container.textContent).toContain('Origin mismatch');
@@ -145,6 +192,8 @@ describe('Step CSRF Component', () => {
 
 	it('should reset test state when origin changes', async () => {
 		const user = userEvent.setup();
+
+		mockGetCsrfOriginUnlocked();
 		vi.mocked(apiClient.withErrorHandling).mockResolvedValue({
 			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
 			error: undefined
@@ -152,6 +201,10 @@ describe('Step CSRF Component', () => {
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
 		});
 
 		// Run test first
@@ -171,7 +224,8 @@ describe('Step CSRF Component', () => {
 		const onComplete = vi.fn();
 		const user = userEvent.setup();
 
-		// First call: test origin, second call: save
+		// Effect call (unlocked), test origin call, save call
+		mockGetCsrfOriginUnlocked();
 		vi.mocked(apiClient.withErrorHandling)
 			.mockResolvedValueOnce({
 				data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
@@ -186,12 +240,17 @@ describe('Step CSRF Component', () => {
 			props: { onComplete, onSkip: vi.fn() }
 		});
 
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
+		});
+
 		// Test first
 		await user.click(findButton(container, 'Test Origin')!);
 		// Then save (test passed, so no confirmation dialog)
 		await user.click(findButton(container, 'Save')!);
 
-		expect(apiClient.withErrorHandling).toHaveBeenCalledTimes(2);
+		// 3 calls: effect's getCsrfOrigin, testCsrfOrigin, setCsrfOrigin
+		expect(apiClient.withErrorHandling).toHaveBeenCalledTimes(3);
 		expect(onComplete).toHaveBeenCalledTimes(1);
 	});
 
@@ -199,6 +258,7 @@ describe('Step CSRF Component', () => {
 		const onSkip = vi.fn();
 		const user = userEvent.setup();
 
+		mockGetCsrfOriginUnlocked();
 		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
 			data: { success: true, message: 'Origin matches', request_origin: 'http://localhost:3000' },
 			error: undefined
@@ -206,6 +266,10 @@ describe('Step CSRF Component', () => {
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
 		});
 
 		await user.click(findButton(container, 'Test Origin')!);
@@ -217,6 +281,7 @@ describe('Step CSRF Component', () => {
 	it('should show validation error for empty origin on save', async () => {
 		const user = userEvent.setup();
 
+		mockGetCsrfOriginUnlocked();
 		// Mock test as failed so save triggers confirmation
 		vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
 			data: { success: false, message: 'Failed', request_origin: null },
@@ -225,6 +290,10 @@ describe('Step CSRF Component', () => {
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
 		});
 
 		// Clear the auto-populated input
@@ -238,10 +307,7 @@ describe('Step CSRF Component', () => {
 		// Clear input again
 		await user.clear(input);
 
-		// Need a new test since input changed; but buttons are disabled now
-		// Test the validation path: type valid origin, test, then try save with empty
-		// Reset: type origin, test, clear, test again with empty won't work since canTest is false
-		// So let's test validation on save with a path-containing origin
+		// Test the validation path: type a path-containing origin
 		await user.type(input, 'https://example.com/path');
 
 		// Test to enable buttons
@@ -275,7 +341,15 @@ describe('Step CSRF Component', () => {
 		let callCount = 0;
 		vi.mocked(apiClient.withErrorHandling).mockImplementation(async () => {
 			callCount++;
+			// First call: effect's getCsrfOrigin
 			if (callCount === 1) {
+				return {
+					data: { csrf_origin: 'http://localhost:3000', is_locked: false },
+					error: undefined
+				};
+			}
+			// Second call: test origin succeeds
+			if (callCount === 2) {
 				return {
 					data: {
 						success: true,
@@ -285,6 +359,7 @@ describe('Step CSRF Component', () => {
 					error: undefined
 				};
 			}
+			// Third call: save fails
 			return {
 				data: undefined,
 				error: { detail: 'Server unavailable', error_code: 'INTERNAL_ERROR' }
@@ -293,6 +368,10 @@ describe('Step CSRF Component', () => {
 
 		const { container } = render(StepCsrf, {
 			props: { onComplete: vi.fn(), onSkip: vi.fn() }
+		});
+
+		await waitFor(() => {
+			expect(findButton(container, 'Test Origin')).toBeTruthy();
 		});
 
 		await user.click(findButton(container, 'Test Origin')!);
@@ -309,5 +388,69 @@ describe('Step CSRF Component', () => {
 		expect(container.textContent).toContain(
 			'CSRF protection prevents unauthorized requests from other websites'
 		);
+	});
+
+	describe('Locked CSRF (env-managed)', () => {
+		it('should show env badge and a single Continue button when CSRF_ORIGIN is locked', async () => {
+			const onComplete = vi.fn();
+			const onSkip = vi.fn();
+
+			vi.mocked(apiClient.withErrorHandling).mockReset();
+			vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+				data: { csrf_origin: 'http://localhost:5173', is_locked: true },
+				error: undefined
+			});
+
+			const { container } = render(StepCsrf, {
+				props: { onComplete, onSkip }
+			});
+
+			// Wait for the $effect to settle and the locked-state UI to appear.
+			await waitFor(() => {
+				expect(container.textContent).toContain('Environment Variable');
+			});
+
+			// Save & Continue should NOT be present in locked state
+			expect(findButton(container, 'Save')).toBeUndefined();
+			// Test Origin should be hidden in locked state
+			expect(findButton(container, 'Test Origin')).toBeUndefined();
+			// Skip button should be hidden — replaced by Continue
+			expect(findButton(container, 'Skip')).toBeUndefined();
+
+			// Continue button is present
+			const continueBtn = findButton(container, 'Continue');
+			expect(continueBtn).toBeTruthy();
+
+			// Input should be disabled in locked state
+			const input = container.querySelector('input[type="url"]') as HTMLInputElement;
+			expect(input.disabled).toBe(true);
+			// And display the env-supplied origin
+			expect(input.value).toBe('http://localhost:5173');
+		});
+
+		it('Continue button calls onSkip exactly once (advances onboarding)', async () => {
+			const onComplete = vi.fn();
+			const onSkip = vi.fn();
+			const user = userEvent.setup();
+
+			vi.mocked(apiClient.withErrorHandling).mockReset();
+			vi.mocked(apiClient.withErrorHandling).mockResolvedValueOnce({
+				data: { csrf_origin: 'http://localhost:5173', is_locked: true },
+				error: undefined
+			});
+
+			const { container } = render(StepCsrf, {
+				props: { onComplete, onSkip }
+			});
+
+			await waitFor(() => {
+				expect(findButton(container, 'Continue')).toBeTruthy();
+			});
+
+			await user.click(findButton(container, 'Continue')!);
+
+			expect(onSkip).toHaveBeenCalledTimes(1);
+			expect(onComplete).not.toHaveBeenCalled();
+		});
 	});
 });
