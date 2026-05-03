@@ -69,7 +69,7 @@ const status = $derived.by((): StatusBadgeStatus => {
 const statusLabel = $derived.by(() => {
 	if (!invitation.enabled) return "Disabled";
 	if (isUsedUp) return "Used up";
-	if (!invitation.is_active) return "Inactive";
+	if (!invitation.is_active) return "Expired";
 	if (
 		invitation.remaining_uses !== null &&
 		invitation.remaining_uses !== undefined &&

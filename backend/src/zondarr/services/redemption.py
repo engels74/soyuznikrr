@@ -203,7 +203,18 @@ class RedemptionService:
                     "OAuth authentication is required for this invitation",
                     redemption_error_code="OAUTH_REQUIRED",
                 )
-            if oauth_provider is not None and oauth_provider != server.server_type:
+            if oauth_provider is None:
+                # ``auth_token`` without a paired ``oauth_provider`` violates
+                # the keyword-arg contract (see docstring). Treat as a missing
+                # provider rather than silently accepting the token, so a
+                # token issued for one provider can never be replayed against
+                # an invitation targeting another.
+                raise RedemptionError(
+                    "OAuth provider is required when an auth token is supplied",
+                    redemption_error_code="OAUTH_PROVIDER_REQUIRED",
+                    failed_server=server.name,
+                )
+            if oauth_provider != server.server_type:
                 raise RedemptionError(
                     "Redemption token provider does not match invitation target",
                     redemption_error_code="OAUTH_PROVIDER_MISMATCH",

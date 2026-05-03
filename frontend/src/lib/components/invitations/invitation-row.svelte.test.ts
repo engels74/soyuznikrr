@@ -2,8 +2,9 @@
  * Tests for the InvitationRow status badge logic.
  *
  * Verifies that "Used up" (max_uses exhausted, client-derivable) is
- * distinguished from the generic "Inactive" branch (server's is_active=false,
- * cause unknown to the client), addressing dogfood ISSUE-004.
+ * distinguished from the "Expired" branch (server's is_active=false after
+ * the !enabled and isUsedUp checks have already eliminated those causes,
+ * leaving only date expiry), addressing dogfood ISSUE-004.
  *
  * @module $lib/components/invitations/invitation-row.svelte.test
  */
@@ -73,12 +74,13 @@ describe('InvitationRow status badge', () => {
 		expect(info.label).not.toContain('Expired');
 	});
 
-	it('should label a server-inactive invitation "Inactive"', () => {
-		// The server's is_active boolean is the source of truth for whether an
-		// invitation is redeemable. The UI does not guess the cause (e.g.
-		// date-expiry vs. other server-side reasons) because the response only
-		// exposes the boolean, not a reason field. Use "Used up" only when
-		// max_uses is exhausted (a client-derivable signal).
+	it('should label a date-expired invitation "Expired"', () => {
+		// The backend's is_active=False has exactly three causes: !enabled,
+		// expires_at <= now, and use_count >= max_uses. The frontend priority
+		// chain catches !enabled ("Disabled") and use_count >= max_uses
+		// ("Used up") explicitly before reaching this branch, so by
+		// elimination !is_active here implies date expiry. Server-derived to
+		// avoid client-clock-skew false positives.
 		const inv = makeInvitation({
 			max_uses: null,
 			use_count: 5,
@@ -88,7 +90,7 @@ describe('InvitationRow status badge', () => {
 		});
 		const info = getStatusInfo(inv);
 		expect(info.status).toBe('expired');
-		expect(info.label).toContain('Inactive');
+		expect(info.label).toContain('Expired');
 		expect(info.label).not.toContain('Used up');
 	});
 

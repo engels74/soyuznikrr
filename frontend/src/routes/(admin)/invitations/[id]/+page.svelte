@@ -188,7 +188,7 @@ const statusLabel = $derived.by(() => {
 	if (!inv) return "Unknown";
 	if (!inv.enabled) return "Disabled";
 	if (isUsedUp) return "Used up";
-	if (!inv.is_active) return "Inactive";
+	if (!inv.is_active) return "Expired";
 	if (
 		inv.remaining_uses !== null &&
 		inv.remaining_uses !== undefined &&
