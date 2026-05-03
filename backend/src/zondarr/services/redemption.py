@@ -115,6 +115,7 @@ class RedemptionService:
         password: str,
         email: str | None = None,
         auth_token: str | None = None,
+        oauth_provider: str | None = None,
         pre_wizard_token: str | None = None,
         secret_key: str | None = None,
     ) -> tuple[Identity, Sequence[User]]:
@@ -140,6 +141,10 @@ class RedemptionService:
             password: Password for the new accounts (keyword-only).
             email: Optional email address (keyword-only).
             auth_token: Optional auth token for OAuth flows (keyword-only).
+            oauth_provider: Provider that issued ``auth_token`` (e.g.
+                ``"plex"``). Required when ``auth_token`` is supplied so the
+                redemption can verify the OAuth session matches the
+                invitation's OAuth-requiring target server (keyword-only).
             pre_wizard_token: Signed wizard completion token (keyword-only).
             secret_key: App secret key for verifying wizard tokens (keyword-only).
 
@@ -177,19 +182,33 @@ class RedemptionService:
                     redemption_error_code="WIZARD_REQUIRED",
                 )
 
-        # Step 2.75: Require OAuth token for servers that use OAuth join flow
-        if auth_token is None:
-            for server in invitation.target_servers:
-                provider = registry.get_provider(server.server_type)
-                join_flow = provider.join_flow
-                if (
-                    join_flow is not None
-                    and join_flow.flow_type == JoinFlowType.OAUTH_LINK
-                ):
-                    raise RedemptionError(
-                        "OAuth authentication is required for this invitation",
-                        redemption_error_code="OAUTH_REQUIRED",
-                    )
+        # Step 2.75: Validate OAuth requirements for each target server.
+        # - If the server uses an OAUTH_LINK join flow, an auth_token is
+        #   required (OAUTH_REQUIRED).
+        # - If a token was supplied, the originating provider must match the
+        #   server type (OAUTH_PROVIDER_MISMATCH). This mirrors the guard in
+        #   ``api/auth.py`` for admin-login / link-provider and prevents a
+        #   redemption token issued for one provider from being silently
+        #   accepted against an invitation targeting another.
+        for server in invitation.target_servers:
+            provider = registry.get_provider(server.server_type)
+            join_flow = provider.join_flow
+            requires_oauth = (
+                join_flow is not None and join_flow.flow_type == JoinFlowType.OAUTH_LINK
+            )
+            if not requires_oauth:
+                continue
+            if auth_token is None:
+                raise RedemptionError(
+                    "OAuth authentication is required for this invitation",
+                    redemption_error_code="OAUTH_REQUIRED",
+                )
+            if oauth_provider is not None and oauth_provider != server.server_type:
+                raise RedemptionError(
+                    "Redemption token provider does not match invitation target",
+                    redemption_error_code="OAUTH_PROVIDER_MISMATCH",
+                    failed_server=server.name,
+                )
 
         # Step 2.8: Check username uniqueness across target servers
         for server in invitation.target_servers:

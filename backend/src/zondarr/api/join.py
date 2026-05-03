@@ -339,11 +339,12 @@ class JoinController(Controller):
         # path where the user never types an email but Plex returned one.
         auth_token: str | None = None
         oauth_email: str | None = None
+        oauth_provider: str | None = None
         if data.redemption_token:
             store = OAuthSessionStore()
             result = await store.redeem(session, data.redemption_token)
             if result is not None:
-                _provider, auth_token, oauth_email = result
+                oauth_provider, auth_token, oauth_email = result
 
         identity, users = await redemption_service.redeem(
             code,
@@ -351,6 +352,7 @@ class JoinController(Controller):
             password=data.password,
             email=data.email or oauth_email,
             auth_token=auth_token,
+            oauth_provider=oauth_provider,
             pre_wizard_token=data.pre_wizard_token,
             secret_key=settings.secret_key,
         )
