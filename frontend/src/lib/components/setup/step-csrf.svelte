@@ -1,10 +1,16 @@
 <script lang="ts">
-import { Plug, ShieldCheck } from '@lucide/svelte';
+import { Lock, Plug, ShieldCheck } from '@lucide/svelte';
 import { browser } from '$app/environment';
 import type { CsrfOriginTestResponse } from '$lib/api/client';
-import { setCsrfOrigin, testCsrfOrigin, withErrorHandling } from '$lib/api/client';
+import {
+	getCsrfOrigin,
+	setCsrfOrigin,
+	testCsrfOrigin,
+	withErrorHandling
+} from '$lib/api/client';
 import { asErrorResponse } from '$lib/api/errors';
 import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
+import { Badge } from '$lib/components/ui/badge';
 import { Button } from '$lib/components/ui/button';
 import * as Card from '$lib/components/ui/card';
 import { Input } from '$lib/components/ui/input';
@@ -29,12 +35,40 @@ let testing = $state(false);
 let testResult = $state<CsrfOriginTestResponse | null>(null);
 let hasAttemptedTest = $state(false);
 
+// Lock state — env-managed CSRF_ORIGIN cannot be edited from the wizard
+let isLocked = $state(false);
+let lockedSourceLoaded = $state(false);
+let loadError = $state('');
+
 // Confirmation dialog state
 let showSaveConfirm = $state(false);
 let showSkipConfirm = $state(false);
 
 const canTest = $derived(origin.trim().length > 0);
 const testPassed = $derived(testResult?.success === true);
+
+async function loadLockedSource() {
+	loadError = '';
+	const result = await withErrorHandling(() => getCsrfOrigin(), {
+		showErrorToast: false
+	});
+	if (result?.data) {
+		isLocked = Boolean(result.data.is_locked);
+		if (result.data.csrf_origin) {
+			origin = result.data.csrf_origin;
+		}
+	} else {
+		const errorBody = asErrorResponse(result?.error);
+		loadError =
+			errorBody?.detail ??
+			'Could not load CSRF settings — the lock state is unknown. The backend may be env-locked.';
+	}
+	lockedSourceLoaded = true;
+}
+
+$effect(() => {
+	loadLockedSource();
+});
 
 function onOriginChange() {
 	testResult = null;
@@ -123,9 +157,22 @@ async function handleSubmit() {
 
 <Card.Root class="border-cr-border bg-cr-surface">
 	<Card.Header>
-		<Card.Title class="text-lg text-cr-text">Security Configuration</Card.Title>
+		<div class="flex items-center gap-2">
+			<Card.Title class="text-lg text-cr-text">Security Configuration</Card.Title>
+			{#if isLocked}
+				<Badge variant="secondary" class="gap-1">
+					<Lock class="size-3" />
+					Environment Variable
+				</Badge>
+			{/if}
+		</div>
 		<Card.Description class="text-cr-text-muted">
-			Set your trusted origin for CSRF protection.
+			{#if isLocked}
+				CSRF origin is managed by the <code class="font-mono text-xs">CSRF_ORIGIN</code>
+				environment variable. The current value is shown below and cannot be edited from the wizard.
+			{:else}
+				Set your trusted origin for CSRF protection.
+			{/if}
 		</Card.Description>
 	</Card.Header>
 	<Card.Content>
@@ -134,6 +181,21 @@ async function handleSubmit() {
 				class="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
 			>
 				{serverError}
+			</div>
+		{/if}
+
+		{#if loadError}
+			<div
+				class="mb-4 flex items-start justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400"
+			>
+				<span>{loadError}</span>
+				<button
+					type="button"
+					onclick={loadLockedSource}
+					class="shrink-0 underline hover:text-amber-300"
+				>
+					Retry
+				</button>
 			</div>
 		{/if}
 
@@ -157,7 +219,7 @@ async function handleSubmit() {
 					bind:value={origin}
 					oninput={onOriginChange}
 					placeholder="https://zondarr.example.com"
-					disabled={submitting || testing}
+					disabled={isLocked || submitting || testing || !lockedSourceLoaded}
 					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
 				/>
 				<p class="text-xs text-cr-text-muted">
@@ -168,69 +230,87 @@ async function handleSubmit() {
 				{/if}
 			</div>
 
-			<!-- Test Origin -->
-			<div class="space-y-2">
-				<Button
-					type="button"
-					variant="outline"
-					onclick={handleTest}
-					disabled={!canTest || testing || submitting}
-					class="w-full border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border"
-				>
-					{#if testing}
-						<span
-							class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-						></span>
-						Testing...
-					{:else}
-						<Plug class="size-4" />
-						Test Origin
-					{/if}
-				</Button>
+			{#if lockedSourceLoaded && !isLocked}
+				<!-- Test Origin -->
+				<div class="space-y-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={handleTest}
+						disabled={!canTest || testing || submitting}
+						class="w-full border-cr-border bg-cr-bg text-cr-text hover:bg-cr-border"
+					>
+						{#if testing}
+							<span
+								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							></span>
+							Testing...
+						{:else}
+							<Plug class="size-4" />
+							Test Origin
+						{/if}
+					</Button>
 
-				{#if testResult}
-					{#if testResult.success}
-						<div
-							class="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-400"
-						>
-							<p>{testResult.message}</p>
-						</div>
-					{:else}
-						<div
-							class="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-400"
-						>
-							<p>{testResult.message}</p>
-						</div>
+					{#if testResult}
+						{#if testResult.success}
+							<div
+								class="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-400"
+							>
+								<p>{testResult.message}</p>
+							</div>
+						{:else}
+							<div
+								class="rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-400"
+							>
+								<p>{testResult.message}</p>
+							</div>
+						{/if}
 					{/if}
-				{/if}
-			</div>
+				</div>
+			{/if}
 
 			<div class="flex items-center justify-between gap-3 border-t border-cr-border pt-4">
-				<Button
-					type="button"
-					variant="ghost"
-					onclick={handleSkipClick}
-					disabled={!hasAttemptedTest || submitting || testing}
-					class="text-cr-text-muted hover:text-cr-text"
-				>
-					Skip for now
-				</Button>
-				<Button
-					type="button"
-					onclick={handleSaveClick}
-					disabled={!hasAttemptedTest || submitting || testing}
-					class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
-				>
-					{#if submitting}
+				{#if !lockedSourceLoaded}
+					<div class="ml-auto">
 						<span
-							class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							class="block size-4 animate-spin rounded-full border-2 border-current border-t-transparent text-cr-text-muted"
 						></span>
-						Saving...
+					</div>
+				{:else if isLocked}
+					<Button
+						type="button"
+						onclick={onSkip}
+						class="ml-auto bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
+					>
+						Continue
+					</Button>
+				{:else}
+					<Button
+						type="button"
+						variant="ghost"
+						onclick={handleSkipClick}
+						disabled={!hasAttemptedTest || submitting || testing}
+						class="text-cr-text-muted hover:text-cr-text"
+					>
+						Skip for now
+					</Button>
+					<Button
+						type="button"
+						onclick={handleSaveClick}
+						disabled={!hasAttemptedTest || submitting || testing}
+						class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover"
+					>
+						{#if submitting}
+							<span
+								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							></span>
+							Saving...
 						{:else}
 							Save & Continue
 						{/if}
 					</Button>
-				</div>
+				{/if}
+			</div>
 		</div>
 
 		<p class="mt-3 text-center text-xs text-cr-text-dim">

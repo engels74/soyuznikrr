@@ -171,19 +171,27 @@ class OAuthSessionStore:
         self,
         session: AsyncSession,
         redemption_token: str,
-    ) -> tuple[str, str] | None:
-        """Consume a redemption token and return (provider, auth_token).
+    ) -> tuple[str, str, str | None] | None:
+        """Consume a redemption token and return (provider, auth_token, email).
 
         One-time use: after redemption the token is invalidated.
         Uses a conditional UPDATE to atomically mark the token as redeemed,
         preventing double-redemption under concurrent requests.
+
+        The email captured during OAuth (e.g. from Plex's user endpoint) is
+        returned alongside so callers can populate ``Identity.email`` without
+        a separate lookup. The email column is preserved in storage after
+        redemption — it is not a secret and helps audit who redeemed which
+        invitation.
 
         Args:
             session: SQLAlchemy async session.
             redemption_token: The one-time redemption token.
 
         Returns:
-            A (provider, auth_token) tuple, or None if invalid/already used.
+            A (provider, auth_token, email) tuple where ``email`` may be
+            ``None`` if the provider did not supply one, or ``None`` if the
+            token is invalid/already used/expired.
         """
         # Atomically claim the token: only one concurrent request can
         # match redeemed=False and flip it to True.
@@ -199,6 +207,7 @@ class OAuthSessionStore:
                 OAuthSessionModel.handle,
                 OAuthSessionModel.provider,
                 OAuthSessionModel.auth_token,
+                OAuthSessionModel.email,
                 OAuthSessionModel.created_at,
                 OAuthSessionModel.ttl,
             )
@@ -209,10 +218,12 @@ class OAuthSessionStore:
         handle: str = row.handle  # pyright: ignore[reportAny]
         provider: str = row.provider  # pyright: ignore[reportAny]
         auth_token: str = row.auth_token  # pyright: ignore[reportAny]
+        email: str | None = row.email  # pyright: ignore[reportAny]
         # Check TTL expiry (can't easily express in SQL portably)
         if self._is_expired_raw(row.created_at, row.ttl):  # pyright: ignore[reportAny]
             return None
-        # Clear auth_token from storage after reading it
+        # Clear auth_token from storage after reading it. Email is kept so
+        # operators can audit which user redeemed which invitation.
         clear_stmt = (
             update(OAuthSessionModel)
             .where(OAuthSessionModel.redemption_token == redemption_token)
@@ -225,7 +236,7 @@ class OAuthSessionStore:
             handle_prefix=handle[:8],
             provider=provider,
         )
-        return (provider, auth_token)
+        return (provider, auth_token, email)
 
     async def remove(
         self,

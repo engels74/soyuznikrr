@@ -184,6 +184,26 @@ def _truncate(value: str, max_len: int) -> str:
     return value[: max_len - 3] + "..."
 
 
+def normalize_content_type_processor(
+    _logger: WrappedLogger,  # pyright: ignore[reportExplicitAny,reportAny]
+    _method_name: str,
+    event_dict: EventDict,
+) -> EventDict:
+    """Flatten Litestar's tuple-shaped ``content_type`` to its mimetype string.
+
+    Litestar's ``request.content_type`` is ``(mimetype, params)``; the params
+    dict is rarely useful in a log line and renders as a Python repr.
+    Replace the tuple with just the mimetype so log lines read
+    ``content_type=application/json`` instead of
+    ``content_type=('application/json', {})``.
+    """
+    ct: object = event_dict.get("content_type")
+    if isinstance(ct, tuple) and ct:
+        first: object = ct[0]  # pyright: ignore[reportUnknownVariableType]
+        event_dict["content_type"] = first if isinstance(first, str) else ""
+    return event_dict
+
+
 def capture_log_processor(
     _logger: WrappedLogger,  # pyright: ignore[reportExplicitAny,reportAny]
     _method_name: str,

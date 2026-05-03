@@ -15,8 +15,8 @@
 
 <Card.Root class="border-cr-border bg-cr-surface transition-colors hover:border-cr-accent/20">
 	<Card.Content class="pt-6">
-		<div class="flex items-start justify-between">
-			<div class="space-y-1">
+		<div class="flex items-start justify-between gap-3 min-w-0">
+			<div class="space-y-1 min-w-0">
 				<p class="text-sm font-medium text-cr-text-muted">{title}</p>
 				<p class="text-3xl font-bold font-display text-cr-text tracking-tight">{value}</p>
 				{#if subtitle}

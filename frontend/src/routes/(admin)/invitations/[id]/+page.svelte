@@ -154,15 +154,30 @@ $effect(() => {
 	expiresAtLocal = initialExpiresAtLocal;
 });
 
-// Derive status for badge
+// "Used up" beats the generic "Expired" so admins see the specific reason
+// redemption is blocked.
+const isUsedUp = $derived(
+	data.invitation != null &&
+		data.invitation.max_uses != null &&
+		data.invitation.remaining_uses != null &&
+		data.invitation.remaining_uses <= 0,
+);
+
+// Derive status for badge.
+// Date-expiry is delegated to the server via `is_active` to avoid
+// client-clock-skew false positives.
 const status = $derived.by((): StatusBadgeStatus => {
 	const inv = data.invitation;
 	if (!inv) return "disabled";
 	if (!inv.enabled) return "disabled";
+	if (isUsedUp) return "expired";
 	if (!inv.is_active) return "expired";
-	if (inv.remaining_uses !== null && inv.remaining_uses !== undefined) {
-		if (inv.remaining_uses <= 0) return "expired";
-		if (inv.remaining_uses <= 3) return "limited";
+	if (
+		inv.remaining_uses !== null &&
+		inv.remaining_uses !== undefined &&
+		inv.remaining_uses <= 3
+	) {
+		return "limited";
 	}
 	return "active";
 });
@@ -172,10 +187,14 @@ const statusLabel = $derived.by(() => {
 	const inv = data.invitation;
 	if (!inv) return "Unknown";
 	if (!inv.enabled) return "Disabled";
+	if (isUsedUp) return "Used up";
 	if (!inv.is_active) return "Expired";
-	if (inv.remaining_uses !== null && inv.remaining_uses !== undefined) {
-		if (inv.remaining_uses <= 0) return "Exhausted";
-		if (inv.remaining_uses <= 3) return "Limited";
+	if (
+		inv.remaining_uses !== null &&
+		inv.remaining_uses !== undefined &&
+		inv.remaining_uses <= 3
+	) {
+		return "Limited";
 	}
 	return "Active";
 });

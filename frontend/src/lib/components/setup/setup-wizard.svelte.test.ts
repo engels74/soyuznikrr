@@ -24,6 +24,7 @@ vi.mock('$lib/api/client', async () => {
 	return {
 		...actual,
 		withErrorHandling: vi.fn(),
+		getCsrfOrigin: vi.fn(),
 		getEnvCredentials: vi.fn(),
 		testCsrfOrigin: vi.fn(),
 		setCsrfOrigin: vi.fn(),
@@ -101,6 +102,11 @@ describe('SetupWizard', () => {
 		});
 
 		vi.mocked(apiClient.withErrorHandling)
+			// StepCsrf's $effect fires getCsrfOrigin on mount
+			.mockResolvedValueOnce({
+				data: { csrf_origin: 'http://localhost:3000', is_locked: false },
+				error: undefined
+			})
 			.mockResolvedValueOnce({
 				data: {
 					success: true,

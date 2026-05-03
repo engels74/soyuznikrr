@@ -333,20 +333,26 @@ class JoinController(Controller):
         Returns:
             RedemptionResponse on success with identity_id and users_created.
         """
-        # Resolve redemption_token to a real auth_token server-side
+        # Resolve redemption_token to a real auth_token (and provider-supplied
+        # email) server-side. The email is consumed below as a fallback when
+        # the redemption form did not include one — important for the OAuth
+        # path where the user never types an email but Plex returned one.
         auth_token: str | None = None
+        oauth_email: str | None = None
+        oauth_provider: str | None = None
         if data.redemption_token:
             store = OAuthSessionStore()
             result = await store.redeem(session, data.redemption_token)
             if result is not None:
-                _provider, auth_token = result
+                oauth_provider, auth_token, oauth_email = result
 
         identity, users = await redemption_service.redeem(
             code,
             username=data.username,
             password=data.password,
-            email=data.email,
+            email=data.email or oauth_email,
             auth_token=auth_token,
+            oauth_provider=oauth_provider,
             pre_wizard_token=data.pre_wizard_token,
             secret_key=settings.secret_key,
         )
@@ -363,6 +369,7 @@ class JoinController(Controller):
                 external_user_type=user.external_user_type,
                 expires_at=user.expires_at,
                 updated_at=user.updated_at,
+                email=identity.email,
             )
             for user in users
         ]

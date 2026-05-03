@@ -76,7 +76,11 @@ from zondarr.core.exceptions import (
     RedemptionError,
     ValidationError,
 )
-from zondarr.core.log_buffer import capture_log_processor, log_buffer
+from zondarr.core.log_buffer import (
+    capture_log_processor,
+    log_buffer,
+    normalize_content_type_processor,
+)
 from zondarr.core.tasks import background_tasks_lifespan
 from zondarr.media.providers import register_all_providers
 from zondarr.media.registry import registry
@@ -140,7 +144,9 @@ def _create_structlog_config() -> StructlogConfig:
 
     Inserts ``capture_log_processor`` before the final renderer so that
     enriched event dicts (with timestamp, level, contextvars) are captured
-    into the in-memory log buffer for SSE streaming.
+    into the in-memory log buffer for SSE streaming. A small normaliser
+    runs first to flatten Litestar's tuple-shaped ``content_type`` to a
+    plain mimetype string.
 
     Configures ``middleware_logging_config`` to:
     - Exclude the SSE log stream endpoint (prevents feedback loop)
@@ -155,10 +161,13 @@ def _create_structlog_config() -> StructlogConfig:
     base = _StructLoggingConfig()
     processors: list[Processor] = list(base.processors) if base.processors else []
 
-    # Insert capture processor before the final renderer
+    # Insert content_type normaliser, then capture processor, before the
+    # final renderer so the buffer sees the cleaned value.
     if len(processors) >= 1:
+        processors.insert(-1, normalize_content_type_processor)
         processors.insert(-1, capture_log_processor)
     else:
+        processors.append(normalize_content_type_processor)
         processors.append(capture_log_processor)
 
     return StructlogConfig(
