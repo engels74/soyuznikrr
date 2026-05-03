@@ -92,7 +92,7 @@ jobs:
         run: cd backend && uv run basedpyright
 
       - name: Run svelte-check
-        run: bun --cwd frontend run check
+        run: bun run --cwd frontend check
 
   test:
     name: Tests

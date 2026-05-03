@@ -318,7 +318,7 @@ class TestServerSyncStatus:
                         f"/api/v1/servers/{server_id}/sync",
                         json={"dry_run": False},
                     )
-                    assert response.status_code == 201
+                    assert response.status_code == 200
 
             async with session_factory() as session:
                 runs = (

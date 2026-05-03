@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING, Annotated, cast
 import structlog
 from litestar import Controller, Response, get, post
 from litestar.datastructures import State
+from litestar.openapi.datastructures import ResponseSpec
 from litestar.params import Parameter
 from litestar.status_codes import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
-    HTTP_502_BAD_GATEWAY,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from zondarr.api.schemas import ErrorResponse, OAuthCheckResponse, OAuthPinResponse
 from zondarr.config import Settings
-from zondarr.core.exceptions import NotFoundError
+from zondarr.core.exceptions import ExternalServiceError, NotFoundError
 from zondarr.media.exceptions import UnknownServerTypeError
 from zondarr.media.providers.plex.oauth_service import PlexOAuthError
 from zondarr.media.registry import registry
@@ -89,13 +89,19 @@ class OAuthController(Controller):
             "Returns an opaque handle for polling the PIN status."
         ),
         exclude_from_auth=True,
+        responses={
+            502: ResponseSpec(
+                data_container=ErrorResponse,
+                description="External provider unavailable.",
+            ),
+        },
     )
     async def create_pin(
         self,
         settings: Settings,
         state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
-    ) -> OAuthPinResponse | Response[ErrorResponse]:
+    ) -> OAuthPinResponse:
         """Generate OAuth PIN and return auth URL with opaque handle.
 
         Args:
@@ -117,14 +123,7 @@ class OAuthController(Controller):
                 operation=exc.operation,
                 error=exc.message,
             )
-            return Response(
-                ErrorResponse(
-                    detail=f"External service unavailable: {provider}",
-                    error_code="EXTERNAL_SERVICE_ERROR",
-                    timestamp=datetime.now(UTC),
-                ),
-                status_code=HTTP_502_BAD_GATEWAY,
-            )
+            raise ExternalServiceError(provider, exc.message, original=exc) from exc
         finally:
             await flow.close()
 
@@ -155,6 +154,12 @@ class OAuthController(Controller):
             "if authentication is complete."
         ),
         exclude_from_auth=True,
+        responses={
+            502: ResponseSpec(
+                data_container=ErrorResponse,
+                description="External provider unavailable.",
+            ),
+        },
     )
     async def check_pin(
         self,
@@ -162,7 +167,7 @@ class OAuthController(Controller):
         state: State,
         provider: Annotated[str, Parameter(description="Provider name")],
         handle: Annotated[str, Parameter(description="Opaque PIN handle")],
-    ) -> OAuthCheckResponse | Response[ErrorResponse]:
+    ) -> OAuthCheckResponse:
         """Check if PIN has been authenticated.
 
         Uses short-lived database sessions to avoid holding SQLite's write lock
@@ -218,14 +223,7 @@ class OAuthController(Controller):
                 operation=exc.operation,
                 error=exc.message,
             )
-            return Response(
-                ErrorResponse(
-                    detail=f"External service unavailable: {provider}",
-                    error_code="EXTERNAL_SERVICE_ERROR",
-                    timestamp=datetime.now(UTC),
-                ),
-                status_code=HTTP_502_BAD_GATEWAY,
-            )
+            raise ExternalServiceError(provider, exc.message, original=exc) from exc
         finally:
             await flow.close()
 
@@ -262,6 +260,16 @@ class OAuthController(Controller):
             "debug mode is disabled."
         ),
         exclude_from_auth=True,
+        responses={
+            200: ResponseSpec(
+                data_container=OAuthCheckResponse,
+                description="OAuth PIN completion result.",
+            ),
+            400: ResponseSpec(
+                data_container=ErrorResponse,
+                description="Test credentials missing or session already redeemed.",
+            ),
+        },
     )
     async def test_complete_pin(
         self,

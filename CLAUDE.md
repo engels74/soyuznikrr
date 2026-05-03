@@ -44,7 +44,7 @@ bun run dev                        # Dev server
 bun run build                      # Production build (svelte-adapter-bun)
 bun run test                       # Run tests (vitest)
 bun run test -- src/path/file.test.ts  # Run single test file
-bun --cwd frontend run check       # svelte-check type checking
+bun run --cwd frontend check       # svelte-check type checking
 ```
 
 ### Root-level

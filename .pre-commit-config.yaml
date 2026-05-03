@@ -41,7 +41,7 @@ repos:
       # TypeScript type checking (pre-push only)
       - id: typecheck-ts
         name: TypeScript Check
-        entry: bun --cwd frontend run check
+        entry: bun run --cwd frontend check
         language: system
         pass_filenames: false
         files: ^frontend/.*\.(ts|svelte)$
@@ -68,7 +68,7 @@ repos:
       # Frontend tests (pre-push only)
       - id: tests-ts
         name: Frontend Tests
-        entry: bun --cwd frontend test
+        entry: bun run --cwd frontend test
         language: system
         files: ^frontend/.*\.(ts|svelte)$
         pass_filenames: false

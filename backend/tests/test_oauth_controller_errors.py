@@ -15,8 +15,13 @@ from litestar.testing import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from tests.conftest import create_test_engine
+from zondarr.api.errors import (
+    external_service_error_handler,
+    not_found_handler,
+)
 from zondarr.api.oauth import OAuthController
 from zondarr.config import Settings
+from zondarr.core.exceptions import ExternalServiceError, NotFoundError
 from zondarr.media.providers.plex.oauth_service import PlexOAuthError
 
 
@@ -45,6 +50,10 @@ def _make_test_app(
             "settings": Provide(lambda: settings, sync_to_thread=False),
         },
         state=State({"session_factory": session_factory}),
+        exception_handlers={
+            ExternalServiceError: external_service_error_handler,
+            NotFoundError: not_found_handler,
+        },
     )
     return app
 

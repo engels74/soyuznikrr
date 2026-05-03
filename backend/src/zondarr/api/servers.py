@@ -13,19 +13,24 @@ Uses Litestar Controller pattern with dependency injection for services.
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from litestar import Controller, Request, Response, delete, get, post
 from litestar.datastructures import State
 from litestar.di import Provide
+from litestar.openapi.datastructures import ResponseSpec
 from litestar.params import Parameter
-from litestar.status_codes import HTTP_503_SERVICE_UNAVAILABLE
+from litestar.status_codes import HTTP_200_OK
 from litestar.types import AnyCallable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zondarr.config import Settings
-from zondarr.core.exceptions import NotFoundError, ValidationError
+from zondarr.core.exceptions import (
+    MediaServerUnreachableError,
+    NotFoundError,
+    ValidationError,
+)
 from zondarr.core.tasks import BackgroundTaskManager
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
@@ -872,8 +877,15 @@ class ServerController(Controller):
 
     @post(
         "/{server_id:uuid}/sync",
+        status_code=HTTP_200_OK,
         summary="Sync users with media server",
         description="Synchronize local user records with the actual state of users on the media server.",
+        responses={
+            503: ResponseSpec(
+                data_container=ErrorResponse,
+                description="Media server unreachable.",
+            ),
+        },
     )
     async def sync_server(
         self,
@@ -884,7 +896,7 @@ class ServerController(Controller):
         data: SyncRequest,
         sync_service: SyncService,
         sync_run_repository: SyncRunRepository,
-    ) -> Response[SyncResult] | Response[ErrorResponse]:
+    ) -> Response[SyncResult]:
         """Sync users between local database and media server.
 
         Fetches all users from the media server and compares them with
@@ -901,10 +913,11 @@ class ServerController(Controller):
 
         Returns:
             SyncResult with discrepancy report on success.
-            ErrorResponse with HTTP 503 if server is unreachable.
 
         Raises:
             NotFoundError: If the server does not exist.
+            MediaServerUnreachableError: If the media server cannot be reached
+                (mapped to HTTP 503 by the registered error handler).
         """
         started_at = datetime.now(UTC)
         try:
@@ -933,26 +946,9 @@ class ServerController(Controller):
                     started_at=started_at,
                     error_message=e.message,
                 )
-            # Return 503 if server is unreachable
-            correlation_id = str(uuid4())
-
-            logger.warning(
-                "Media server unreachable during sync",
-                correlation_id=correlation_id,
-                server_id=str(server_id),
-                operation=e.operation,
-                cause=e.cause,
-            )
-
-            return Response(
-                ErrorResponse(
-                    detail=f"Media server unreachable: {e.message}",
-                    error_code="SERVER_UNREACHABLE",
-                    timestamp=datetime.now(UTC),
-                    correlation_id=correlation_id,
-                ),
-                status_code=HTTP_503_SERVICE_UNAVAILABLE,
-            )
+            raise MediaServerUnreachableError(
+                str(server_id), e.message, original=e
+            ) from e
         except Exception as exc:
             if not data.dry_run:
                 await self._record_sync_run(

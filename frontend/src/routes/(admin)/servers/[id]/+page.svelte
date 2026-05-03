@@ -176,7 +176,7 @@ async function handleUserSync() {
 		}
 
 		if (result.data) {
-			userSyncResult = result.data as SyncResult;
+			userSyncResult = result.data;
 			showUserSyncDialog = true;
 			showSuccess("User sync completed successfully");
 			await invalidateAll();
