@@ -163,19 +163,14 @@ const isUsedUp = $derived(
 		data.invitation.remaining_uses <= 0,
 );
 
-const isDateExpired = $derived(
-	data.invitation != null &&
-		data.invitation.expires_at != null &&
-		new Date(data.invitation.expires_at).getTime() < Date.now(),
-);
-
-// Derive status for badge
+// Derive status for badge.
+// Date-expiry is delegated to the server via `is_active` to avoid
+// client-clock-skew false positives.
 const status = $derived.by((): StatusBadgeStatus => {
 	const inv = data.invitation;
 	if (!inv) return "disabled";
 	if (!inv.enabled) return "disabled";
 	if (isUsedUp) return "expired";
-	if (isDateExpired) return "expired";
 	if (!inv.is_active) return "expired";
 	if (
 		inv.remaining_uses !== null &&
@@ -193,7 +188,6 @@ const statusLabel = $derived.by(() => {
 	if (!inv) return "Unknown";
 	if (!inv.enabled) return "Disabled";
 	if (isUsedUp) return "Used up";
-	if (isDateExpired) return "Expired";
 	if (!inv.is_active) return "Inactive";
 	if (
 		inv.remaining_uses !== null &&

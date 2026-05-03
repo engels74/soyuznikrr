@@ -44,22 +44,14 @@ const isUsedUp = $derived(
 );
 
 /**
- * True when the invitation has an expiry date in the past.
- */
-const isDateExpired = $derived(
-	invitation.expires_at != null &&
-		new Date(invitation.expires_at).getTime() < Date.now(),
-);
-
-/**
  * Derive the status for the badge based on invitation state.
- * Both "used up" and "date expired" share the visually expired styling, but
- * are labelled differently below so admins can distinguish them.
+ * "Used up" is distinguished from the generic inactive state so admins can
+ * see the specific reason redemption is blocked. Date-expiry is delegated to
+ * the server via `is_active` to avoid client-clock-skew false positives.
  */
 const status = $derived.by((): StatusBadgeStatus => {
 	if (!invitation.enabled) return "disabled";
 	if (isUsedUp) return "expired";
-	if (isDateExpired) return "expired";
 	if (!invitation.is_active) return "expired";
 	if (
 		invitation.remaining_uses !== null &&
@@ -77,7 +69,6 @@ const status = $derived.by((): StatusBadgeStatus => {
 const statusLabel = $derived.by(() => {
 	if (!invitation.enabled) return "Disabled";
 	if (isUsedUp) return "Used up";
-	if (isDateExpired) return "Expired";
 	if (!invitation.is_active) return "Inactive";
 	if (
 		invitation.remaining_uses !== null &&

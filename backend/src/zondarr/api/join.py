@@ -367,7 +367,7 @@ class JoinController(Controller):
                 external_user_type=user.external_user_type,
                 expires_at=user.expires_at,
                 updated_at=user.updated_at,
-                email=user.identity.email if user.identity else None,
+                email=identity.email,
             )
             for user in users
         ]

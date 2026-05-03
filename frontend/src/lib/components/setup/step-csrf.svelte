@@ -38,6 +38,7 @@ let hasAttemptedTest = $state(false);
 // Lock state — env-managed CSRF_ORIGIN cannot be edited from the wizard
 let isLocked = $state(false);
 let lockedSourceLoaded = $state(false);
+let loadError = $state('');
 
 // Confirmation dialog state
 let showSaveConfirm = $state(false);
@@ -46,19 +47,27 @@ let showSkipConfirm = $state(false);
 const canTest = $derived(origin.trim().length > 0);
 const testPassed = $derived(testResult?.success === true);
 
-$effect(() => {
-	(async () => {
-		const result = await withErrorHandling(() => getCsrfOrigin(), {
-			showErrorToast: false
-		});
-		if (result?.data) {
-			isLocked = Boolean(result.data.is_locked);
-			if (result.data.csrf_origin) {
-				origin = result.data.csrf_origin;
-			}
+async function loadLockedSource() {
+	loadError = '';
+	const result = await withErrorHandling(() => getCsrfOrigin(), {
+		showErrorToast: false
+	});
+	if (result?.data) {
+		isLocked = Boolean(result.data.is_locked);
+		if (result.data.csrf_origin) {
+			origin = result.data.csrf_origin;
 		}
-		lockedSourceLoaded = true;
-	})();
+	} else {
+		const errorBody = asErrorResponse(result?.error);
+		loadError =
+			errorBody?.detail ??
+			'Could not load CSRF settings — the lock state is unknown. The backend may be env-locked.';
+	}
+	lockedSourceLoaded = true;
+}
+
+$effect(() => {
+	loadLockedSource();
 });
 
 function onOriginChange() {
@@ -172,6 +181,21 @@ async function handleSubmit() {
 				class="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400"
 			>
 				{serverError}
+			</div>
+		{/if}
+
+		{#if loadError}
+			<div
+				class="mb-4 flex items-start justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400"
+			>
+				<span>{loadError}</span>
+				<button
+					type="button"
+					onclick={loadLockedSource}
+					class="shrink-0 underline hover:text-amber-300"
+				>
+					Retry
+				</button>
 			</div>
 		{/if}
 

@@ -1,8 +1,9 @@
 /**
  * Tests for the InvitationRow status badge logic.
  *
- * Verifies that "used up" (max_uses exhausted) is distinguished from
- * "expired" (date past), addressing dogfood ISSUE-004.
+ * Verifies that "Used up" (max_uses exhausted, client-derivable) is
+ * distinguished from the generic "Inactive" branch (server's is_active=false,
+ * cause unknown to the client), addressing dogfood ISSUE-004.
  *
  * @module $lib/components/invitations/invitation-row.svelte.test
  */
@@ -72,7 +73,12 @@ describe('InvitationRow status badge', () => {
 		expect(info.label).not.toContain('Expired');
 	});
 
-	it('should label a date-expired invitation "Expired"', () => {
+	it('should label a server-inactive invitation "Inactive"', () => {
+		// The server's is_active boolean is the source of truth for whether an
+		// invitation is redeemable. The UI does not guess the cause (e.g.
+		// date-expiry vs. other server-side reasons) because the response only
+		// exposes the boolean, not a reason field. Use "Used up" only when
+		// max_uses is exhausted (a client-derivable signal).
 		const inv = makeInvitation({
 			max_uses: null,
 			use_count: 5,
@@ -82,7 +88,7 @@ describe('InvitationRow status badge', () => {
 		});
 		const info = getStatusInfo(inv);
 		expect(info.status).toBe('expired');
-		expect(info.label).toContain('Expired');
+		expect(info.label).toContain('Inactive');
 		expect(info.label).not.toContain('Used up');
 	});
 
