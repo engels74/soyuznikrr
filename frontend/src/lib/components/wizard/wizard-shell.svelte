@@ -442,15 +442,15 @@ async function handleInteractionValidate(
 					{/if}
 
 					{#each currentInteractions as interaction, idx (interaction.id)}
-						{@const registration = getInteractionType(interaction.interaction_type)}
+						{@const interactionDef = getInteractionType(interaction.interaction_type)}
 						{@const isCompleted = currentCompletions.has(interaction.id)}
 
 						{#if isMultiInteraction && idx > 0}
 							<div class="interaction-divider"></div>
 						{/if}
 
-						{#if registration}
-							{@const InteractionComponent = registration.interactionComponent}
+						{#if interactionDef}
+							{@const InteractionComponent = interactionDef.interactionComponent}
 							<div
 								class="interaction-block"
 								class:completed={isCompleted && isMultiInteraction}
@@ -465,7 +465,7 @@ async function handleInteractionValidate(
 												</svg>
 											{/if}
 										</div>
-										<span class="interaction-label">{registration.label}</span>
+										<span class="interaction-label">{interactionDef.label}</span>
 									</div>
 								{/if}
 

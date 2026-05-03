@@ -56,6 +56,10 @@
 		}
 	}
 
+	function closeDialog() {
+		open = false;
+	}
+
 	$effect(() => {
 		if (open) {
 			resetState();
@@ -95,7 +99,7 @@
 			<Dialog.Footer>
 				<Button
 					variant="outline"
-					onclick={() => (open = false)}
+					onclick={closeDialog}
 					disabled={loading}
 					class="border-cr-border bg-cr-surface hover:bg-cr-border text-cr-text"
 				>
@@ -113,7 +117,7 @@
 			<BackupCodesDisplay codes={backupCodes} />
 
 			<Dialog.Footer class="mt-2">
-				<Button onclick={() => (open = false)} class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover">
+				<Button onclick={closeDialog} class="bg-cr-accent text-cr-bg hover:bg-cr-accent-hover">
 					Done
 				</Button>
 			</Dialog.Footer>

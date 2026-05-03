@@ -66,6 +66,10 @@
 		}
 	}
 
+	function closeDialog() {
+		open = false;
+	}
+
 	$effect(() => {
 		if (open) {
 			resetState();
@@ -129,7 +133,7 @@
 					<Button
 						variant="outline"
 						type="button"
-						onclick={() => (open = false)}
+						onclick={closeDialog}
 						class="border-cr-border bg-cr-surface hover:bg-cr-border text-cr-text"
 					>
 						Cancel
