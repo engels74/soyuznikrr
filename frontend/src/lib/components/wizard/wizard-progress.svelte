@@ -37,7 +37,7 @@ const isComplete = $derived(current === total && progress >= 100);
 	</div>
 
 	<!-- Accessible step label -->
-	<span class="step-label" aria-live="polite">Step {current} of {total}</span>
+	<span class="step-label" aria-live="polite">Step {current} {'of'} {total}</span>
 </div>
 
 <style>

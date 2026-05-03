@@ -72,7 +72,7 @@ function goLast() {
 		{:else}
 			Showing <span class="font-medium text-cr-text">{startItem}</span>
 			to <span class="font-medium text-cr-text">{endItem}</span>
-			of <span class="font-medium text-cr-text">{total}</span> items
+			{'of'} <span class="font-medium text-cr-text">{total}</span> items
 		{/if}
 	</p>
 
@@ -103,7 +103,7 @@ function goLast() {
 		<!-- Page indicator -->
 		<span class="px-3 text-sm font-data text-cr-text-muted">
 			Page <span class="font-medium text-cr-text">{page}</span>
-			of <span class="font-medium text-cr-text">{totalPages}</span>
+			{'of'} <span class="font-medium text-cr-text">{totalPages}</span>
 		</span>
 
 		<Button

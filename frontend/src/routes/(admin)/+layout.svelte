@@ -43,6 +43,20 @@ async function handleLogout() {
 // Mobile menu state
 let mobileMenuOpen = $state(false);
 
+function toggleMobileMenu() {
+	mobileMenuOpen = !mobileMenuOpen;
+}
+
+function closeMobileMenu() {
+	mobileMenuOpen = false;
+}
+
+function handleOverlayKeydown(event: KeyboardEvent) {
+	if (event.key === "Escape") {
+		closeMobileMenu();
+	}
+}
+
 // Derive current section title from route
 const currentTitle = $derived.by(() => {
 	const pathname = page.url.pathname;
@@ -80,7 +94,7 @@ $effect(() => {
 		<Button
 			variant="ghost"
 			size="icon"
-			onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+			onclick={toggleMobileMenu}
 			aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
 			aria-expanded={mobileMenuOpen}
 			class="text-cr-text-muted hover:text-cr-accent"
@@ -99,8 +113,8 @@ $effect(() => {
 	{#if mobileMenuOpen}
 		<div
 			class="fixed inset-0 z-40 bg-black/50 md:hidden"
-			onclick={() => (mobileMenuOpen = false)}
-			onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
+			onclick={closeMobileMenu}
+			onkeydown={handleOverlayKeydown}
 			role="button"
 			tabindex="-1"
 			aria-label="Close menu"
