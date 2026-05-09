@@ -47,10 +47,15 @@ def _make_invitation(
     return inv
 
 
-def _make_external_user(username: str = "testuser") -> ExternalUser:
+def _make_external_user(
+    username: str = "testuser",
+    *,
+    email: str | None = None,
+) -> ExternalUser:
     return ExternalUser(
         external_user_id=str(uuid4()),
         username=username,
+        email=email,
     )
 
 
@@ -140,6 +145,36 @@ class TestRedemptionRetry:
         assert len(users) == 1
         # Verify 3 client creations (2 failures + 1 success)
         assert call_count == 3
+
+    async def test_redeem_uses_external_user_email_when_request_email_missing(
+        self,
+    ) -> None:
+        """Provider-reported email backfills identity email during redemption."""
+        service, invitation_service, user_service = _make_redemption_service()
+        url = _TEST_URL
+        api_key = _TEST_API_KEY
+        server = _make_server(url=url, api_key=api_key)
+        invitation = _make_invitation(servers=[server])
+        invitation_service.get_by_code = AsyncMock(return_value=invitation)
+
+        external_user = _make_external_user(email="plexuser@example.com")
+        client = _make_client(url=url, api_key=api_key)
+        client.create_user = AsyncMock(return_value=external_user)
+
+        mock_registry = MagicMock()
+        mock_registry.create_client_for_server = MagicMock(return_value=client)
+        mock_registry.get_provider = MagicMock()
+
+        with patch("zondarr.services.redemption.registry", mock_registry):
+            _identity, _users = await service.redeem(
+                "TEST-CODE", username="testuser", password="testpass"
+            )
+
+        user_service.create_identity_with_users.assert_awaited_once()  # pyright: ignore[reportAny]
+        assert (
+            user_service.create_identity_with_users.await_args.kwargs["email"]  # pyright: ignore[reportAny]
+            == "plexuser@example.com"
+        )
 
     async def test_create_user_no_retry_on_username_taken(self) -> None:
         """MediaClientError with USERNAME_TAKEN is NOT retried."""

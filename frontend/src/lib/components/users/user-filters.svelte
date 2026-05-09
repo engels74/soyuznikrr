@@ -15,13 +15,14 @@
  * @module $lib/components/users/user-filters
  */
 
-import { ArrowDownAZ, ArrowUpAZ, Filter } from "@lucide/svelte";
+import { ArrowDownAZ, ArrowUpAZ, Filter, Search, X } from "@lucide/svelte";
 import type {
 	InvitationResponse,
 	ListUsersParams,
 	MediaServerWithLibrariesResponse,
 } from "$lib/api/client";
 import { Button } from "$lib/components/ui/button";
+import { Input } from "$lib/components/ui/input";
 import * as Select from "$lib/components/ui/select";
 import { getProviderBadgeStyle } from "$lib/stores/providers.svelte";
 
@@ -30,6 +31,7 @@ interface Props {
 	invitationId?: string;
 	enabled?: boolean;
 	expired?: boolean;
+	search?: string;
 	sortBy: "created_at" | "username" | "expires_at";
 	sortOrder: "asc" | "desc";
 	servers: MediaServerWithLibrariesResponse[];
@@ -42,12 +44,28 @@ const {
 	invitationId,
 	enabled,
 	expired,
+	search,
 	sortBy,
 	sortOrder,
 	servers,
 	invitations,
 	onFilterChange,
 }: Props = $props();
+
+let searchValue = $state("");
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+$effect(() => {
+	searchValue = search ?? "";
+});
+
+$effect(() => {
+	return () => {
+		if (searchTimer !== null) {
+			clearTimeout(searchTimer);
+		}
+	};
+});
 
 // Convert boolean to select value
 const enabledValue = $derived.by(() => {
@@ -118,6 +136,26 @@ function handleExpiredChange(value: string | undefined) {
 	}
 }
 
+function handleSearchInput(event: Event) {
+	searchValue = (event.currentTarget as HTMLInputElement).value;
+	if (searchTimer !== null) {
+		clearTimeout(searchTimer);
+	}
+	searchTimer = setTimeout(() => {
+		onFilterChange({ search: searchValue.trim() || undefined });
+		searchTimer = null;
+	}, 250);
+}
+
+function clearSearch() {
+	searchValue = "";
+	if (searchTimer !== null) {
+		clearTimeout(searchTimer);
+		searchTimer = null;
+	}
+	onFilterChange({ search: undefined });
+}
+
 /**
  * Handle sort by change.
  */
@@ -149,6 +187,29 @@ const sortByOptions = [
 	<div class="flex items-center gap-2 text-cr-text-muted">
 		<Filter class="size-4" />
 		<span class="text-sm font-medium">Filters</span>
+	</div>
+
+	<div class="relative min-w-52 flex-1 sm:flex-none">
+		<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-cr-text-muted" />
+		<Input
+			type="search"
+			value={searchValue}
+			oninput={handleSearchInput}
+			placeholder="Search users"
+			aria-label="Search users"
+			class="h-9 border-cr-border bg-cr-bg pl-8 pr-8 text-cr-text placeholder:text-cr-text-muted/60"
+			data-user-search
+		/>
+		{#if searchValue}
+			<button
+				type="button"
+				onclick={clearSearch}
+				aria-label="Clear search"
+				class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-cr-text-muted hover:text-cr-text"
+			>
+				<X class="size-3.5" />
+			</button>
+		{/if}
 	</div>
 
 	<!-- Server filter -->

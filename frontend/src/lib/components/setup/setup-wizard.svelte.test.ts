@@ -201,6 +201,94 @@ describe('SetupWizard', () => {
 		expect(authApi.advanceOnboarding).not.toHaveBeenCalled();
 	});
 
+	it('uses environment credentials without rendering or submitting URL/token values', async () => {
+		const user = userEvent.setup();
+
+		setProviders([
+			{
+				server_type: 'plex',
+				display_name: 'Plex',
+				color: '#e5a00d',
+				icon_svg: ''
+			}
+		]);
+
+		vi.mocked(apiClient.withErrorHandling).mockImplementation(async (fn) => fn() as never);
+		vi.mocked(apiClient.getEnvCredentials).mockResolvedValue({
+			data: {
+				credentials: [
+					{
+						server_type: 'plex',
+						display_name: 'Plex',
+						has_url: true,
+						has_api_key: true
+					}
+				]
+			},
+			error: undefined
+		});
+		vi.mocked(apiClient.testConnection).mockResolvedValue({
+			data: {
+				success: true,
+				message: 'Connection successful',
+				server_type: 'plex',
+				server_name: 'My Plex'
+			},
+			error: undefined,
+			response: new Response()
+		});
+		vi.mocked(apiClient.createServer).mockResolvedValue({
+			data: {
+				id: '00000000-0000-4000-8000-000000000001',
+				name: 'Env Plex',
+				server_type: 'plex',
+				url: 'http://plex.local:32400',
+				enabled: true,
+				created_at: new Date().toISOString(),
+				libraries: []
+			},
+			error: undefined,
+			response: new Response()
+		});
+
+		const { container } = render(SetupWizard, { props: { initialStep: 'server' } });
+
+		await waitFor(() => {
+			expect(container.textContent).toContain('Environment credentials detected');
+		});
+
+		expect(container.textContent).not.toContain('http://plex.local:32400');
+		expect(container.textContent).not.toContain('abcd********mnop');
+
+		const nameInput = container.querySelector('#server-name') as HTMLInputElement;
+		await user.type(nameInput, 'Env Plex');
+		await user.click(findButton(container, 'Plex')!);
+
+		expect(container.querySelector('#server-url')).toBeNull();
+		expect(container.querySelector('#server-api-key')).toBeNull();
+		expect(container.textContent).toContain('Configured in environment');
+
+		await user.click(findButton(container, 'Test Connection')!);
+
+		await waitFor(() => {
+			expect(container.textContent).toContain('Connected');
+		});
+
+		await user.click(findButton(container, 'Add Server & Finish')!);
+
+		await waitFor(() => {
+			expect(apiClient.testConnection).toHaveBeenCalledWith({
+				server_type: 'plex',
+				use_env_credentials: true
+			});
+			expect(apiClient.createServer).toHaveBeenCalledWith({
+				name: 'Env Plex',
+				server_type: 'plex',
+				use_env_credentials: true
+			});
+		});
+	});
+
 	it('starts at the security step when initialStep is security', () => {
 		const { container } = render(SetupWizard, {
 			props: { initialStep: 'security' }

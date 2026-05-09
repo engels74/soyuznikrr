@@ -146,6 +146,11 @@ function toLocalDateTimeString(date: Date): string {
 	return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function normalizeExpiration(value = expiresAtLocal) {
+	expiresAtLocal = value;
+	formData.expires_at = value ? toISOString(value) : "";
+}
+
 // Compute minimum datetime for expiration input (current time, local timezone)
 const minDateTime = $derived(toLocalDateTimeString(new Date()));
 
@@ -159,6 +164,7 @@ let expiresAtLocal = $state(
  */
 function handleSubmit(e: Event) {
 	e.preventDefault();
+	normalizeExpiration();
 	onSubmit();
 }
 
@@ -295,10 +301,10 @@ function getFieldErrors(field: string): string[] {
 			type="datetime-local"
 			bind:value={expiresAtLocal}
 			oninput={(e) => {
-				const value = e.currentTarget.value;
-				(formData as CreateInvitationInput).expires_at = value
-					? toISOString(value)
-					: "";
+				normalizeExpiration(e.currentTarget.value);
+			}}
+			onchange={(e) => {
+				normalizeExpiration(e.currentTarget.value);
 			}}
 			min={minDateTime}
 			class="border-cr-border bg-cr-surface text-cr-text"

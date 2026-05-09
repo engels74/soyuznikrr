@@ -236,6 +236,40 @@ class ServerController(Controller):
         return api_key
 
     @staticmethod
+    def _resolve_url(
+        url: str | None,
+        use_env_credentials: bool,
+        server_type: str | None,
+        settings: Settings,
+    ) -> str:
+        """Resolve media server URL from request body or environment credentials."""
+        if use_env_credentials:
+            if server_type is None:
+                raise ValidationError(
+                    "server_type is required when using environment credentials",
+                    field_errors={
+                        "server_type": ["Required when use_env_credentials is true"]
+                    },
+                )
+            provider_creds = settings.provider_credentials.get(server_type, {})
+            env_url = provider_creds.get("url")
+            if not env_url:
+                raise ValidationError(
+                    f"No URL found in environment for provider '{server_type}'",
+                    field_errors={
+                        "url": [f"No environment URL configured for {server_type}"]
+                    },
+                )
+            return env_url
+
+        if not url:
+            raise ValidationError(
+                "URL is required",
+                field_errors={"url": ["URL is required"]},
+            )
+        return url
+
+    @staticmethod
     def _to_library_response(
         library_id: UUID,
         name: str,
@@ -416,8 +450,6 @@ class ServerController(Controller):
                 EnvCredentialResponse(
                     server_type=meta.server_type,
                     display_name=meta.display_name,
-                    url=url,
-                    masked_api_key=mask_api_key(api_key) if api_key else None,
                     has_url=bool(url),
                     has_api_key=bool(api_key),
                 )
@@ -557,6 +589,9 @@ class ServerController(Controller):
             ValidationError: If connection validation fails.
         """
         # Resolve API key: from env credentials or from the request body
+        url = self._resolve_url(
+            data.url, data.use_env_credentials, data.server_type, settings
+        )
         api_key = self._resolve_api_key(
             data.api_key, data.use_env_credentials, data.server_type, settings
         )
@@ -564,7 +599,7 @@ class ServerController(Controller):
         server = await media_server_service.add(
             name=data.name,
             server_type=data.server_type,
-            url=data.url,
+            url=url,
             api_key=api_key,
         )
 
@@ -788,6 +823,9 @@ class ServerController(Controller):
         """
         # Resolve API key: from env credentials or from the request body
         try:
+            url = self._resolve_url(
+                data.url, data.use_env_credentials, data.server_type, settings
+            )
             api_key = self._resolve_api_key(
                 data.api_key, data.use_env_credentials, data.server_type, settings
             )
@@ -799,7 +837,7 @@ class ServerController(Controller):
 
         try:
             success, detected_type, info = await media_server_service.detect_and_test(
-                url=data.url,
+                url=url,
                 api_key=api_key,
                 server_type=data.server_type,
             )

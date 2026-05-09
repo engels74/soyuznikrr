@@ -28,6 +28,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 	const invitationId = url.searchParams.get('invitation_id');
 	const enabledParam = url.searchParams.get('enabled');
 	const expiredParam = url.searchParams.get('expired');
+	const search = url.searchParams.get('search');
 	const sortBy = url.searchParams.get('sort_by') as ListUsersParams['sort_by'] | null;
 	const sortOrder = url.searchParams.get('sort_order') as ListUsersParams['sort_order'] | null;
 
@@ -51,6 +52,10 @@ export const load: PageLoad = async ({ fetch, url }) => {
 
 	if (expiredParam !== null) {
 		params.expired = expiredParam === 'true';
+	}
+
+	if (search) {
+		params.search = search;
 	}
 
 	if (sortBy) {

@@ -13,7 +13,11 @@
  */
 
 import { Eye, EyeOff, Info, KeyRound, Plug, Plus, Server, X } from "@lucide/svelte";
-import type { ConnectionTestResponse, EnvCredentialResponse } from "$lib/api/client";
+import type {
+	ConnectionTestRequest,
+	ConnectionTestResponse,
+	EnvCredentialResponse,
+} from "$lib/api/client";
 import { createServer, getEnvCredentials, testConnection, withErrorHandling } from "$lib/api/client";
 import { asErrorResponse } from "$lib/api/errors";
 import { Button } from "$lib/components/ui/button";
@@ -123,10 +127,14 @@ async function fetchEnvCredentials() {
  */
 function handleUseEnvCredentials(credential: EnvCredentialResponse) {
 	formData.server_type = credential.server_type;
-	if (credential.url) formData.url = credential.url;
+	formData.url = "";
 	formData.use_env_credentials = true;
 	formData.api_key = "";
 	if (!formData.name) formData.name = credential.display_name;
+	const nextErrors = { ...errors };
+	delete nextErrors.url;
+	delete nextErrors.api_key;
+	errors = nextErrors;
 	testResult = null;
 	envDismissed = true;
 }
@@ -179,7 +187,9 @@ function getFieldErrors(field: string): string[] {
  * Whether the "Test Connection" button should be enabled.
  */
 const canTest = $derived(
-	formData.url.trim().length > 0 && (formData.use_env_credentials || (formData.api_key ?? '').trim().length > 0)
+	formData.use_env_credentials ||
+		((formData.url ?? "").trim().length > 0 &&
+			(formData.api_key ?? "").trim().length > 0),
 );
 
 /**
@@ -194,14 +204,15 @@ async function handleTestConnection() {
 	testing = true;
 	testResult = null;
 
-	const testedUrl = formData.url;
+	const testedUrl = formData.url ?? "";
 	const testedApiKey = formData.api_key;
 	const testedUseEnv = formData.use_env_credentials;
+	const testedServerType = formData.server_type;
 
 	try {
-		const testPayload = testedUseEnv
-			? { url: testedUrl, server_type: formData.server_type, use_env_credentials: true as const }
-			: { url: testedUrl, api_key: testedApiKey };
+		const testPayload: ConnectionTestRequest = testedUseEnv
+			? { server_type: testedServerType, use_env_credentials: true as const }
+			: { url: testedUrl, api_key: testedApiKey ?? null };
 
 		const result = await withErrorHandling(
 			() => testConnection(testPayload),
@@ -209,7 +220,12 @@ async function handleTestConnection() {
 		);
 
 		// Discard stale results if inputs changed during the request
-		if (formData.url !== testedUrl || formData.api_key !== testedApiKey || formData.use_env_credentials !== testedUseEnv) {
+		if (
+			formData.url !== testedUrl ||
+			formData.api_key !== testedApiKey ||
+			formData.use_env_credentials !== testedUseEnv ||
+			formData.server_type !== testedServerType
+		) {
 			return;
 		}
 
@@ -338,11 +354,8 @@ function handleCancel() {
 							>
 								{credential.display_name}
 							</span>
-							<span class="min-w-0 flex-1 truncate font-mono text-xs text-cr-text-muted">
-								{credential.url}
-							</span>
-							<span class="shrink-0 font-mono text-xs text-cr-text-muted/60">
-								{credential.masked_api_key}
+							<span class="min-w-0 flex-1 text-xs text-cr-text-muted">
+								Configured in environment
 							</span>
 						</button>
 					{/each}
@@ -403,17 +416,24 @@ function handleCancel() {
 			<!-- Server URL -->
 			<div class="space-y-2">
 				<Label for="url" class="text-cr-text">Server URL</Label>
-				<Input
-					id="url"
-					type="url"
-					bind:value={formData.url}
-					oninput={onConnectionFieldChange}
-					placeholder="https://media.example.com"
-					disabled={submitting}
-					class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
-					data-field="url"
-				/>
-				<p class="text-cr-text-muted text-xs">Full URL including protocol (http:// or https://)</p>
+				{#if formData.use_env_credentials}
+					<div class="flex items-center gap-2 rounded-md border border-cr-accent/30 bg-cr-accent/5 px-3 py-2">
+						<KeyRound class="size-4 text-cr-accent shrink-0" />
+						<span class="flex-1 text-sm text-cr-text">Configured in environment</span>
+					</div>
+				{:else}
+					<Input
+						id="url"
+						type="url"
+						bind:value={formData.url}
+						oninput={onConnectionFieldChange}
+						placeholder="https://media.example.com"
+						disabled={submitting}
+						class="border-cr-border bg-cr-bg text-cr-text placeholder:text-cr-text-muted/50 focus:border-cr-accent font-mono text-sm"
+						data-field="url"
+					/>
+					<p class="text-cr-text-muted text-xs">Full URL including protocol (http:// or https://)</p>
+				{/if}
 				{#if getFieldErrors('url').length > 0}
 					<div class="text-rose-400 text-sm" data-field-error="url">
 						{#each getFieldErrors('url') as error}
