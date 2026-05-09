@@ -207,10 +207,11 @@ async function handleTestConnection() {
 	const testedUrl = formData.url ?? "";
 	const testedApiKey = formData.api_key;
 	const testedUseEnv = formData.use_env_credentials;
+	const testedServerType = formData.server_type;
 
 	try {
 		const testPayload: ConnectionTestRequest = testedUseEnv
-			? { server_type: formData.server_type, use_env_credentials: true as const }
+			? { server_type: testedServerType, use_env_credentials: true as const }
 			: { url: testedUrl, api_key: testedApiKey ?? null };
 
 		const result = await withErrorHandling(
@@ -219,7 +220,12 @@ async function handleTestConnection() {
 		);
 
 		// Discard stale results if inputs changed during the request
-		if (formData.url !== testedUrl || formData.api_key !== testedApiKey || formData.use_env_credentials !== testedUseEnv) {
+		if (
+			formData.url !== testedUrl ||
+			formData.api_key !== testedApiKey ||
+			formData.use_env_credentials !== testedUseEnv ||
+			formData.server_type !== testedServerType
+		) {
 			return;
 		}
 
