@@ -35,10 +35,13 @@ export const createServerSchema = z
 		message: 'URL is required',
 		path: ['url']
 	})
-	.refine((d) => d.use_env_credentials || z.string().url().safeParse(d.url).success, {
-		message: 'Must be a valid URL',
-		path: ['url']
-	})
+	.refine(
+		(d) => d.use_env_credentials || d.url.length === 0 || z.string().url().safeParse(d.url).success,
+		{
+			message: 'Must be a valid URL',
+			path: ['url']
+		}
+	)
 	.refine((d) => d.use_env_credentials || d.api_key.length >= 1, {
 		message: 'API key is required',
 		path: ['api_key']
