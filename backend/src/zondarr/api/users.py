@@ -165,8 +165,8 @@ class UserController(Controller):
         """List users with pagination.
 
         Supports filtering by media_server_id, invitation_id, enabled status,
-        and expiration status. Supports sorting by created_at, username, and
-        expires_at. Enforces page_size max of 100.
+        expiration status, and broad search. Supports sorting by created_at,
+        username, and expires_at. Enforces page_size max of 100.
 
         Args:
             user_service: UserService from DI.
@@ -176,6 +176,8 @@ class UserController(Controller):
             invitation_id: Filter by invitation ID.
             enabled: Filter by enabled status.
             expired: Filter by expiration status.
+            search: Broad case-insensitive search across users, identities,
+                servers, and invitation codes.
             sort_by: Field to sort by.
             sort_order: Sort direction.
 
