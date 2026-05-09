@@ -72,6 +72,10 @@ function handleUseEnvCredentials(credential: EnvCredentialResponse) {
 	formData.use_env_credentials = true;
 	formData.api_key = '';
 	if (!formData.name) formData.name = credential.display_name;
+	const nextErrors = { ...errors };
+	delete nextErrors.url;
+	delete nextErrors.api_key;
+	errors = nextErrors;
 	testResult = null;
 	envDismissed = true;
 }
