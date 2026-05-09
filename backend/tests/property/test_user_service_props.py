@@ -26,6 +26,7 @@ from tests.conftest import TestDB
 from zondarr.core.exceptions import ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import ClientRegistry
+from zondarr.media.types import Capability
 from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
@@ -167,6 +168,7 @@ async def create_test_user_with_server(
     username: str,
     external_user_id: str,
     initial_enabled: bool,
+    server_type: str = "jellyfin",
 ) -> tuple[User, MediaServer, Identity]:
     """Create a test user with associated media server and identity.
 
@@ -183,8 +185,8 @@ async def create_test_user_with_server(
         # Create media server
         server = MediaServer(
             name="TestServer",
-            server_type="jellyfin",
-            url="http://jellyfin.local:8096",
+            server_type=server_type,
+            url=f"http://{server_type}.local:8096",
             api_key="test-api-key",
             enabled=True,
         )
@@ -269,6 +271,9 @@ class TestEnableDisableAtomicity:
 
         # Create mock registry that returns successful client
         mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(
+            return_value={Capability.ENABLE_DISABLE_USER}
+        )
         mock_registry.create_client_for_server = MagicMock(
             return_value=create_mock_client_success(enabled=target_enabled)
         )
@@ -335,6 +340,9 @@ class TestEnableDisableAtomicity:
 
         # Create mock registry that returns failing client
         mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(
+            return_value={Capability.ENABLE_DISABLE_USER}
+        )
         mock_registry.create_client_for_server = MagicMock(
             return_value=create_mock_client_failure(
                 error_message="Jellyfin server unavailable"
@@ -401,6 +409,9 @@ class TestEnableDisableAtomicity:
 
         # Create mock registry that returns "user not found" response
         mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(
+            return_value={Capability.ENABLE_DISABLE_USER}
+        )
         mock_registry.create_client_for_server = MagicMock(
             return_value=create_mock_client_user_not_found()
         )
@@ -463,6 +474,9 @@ class TestEnableDisableAtomicity:
 
         # Create mock registry that returns successful client
         mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(
+            return_value={Capability.ENABLE_DISABLE_USER}
+        )
         mock_registry.create_client_for_server = MagicMock(
             return_value=create_mock_client_success(enabled=initial_enabled)
         )
@@ -519,6 +533,9 @@ class TestEnableDisableAtomicity:
 
         # Create mock registry that returns successful client
         mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(
+            return_value={Capability.ENABLE_DISABLE_USER}
+        )
         mock_registry.create_client_for_server = MagicMock(
             return_value=create_mock_client_success(enabled=target_enabled)
         )
@@ -543,6 +560,67 @@ class TestEnableDisableAtomicity:
             )
             assert updated_user.enabled != initial_enabled, (
                 f"Expected enabled to change from {initial_enabled}"
+            )
+
+    @given(
+        username=username_strategy,
+        external_user_id=external_user_id_strategy,
+        initial_enabled=st.booleans(),
+        target_enabled=st.booleans(),
+    )
+    @settings(max_examples=15, deadline=None)
+    @pytest.mark.asyncio
+    async def test_unsupported_provider_preserves_local_record_without_client_call(
+        self,
+        db: TestDB,
+        username: str,
+        external_user_id: str,
+        initial_enabled: bool,
+        target_enabled: bool,
+    ) -> None:
+        """When the provider lacks enable/disable support, fail before client use."""
+        await db.clean()
+
+        user, _server, _identity = await create_test_user_with_server(
+            db.session_factory,
+            username=username,
+            external_user_id=external_user_id,
+            initial_enabled=initial_enabled,
+            server_type="plex",
+        )
+        user_id = user.id
+
+        mock_registry = MagicMock(spec=ClientRegistry)
+        mock_registry.get_capabilities = MagicMock(return_value=set())
+        mock_registry.create_client_for_server = MagicMock(
+            return_value=create_mock_client_success(enabled=target_enabled)
+        )
+
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            identity_repo = IdentityRepository(session)
+            user_service = UserService(user_repo, identity_repo)
+
+            with patch("zondarr.services.user.registry", mock_registry):
+                with pytest.raises(ValidationError) as exc_info:
+                    _ = await user_service.set_enabled(
+                        user_id,
+                        enabled=target_enabled,
+                    )
+
+            assert (
+                exc_info.value.message
+                == "Enable/disable is not supported for Plex servers"
+            )
+            mock_registry.create_client_for_server.assert_not_called()  # pyright: ignore[reportAny]
+
+        async with db.session_factory() as session:
+            user_repo = UserRepository(session)
+            persisted_user = await user_repo.get_by_id(user_id)
+            assert persisted_user is not None
+            assert persisted_user.enabled == initial_enabled, (
+                f"Expected enabled to remain {initial_enabled}, "
+                f"but got {persisted_user.enabled}"
             )
 
 

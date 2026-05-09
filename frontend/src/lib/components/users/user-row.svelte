@@ -22,7 +22,7 @@ import StatusBadge, {
 } from "$lib/components/status-badge.svelte";
 import { Button } from "$lib/components/ui/button";
 import * as Table from "$lib/components/ui/table";
-import { getProviderBadgeStyle } from "$lib/stores/providers.svelte";
+import { getProviderBadgeStyle, hasProviderCapability } from "$lib/stores/providers.svelte";
 
 interface Props {
 	user: UserDetailResponse;
@@ -102,6 +102,9 @@ const expiresDisplay = $derived.by(() => {
 
 const badgeStyle = $derived(getProviderBadgeStyle(user.media_server.server_type));
 const userEmail = $derived(user.email ?? user.identity.email);
+const supportsEnableDisable = $derived(
+	hasProviderCapability(user.media_server.server_type, "enable_disable_user"),
+);
 
 /**
  * Navigate to user detail page.
@@ -235,7 +238,7 @@ function handleDelete() {
 			>
 				<Eye class="size-4" />
 			</Button>
-			{#if user.enabled}
+			{#if supportsEnableDisable && user.enabled}
 				<Button
 					variant="ghost"
 					size="icon-sm"
@@ -245,7 +248,7 @@ function handleDelete() {
 				>
 					<PowerOff class="size-4" />
 				</Button>
-			{:else}
+			{:else if supportsEnableDisable}
 				<Button
 					variant="ghost"
 					size="icon-sm"

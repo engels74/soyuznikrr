@@ -43,7 +43,7 @@ import { Button } from "$lib/components/ui/button";
 import * as Card from "$lib/components/ui/card";
 import { Label } from "$lib/components/ui/label";
 import UserPermissionsEditor from "$lib/components/users/user-permissions-editor.svelte";
-import { getProviderBadgeStyle } from "$lib/stores/providers.svelte";
+import { getProviderBadgeStyle, hasProviderCapability } from "$lib/stores/providers.svelte";
 import { showError, showSuccess } from "$lib/utils/toast";
 import type { PageData } from "./$types";
 
@@ -99,6 +99,11 @@ const statusLabel = $derived.by(() => {
 });
 
 const badgeStyle = $derived(data.user ? getProviderBadgeStyle(data.user.media_server.server_type) : '');
+const supportsEnableDisable = $derived(
+	data.user
+		? hasProviderCapability(data.user.media_server.server_type, "enable_disable_user")
+		: false,
+);
 
 /**
  * Format date for display.
@@ -591,7 +596,7 @@ function viewLinkedUser(userId: string) {
 				<Card.Content>
 					<div class="flex flex-wrap items-center gap-3">
 						<!-- Enable Button (visible when disabled) -->
-						{#if !data.user.enabled}
+						{#if supportsEnableDisable && !data.user.enabled}
 							<Button
 								onclick={handleEnable}
 								disabled={enabling || disabling || deleting}
@@ -608,7 +613,7 @@ function viewLinkedUser(userId: string) {
 						{/if}
 
 						<!-- Disable Button (visible when enabled) -->
-						{#if data.user.enabled}
+						{#if supportsEnableDisable && data.user.enabled}
 							<Button
 								onclick={handleDisable}
 								disabled={enabling || disabling || deleting}

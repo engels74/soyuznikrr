@@ -20,6 +20,9 @@ import type {
 	MediaServerResponse,
 	UserDetailResponse
 } from '$lib/api/client';
+import { hasProviderCapability, setProviders } from '$lib/stores/providers.svelte';
+
+const ENABLE_DISABLE_CAPABILITY = 'enable_disable_user';
 
 // =============================================================================
 // Test Data Generators
@@ -59,6 +62,18 @@ const invitationCodeArb = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
  * Generate a valid server type.
  */
 const serverTypeArb = fc.constantFrom('jellyfin' as const, 'plex' as const);
+
+const providerCapabilityArb = fc.uniqueArray(
+	fc.constantFrom(
+		'create_user',
+		'delete_user',
+		ENABLE_DISABLE_CAPABILITY,
+		'library_access',
+		'download_permission',
+		'remove_shared_access'
+	),
+	{ maxLength: 6 }
+);
 
 /**
  * Generate a valid MediaServerResponse object.
@@ -169,6 +184,22 @@ const disabledUserArb = userDetailResponseArb.map((user) => ({
 	...user,
 	enabled: false
 }));
+
+/**
+ * Register provider metadata for a user's server type.
+ */
+function setProviderCapabilities(user: UserDetailResponse, capabilities: string[]): void {
+	setProviders([
+		{
+			server_type: user.media_server.server_type,
+			display_name: user.media_server.server_type,
+			color: '#6b7280',
+			icon_svg: '',
+			capabilities,
+			supported_permissions: []
+		}
+	]);
+}
 
 // =============================================================================
 // Property 21: User Detail Relationship Display
@@ -417,15 +448,20 @@ describe('Property 23: Enable Button Visibility', () => {
 	 */
 	it('should show enable button for disabled users', () => {
 		fc.assert(
-			fc.property(disabledUserArb, (user) => {
+			fc.property(disabledUserArb, providerCapabilityArb, (user, capabilities) => {
+				setProviderCapabilities(user, capabilities);
+
 				// Verify user is disabled
 				expect(user.enabled).toBe(false);
 
-				// The enable button should be visible (enabled === false)
-				const shouldShowEnableButton = !user.enabled;
-				const shouldShowDisableButton = user.enabled;
+				const providerSupportsEnableDisable = hasProviderCapability(
+					user.media_server.server_type,
+					ENABLE_DISABLE_CAPABILITY
+				);
+				const shouldShowEnableButton = providerSupportsEnableDisable && !user.enabled;
+				const shouldShowDisableButton = providerSupportsEnableDisable && user.enabled;
 
-				expect(shouldShowEnableButton).toBe(true);
+				expect(shouldShowEnableButton).toBe(capabilities.includes(ENABLE_DISABLE_CAPABILITY));
 				expect(shouldShowDisableButton).toBe(false);
 			}),
 			{ numRuns: 100 }
@@ -438,23 +474,63 @@ describe('Property 23: Enable Button Visibility', () => {
 	 */
 	it('should have consistent enable button visibility for disabled users', () => {
 		fc.assert(
-			fc.property(disabledUserArb, fc.integer({ min: 2, max: 5 }), (user, checkCount) => {
-				const visibilityResults: boolean[] = [];
+			fc.property(
+				disabledUserArb,
+				providerCapabilityArb,
+				fc.integer({ min: 2, max: 5 }),
+				(user, capabilities, checkCount) => {
+					setProviderCapabilities(user, capabilities);
+					const visibilityResults: boolean[] = [];
 
-				for (let i = 0; i < checkCount; i++) {
-					// Check visibility logic
-					const shouldShowEnableButton = !user.enabled;
-					visibilityResults.push(shouldShowEnableButton);
-				}
+					for (let i = 0; i < checkCount; i++) {
+						const shouldShowEnableButton =
+							hasProviderCapability(user.media_server.server_type, ENABLE_DISABLE_CAPABILITY) &&
+							!user.enabled;
+						visibilityResults.push(shouldShowEnableButton);
+					}
 
-				// All checks should return the same result
-				const firstResult = visibilityResults[0];
-				for (const result of visibilityResults) {
-					expect(result).toBe(firstResult);
-					expect(result).toBe(true); // Should always be true for disabled users
+					// All checks should return the same result
+					const firstResult = visibilityResults[0];
+					for (const result of visibilityResults) {
+						expect(result).toBe(firstResult);
+						expect(result).toBe(capabilities.includes(ENABLE_DISABLE_CAPABILITY));
+					}
 				}
-			}),
+			),
 			{ numRuns: 50 }
+		);
+	});
+
+	/**
+	 * Plex does not support native enable/disable, so neither action should
+	 * render while the destructive delete flow remains available.
+	 */
+	it('should hide enable and disable actions for Plex while keeping delete available', () => {
+		fc.assert(
+			fc.property(userDetailResponseArb, (user) => {
+				const plexUser = {
+					...user,
+					media_server: {
+						...user.media_server,
+						server_type: 'plex' as const
+					}
+				};
+				setProviderCapabilities(plexUser, ['create_user', 'delete_user', 'library_access']);
+
+				const providerSupportsEnableDisable = hasProviderCapability(
+					plexUser.media_server.server_type,
+					ENABLE_DISABLE_CAPABILITY
+				);
+				const shouldShowEnableButton = providerSupportsEnableDisable && !plexUser.enabled;
+				const shouldShowDisableButton = providerSupportsEnableDisable && plexUser.enabled;
+				const shouldShowDeleteButton = true;
+
+				expect(providerSupportsEnableDisable).toBe(false);
+				expect(shouldShowEnableButton).toBe(false);
+				expect(shouldShowDisableButton).toBe(false);
+				expect(shouldShowDeleteButton).toBe(true);
+			}),
+			{ numRuns: 100 }
 		);
 	});
 });
@@ -474,16 +550,21 @@ describe('Property 24: Disable Button Visibility', () => {
 	 */
 	it('should show disable button for enabled users', () => {
 		fc.assert(
-			fc.property(enabledUserArb, (user) => {
+			fc.property(enabledUserArb, providerCapabilityArb, (user, capabilities) => {
+				setProviderCapabilities(user, capabilities);
+
 				// Verify user is enabled
 				expect(user.enabled).toBe(true);
 
-				// The disable button should be visible (enabled === true)
-				const shouldShowEnableButton = !user.enabled;
-				const shouldShowDisableButton = user.enabled;
+				const providerSupportsEnableDisable = hasProviderCapability(
+					user.media_server.server_type,
+					ENABLE_DISABLE_CAPABILITY
+				);
+				const shouldShowEnableButton = providerSupportsEnableDisable && !user.enabled;
+				const shouldShowDisableButton = providerSupportsEnableDisable && user.enabled;
 
 				expect(shouldShowEnableButton).toBe(false);
-				expect(shouldShowDisableButton).toBe(true);
+				expect(shouldShowDisableButton).toBe(capabilities.includes(ENABLE_DISABLE_CAPABILITY));
 			}),
 			{ numRuns: 100 }
 		);
@@ -495,22 +576,29 @@ describe('Property 24: Disable Button Visibility', () => {
 	 */
 	it('should have consistent disable button visibility for enabled users', () => {
 		fc.assert(
-			fc.property(enabledUserArb, fc.integer({ min: 2, max: 5 }), (user, checkCount) => {
-				const visibilityResults: boolean[] = [];
+			fc.property(
+				enabledUserArb,
+				providerCapabilityArb,
+				fc.integer({ min: 2, max: 5 }),
+				(user, capabilities, checkCount) => {
+					setProviderCapabilities(user, capabilities);
+					const visibilityResults: boolean[] = [];
 
-				for (let i = 0; i < checkCount; i++) {
-					// Check visibility logic
-					const shouldShowDisableButton = user.enabled;
-					visibilityResults.push(shouldShowDisableButton);
-				}
+					for (let i = 0; i < checkCount; i++) {
+						const shouldShowDisableButton =
+							hasProviderCapability(user.media_server.server_type, ENABLE_DISABLE_CAPABILITY) &&
+							user.enabled;
+						visibilityResults.push(shouldShowDisableButton);
+					}
 
-				// All checks should return the same result
-				const firstResult = visibilityResults[0];
-				for (const result of visibilityResults) {
-					expect(result).toBe(firstResult);
-					expect(result).toBe(true); // Should always be true for enabled users
+					// All checks should return the same result
+					const firstResult = visibilityResults[0];
+					for (const result of visibilityResults) {
+						expect(result).toBe(firstResult);
+						expect(result).toBe(capabilities.includes(ENABLE_DISABLE_CAPABILITY));
+					}
 				}
-			}),
+			),
 			{ numRuns: 50 }
 		);
 	});
@@ -521,16 +609,23 @@ describe('Property 24: Disable Button Visibility', () => {
 	 */
 	it('should have mutually exclusive enable/disable button visibility', () => {
 		fc.assert(
-			fc.property(userDetailResponseArb, (user) => {
-				const shouldShowEnableButton = !user.enabled;
-				const shouldShowDisableButton = user.enabled;
+			fc.property(userDetailResponseArb, providerCapabilityArb, (user, capabilities) => {
+				setProviderCapabilities(user, capabilities);
 
-				// Exactly one should be true
-				expect(shouldShowEnableButton !== shouldShowDisableButton).toBe(true);
+				const providerSupportsEnableDisable = hasProviderCapability(
+					user.media_server.server_type,
+					ENABLE_DISABLE_CAPABILITY
+				);
+				const shouldShowEnableButton = providerSupportsEnableDisable && !user.enabled;
+				const shouldShowDisableButton = providerSupportsEnableDisable && user.enabled;
 
-				// XOR check
-				expect(shouldShowEnableButton || shouldShowDisableButton).toBe(true);
+				expect(providerSupportsEnableDisable).toBe(
+					capabilities.includes(ENABLE_DISABLE_CAPABILITY)
+				);
 				expect(shouldShowEnableButton && shouldShowDisableButton).toBe(false);
+				expect(shouldShowEnableButton || shouldShowDisableButton).toBe(
+					providerSupportsEnableDisable
+				);
 			}),
 			{ numRuns: 100 }
 		);

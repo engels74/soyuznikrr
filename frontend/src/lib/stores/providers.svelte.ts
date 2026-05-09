@@ -102,6 +102,13 @@ export function getAllProviders(): ProviderMeta[] {
 	return Array.from(providers.values());
 }
 
+/**
+ * Check whether a provider declares support for a capability.
+ */
+export function hasProviderCapability(serverType: string, capability: string): boolean {
+	return providers.get(serverType)?.capabilities.includes(capability) ?? false;
+}
+
 // =============================================================================
 // Style helpers
 // =============================================================================
