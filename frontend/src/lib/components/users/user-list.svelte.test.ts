@@ -10,15 +10,17 @@
  * @module $lib/components/users/user-list.svelte.test
  */
 
-import { cleanup, render } from '@testing-library/svelte';
+import { cleanup, render, waitFor } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
 import * as fc from 'fast-check';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
 	IdentityResponse,
 	InvitationResponse,
 	MediaServerResponse,
 	UserDetailResponse
 } from '$lib/api/client';
+import UserFilters from './user-filters.svelte';
 import UserRow from './user-row.svelte';
 import UserTable from './user-table.svelte';
 
@@ -119,6 +121,7 @@ const userDetailResponseArb: fc.Arbitrary<UserDetailResponse> = fc
 		created_at: isoDateArb,
 		identity: identityResponseArb,
 		media_server: mediaServerResponseArb,
+		email: fc.oneof(fc.emailAddress(), fc.constant(null)),
 		expires_at: optionalIsoDateArb,
 		updated_at: optionalIsoDateArb,
 		invitation_id: fc.oneof(uuidArb, fc.constant(null)),
@@ -196,6 +199,27 @@ describe('Property 17: User Field Display', () => {
 				cleanup();
 			}),
 			{ numRuns: 100 }
+		);
+	});
+
+	it('should display email under username when present', () => {
+		fc.assert(
+			fc.property(
+				userDetailResponseArb.map((user) => ({
+					...user,
+					email: 'plexuser@example.com'
+				})),
+				(user) => {
+					const { container } = render(UserRow, { props: { user } });
+					const emailEl = container.querySelector('[data-user-email]');
+
+					expect(emailEl).not.toBeNull();
+					expect(emailEl?.textContent).toContain('plexuser@example.com');
+
+					cleanup();
+				}
+			),
+			{ numRuns: 25 }
 		);
 	});
 
@@ -285,6 +309,28 @@ describe('Property 17: User Field Display', () => {
 describe('Property 18: User Filter Application', () => {
 	afterEach(() => {
 		cleanup();
+	});
+
+	it('emits search filter changes for URL param sync', async () => {
+		const user = userEvent.setup();
+		const onFilterChange = vi.fn();
+		const { container } = render(UserFilters, {
+			props: {
+				search: '',
+				sortBy: 'created_at',
+				sortOrder: 'desc',
+				servers: [],
+				invitations: [],
+				onFilterChange
+			}
+		});
+
+		const searchInput = container.querySelector('[data-user-search]') as HTMLInputElement;
+		await user.type(searchInput, 'plex@example.com');
+
+		await waitFor(() => {
+			expect(onFilterChange).toHaveBeenLastCalledWith({ search: 'plex@example.com' });
+		});
 	});
 
 	/**

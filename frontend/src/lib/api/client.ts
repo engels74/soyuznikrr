@@ -362,6 +362,7 @@ export interface ListUsersParams {
 	invitation_id?: string;
 	enabled?: boolean;
 	expired?: boolean;
+	search?: string;
 	sort_by?: 'created_at' | 'username' | 'expires_at';
 	sort_order?: 'asc' | 'desc';
 }
@@ -543,7 +544,7 @@ export async function resetCircuitBreaker(
 export interface CreateServerRequest {
 	name: string;
 	server_type: string;
-	url: string;
+	url?: string | null;
 	api_key?: string;
 	use_env_credentials?: boolean;
 }
@@ -585,8 +586,8 @@ export async function getServer(
 
 // Override generated type to support use_env_credentials flow
 export interface ConnectionTestRequest {
-	url: string;
-	api_key?: string;
+	url?: string | null;
+	api_key?: string | null;
 	server_type?: string | null;
 	use_env_credentials?: boolean;
 }
@@ -597,8 +598,6 @@ export type ConnectionTestResponse = components['schemas']['ConnectionTestRespon
 export interface EnvCredentialResponse {
 	server_type: string;
 	display_name: string;
-	url: string | null;
-	masked_api_key: string | null;
 	has_url: boolean;
 	has_api_key: boolean;
 }

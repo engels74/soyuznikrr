@@ -127,7 +127,7 @@ class SyncService:
         matched_ids = external_ids & local_ids
         matched_count = len(matched_ids)
 
-        # Update external_user_type for matched users whose type is missing or changed
+        # Update matched local records with provider metadata that was previously missing.
         if matched_ids and not dry_run:
             local_user_map = {u.external_user_id: u for u in local_users}
             for ext_id in matched_ids:
@@ -140,6 +140,13 @@ class SyncService:
                 ):
                     local_user.external_user_type = ext_user.user_type
                     _ = await self.user_repo.update(local_user)
+                if (
+                    local_user is not None
+                    and not local_user.identity.email
+                    and ext_user.email
+                ):
+                    local_user.identity.email = ext_user.email
+                    _ = await self.identity_repo.update(local_user.identity)
 
         # Import orphaned users when not a dry run
         imported_count = 0

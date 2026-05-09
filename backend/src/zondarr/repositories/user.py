@@ -10,12 +10,14 @@ from datetime import UTC, datetime
 from typing import Literal, override
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from zondarr.core.exceptions import RepositoryError
-from zondarr.models.identity import User
+from zondarr.models.identity import Identity, User
+from zondarr.models.invitation import Invitation
+from zondarr.models.media_server import MediaServer
 from zondarr.repositories.base import Repository
 
 # Type alias for valid sort fields
@@ -193,6 +195,7 @@ class UserRepository(Repository[User]):
         invitation_id: UUID | None = None,
         enabled: bool | None = None,
         expired: bool | None = None,
+        search: str | None = None,
         sort_by: UserSortField = "created_at",
         sort_order: SortOrder = "desc",
     ) -> tuple[Sequence[User], int]:
@@ -210,6 +213,7 @@ class UserRepository(Repository[User]):
             enabled: Filter by enabled status. None means no filter.
             expired: Filter by expiration status. None means no filter.
                 True = only expired, False = only non-expired.
+            search: Broad case-insensitive contains search. None means no filter.
             sort_by: Field to sort by. One of: created_at, username, expires_at.
             sort_order: Sort direction. One of: asc, desc.
 
@@ -227,6 +231,7 @@ class UserRepository(Repository[User]):
                 invitation_id=invitation_id,
                 enabled=enabled,
                 expired=expired,
+                search=search,
             )
 
             # Get total count
@@ -270,6 +275,7 @@ class UserRepository(Repository[User]):
         invitation_id: UUID | None = None,
         enabled: bool | None = None,
         expired: bool | None = None,
+        search: str | None = None,
     ) -> Select[tuple[User]]:
         """Build a filtered query for users.
 
@@ -278,6 +284,7 @@ class UserRepository(Repository[User]):
             invitation_id: Filter by invitation ID. None means no filter.
             enabled: Filter by enabled status. None means no filter.
             expired: Filter by expiration status. None means no filter.
+            search: Broad case-insensitive contains search. None means no filter.
 
         Returns:
             A SQLAlchemy Select statement with filters applied.
@@ -310,6 +317,26 @@ class UserRepository(Repository[User]):
                 query = query.where(
                     (User.expires_at == None) | (User.expires_at > now)  # noqa: E711
                 )
+
+        search_term = search.strip() if search is not None else ""
+        if search_term:
+            pattern = f"%{search_term}%"
+            query = (
+                query.join(User.identity)
+                .join(User.media_server)
+                .outerjoin(User.invitation)
+                .where(
+                    or_(
+                        User.username.ilike(pattern),
+                        User.external_user_id.ilike(pattern),
+                        Identity.display_name.ilike(pattern),
+                        Identity.email.ilike(pattern),
+                        MediaServer.name.ilike(pattern),
+                        MediaServer.server_type.ilike(pattern),
+                        Invitation.code.ilike(pattern),
+                    )
+                )
+            )
 
         return query
 

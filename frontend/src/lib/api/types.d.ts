@@ -1218,7 +1218,7 @@ export interface components {
 		};
 		/** ConnectionTestRequest */
 		ConnectionTestRequest: {
-			url: string;
+			url?: string | null;
 			api_key?: string | null;
 			server_type?: string | null;
 			/** @default false */
@@ -1287,8 +1287,6 @@ export interface components {
 		EnvCredentialResponse: {
 			server_type: string;
 			display_name: string;
-			url?: string | null;
-			masked_api_key?: string | null;
 			/** @default false */
 			has_url: boolean;
 			/** @default false */
@@ -1301,23 +1299,23 @@ export interface components {
 		/**
 		 * ErrorResponse
 		 * @example {
-		 *       "detail": "dueXWxItGmpndvrqpUKE",
-		 *       "error_code": "voiQUvZgiPQBXBLnzSvg",
-		 *       "timestamp": "2008-07-18T16:12:37.008312",
+		 *       "detail": "FbCGQpmtiObDRbiZpNby",
+		 *       "error_code": "cmaJxsvJnicHImAYyNsC",
+		 *       "timestamp": "2019-09-19T06:44:15.542110",
 		 *       "correlation_id": null
 		 *     }
 		 */
 		ErrorResponse: {
-			/** @example dkahSRhbAKyyyVhuiIKQ */
+			/** @example txqMNuKkXmitSFJQuXZB */
 			detail: string;
-			/** @example jAycEiKZzsXNStUXMqcc */
+			/** @example MSEgIxSkajitkrEizsaJ */
 			error_code: string;
 			/**
 			 * Format: date-time
-			 * @example 2006-05-16T20:15:11.423369
+			 * @example 2011-05-26T14:31:52.249094
 			 */
 			timestamp: string;
-			/** @example gGCCJMLRlAzRIOjdLiFB */
+			/** @example eXNSQubZGLKpIxlzypMV */
 			correlation_id?: string | null;
 		};
 		/** ExpirationIntervalUpdate */
@@ -1462,7 +1460,7 @@ export interface components {
 		MediaServerCreate: {
 			name: string;
 			server_type: string;
-			url: string;
+			url?: string | null;
 			api_key?: string | null;
 			/** @default false */
 			use_env_credentials: boolean;
@@ -1578,22 +1576,21 @@ export interface components {
 		/**
 		 * RedemptionErrorResponse
 		 * @example {
-		 *       "success": true,
-		 *       "error_code": "fLqpHUrVGFBaiJKfHyEu",
-		 *       "message": "lsYjSBdQaRrVLsGZikpQ",
-		 *       "correlation_id": null,
+		 *       "success": false,
+		 *       "error_code": "EodTGDbubHwRjcqyOagX",
+		 *       "message": "kVuCETNggRJNjKdIMjvc",
+		 *       "correlation_id": "iKExjuxXLIhneaoVqNBo",
 		 *       "failed_server": null,
 		 *       "partial_users": [
 		 *         {
-		 *           "id": "62e6750a-3f13-491d-a7fc-c18b3f36d149",
-		 *           "identity_id": "9875bad1-95a6-4ea9-8b87-3e099d5d310b",
-		 *           "media_server_id": "c2cc1d38-8d15-4800-9fad-ea816b327c79",
-		 *           "external_user_id": "babcOYguawIGUCctxrbG",
-		 *           "username": "zKsdnjxheBhfgKPQDHNw",
+		 *           "id": "cf4c7d08-55aa-48ab-8e80-f7b19e49c4a1",
+		 *           "identity_id": "a29ceee2-4279-4939-9367-283200e5d88f",
+		 *           "media_server_id": "6d7aa72a-8479-4779-80f1-be0beee230a7",
+		 *           "external_user_id": "ThdcdkahSRhbAKyyyVhu",
+		 *           "username": "iIKQjAycEiKZzsXNStUX",
 		 *           "enabled": false,
-		 *           "created_at": "2000-09-18T11:01:26.770009",
-		 *           "expires_at": "1998-02-12T15:30:35.488298",
-		 *           "updated_at": "1998-01-13T16:44:47.279514"
+		 *           "created_at": "2024-07-05T04:55:55.103809",
+		 *           "email": "gxJYBtOOVLgZWwIRVLed"
 		 *         }
 		 *       ]
 		 *     }
@@ -1615,15 +1612,14 @@ export interface components {
 			/**
 			 * @example [
 			 *       {
-			 *         "id": "65a3a495-ef67-4106-9c17-ae6e5daffa15",
-			 *         "identity_id": "2be2d8c9-a36b-4de4-99e5-8ba2531670d8",
-			 *         "media_server_id": "9b266ccc-1e0e-47c5-a861-5e14c5d09b94",
-			 *         "external_user_id": "PriLBPewTdWxyxwFswQX",
-			 *         "username": "AufHcSHjwVUDXFiXlEfD",
+			 *         "id": "2cd2e360-9aaa-4d63-bc6c-31927121598e",
+			 *         "identity_id": "d28288ff-6c6f-4485-92fc-b96e5a91b155",
+			 *         "media_server_id": "8f0bfb91-f4a5-4a2f-97e5-a485d32faef3",
+			 *         "external_user_id": "AufHcSHjwVUDXFiXlEfD",
+			 *         "username": "RpSuNeNziQYWrbRjKhHK",
 			 *         "enabled": true,
-			 *         "created_at": "2005-06-01T10:39:16.848019",
-			 *         "external_user_type": "SuNeNziQYWrbRjKhHKYu",
-			 *         "updated_at": "2020-09-24T10:34:21.527288"
+			 *         "created_at": "2008-04-02T03:14:09.626666",
+			 *         "external_user_type": "QmvHLBSfRBympIYulANf"
 			 *       }
 			 *     ]
 			 */
@@ -1824,6 +1820,7 @@ export interface components {
 			created_at: string;
 			identity: components['schemas']['IdentityResponse'];
 			media_server: components['schemas']['MediaServerResponse'];
+			email?: string | null;
 			external_user_type?: string | null;
 			expires_at?: string | null;
 			updated_at?: string | null;
@@ -1851,6 +1848,7 @@ export interface components {
 			enabled: boolean;
 			/** Format: date-time */
 			created_at: string;
+			email?: string | null;
 			external_user_type?: string | null;
 			expires_at?: string | null;
 			updated_at?: string | null;
@@ -3925,6 +3923,8 @@ export interface operations {
 				enabled?: boolean | null;
 				/** @description Filter by expiration status */
 				expired?: boolean | null;
+				/** @description Broad case-insensitive search across users, identities, servers, and invitation codes */
+				search?: string | null;
 				/** @description Field to sort by (created_at, username, expires_at) */
 				sort_by?: string;
 				/** @description Sort order (asc, desc) */

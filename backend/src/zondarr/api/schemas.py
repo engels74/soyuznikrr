@@ -141,14 +141,14 @@ class MediaServerCreate(msgspec.Struct, kw_only=True, forbid_unknown_fields=True
     Attributes:
         name: Human-readable name for the server.
         server_type: Type of media server (e.g., "plex", "jellyfin").
-        url: Base URL for the media server API.
+        url: Base URL for the media server API. Optional if use_env_credentials is True.
         api_key: Authentication token for the media server (optional if use_env_credentials is True).
-        use_env_credentials: If True, resolve api_key from environment variables on the server.
+        use_env_credentials: If True, resolve URL and api_key from environment variables on the server.
     """
 
     name: NonEmptyStr
     server_type: NonEmptyStr
-    url: UrlStr
+    url: UrlStr | None = None
     api_key: ApiKeyStr | None = None
     use_env_credentials: bool = False
 
@@ -163,16 +163,12 @@ class EnvCredentialResponse(msgspec.Struct, kw_only=True):
     Attributes:
         server_type: Provider identifier string (e.g., "plex", "jellyfin").
         display_name: Human-readable provider name.
-        url: Detected URL from env var (for form auto-fill).
-        masked_api_key: Masked version of the API key for display.
         has_url: Whether a URL was detected.
         has_api_key: Whether an API key was detected.
     """
 
     server_type: str
     display_name: str
-    url: str | None = None
-    masked_api_key: str | None = None
     has_url: bool = False
     has_api_key: bool = False
 
@@ -988,6 +984,8 @@ class UserDetailResponse(msgspec.Struct, omit_defaults=True):
         media_server_id: ID of the media server.
         external_user_id: The user's ID on the media server.
         username: The username on the media server.
+        email: Email captured for the parent identity (OAuth-supplied,
+            user-entered, or provider-supplied), or None if unknown.
         enabled: Whether the user account is currently active.
         created_at: When the user was created.
         identity: The parent identity with all linked users.
@@ -1007,6 +1005,7 @@ class UserDetailResponse(msgspec.Struct, omit_defaults=True):
     created_at: datetime
     identity: IdentityResponse
     media_server: MediaServerResponse
+    email: str | None = None
     external_user_type: str | None = None
     expires_at: datetime | None = None
     updated_at: datetime | None = None
@@ -1337,13 +1336,13 @@ class ConnectionTestRequest(msgspec.Struct, kw_only=True, forbid_unknown_fields=
     by probing all registered providers concurrently.
 
     Attributes:
-        url: Base URL for the media server API.
+        url: Base URL for the media server API. Optional if use_env_credentials is True.
         api_key: Authentication token for the media server (optional if use_env_credentials is True).
         server_type: Optional type of media server. Auto-detected if omitted.
-        use_env_credentials: If True, resolve api_key from environment variables on the server.
+        use_env_credentials: If True, resolve URL and api_key from environment variables on the server.
     """
 
-    url: UrlStr
+    url: UrlStr | None = None
     api_key: ApiKeyStr | None = None
     server_type: NonEmptyStr | None = None
     use_env_credentials: bool = False

@@ -20,6 +20,7 @@ from zondarr.api.servers import (
     mask_api_key,
 )
 from zondarr.config import Settings
+from zondarr.core.exceptions import ValidationError
 from zondarr.media.providers.jellyfin import JellyfinProvider
 from zondarr.media.providers.plex import PlexProvider
 from zondarr.media.registry import registry
@@ -181,8 +182,9 @@ class TestEnvCredentialsEndpoint:
                     (c for c in creds if c["server_type"] == "plex"), None
                 )
                 assert plex_cred is not None
-                assert plex_cred["url"] == "http://plex.local:32400"
+                assert "url" not in plex_cred
                 assert "api_key" not in plex_cred
+                assert "masked_api_key" not in plex_cred
                 assert plex_cred["has_url"] is True
                 assert plex_cred["has_api_key"] is True
                 assert plex_cred["display_name"] == "Plex"
@@ -215,8 +217,8 @@ class TestEnvCredentialsEndpoint:
             await engine.dispose()
 
     @pytest.mark.asyncio
-    async def test_masked_key_format(self) -> None:
-        """Masked API key is properly formatted."""
+    async def test_env_credential_response_does_not_expose_url_or_token(self) -> None:
+        """Environment credential response only exposes availability metadata."""
         engine = await create_test_engine()
         try:
             session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -238,8 +240,12 @@ class TestEnvCredentialsEndpoint:
                 plex_cred: CredentialDict = next(
                     c for c in creds if c["server_type"] == "plex"
                 )
-                # 16 char key: first 4 + 8 stars + last 4
-                assert plex_cred["masked_api_key"] == "abcd********mnop"
+                assert plex_cred == {
+                    "server_type": "plex",
+                    "display_name": "Plex",
+                    "has_url": True,
+                    "has_api_key": True,
+                }
         finally:
             await engine.dispose()
 
@@ -267,6 +273,8 @@ class TestEnvCredentialsEndpoint:
                 assert plex_cred["has_url"] is True
                 assert plex_cred["has_api_key"] is False
                 assert "api_key" not in plex_cred
+                assert "url" not in plex_cred
+                assert "masked_api_key" not in plex_cred
         finally:
             await engine.dispose()
 
@@ -300,3 +308,32 @@ class TestEnvCredentialsEndpoint:
                 assert "jellyfin" in server_types
         finally:
             await engine.dispose()
+
+    def test_env_backed_resolution_uses_server_side_url_and_api_key(self) -> None:
+        """Env-backed create/test requests can omit URL and API key."""
+        settings = _make_test_settings(
+            provider_credentials={
+                "plex": {
+                    "url": "http://plex.local:32400",
+                    "api_key": "plex-token",
+                },
+            }
+        )
+
+        assert (
+            ServerController._resolve_url(None, True, "plex", settings)  # pyright: ignore[reportPrivateUsage]
+            == "http://plex.local:32400"
+        )
+        assert (
+            ServerController._resolve_api_key(None, True, "plex", settings)  # pyright: ignore[reportPrivateUsage]
+            == "plex-token"
+        )
+
+    def test_env_backed_resolution_requires_configured_url(self) -> None:
+        """Env mode rejects missing provider URL server-side."""
+        settings = _make_test_settings(
+            provider_credentials={"plex": {"api_key": "plex-token"}}
+        )
+
+        with pytest.raises(ValidationError):
+            _ = ServerController._resolve_url(None, True, "plex", settings)  # pyright: ignore[reportPrivateUsage]

@@ -312,10 +312,12 @@ class RedemptionService:
                     cleaned_count=cleaned,
                 )
 
+            identity_email = email or self._first_external_email(created_external_users)
+
             # Step 5: Create local Identity and User records
             identity, users = await self.user_service.create_identity_with_users(
                 display_name=username,
-                email=email,
+                email=identity_email,
                 expires_at=expires_at,
                 external_users=created_external_users,
                 invitation_id=invitation.id,
@@ -393,6 +395,17 @@ class RedemptionService:
             _background_tasks.add(task)
 
         return identity, users
+
+    @staticmethod
+    def _first_external_email(
+        external_users: Sequence[tuple[MediaServer, ExternalUser]],
+        /,
+    ) -> str | None:
+        """Return the first provider-reported email from created users."""
+        for _, external_user in external_users:
+            if external_user.email:
+                return external_user.email
+        return None
 
     @staticmethod
     async def _create_user_with_retry(

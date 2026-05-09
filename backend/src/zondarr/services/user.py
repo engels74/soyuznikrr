@@ -419,6 +419,7 @@ class UserService:
         invitation_id: UUID | None = None,
         enabled: bool | None = None,
         expired: bool | None = None,
+        search: str | None = None,
         sort_by: UserSortField = "created_at",
         sort_order: SortOrder = "desc",
     ) -> tuple[Sequence[User], int]:
@@ -436,6 +437,7 @@ class UserService:
             enabled: Filter by enabled status. None means no filter (keyword-only).
             expired: Filter by expiration status. None means no filter (keyword-only).
                 True = only expired, False = only non-expired.
+            search: Broad case-insensitive contains search. None means no filter.
             sort_by: Field to sort by. One of: created_at, username, expires_at (keyword-only).
             sort_order: Sort direction. One of: asc, desc (keyword-only).
 
@@ -457,6 +459,7 @@ class UserService:
             invitation_id=invitation_id,
             enabled=enabled,
             expired=expired,
+            search=search,
             sort_by=sort_by,
             sort_order=sort_order,
         )

@@ -145,6 +145,12 @@ class UserController(Controller):
             bool | None,
             Parameter(description="Filter by expiration status"),
         ] = None,
+        search: Annotated[
+            str | None,
+            Parameter(
+                description="Broad case-insensitive search across users, identities, servers, and invitation codes",
+            ),
+        ] = None,
         sort_by: Annotated[
             str,
             Parameter(
@@ -197,6 +203,7 @@ class UserController(Controller):
             invitation_id=invitation_id,
             enabled=enabled,
             expired=expired,
+            search=search,
             sort_by=sort_by,  # pyright: ignore[reportArgumentType]
             sort_order=sort_order,  # pyright: ignore[reportArgumentType]
         )
@@ -444,7 +451,8 @@ class UserController(Controller):
         """
         await user_service.delete(user_id, force=force)
 
-    def _to_detail_response(self, user: User, /) -> UserDetailResponse:
+    @staticmethod
+    def _to_detail_response(user: User, /) -> UserDetailResponse:
         """Convert a User entity to UserDetailResponse.
 
         Args:
@@ -523,6 +531,7 @@ class UserController(Controller):
             created_at=user.created_at,
             identity=identity_response,
             media_server=media_server_response,
+            email=user.identity.email,
             external_user_type=user.external_user_type,
             expires_at=user.expires_at,
             updated_at=user.updated_at,

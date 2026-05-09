@@ -67,7 +67,7 @@ function handleFilterChange(newParams: Partial<ListUsersParams>) {
 
 	// Update or remove each param
 	for (const [key, value] of Object.entries(newParams)) {
-		if (value === undefined || value === null) {
+		if (value === undefined || value === null || value === "") {
 			url.searchParams.delete(key);
 		} else {
 			url.searchParams.set(key, String(value));
@@ -165,6 +165,7 @@ async function handleDeleteConfirm() {
 		invitationId={currentParams.invitation_id}
 		enabled={currentParams.enabled}
 		expired={currentParams.expired}
+		search={currentParams.search}
 		sortBy={currentParams.sort_by ?? 'created_at'}
 		sortOrder={currentParams.sort_order ?? 'desc'}
 		servers={data.servers}

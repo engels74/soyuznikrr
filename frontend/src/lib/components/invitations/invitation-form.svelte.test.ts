@@ -9,15 +9,16 @@
  * @module $lib/components/invitations/invitation-form.svelte.test
  */
 
-import { cleanup } from '@testing-library/svelte';
+import { cleanup, fireEvent, render } from '@testing-library/svelte';
 import * as fc from 'fast-check';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	type CreateInvitationInput,
 	createInvitationSchema,
 	type UpdateInvitationInput,
 	updateInvitationSchema
 } from '$lib/schemas/invitation';
+import InvitationFormSimple from './invitation-form-simple.svelte';
 
 // =============================================================================
 // Test Data Generators
@@ -222,6 +223,46 @@ describe('Property 14: Form Validation Error Display', () => {
 			}),
 			{ numRuns: 50 }
 		);
+	});
+
+	it('keeps selected expiration as an ISO payload before submit', async () => {
+		const serverId = '00000000-0000-4000-8000-000000000001';
+		const formData: CreateInvitationInput = {
+			server_ids: [serverId],
+			code: '',
+			expires_at: '',
+			max_uses: undefined,
+			duration_days: undefined,
+			library_ids: []
+		};
+		const onSubmit = vi.fn();
+
+		const { container } = render(InvitationFormSimple, {
+			props: {
+				formData,
+				errors: {},
+				servers: [
+					{
+						id: serverId,
+						name: 'Plex',
+						server_type: 'plex',
+						url: 'http://plex.local',
+						enabled: true,
+						created_at: new Date().toISOString(),
+						libraries: []
+					}
+				],
+				mode: 'create',
+				onSubmit
+			}
+		});
+
+		const expiresInput = container.querySelector('[data-field-expires-at]') as HTMLInputElement;
+		await fireEvent.input(expiresInput, { target: { value: '2030-01-02T03:04' } });
+		await fireEvent.submit(container.querySelector('[data-invitation-form]')!);
+
+		expect(onSubmit).toHaveBeenCalledOnce();
+		expect(formData.expires_at).toBe(new Date('2030-01-02T03:04').toISOString());
 	});
 });
 

@@ -101,6 +101,7 @@ const expiresDisplay = $derived.by(() => {
 });
 
 const badgeStyle = $derived(getProviderBadgeStyle(user.media_server.server_type));
+const userEmail = $derived(user.email ?? user.identity.email);
 
 /**
  * Navigate to user detail page.
@@ -145,9 +146,16 @@ function handleDelete() {
 >
 	<!-- Username -->
 	<Table.Cell>
-		<span class="font-medium text-cr-text" data-user-username>
-			{user.username}
-		</span>
+		<div class="min-w-0">
+			<span class="block truncate font-medium text-cr-text" data-user-username>
+				{user.username}
+			</span>
+			{#if userEmail}
+				<span class="block truncate text-xs text-cr-text-muted" data-user-email>
+					{userEmail}
+				</span>
+			{/if}
+		</div>
 	</Table.Cell>
 
 	<!-- Server -->
