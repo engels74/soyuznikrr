@@ -280,7 +280,7 @@ class UserService:
         if Capability.ENABLE_DISABLE_USER not in capabilities:
             provider_name = server.server_type.capitalize()
             message = f"Enable/disable is not supported for {provider_name} servers"
-            raise ValidationError(message, field_errors={"user_id": [message]})
+            raise ValidationError(message, field_errors={})
 
         client = registry.create_client_for_server(server)
 

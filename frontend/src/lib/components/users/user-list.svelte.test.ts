@@ -164,6 +164,7 @@ const userWithoutInvitationArb = userDetailResponseArb.map((user) => ({
 describe('Property 17: User Field Display', () => {
 	afterEach(() => {
 		cleanup();
+		setProviders([]);
 	});
 
 	/**

@@ -612,6 +612,7 @@ class TestEnableDisableAtomicity:
                 exc_info.value.message
                 == "Enable/disable is not supported for Plex servers"
             )
+            assert exc_info.value.field_errors == {}
             mock_registry.create_client_for_server.assert_not_called()  # pyright: ignore[reportAny]
 
         async with db.session_factory() as session:

@@ -437,6 +437,7 @@ describe('Property 22: Linked Users Display', () => {
 describe('Property 23: Enable Button Visibility', () => {
 	afterEach(() => {
 		cleanup();
+		setProviders([]);
 	});
 
 	/**
@@ -542,6 +543,7 @@ describe('Property 23: Enable Button Visibility', () => {
 describe('Property 24: Disable Button Visibility', () => {
 	afterEach(() => {
 		cleanup();
+		setProviders([]);
 	});
 
 	/**
