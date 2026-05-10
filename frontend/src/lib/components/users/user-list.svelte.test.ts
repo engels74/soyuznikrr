@@ -20,6 +20,7 @@ import type {
 	MediaServerResponse,
 	UserDetailResponse
 } from '$lib/api/client';
+import { setProviders } from '$lib/stores/providers.svelte';
 import UserFilters from './user-filters.svelte';
 import UserRow from './user-row.svelte';
 import UserTable from './user-table.svelte';
@@ -163,6 +164,7 @@ const userWithoutInvitationArb = userDetailResponseArb.map((user) => ({
 describe('Property 17: User Field Display', () => {
 	afterEach(() => {
 		cleanup();
+		setProviders([]);
 	});
 
 	/**
@@ -220,6 +222,68 @@ describe('Property 17: User Field Display', () => {
 				}
 			),
 			{ numRuns: 25 }
+		);
+	});
+
+	it('should hide enable and disable row actions for Plex users', () => {
+		fc.assert(
+			fc.property(userDetailResponseArb, (user) => {
+				const plexUser = {
+					...user,
+					media_server: {
+						...user.media_server,
+						server_type: 'plex' as const
+					}
+				};
+				setProviders([
+					{
+						server_type: 'plex',
+						display_name: 'Plex',
+						color: '#e5a00d',
+						icon_svg: '',
+						capabilities: ['create_user', 'delete_user', 'library_access'],
+						supported_permissions: []
+					}
+				]);
+
+				const { container } = render(UserRow, { props: { user: plexUser } });
+
+				expect(container.querySelector('[aria-label="Enable user"]')).toBeNull();
+				expect(container.querySelector('[aria-label="Disable user"]')).toBeNull();
+				expect(container.querySelector('[aria-label="Delete user"]')).not.toBeNull();
+
+				cleanup();
+			}),
+			{ numRuns: 50 }
+		);
+	});
+
+	it('should show enable or disable row action for Jellyfin users without provider metadata', () => {
+		fc.assert(
+			fc.property(userDetailResponseArb, (user) => {
+				const jellyfinUser = {
+					...user,
+					media_server: {
+						...user.media_server,
+						server_type: 'jellyfin' as const
+					}
+				};
+				setProviders([]);
+
+				const { container } = render(UserRow, { props: { user: jellyfinUser } });
+
+				if (jellyfinUser.enabled) {
+					expect(container.querySelector('[aria-label="Disable user"]')).not.toBeNull();
+					expect(container.querySelector('[aria-label="Enable user"]')).toBeNull();
+				} else {
+					expect(container.querySelector('[aria-label="Enable user"]')).not.toBeNull();
+					expect(container.querySelector('[aria-label="Disable user"]')).toBeNull();
+				}
+				expect(container.querySelector('[aria-label="Delete user"]')).not.toBeNull();
+
+				cleanup();
+			}),
+			{ numRuns: 50 }
 		);
 	});
 

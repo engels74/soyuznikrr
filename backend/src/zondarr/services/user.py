@@ -25,7 +25,7 @@ import structlog
 from zondarr.core.exceptions import NotFoundError, ValidationError
 from zondarr.media.exceptions import MediaClientError
 from zondarr.media.registry import registry
-from zondarr.media.types import ExternalUser
+from zondarr.media.types import Capability, ExternalUser
 from zondarr.models.identity import Identity, User
 from zondarr.models.media_server import MediaServer
 from zondarr.repositories.identity import IdentityRepository
@@ -276,6 +276,12 @@ class UserService:
 
         # Update external media server first (atomicity guarantee)
         server = user.media_server
+        capabilities = registry.get_capabilities(server.server_type)
+        if Capability.ENABLE_DISABLE_USER not in capabilities:
+            provider_name = server.server_type.capitalize()
+            message = f"Enable/disable is not supported for {provider_name} servers"
+            raise ValidationError(message, field_errors={})
+
         client = registry.create_client_for_server(server)
 
         try:
