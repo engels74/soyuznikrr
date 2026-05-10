@@ -26,6 +26,14 @@ export interface ProviderMeta {
 // State
 // =============================================================================
 
+const BUILT_IN_PROVIDER_CAPABILITIES: ReadonlyMap<string, readonly string[]> = new Map([
+	[
+		'jellyfin',
+		['create_user', 'delete_user', 'enable_disable_user', 'library_access', 'download_permission']
+	],
+	['plex', ['create_user', 'delete_user', 'library_access', 'remove_shared_access']]
+]);
+
 // SAFETY: Module-level $state is shared during SSR (per guideline warning).
 // This is safe because: (1) only mutated client-side from $effect() in +layout.svelte,
 // (2) provider metadata is identical for all users (not per-user state).
@@ -106,7 +114,11 @@ export function getAllProviders(): ProviderMeta[] {
  * Check whether a provider declares support for a capability.
  */
 export function hasProviderCapability(serverType: string, capability: string): boolean {
-	return providers.get(serverType)?.capabilities.includes(capability) ?? false;
+	return (
+		providers.get(serverType)?.capabilities ??
+		BUILT_IN_PROVIDER_CAPABILITIES.get(serverType) ??
+		[]
+	).includes(capability);
 }
 
 // =============================================================================

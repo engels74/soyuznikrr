@@ -258,6 +258,35 @@ describe('Property 17: User Field Display', () => {
 		);
 	});
 
+	it('should show enable or disable row action for Jellyfin users without provider metadata', () => {
+		fc.assert(
+			fc.property(userDetailResponseArb, (user) => {
+				const jellyfinUser = {
+					...user,
+					media_server: {
+						...user.media_server,
+						server_type: 'jellyfin' as const
+					}
+				};
+				setProviders([]);
+
+				const { container } = render(UserRow, { props: { user: jellyfinUser } });
+
+				if (jellyfinUser.enabled) {
+					expect(container.querySelector('[aria-label="Disable user"]')).not.toBeNull();
+					expect(container.querySelector('[aria-label="Enable user"]')).toBeNull();
+				} else {
+					expect(container.querySelector('[aria-label="Enable user"]')).not.toBeNull();
+					expect(container.querySelector('[aria-label="Disable user"]')).toBeNull();
+				}
+				expect(container.querySelector('[aria-label="Delete user"]')).not.toBeNull();
+
+				cleanup();
+			}),
+			{ numRuns: 50 }
+		);
+	});
+
 	/**
 	 * For any user, the server type badge SHALL be displayed with the provider label.
 	 */
