@@ -392,6 +392,51 @@ describe('wizard-shell sessionStorage restore hardening', () => {
 		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
 	});
 
+	it('discards step-0 saved state when progressToken is non-null', () => {
+		const wizard = makeWizard();
+		// A legitimate step-0 record always has progressToken: null — the
+		// persist $effect only writes a non-null token after handleNext
+		// increments currentStepIndex. A non-null token co-existing with
+		// stepIndex: 0 therefore indicates tampering or corruption.
+		seedProgress({
+			stepIndex: 0,
+			progressToken: 'tampered-token',
+			completions: [],
+			progressTokens: []
+		});
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		expectOnStep(1, 2);
+		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
+		// Persist effect rewrites storage with the safe (reset) state:
+		// progressToken back to null.
+		expect(persistedProgress()?.progressToken).toBeNull();
+	});
+
+	it('discards step-0 saved state when progressTokens map is non-empty', () => {
+		const wizard = makeWizard();
+		// Same invariant from the opposite angle: progressTokens entries are
+		// only written alongside a currentStepIndex increment, so a non-empty
+		// map at stepIndex: 0 is a tampering signal. A stale entry at index
+		// > 0 would otherwise survive the restore and be picked up by
+		// handleBack at a later step.
+		seedProgress({
+			stepIndex: 0,
+			progressToken: null,
+			completions: [],
+			progressTokens: [[1, 'stale-token']]
+		});
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		expectOnStep(1, 2);
+		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
+		// Persist effect rewrites storage with the safe (reset) state:
+		// empty progressTokens.
+		expect(persistedProgress()?.progressTokens).toEqual([]);
+	});
+
 	it('discards malformed JSON', () => {
 		mockSessionStorage._set(PROGRESS_KEY, 'not-json');
 

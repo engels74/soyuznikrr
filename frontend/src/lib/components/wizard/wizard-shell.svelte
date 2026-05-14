@@ -261,6 +261,22 @@ $effect(() => {
 					discard();
 					return;
 				}
+			} else {
+				// stepIndex === 0: the persist $effect only writes a non-null
+				// progressToken or non-empty progressTokens after a successful
+				// backend round-trip, which also increments currentStepIndex.
+				// A step-0 record carrying either is therefore tampered or
+				// corrupted; trusting it would let a stale token survive into
+				// handleBack at a later step (progressTokens entries for
+				// indices > 0 are preserved across the unconditional assign).
+				if (parsed.progressToken !== null && parsed.progressToken !== undefined) {
+					discard();
+					return;
+				}
+				if (restoredTokens.size > 0) {
+					discard();
+					return;
+				}
 			}
 
 			// Build a lookup for current step + interaction ids.
