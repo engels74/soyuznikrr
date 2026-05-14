@@ -168,42 +168,99 @@ $effect(() => {
 	}
 });
 
-// Restore progress from sessionStorage on mount (skip in preview mode)
+// Restore progress from sessionStorage on mount (skip in preview mode).
+// Silently discard any saved state that doesn't match the current wizard
+// shape — out-of-range step index, missing tokens for prior steps, or
+// completions referencing removed interactions all produce a "dead Next"
+// button if accepted as-is. Restarting at step 0 is safe because nothing
+// has been persisted server-side at this point.
 $effect(() => {
 	if (browser && mode !== "preview") {
 		const saved = sessionStorage.getItem(`wizard-${wizard.id}-progress`);
-		if (saved) {
-			try {
-				const parsed = JSON.parse(saved);
-				// Detect old saved-state format (before progressTokens feature).
-				// Without per-step tokens, back-navigation can't restore valid
-				// progress tokens, causing validation failures. Start fresh.
-				if ((parsed.stepIndex ?? 0) > 0 && !parsed.progressTokens) {
-					sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-					return;
-				}
-				currentStepIndex = parsed.stepIndex ?? 0;
-				progressToken = parsed.progressToken ?? null;
-				// Restore nested map structure
-				if (parsed.completions) {
-					interactionCompletions = new Map(
-						(
-							parsed.completions as [
-								string,
-								[string, InteractionCompletionData][],
-							][]
-						).map(([stepId, entries]) => [stepId, new Map(entries)]),
-					);
-				}
-				// Restore per-step progress tokens
-				if (parsed.progressTokens) {
-					progressTokens = new Map(
-						(parsed.progressTokens as [number, string | null][]),
-					);
-				}
-			} catch {
-				// Invalid saved state, start fresh
+		if (!saved) return;
+
+		const discard = () => {
+			sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+			sessionStorage.removeItem(`wizard-${wizard.id}-language`);
+		};
+
+		try {
+			const parsed = JSON.parse(saved);
+			const savedIndex = parsed.stepIndex;
+
+			// stepIndex must be a non-negative integer within the current wizard.
+			if (
+				typeof savedIndex !== "number" ||
+				!Number.isInteger(savedIndex) ||
+				savedIndex < 0 ||
+				savedIndex >= wizard.steps.length
+			) {
+				discard();
+				return;
 			}
+
+			// Build the progressTokens map first so we can validate prior steps.
+			let restoredTokens = new Map<number, string | null>();
+			if (parsed.progressTokens) {
+				restoredTokens = new Map(
+					parsed.progressTokens as [number, string | null][],
+				);
+			}
+
+			// Non-zero stepIndex requires a usable progress token for each prior step.
+			if (savedIndex > 0) {
+				for (let i = 0; i < savedIndex; i++) {
+					const token = restoredTokens.get(i);
+					if (!token) {
+						discard();
+						return;
+					}
+				}
+			}
+
+			// Build a lookup for current step + interaction ids.
+			const stepIdToInteractionIds = new Map<string, Set<string>>();
+			for (const step of wizard.steps) {
+				stepIdToInteractionIds.set(
+					step.id,
+					new Set(step.interactions.map((i) => i.id)),
+				);
+			}
+
+			let restoredCompletions = new Map<
+				string,
+				Map<string, InteractionCompletionData>
+			>();
+			if (parsed.completions) {
+				const entries = parsed.completions as [
+					string,
+					[string, InteractionCompletionData][],
+				][];
+				for (const [stepId, completionEntries] of entries) {
+					const interactionIds = stepIdToInteractionIds.get(stepId);
+					if (!interactionIds) {
+						// Saved completion references a step that no longer exists.
+						discard();
+						return;
+					}
+					for (const [interactionId] of completionEntries) {
+						if (!interactionIds.has(interactionId)) {
+							// Saved completion references an interaction that no longer
+							// exists on this step.
+							discard();
+							return;
+						}
+					}
+					restoredCompletions.set(stepId, new Map(completionEntries));
+				}
+			}
+
+			currentStepIndex = savedIndex;
+			progressToken = parsed.progressToken ?? null;
+			interactionCompletions = restoredCompletions;
+			progressTokens = restoredTokens;
+		} catch {
+			discard();
 		}
 	}
 });
@@ -243,7 +300,18 @@ $effect(() => {
 
 async function handleNext() {
 	const step = currentStep;
-	if (!step || !canProceed || isValidating) return;
+	if (!step) {
+		// Should not happen after restore hardening, but defend anyway:
+		// if the index ever falls outside wizard.steps, `canProceed` would be
+		// vacuously true and the user would see a dead Next button.
+		if (browser && mode !== "preview") {
+			sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+		}
+		currentStepIndex = 0;
+		validationError = "Your progress was reset. Please start again.";
+		return;
+	}
+	if (!canProceed || isValidating) return;
 
 	isValidating = true;
 	validationError = null;
@@ -1052,19 +1120,23 @@ async function handleInteractionValidate(
 		.wizard-interaction,
 		.interaction-block,
 		.lang-fade {
+			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion animations */
 			animation: none !important;
 		}
 
 		.wizard-content :global(a),
 		.wizard-content :global(img) {
+			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion transitions */
 			transition: none !important;
 		}
 
 		.progress-fill {
+			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion transitions */
 			transition: none !important;
 		}
 
 		.wizard-card {
+			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of smooth-scroll behavior */
 			scroll-behavior: auto !important;
 		}
 	}

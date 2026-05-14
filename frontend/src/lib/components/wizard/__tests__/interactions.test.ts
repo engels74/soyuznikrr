@@ -167,6 +167,83 @@ describe('TimerInteraction', () => {
 		// Default is 10 seconds
 		expect(screen.getByText('0:10')).toBeInTheDocument();
 	});
+
+	it('should complete based on wall-clock time, not number of interval ticks', async () => {
+		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 5 }, { onComplete });
+
+		render(TimerInteraction, { props });
+
+		// Jump the wall clock past the deadline without firing N interval ticks.
+		// Simulates Safari pausing setInterval while wall-clock time elapses.
+		vi.setSystemTime(Date.now() + 5000);
+
+		// A single subsequent tick is enough — recompute reads Date.now() and
+		// sees the deadline has passed, regardless of how many ticks were missed.
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(onComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it('should fire onComplete on visibilitychange when the deadline has passed', async () => {
+		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 10 }, { onComplete });
+
+		render(TimerInteraction, { props });
+
+		// Simulate the tab being backgrounded for 30s — no interval ticks
+		// because Safari/iOS throttles them in background tabs.
+		vi.setSystemTime(Date.now() + 30_000);
+
+		// Tab returns to foreground.
+		document.dispatchEvent(new Event('visibilitychange'));
+
+		// Flush the deferred setTimeout(0) inside the auto-emit $effect.
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(onComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it('should fire onComplete exactly once even after extra ticks past the deadline', async () => {
+		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 2 }, { onComplete });
+
+		render(TimerInteraction, { props });
+
+		// Advance well past completion. With the legacy tick-decrement
+		// implementation, the safeguard $effect could re-emit; with the
+		// deadline-based implementation, recompute observing the same `0`
+		// repeatedly does not trigger reactivity.
+		for (let i = 0; i < 5; i++) {
+			await vi.advanceTimersByTimeAsync(1000);
+		}
+
+		expect(onComplete).toHaveBeenCalledTimes(1);
+	});
+
+	it('should render "Timer complete" immediately when navigating back to a completed step', () => {
+		const onComplete = vi.fn();
+		const props = createInteractionProps(
+			{ duration_seconds: 10 },
+			{
+				onComplete,
+				completionData: {
+					interactionId: 'test-interaction-id',
+					interactionType: 'timer',
+					data: { waited: true },
+					startedAt: '2024-01-01T00:00:00Z',
+					completedAt: '2024-01-01T00:00:10Z'
+				}
+			}
+		);
+
+		render(TimerInteraction, { props });
+
+		// Renders complete state immediately, without arming a new countdown
+		// or re-emitting onComplete.
+		expect(screen.getByText('Timer complete')).toBeInTheDocument();
+		expect(onComplete).not.toHaveBeenCalled();
+	});
 });
 
 // =============================================================================

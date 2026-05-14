@@ -7,7 +7,8 @@
  * @module routes/(public)/join/[code]/join-page-wizard.svelte.test
  */
 
-import { cleanup } from '@testing-library/svelte';
+import '@testing-library/jest-dom/vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import * as fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -16,6 +17,7 @@ import type {
 	WizardDetailResponse,
 	WizardStepResponse
 } from '$lib/api/client';
+import { WizardShell } from '$lib/components/wizard';
 
 // Mock the API client
 vi.mock('$lib/api/client', async () => {
@@ -34,6 +36,13 @@ vi.mock('$lib/api/client', async () => {
 		})
 	};
 });
+
+// Mock the shared language cache used by WizardShell.
+vi.mock('$lib/components/wizard/language-cache', () => ({
+	getCachedLanguages: () => [],
+	loadLanguages: () => Promise.resolve([]),
+	getLanguageLabel: (code: string) => code.toUpperCase()
+}));
 
 // Mock sessionStorage
 const mockSessionStorage = (() => {
@@ -55,6 +64,28 @@ const mockSessionStorage = (() => {
 Object.defineProperty(window, 'sessionStorage', {
 	value: mockSessionStorage
 });
+
+// jsdom does not implement matchMedia or scrollIntoView; the wizard-shell
+// reaches for them when its scroll-to-top $effect runs.
+if (!window.matchMedia) {
+	Object.defineProperty(window, 'matchMedia', {
+		writable: true,
+		value: vi.fn().mockReturnValue({
+			matches: false,
+			media: '',
+			onchange: null,
+			addListener: vi.fn(),
+			removeListener: vi.fn(),
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			dispatchEvent: vi.fn()
+		})
+	});
+}
+
+if (!Element.prototype.scrollIntoView) {
+	Element.prototype.scrollIntoView = vi.fn();
+}
 
 // =============================================================================
 // Arbitraries for generating test data
@@ -219,6 +250,7 @@ describe('Wizard step structure validation', () => {
 	});
 
 	it('should support both pre and post wizards simultaneously', () => {
+		expect(validationWithBothWizardsArb).toBeDefined();
 		fc.assert(
 			fc.property(validationWithBothWizardsArb, (validation) => {
 				expect(validation.pre_wizard).not.toBeNull();
@@ -227,5 +259,120 @@ describe('Wizard step structure validation', () => {
 			}),
 			{ numRuns: 50 }
 		);
+	});
+});
+
+// =============================================================================
+// Pre-wizard rendering and transition tests
+//
+// The join page renders the pre-wizard via <WizardShell> and only advances to
+// the registration step when the wizard fires `onComplete`. These tests cover
+// the same handoff but exercise the wizard directly so they don't have to
+// stub out the rest of +page.svelte's flow.
+// =============================================================================
+
+function makePreWizard(): WizardDetailResponse {
+	return {
+		id: '00000000-0000-0000-0000-00000000aaaa',
+		name: 'Welcome',
+		enabled: true,
+		created_at: '2024-01-01T00:00:00Z',
+		updated_at: null,
+		description: null,
+		steps: [
+			{
+				id: '00000000-0000-0000-0000-000000000001',
+				wizard_id: '00000000-0000-0000-0000-00000000aaaa',
+				step_order: 0,
+				title: 'Wait + describe',
+				content_markdown: 'multi-interaction step',
+				primary_language: 'en',
+				translations: [],
+				interactions: [
+					{
+						id: '00000000-0000-0000-0000-0000000000aa',
+						step_id: '00000000-0000-0000-0000-000000000001',
+						interaction_type: 'timer',
+						config: { duration_seconds: 3 },
+						display_order: 0,
+						created_at: '2024-01-01T00:00:00Z',
+						updated_at: null
+					},
+					{
+						id: '00000000-0000-0000-0000-0000000000bb',
+						step_id: '00000000-0000-0000-0000-000000000001',
+						interaction_type: 'text_input',
+						config: { label: 'Your name', required: true },
+						display_order: 1,
+						created_at: '2024-01-01T00:00:00Z',
+						updated_at: null
+					}
+				] as WizardStepResponse['interactions'],
+				created_at: '2024-01-01T00:00:00Z',
+				updated_at: null
+			}
+		]
+	};
+}
+
+describe('Pre-wizard rendering and flow handoff', () => {
+	beforeEach(() => {
+		mockSessionStorage.clear();
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		cleanup();
+	});
+
+	it('renders the wizard shell when a pre-wizard is configured', () => {
+		const wizard = makePreWizard();
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		// "Wait + describe" renders in both the progress widget and the h2
+		// heading — use a heading-specific query to disambiguate.
+		expect(screen.getByRole('heading', { level: 2, name: 'Wait + describe' })).toBeInTheDocument();
+		// Timer interaction renders a countdown display.
+		expect(screen.getByText('0:03')).toBeInTheDocument();
+		// Text-input interaction renders a labeled field.
+		expect(screen.getByLabelText('Your name')).toBeInTheDocument();
+	});
+
+	it('fires onComplete after both interactions on the single step complete', async () => {
+		const wizard = makePreWizard();
+		const onComplete = vi.fn();
+		render(WizardShell, { props: { wizard, onComplete } });
+
+		// Wait out the timer using a wall-clock jump + a single tick.
+		vi.setSystemTime(Date.now() + 3000);
+		await vi.advanceTimersByTimeAsync(1000);
+
+		// Fill in the required text input.
+		const input = screen.getByLabelText('Your name');
+		await fireEvent.input(input, { target: { value: 'Tester' } });
+
+		const submit = screen.getByRole('button', { name: 'Continue' });
+		await fireEvent.click(submit);
+
+		// Drain microtasks + the validation promise chain.
+		await vi.advanceTimersByTimeAsync(0);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// Single-step wizard: Next button reads "Complete" because isLastStep.
+		const complete = screen.getByRole('button', { name: /Complete/i });
+		expect(complete).not.toBeDisabled();
+		await fireEvent.click(complete);
+
+		// Resolve the final validateStep promise.
+		await vi.advanceTimersByTimeAsync(0);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(onComplete).toHaveBeenCalledTimes(1);
+		// Wizard hands back the completion token so the parent flow can advance
+		// to registration / oauth.
+		expect(onComplete).toHaveBeenCalledWith('test-token');
 	});
 });
