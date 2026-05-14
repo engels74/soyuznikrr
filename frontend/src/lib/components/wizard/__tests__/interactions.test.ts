@@ -298,6 +298,64 @@ describe('TimerInteraction', () => {
 		expect(onComplete).not.toHaveBeenCalled();
 	});
 
+	it('should re-emit with the parent-supplied startedAt after a completionData clear', async () => {
+		// Iter-10 scenario: post-refresh, child onMount runs first (Svelte 5
+		// schedules child user-effects before parent ones during the initial
+		// flush), so the child generates a *local* "now" startedAt before
+		// wizard-shell's restore $effect populates completionData with the
+		// canonical T0. The iter-8 sync $effect must overwrite that local
+		// "now" with the parent's T0; otherwise a later handleNext validation
+		// failure clears completionData and the re-emission $effect would
+		// send the stale local startedAt back to the backend, which would
+		// reject it (`elapsed = now - "now" ≈ 0` in TimerHandler).
+		const onComplete = vi.fn();
+		// Choose a T0 well in the past so the persisted startedAt is
+		// distinguishable from any locally-generated "now" value.
+		const persistedStartedAt = '2024-01-01T00:00:00.000Z';
+
+		const props = createInteractionProps({ duration_seconds: 10 }, { onComplete });
+
+		const { rerender } = render(TimerInteraction, { props });
+
+		// Mount armed without completionData → local startedAt = "now".
+		expect(screen.getByText('0:10')).toBeInTheDocument();
+
+		// Parent's restore $effect lands the saved completion (with T0).
+		await rerender({
+			...props,
+			completionData: {
+				interactionId: 'test-interaction-id',
+				interactionType: 'timer',
+				data: { waited: true },
+				startedAt: persistedStartedAt,
+				completedAt: '2024-01-01T00:00:10.000Z'
+			}
+		});
+
+		// The iter-8 zeroing still works.
+		expect(screen.getByText('0:00')).toBeInTheDocument();
+		expect(screen.getByText('Timer complete')).toBeInTheDocument();
+
+		// Parent clears completionData (e.g., handleNext validation failure
+		// wipes the step's completion map). This trips the re-emission path.
+		await rerender({ ...props, completionData: undefined });
+
+		// Flush the deferred setTimeout(0) inside the re-emission $effect.
+		await vi.advanceTimersByTimeAsync(0);
+
+		// Without the iter-10 fix, this would be the locally-generated "now"
+		// from onMount instead of the parent-supplied T0.
+		expect(onComplete).toHaveBeenCalledTimes(1);
+		expect(onComplete).toHaveBeenCalledWith(
+			expect.objectContaining({
+				interactionId: 'test-interaction-id',
+				interactionType: 'timer',
+				data: { waited: true },
+				startedAt: persistedStartedAt
+			})
+		);
+	});
+
 	it('should namespace its sessionStorage key with the provided storageScope', () => {
 		// Same wizard + interaction can be reached through multiple invitations
 		// (the wizard row is shared). Without a per-invite scope, a startedAt

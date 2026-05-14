@@ -219,6 +219,25 @@ $effect(() => {
 			intervalId = null;
 		}
 		remainingSeconds = 0;
+		// Also sync startedAt/deadline from the parent's completion record:
+		// child onMount runs before the parent restore $effect, so without
+		// this the locally-generated "now" startedAt would leak into the
+		// re-emission $effect below if the parent later clears completionData
+		// (e.g., a handleNext validation failure wipes the step's completion
+		// map). The backend's wall-clock check on TimerHandler.validate_response
+		// computes `elapsed = now - startedAt` and would reject a stale-anchored
+		// re-emission ("now - now ≈ 0"). Syncing deadline closes the related
+		// case where a visibility/focus event fires AFTER the parent clear but
+		// before re-emission, since recompute() would otherwise use the stale
+		// local deadline and disarm the `remainingSeconds <= 0` gate.
+		// Parseability guard mirrors the iter-1 onMount restore path.
+		if (completionData?.startedAt) {
+			const parsedStart = Date.parse(completionData.startedAt);
+			if (Number.isFinite(parsedStart)) {
+				startedAt = completionData.startedAt;
+				deadline = parsedStart + durationSeconds * 1000;
+			}
+		}
 	}
 });
 
