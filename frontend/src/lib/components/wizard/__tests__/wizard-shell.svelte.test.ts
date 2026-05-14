@@ -323,9 +323,12 @@ describe('wizard-shell sessionStorage restore hardening', () => {
 
 	it('accepts a valid saved state', () => {
 		const wizard = makeWizard();
+		// progressToken (singular, current-step) must match progressTokens.get(savedIndex - 1).
+		// Both are written from the same source in the persist $effect, so a
+		// divergence indicates corruption and is rejected by the restore guard.
 		seedProgress({
 			stepIndex: 1,
-			progressToken: 'tok-1',
+			progressToken: 'tok-0',
 			completions: [
 				[
 					STEP_0_ID,
@@ -351,6 +354,42 @@ describe('wizard-shell sessionStorage restore hardening', () => {
 		expectOnStep(2, 2);
 		// removeItem was NOT called for the progress key because state was valid.
 		expect(mockSessionStorage.removeItem).not.toHaveBeenCalledWith(PROGRESS_KEY);
+	});
+
+	it('discards non-zero stepIndex when current progressToken is missing', () => {
+		const wizard = makeWizard();
+		// progressTokens has a valid entry for step 0, but progressToken (singular)
+		// is null — the wizard would otherwise try to validate step 1 with a null
+		// token and surface a confusing backend rejection.
+		seedProgress({
+			stepIndex: 1,
+			progressToken: null,
+			completions: [],
+			progressTokens: [[0, 'tok-0']]
+		});
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		expectOnStep(1, 2);
+		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
+	});
+
+	it('discards non-zero stepIndex when current progressToken disagrees with archive', () => {
+		const wizard = makeWizard();
+		// progressToken (the token to present at step 1) must equal
+		// progressTokens.get(0) (the token archived after validating step 0).
+		// A mismatch indicates tampered/corrupted storage.
+		seedProgress({
+			stepIndex: 1,
+			progressToken: 'stale-tok',
+			completions: [],
+			progressTokens: [[0, 'tok-0']]
+		});
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		expectOnStep(1, 2);
+		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
 	});
 
 	it('discards malformed JSON', () => {

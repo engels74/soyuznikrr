@@ -151,6 +151,18 @@ function handleLanguageSelect(code: string) {
 	selectedLanguage = code;
 }
 
+// Wrap sessionStorage.removeItem so a SecurityError in restrictive storage
+// environments (privacy mode, sandboxed iframes) cannot abort callers mid-flight
+// and leave the wizard in a broken state. Matches the defensive pattern used
+// in timer-interaction.svelte.
+function safeRemoveItem(key: string) {
+	try {
+		sessionStorage.removeItem(key);
+	} catch {
+		// ignore storage errors (privacy mode, sandboxed iframes)
+	}
+}
+
 // Restore language selection from sessionStorage
 $effect(() => {
 	if (browser) {
@@ -180,8 +192,8 @@ $effect(() => {
 		if (!saved) return;
 
 		const discard = () => {
-			sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-			sessionStorage.removeItem(`wizard-${wizard.id}-language`);
+			safeRemoveItem(`wizard-${wizard.id}-progress`);
+			safeRemoveItem(`wizard-${wizard.id}-language`);
 		};
 
 		try {
@@ -215,6 +227,22 @@ $effect(() => {
 						discard();
 						return;
 					}
+				}
+
+				// The current-step token (singular) must also be present and
+				// consistent with the archived token for the previous step.
+				// The persist $effect writes both from the same source, so any
+				// divergence here means a tampered/corrupted record that would
+				// otherwise produce a backend rejection on the next Next press.
+				const currentToken = parsed.progressToken;
+				const expectedToken = restoredTokens.get(savedIndex - 1);
+				if (
+					typeof currentToken !== "string" ||
+					!currentToken ||
+					currentToken !== expectedToken
+				) {
+					discard();
+					return;
 				}
 			}
 
@@ -309,8 +337,8 @@ async function handleNext() {
 		// immediately re-write sessionStorage with stale completions/tokens
 		// alongside stepIndex: 0, producing an inconsistent saved record.
 		if (browser && mode !== "preview") {
-			sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-			sessionStorage.removeItem(`wizard-${wizard.id}-language`);
+			safeRemoveItem(`wizard-${wizard.id}-progress`);
+			safeRemoveItem(`wizard-${wizard.id}-language`);
 		}
 		interactionCompletions = new Map();
 		progressToken = null;
@@ -353,8 +381,8 @@ async function handleNext() {
 
 		if (isLastStep) {
 			if (browser && mode !== "preview") {
-				sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-				sessionStorage.removeItem(`wizard-${wizard.id}-language`);
+				safeRemoveItem(`wizard-${wizard.id}-progress`);
+				safeRemoveItem(`wizard-${wizard.id}-language`);
 			}
 			onComplete(result.data?.completion_token);
 		} else {
