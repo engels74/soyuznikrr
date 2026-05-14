@@ -304,9 +304,18 @@ async function handleNext() {
 		// Should not happen after restore hardening, but defend anyway:
 		// if the index ever falls outside wizard.steps, `canProceed` would be
 		// vacuously true and the user would see a dead Next button.
+		// Fully reset in-memory state too — otherwise the persist $effect
+		// (which re-runs as soon as currentStepIndex changes) would
+		// immediately re-write sessionStorage with stale completions/tokens
+		// alongside stepIndex: 0, producing an inconsistent saved record.
 		if (browser && mode !== "preview") {
 			sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+			sessionStorage.removeItem(`wizard-${wizard.id}-language`);
 		}
+		interactionCompletions = new Map();
+		progressToken = null;
+		progressTokens = new Map();
+		selectedLanguage = null;
 		currentStepIndex = 0;
 		validationError = "Your progress was reset. Please start again.";
 		return;

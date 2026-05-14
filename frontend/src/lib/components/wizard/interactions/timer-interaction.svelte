@@ -26,8 +26,16 @@ const { interactionId, config: rawConfig, onComplete, disabled = false, completi
 const config = $derived(timerConfigSchema.safeParse(rawConfig).data);
 const durationSeconds = $derived(config?.duration_seconds ?? 10);
 
-// If already completed (navigating back), start at 0
-const alreadyCompleted = (() => completionData?.data?.waited === true)();
+// Snapshot of the completion status at mount time. Used only to seed the
+// initial values of `remainingSeconds` and `hasFired` below — *not* for
+// gating the re-emission path, which needs to react to parent-driven clears.
+const initiallyCompleted = (() => completionData?.data?.waited === true)();
+
+// Reactive view of "already completed". Must be reactive so a parent-driven
+// clear of completionData (e.g., a sibling interaction's validation failure)
+// unlocks the re-emission path below — a frozen value would keep this true
+// and permanently block re-emission for the component instance.
+const alreadyCompleted = $derived(completionData?.data?.waited === true);
 
 // Compute initial duration from raw config to avoid SSR flash of "complete" state
 const initialDuration = (() => {
@@ -40,14 +48,14 @@ const initialDuration = (() => {
 const storageKey = $derived(`wizard-timer-${interactionId}`);
 
 // Timer state — initialize to actual duration so SSR renders the countdown, not "Timer complete"
-let remainingSeconds = $state(alreadyCompleted ? 0 : initialDuration);
+let remainingSeconds = $state(initiallyCompleted ? 0 : initialDuration);
 let startedAt = $state<string | null>((() => completionData?.startedAt ?? null)());
 let deadline = $state<number | null>(null);
 let intervalId: ReturnType<typeof setInterval> | null = null;
 // Single-fire guard: prevents the interval, visibility handler, and
 // re-emission path from each calling onComplete redundantly for the same
 // completion cycle.
-let hasFired = $state(alreadyCompleted);
+let hasFired = $state(initiallyCompleted);
 // Set to true the first time the parent surfaces this interaction's
 // completion back to us. Re-emission only triggers after a true → false
 // transition of completionData (parent-driven clear), not during the
@@ -130,10 +138,17 @@ onMount(() => {
 			restored = null;
 		}
 	}
-	const initial = restored ?? completionData?.startedAt ?? new Date().toISOString();
+	const candidate = restored ?? completionData?.startedAt ?? new Date().toISOString();
+	// If the candidate is unparsable (corrupted storage, tampered completionData),
+	// regenerate from "now" so the emitted startedAt stays consistent with the
+	// deadline below. Otherwise an invalid string would travel to the backend
+	// and msgspec would reject the request with a 422.
+	const parsedStart = Date.parse(candidate);
+	const startIsValid = Number.isFinite(parsedStart);
+	const initial = startIsValid ? candidate : new Date().toISOString();
 	startedAt = initial;
 
-	if (browser && !restored) {
+	if (browser && (!restored || !startIsValid)) {
 		try {
 			sessionStorage.setItem(storageKey, initial);
 		} catch {
@@ -141,8 +156,7 @@ onMount(() => {
 		}
 	}
 
-	const parsedStart = Date.parse(initial);
-	const startMs = Number.isFinite(parsedStart) ? parsedStart : Date.now();
+	const startMs = startIsValid ? parsedStart : Date.parse(initial);
 	deadline = startMs + durationSeconds * 1000;
 
 	// Initial recompute so SSR -> client transition reflects elapsed time.
