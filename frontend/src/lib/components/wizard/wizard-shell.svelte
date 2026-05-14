@@ -279,13 +279,19 @@ $effect(() => {
 				}
 			}
 
-			// Build a lookup for current step + interaction ids.
+			// Build a lookup for current step + interaction ids, plus a stepId
+			// → index map so we can reject completions for steps beyond the
+			// restored position.
 			const stepIdToInteractionIds = new Map<string, Set<string>>();
-			for (const step of wizard.steps) {
+			const stepIdToIndex = new Map<string, number>();
+			for (let i = 0; i < wizard.steps.length; i++) {
+				const step = wizard.steps[i];
+				if (!step) continue;
 				stepIdToInteractionIds.set(
 					step.id,
 					new Set(step.interactions.map((i) => i.id)),
 				);
+				stepIdToIndex.set(step.id, i);
 			}
 
 			let restoredCompletions = new Map<
@@ -301,6 +307,16 @@ $effect(() => {
 					const interactionIds = stepIdToInteractionIds.get(stepId);
 					if (!interactionIds) {
 						// Saved completion references a step that no longer exists.
+						discard();
+						return;
+					}
+					// The persist $effect only writes completion data for steps
+					// the user has actually reached, so any entry at an index
+					// beyond savedIndex is tampered or corrupted; trusting it
+					// would pre-arm the "already completed" path at a future
+					// step and let the user bypass that step's interaction UX.
+					const stepIndex = stepIdToIndex.get(stepId);
+					if (stepIndex === undefined || stepIndex > savedIndex) {
 						discard();
 						return;
 					}

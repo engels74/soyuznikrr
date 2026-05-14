@@ -437,6 +437,45 @@ describe('wizard-shell sessionStorage restore hardening', () => {
 		expect(persistedProgress()?.progressTokens).toEqual([]);
 	});
 
+	it('discards saved state with completion for a step beyond savedIndex', () => {
+		const wizard = makeWizard();
+		// savedIndex: 0 means the user has only reached step 0. A completion
+		// entry for STEP_1_ID (index 1) is therefore tampered or corrupted —
+		// the persist $effect only writes completion data for steps the user
+		// has actually reached. Accepting it would pre-arm the
+		// alreadyCompleted path at step 1 and let the user bypass that
+		// step's interaction UX (e.g. timer countdown, TOS acknowledgement).
+		seedProgress({
+			stepIndex: 0,
+			progressToken: null,
+			completions: [
+				[
+					STEP_1_ID,
+					[
+						[
+							INTERACTION_A,
+							{
+								interactionId: INTERACTION_A,
+								interactionType: 'click',
+								data: { acknowledged: true },
+								completedAt: '2024-01-01T00:00:00Z'
+							}
+						]
+					]
+				]
+			],
+			progressTokens: []
+		});
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		expectOnStep(1, 2);
+		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(PROGRESS_KEY);
+		// Persist effect rewrites storage with the safe (reset) state:
+		// empty completions, untouched by the future-step entry.
+		expect(persistedProgress()?.completions).toEqual([]);
+	});
+
 	it('discards malformed JSON', () => {
 		mockSessionStorage._set(PROGRESS_KEY, 'not-json');
 
