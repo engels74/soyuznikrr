@@ -188,6 +188,30 @@ $effect(() => {
 	};
 });
 
+// Synchronise the visible countdown when alreadyCompleted flips true
+// after this child has already mounted. Concretely: on a mid-wizard
+// refresh, this child's onMount runs *before* wizard-shell's restore
+// $effect — Svelte 5 schedules child user-effects ahead of the parent
+// during the first flush (see svelte/src/internal/client/context.js:
+// the parent's context.e is only processed during its $.pop(), which
+// happens after child components have mounted and pushed their effects
+// to collected_effects). onMount therefore arms the interval with
+// completionData still undefined; the prop then flips to a
+// {waited:true} record when wizard-shell's restore effect populates
+// interactionCompletions. Without this $effect, the interval keeps
+// ticking, recompute() early-returns on alreadyCompleted but never
+// zeroes remainingSeconds, and the UI reads e.g. "0:59 remaining"
+// while the parent's Next button is already enabled.
+$effect(() => {
+	if (alreadyCompleted) {
+		if (intervalId !== null) {
+			clearInterval(intervalId);
+			intervalId = null;
+		}
+		remainingSeconds = 0;
+	}
+});
+
 // Record when the parent acknowledges our fire. We only re-emit on a
 // true → false transition of completionData; the initial mount where
 // completionData is undefined must NOT trip the re-emission path.

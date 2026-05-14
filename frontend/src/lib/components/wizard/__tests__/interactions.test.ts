@@ -244,6 +244,52 @@ describe('TimerInteraction', () => {
 		expect(screen.getByText('Timer complete')).toBeInTheDocument();
 		expect(onComplete).not.toHaveBeenCalled();
 	});
+
+	it('should clear the countdown when completionData arrives after mount', async () => {
+		// Mid-wizard refresh: child mounts with completionData undefined and
+		// arms its interval; wizard-shell's session-restore $effect then flips
+		// completionData to a saved {waited:true} record. The synchronisation
+		// $effect must zero the display and clear the interval, otherwise the
+		// UI reads e.g. "0:09 remaining" while Next is already enabled.
+		const onComplete = vi.fn();
+		const props = createInteractionProps({ duration_seconds: 10 }, { onComplete });
+
+		const { rerender } = render(TimerInteraction, { props });
+
+		// Mounts armed: countdown is still showing the initial duration.
+		expect(screen.getByText('0:10')).toBeInTheDocument();
+		expect(screen.queryByText('Timer complete')).not.toBeInTheDocument();
+
+		// Parent's restore effect populates interactionCompletions.
+		await rerender({
+			...props,
+			completionData: {
+				interactionId: 'test-interaction-id',
+				interactionType: 'timer',
+				data: { waited: true },
+				startedAt: '2024-01-01T00:00:00Z',
+				completedAt: '2024-01-01T00:00:10Z'
+			}
+		});
+
+		// Display is forced to 0:00 / Timer complete; the synchronisation
+		// $effect cleared the armed interval, so further wall-clock advances
+		// must not produce ticks that reset the display.
+		expect(screen.getByText('0:00')).toBeInTheDocument();
+		expect(screen.getByText('Timer complete')).toBeInTheDocument();
+
+		// Advance well past the original deadline. With the interval cleared,
+		// no recompute() fires and remainingSeconds stays at 0.
+		for (let i = 0; i < 15; i++) {
+			await vi.advanceTimersByTimeAsync(1000);
+		}
+		expect(screen.getByText('Timer complete')).toBeInTheDocument();
+
+		// onComplete must not be re-emitted: the parent already holds the
+		// completion record (that's how the prop arrived), and recompute()
+		// early-returns on alreadyCompleted before it could call fireComplete.
+		expect(onComplete).not.toHaveBeenCalled();
+	});
 });
 
 // =============================================================================

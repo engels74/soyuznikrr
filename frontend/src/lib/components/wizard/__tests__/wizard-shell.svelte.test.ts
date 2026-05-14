@@ -494,6 +494,54 @@ describe('wizard-shell sessionStorage restore hardening', () => {
 
 		expect(mockSessionStorage.removeItem).toHaveBeenCalledWith(LANGUAGE_KEY);
 	});
+
+	it('resets in-memory selectedLanguage alongside discarded progress', () => {
+		// Symmetry with handleNext's fallback: discard() must clear both the
+		// `-language` storage key AND the in-memory `selectedLanguage` state.
+		// Without this, the language restore $effect (declared first) seeds
+		// `selectedLanguage = "fr"`, the progress restore $effect's discard
+		// removes the storage key but leaves `selectedLanguage` populated, and
+		// the wizard renders in French until the next page reload.
+		const wizard: WizardDetailResponse = {
+			...makeWizard(),
+			steps: [
+				{
+					id: STEP_0_ID,
+					wizard_id: WIZARD_ID,
+					step_order: 0,
+					title: 'Primary title',
+					content_markdown: 'primary body',
+					primary_language: 'en',
+					translations: [
+						{
+							language_code: 'fr',
+							title: 'Titre traduit',
+							content_markdown: 'corps traduit'
+						}
+					],
+					interactions: [],
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: null
+				}
+			]
+		} as WizardDetailResponse;
+
+		mockSessionStorage._set(LANGUAGE_KEY, 'fr');
+		// Trigger discard() via an out-of-range stepIndex.
+		seedProgress({ stepIndex: 999 });
+
+		render(WizardShell, { props: { wizard, onComplete: vi.fn() } });
+
+		// After discard, selectedLanguage is null and effectiveLanguage falls
+		// back to the step's primary language ("en"). The rendered title and
+		// content are the primary-language strings, not the seeded "fr".
+		// (WizardProgress also surfaces the step title, so getAllByText is
+		// the right query for the title; the markdown body appears once.)
+		expect(screen.getAllByText('Primary title').length).toBeGreaterThan(0);
+		expect(screen.queryByText('Titre traduit')).not.toBeInTheDocument();
+		expect(screen.getByText('primary body')).toBeInTheDocument();
+		expect(screen.queryByText('corps traduit')).not.toBeInTheDocument();
+	});
 });
 
 describe('wizard-shell handleNext dead-button fallback', () => {

@@ -211,6 +211,7 @@ $effect(() => {
 		const discard = () => {
 			safeRemoveItem(`wizard-${wizard.id}-progress`);
 			safeRemoveItem(`wizard-${wizard.id}-language`);
+			selectedLanguage = null;
 		};
 
 		try {
