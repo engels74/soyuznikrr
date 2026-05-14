@@ -34,9 +34,25 @@ interface Props {
 	onComplete: (completionToken?: string | null) => void;
 	onCancel?: () => void;
 	mode?: "preview" | "join";
+	/**
+	 * Caller-provided namespace forwarded to interaction components that
+	 * persist transient state to sessionStorage (e.g. timer deadlines).
+	 * The join flow passes the invite code here so that two invites sharing
+	 * the same wizard don't cross-contaminate per-interaction storage keys.
+	 * Callers that don't supply one fall back to the wizard id, which is
+	 * stable enough for the preview path but does NOT isolate cross-invite
+	 * sessions — only the join flow needs the invite-scoped value.
+	 */
+	storageScope?: string;
 }
 
-const { wizard, onComplete, onCancel, mode = "join" }: Props = $props();
+const { wizard, onComplete, onCancel, mode = "join", storageScope }: Props = $props();
+
+// Forward to interactions. Defaulting to wizard.id keeps the legacy single-
+// wizard preview case working, while the join page supplies the invite code
+// to isolate per-invite session state. Always passes a non-empty string so
+// timer-interaction's $derived sees a stable scoped key.
+const interactionStorageScope = $derived(storageScope ?? wizard.id);
 
 // Language data (shared cache, used for native name display)
 let languagesLoaded = $state(getCachedLanguages().length > 0);
@@ -631,6 +647,7 @@ async function handleInteractionValidate(
 									onValidate={handleInteractionValidate}
 									disabled={isValidating || isCompleted}
 									completionData={currentCompletions.get(interaction.id)}
+									storageScope={interactionStorageScope}
 								/>
 							</div>
 						{/if}

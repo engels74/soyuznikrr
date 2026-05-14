@@ -20,7 +20,7 @@ import { browser } from "$app/environment";
 import { timerConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionComponentProps } from "./registry";
 
-const { interactionId, config: rawConfig, onComplete, disabled = false, completionData }: InteractionComponentProps = $props();
+const { interactionId, config: rawConfig, onComplete, disabled = false, completionData, storageScope }: InteractionComponentProps = $props();
 
 // Validate config with Zod schema, falling back gracefully for partial configs
 const config = $derived(timerConfigSchema.safeParse(rawConfig).data);
@@ -43,9 +43,19 @@ const initialDuration = (() => {
 	return parsed.data?.duration_seconds ?? 10;
 })();
 
-// interactionId is a UUID so this key is unique across wizards.
-// $derived so Svelte sees the prop read; the value is stable in practice.
-const storageKey = $derived(`wizard-timer-${interactionId}`);
+// interactionId is a UUID and therefore unique across wizards, but the
+// *same* interaction row can be reached through multiple invitations when
+// an admin attaches the same wizard to several invites. Keying purely by
+// interactionId would let a `startedAt` written under invite A be restored
+// under invite B and auto-complete the timer with a stale anchor.
+// storageScope (typically the invite code on the join flow) namespaces the
+// key per invite session. The fallback preserves backward-compatible
+// behaviour for callers that haven't been updated.
+const storageKey = $derived(
+	storageScope
+		? `wizard-timer-${storageScope}-${interactionId}`
+		: `wizard-timer-${interactionId}`,
+);
 
 // Timer state — initialize to actual duration so SSR renders the countdown, not "Timer complete"
 let remainingSeconds = $state(initiallyCompleted ? 0 : initialDuration);

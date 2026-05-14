@@ -98,6 +98,13 @@ describe('ClickInteraction', () => {
 describe('TimerInteraction', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
+		// Real jsdom sessionStorage carries state across tests in the suite —
+		// reset it so the per-scope key assertions below see a clean slate.
+		try {
+			sessionStorage.clear();
+		} catch {
+			/* ignore */
+		}
 	});
 
 	afterEach(() => {
@@ -289,6 +296,77 @@ describe('TimerInteraction', () => {
 		// completion record (that's how the prop arrived), and recompute()
 		// early-returns on alreadyCompleted before it could call fireComplete.
 		expect(onComplete).not.toHaveBeenCalled();
+	});
+
+	it('should namespace its sessionStorage key with the provided storageScope', () => {
+		// Same wizard + interaction can be reached through multiple invitations
+		// (the wizard row is shared). Without a per-invite scope, a startedAt
+		// written under invite A would be restored under invite B and let the
+		// timer auto-complete with a stale anchor.
+		const props = createInteractionProps(
+			{ duration_seconds: 30 },
+			{ interactionId: 'shared-interaction-uuid', storageScope: 'invite-A' }
+		);
+
+		render(TimerInteraction, { props });
+
+		// The scoped key holds the timer's startedAt, while the legacy
+		// unscoped key remains untouched. Asserts the namespacing rather than
+		// the exact value (an ISO timestamp generated at mount time).
+		expect(sessionStorage.getItem('wizard-timer-invite-A-shared-interaction-uuid')).not.toBeNull();
+		expect(sessionStorage.getItem('wizard-timer-shared-interaction-uuid')).toBeNull();
+	});
+
+	it("should not auto-complete from a sibling scope's stale startedAt", async () => {
+		// Reviewer scenario: admin attaches Wizard W (with timer I) to two
+		// invites. User opens invite A, the timer arms and writes a startedAt;
+		// the tab closes mid-countdown so fireComplete never deletes the key.
+		// User then opens invite B in the same browser session. Under the
+		// pre-fix key (`wizard-timer-<I>`), the new mount would restore the
+		// stale anchor and — if 30s of wall-clock time has passed — fire
+		// onComplete immediately with the stale startedAt.
+
+		const sharedInteractionId = 'shared-interaction-uuid';
+
+		// Simulate invite A's leftover entry. The duration is 30s and we
+		// advance the wall clock by >30s before mounting invite B, so a leaky
+		// key would auto-complete on mount.
+		const staleStartedAt = new Date(Date.now()).toISOString();
+		sessionStorage.setItem(`wizard-timer-invite-A-${sharedInteractionId}`, staleStartedAt);
+
+		// Skip the wall clock past the duration so a leaky read would trip
+		// the immediate-completion path.
+		vi.setSystemTime(Date.now() + 60_000);
+
+		const onComplete = vi.fn();
+		const propsB = createInteractionProps(
+			{ duration_seconds: 30 },
+			{
+				interactionId: sharedInteractionId,
+				storageScope: 'invite-B',
+				onComplete
+			}
+		);
+
+		render(TimerInteraction, { props: propsB });
+
+		// Flush the initial recompute() inside onMount.
+		await vi.advanceTimersByTimeAsync(0);
+
+		// Invite B must NOT see invite A's startedAt: it writes its own
+		// (fresh-anchored) entry under its scoped key, leaves invite A's
+		// key alone, and does not fire onComplete on mount.
+		expect(onComplete).not.toHaveBeenCalled();
+		expect(sessionStorage.getItem(`wizard-timer-invite-A-${sharedInteractionId}`)).toBe(
+			staleStartedAt
+		);
+		const inviteBKey = sessionStorage.getItem(`wizard-timer-invite-B-${sharedInteractionId}`);
+		expect(inviteBKey).not.toBeNull();
+		expect(inviteBKey).not.toBe(staleStartedAt);
+
+		// Countdown still shows the full duration: a stale anchor would have
+		// driven it to 0:00 immediately.
+		expect(screen.getByText('0:30')).toBeInTheDocument();
 	});
 });
 
