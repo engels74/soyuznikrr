@@ -34,9 +34,25 @@ interface Props {
 	onComplete: (completionToken?: string | null) => void;
 	onCancel?: () => void;
 	mode?: "preview" | "join";
+	/**
+	 * Caller-provided namespace forwarded to interaction components that
+	 * persist transient state to sessionStorage (e.g. timer deadlines).
+	 * The join flow passes the invite code here so that two invites sharing
+	 * the same wizard don't cross-contaminate per-interaction storage keys.
+	 * Callers that don't supply one fall back to the wizard id, which is
+	 * stable enough for the preview path but does NOT isolate cross-invite
+	 * sessions — only the join flow needs the invite-scoped value.
+	 */
+	storageScope?: string;
 }
 
-const { wizard, onComplete, onCancel, mode = "join" }: Props = $props();
+const { wizard, onComplete, onCancel, mode = "join", storageScope }: Props = $props();
+
+// Forward to interactions. Defaulting to wizard.id keeps the legacy single-
+// wizard preview case working, while the join page supplies the invite code
+// to isolate per-invite session state. Always passes a non-empty string so
+// timer-interaction's $derived sees a stable scoped key.
+const interactionStorageScope = $derived(storageScope ?? wizard.id);
 
 // Language data (shared cache, used for native name display)
 let languagesLoaded = $state(getCachedLanguages().length > 0);
@@ -151,10 +167,39 @@ function handleLanguageSelect(code: string) {
 	selectedLanguage = code;
 }
 
+// Wrap sessionStorage access so a SecurityError in restrictive storage
+// environments (privacy mode, sandboxed iframes) cannot abort callers mid-flight
+// and leave the wizard in a broken state. Matches the defensive pattern used
+// in timer-interaction.svelte.
+function safeRemoveItem(key: string) {
+	try {
+		sessionStorage.removeItem(key);
+	} catch {
+		// ignore storage errors (privacy mode, sandboxed iframes)
+	}
+}
+
+function safeGetItem(key: string): string | null {
+	try {
+		return sessionStorage.getItem(key);
+	} catch {
+		// ignore storage errors (privacy mode, sandboxed iframes)
+		return null;
+	}
+}
+
+function safeSetItem(key: string, value: string) {
+	try {
+		sessionStorage.setItem(key, value);
+	} catch {
+		// ignore storage errors (quota, privacy mode, sandboxed iframes)
+	}
+}
+
 // Restore language selection from sessionStorage
 $effect(() => {
 	if (browser) {
-		const savedLang = sessionStorage.getItem(`wizard-${wizard.id}-language`);
+		const savedLang = safeGetItem(`wizard-${wizard.id}-language`);
 		if (savedLang) {
 			selectedLanguage = savedLang;
 		}
@@ -164,46 +209,152 @@ $effect(() => {
 // Persist language selection to sessionStorage
 $effect(() => {
 	if (browser && selectedLanguage) {
-		sessionStorage.setItem(`wizard-${wizard.id}-language`, selectedLanguage);
+		safeSetItem(`wizard-${wizard.id}-language`, selectedLanguage);
 	}
 });
 
-// Restore progress from sessionStorage on mount (skip in preview mode)
+// Restore progress from sessionStorage on mount (skip in preview mode).
+// Silently discard any saved state that doesn't match the current wizard
+// shape — out-of-range step index, missing tokens for prior steps, or
+// completions referencing removed interactions all produce a "dead Next"
+// button if accepted as-is. Restarting at step 0 is safe because nothing
+// has been persisted server-side at this point.
 $effect(() => {
 	if (browser && mode !== "preview") {
-		const saved = sessionStorage.getItem(`wizard-${wizard.id}-progress`);
-		if (saved) {
-			try {
-				const parsed = JSON.parse(saved);
-				// Detect old saved-state format (before progressTokens feature).
-				// Without per-step tokens, back-navigation can't restore valid
-				// progress tokens, causing validation failures. Start fresh.
-				if ((parsed.stepIndex ?? 0) > 0 && !parsed.progressTokens) {
-					sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
+		const saved = safeGetItem(`wizard-${wizard.id}-progress`);
+		if (!saved) return;
+
+		const discard = () => {
+			safeRemoveItem(`wizard-${wizard.id}-progress`);
+			safeRemoveItem(`wizard-${wizard.id}-language`);
+			selectedLanguage = null;
+		};
+
+		try {
+			const parsed = JSON.parse(saved);
+			const savedIndex = parsed.stepIndex;
+
+			// stepIndex must be a non-negative integer within the current wizard.
+			if (
+				typeof savedIndex !== "number" ||
+				!Number.isInteger(savedIndex) ||
+				savedIndex < 0 ||
+				savedIndex >= wizard.steps.length
+			) {
+				discard();
+				return;
+			}
+
+			// Build the progressTokens map first so we can validate prior steps.
+			let restoredTokens = new Map<number, string | null>();
+			if (parsed.progressTokens) {
+				restoredTokens = new Map(
+					parsed.progressTokens as [number, string | null][],
+				);
+			}
+
+			// Non-zero stepIndex requires a usable progress token for each prior step.
+			if (savedIndex > 0) {
+				for (let i = 0; i < savedIndex; i++) {
+					const token = restoredTokens.get(i);
+					if (!token) {
+						discard();
+						return;
+					}
+				}
+
+				// The current-step token (singular) must also be present and
+				// consistent with the archived token for the previous step.
+				// The persist $effect writes both from the same source, so any
+				// divergence here means a tampered/corrupted record that would
+				// otherwise produce a backend rejection on the next Next press.
+				const currentToken = parsed.progressToken;
+				const expectedToken = restoredTokens.get(savedIndex - 1);
+				if (
+					typeof currentToken !== "string" ||
+					!currentToken ||
+					currentToken !== expectedToken
+				) {
+					discard();
 					return;
 				}
-				currentStepIndex = parsed.stepIndex ?? 0;
-				progressToken = parsed.progressToken ?? null;
-				// Restore nested map structure
-				if (parsed.completions) {
-					interactionCompletions = new Map(
-						(
-							parsed.completions as [
-								string,
-								[string, InteractionCompletionData][],
-							][]
-						).map(([stepId, entries]) => [stepId, new Map(entries)]),
-					);
+			} else {
+				// stepIndex === 0: the persist $effect only writes a non-null
+				// progressToken or non-empty progressTokens after a successful
+				// backend round-trip, which also increments currentStepIndex.
+				// A step-0 record carrying either is therefore tampered or
+				// corrupted; trusting it would let a stale token survive into
+				// handleBack at a later step (progressTokens entries for
+				// indices > 0 are preserved across the unconditional assign).
+				if (parsed.progressToken !== null && parsed.progressToken !== undefined) {
+					discard();
+					return;
 				}
-				// Restore per-step progress tokens
-				if (parsed.progressTokens) {
-					progressTokens = new Map(
-						(parsed.progressTokens as [number, string | null][]),
-					);
+				if (restoredTokens.size > 0) {
+					discard();
+					return;
 				}
-			} catch {
-				// Invalid saved state, start fresh
 			}
+
+			// Build a lookup for current step + interaction ids, plus a stepId
+			// → index map so we can reject completions for steps beyond the
+			// restored position.
+			const stepIdToInteractionIds = new Map<string, Set<string>>();
+			const stepIdToIndex = new Map<string, number>();
+			for (let i = 0; i < wizard.steps.length; i++) {
+				const step = wizard.steps[i];
+				if (!step) continue;
+				stepIdToInteractionIds.set(
+					step.id,
+					new Set(step.interactions.map((i) => i.id)),
+				);
+				stepIdToIndex.set(step.id, i);
+			}
+
+			let restoredCompletions = new Map<
+				string,
+				Map<string, InteractionCompletionData>
+			>();
+			if (parsed.completions) {
+				const entries = parsed.completions as [
+					string,
+					[string, InteractionCompletionData][],
+				][];
+				for (const [stepId, completionEntries] of entries) {
+					const interactionIds = stepIdToInteractionIds.get(stepId);
+					if (!interactionIds) {
+						// Saved completion references a step that no longer exists.
+						discard();
+						return;
+					}
+					// The persist $effect only writes completion data for steps
+					// the user has actually reached, so any entry at an index
+					// beyond savedIndex is tampered or corrupted; trusting it
+					// would pre-arm the "already completed" path at a future
+					// step and let the user bypass that step's interaction UX.
+					const stepIndex = stepIdToIndex.get(stepId);
+					if (stepIndex === undefined || stepIndex > savedIndex) {
+						discard();
+						return;
+					}
+					for (const [interactionId] of completionEntries) {
+						if (!interactionIds.has(interactionId)) {
+							// Saved completion references an interaction that no longer
+							// exists on this step.
+							discard();
+							return;
+						}
+					}
+					restoredCompletions.set(stepId, new Map(completionEntries));
+				}
+			}
+
+			currentStepIndex = savedIndex;
+			progressToken = parsed.progressToken ?? null;
+			interactionCompletions = restoredCompletions;
+			progressTokens = restoredTokens;
+		} catch {
+			discard();
 		}
 	}
 });
@@ -229,7 +380,7 @@ $effect(() => {
 				Array.from(completionMap.entries()),
 			],
 		);
-		sessionStorage.setItem(
+		safeSetItem(
 			`wizard-${wizard.id}-progress`,
 			JSON.stringify({
 				stepIndex: currentStepIndex,
@@ -243,7 +394,27 @@ $effect(() => {
 
 async function handleNext() {
 	const step = currentStep;
-	if (!step || !canProceed || isValidating) return;
+	if (!step) {
+		// Should not happen after restore hardening, but defend anyway:
+		// if the index ever falls outside wizard.steps, `canProceed` would be
+		// vacuously true and the user would see a dead Next button.
+		// Fully reset in-memory state too — otherwise the persist $effect
+		// (which re-runs as soon as currentStepIndex changes) would
+		// immediately re-write sessionStorage with stale completions/tokens
+		// alongside stepIndex: 0, producing an inconsistent saved record.
+		if (browser && mode !== "preview") {
+			safeRemoveItem(`wizard-${wizard.id}-progress`);
+			safeRemoveItem(`wizard-${wizard.id}-language`);
+		}
+		interactionCompletions = new Map();
+		progressToken = null;
+		progressTokens = new Map();
+		selectedLanguage = null;
+		currentStepIndex = 0;
+		validationError = "Your progress was reset. Please start again.";
+		return;
+	}
+	if (!canProceed || isValidating) return;
 
 	isValidating = true;
 	validationError = null;
@@ -276,8 +447,8 @@ async function handleNext() {
 
 		if (isLastStep) {
 			if (browser && mode !== "preview") {
-				sessionStorage.removeItem(`wizard-${wizard.id}-progress`);
-				sessionStorage.removeItem(`wizard-${wizard.id}-language`);
+				safeRemoveItem(`wizard-${wizard.id}-progress`);
+				safeRemoveItem(`wizard-${wizard.id}-language`);
 			}
 			onComplete(result.data?.completion_token);
 		} else {
@@ -476,6 +647,7 @@ async function handleInteractionValidate(
 									onValidate={handleInteractionValidate}
 									disabled={isValidating || isCompleted}
 									completionData={currentCompletions.get(interaction.id)}
+									storageScope={interactionStorageScope}
 								/>
 							</div>
 						{/if}
@@ -1052,20 +1224,20 @@ async function handleInteractionValidate(
 		.wizard-interaction,
 		.interaction-block,
 		.lang-fade {
-			animation: none !important;
+			animation: none;
 		}
 
 		.wizard-content :global(a),
 		.wizard-content :global(img) {
-			transition: none !important;
+			transition: none;
 		}
 
 		.progress-fill {
-			transition: none !important;
+			transition: none;
 		}
 
 		.wizard-card {
-			scroll-behavior: auto !important;
+			scroll-behavior: auto;
 		}
 	}
 </style>

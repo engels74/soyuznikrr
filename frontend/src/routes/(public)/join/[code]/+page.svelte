@@ -635,6 +635,7 @@ function handleRegistrationRetry() {
 			wizard={data.validation.pre_wizard}
 			onComplete={handlePreWizardComplete}
 			onCancel={handlePreWizardCancel}
+			storageScope={data.code}
 		/>
 
 	<!-- Post-wizard state -->
@@ -643,6 +644,7 @@ function handleRegistrationRetry() {
 			wizard={data.validation.post_wizard}
 			onComplete={handlePostWizardComplete}
 			onCancel={handlePostWizardCancel}
+			storageScope={data.code}
 		/>
 
 	<!-- Success state -->

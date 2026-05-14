@@ -6,19 +6,36 @@
  * Auto-completes when timer reaches zero.
  * Adds pulse animation on final 5 seconds.
  * Tracks startedAt timestamp for validation.
+ *
+ * The remaining time is derived from a wall-clock deadline rather than
+ * accumulated interval ticks, so browser throttling (Safari background
+ * tabs, iOS lock screen, Chrome inactive tab clamping) cannot stall the
+ * countdown. visibilitychange / focus / pageshow listeners trigger an
+ * immediate recompute when the tab returns. startedAt is persisted to
+ * sessionStorage so a mid-countdown refresh resumes from the correct
+ * deadline instead of restarting at full duration.
  */
 import { onMount } from "svelte";
+import { browser } from "$app/environment";
 import { timerConfigSchema } from "$lib/schemas/wizard";
 import type { InteractionComponentProps } from "./registry";
 
-const { interactionId, config: rawConfig, onComplete, disabled = false, completionData }: InteractionComponentProps = $props();
+const { interactionId, config: rawConfig, onComplete, disabled = false, completionData, storageScope }: InteractionComponentProps = $props();
 
 // Validate config with Zod schema, falling back gracefully for partial configs
 const config = $derived(timerConfigSchema.safeParse(rawConfig).data);
 const durationSeconds = $derived(config?.duration_seconds ?? 10);
 
-// If already completed (navigating back), start at 0
-const alreadyCompleted = (() => completionData?.data?.waited === true)();
+// Snapshot of the completion status at mount time. Used only to seed the
+// initial values of `remainingSeconds` and `hasFired` below — *not* for
+// gating the re-emission path, which needs to react to parent-driven clears.
+const initiallyCompleted = (() => completionData?.data?.waited === true)();
+
+// Reactive view of "already completed". Must be reactive so a parent-driven
+// clear of completionData (e.g., a sibling interaction's validation failure)
+// unlocks the re-emission path below — a frozen value would keep this true
+// and permanently block re-emission for the component instance.
+const alreadyCompleted = $derived(completionData?.data?.waited === true);
 
 // Compute initial duration from raw config to avoid SSR flash of "complete" state
 const initialDuration = (() => {
@@ -26,10 +43,34 @@ const initialDuration = (() => {
 	return parsed.data?.duration_seconds ?? 10;
 })();
 
+// interactionId is a UUID and therefore unique across wizards, but the
+// *same* interaction row can be reached through multiple invitations when
+// an admin attaches the same wizard to several invites. Keying purely by
+// interactionId would let a `startedAt` written under invite A be restored
+// under invite B and auto-complete the timer with a stale anchor.
+// storageScope (typically the invite code on the join flow) namespaces the
+// key per invite session. The fallback preserves backward-compatible
+// behaviour for callers that haven't been updated.
+const storageKey = $derived(
+	storageScope
+		? `wizard-timer-${storageScope}-${interactionId}`
+		: `wizard-timer-${interactionId}`,
+);
+
 // Timer state — initialize to actual duration so SSR renders the countdown, not "Timer complete"
-let remainingSeconds = $state(alreadyCompleted ? 0 : initialDuration);
+let remainingSeconds = $state(initiallyCompleted ? 0 : initialDuration);
 let startedAt = $state<string | null>((() => completionData?.startedAt ?? null)());
+let deadline = $state<number | null>(null);
 let intervalId: ReturnType<typeof setInterval> | null = null;
+// Single-fire guard: prevents the interval, visibility handler, and
+// re-emission path from each calling onComplete redundantly for the same
+// completion cycle.
+let hasFired = $state(initiallyCompleted);
+// Set to true the first time the parent surfaces this interaction's
+// completion back to us. Re-emission only triggers after a true → false
+// transition of completionData (parent-driven clear), not during the
+// initial mount phase where completionData is undefined.
+let acknowledgedByParent = $state(false);
 
 // Derived values
 const isComplete = $derived(remainingSeconds <= 0);
@@ -56,50 +97,177 @@ const strokeDashoffset = $derived(
 	circumference - (progress / 100) * circumference,
 );
 
+function fireComplete() {
+	if (hasFired || disabled) return;
+	hasFired = true;
+	if (intervalId !== null) {
+		clearInterval(intervalId);
+		intervalId = null;
+	}
+	if (browser) {
+		try {
+			sessionStorage.removeItem(storageKey);
+		} catch {
+			// ignore storage errors
+		}
+	}
+	onComplete({
+		interactionId,
+		interactionType: "timer",
+		data: { waited: true },
+		startedAt: startedAt ?? undefined,
+		completedAt: new Date().toISOString(),
+	});
+}
+
+function recompute() {
+	if (deadline === null) return;
+	if (alreadyCompleted) return;
+	const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+	remainingSeconds = remaining;
+	if (remaining <= 0) {
+		fireComplete();
+	}
+}
+
 onMount(() => {
-	// Skip countdown if already completed (navigating back)
+	// Skip countdown if already completed (navigating back).
 	if (alreadyCompleted) {
 		remainingSeconds = 0;
 		return;
 	}
 
-	// Initialize timer
-	remainingSeconds = durationSeconds;
-	startedAt = new Date().toISOString();
-
-	intervalId = setInterval(() => {
-		if (remainingSeconds > 0) {
-			remainingSeconds--;
-			if (remainingSeconds <= 0 && intervalId) {
-				clearInterval(intervalId);
-				intervalId = null;
-				onComplete({
-					interactionId,
-					interactionType: "timer",
-					data: { waited: true },
-					startedAt: startedAt ?? undefined,
-					completedAt: new Date().toISOString(),
-				});
-			}
+	// Try to restore startedAt from sessionStorage so a refresh mid-timer
+	// resumes the countdown from the same deadline. Fall back to
+	// completionData (back-navigation), then to "now" for first arming.
+	let restored: string | null = null;
+	if (browser) {
+		try {
+			restored = sessionStorage.getItem(storageKey);
+		} catch {
+			restored = null;
 		}
-	}, 1000);
+	}
+	const candidate = restored ?? completionData?.startedAt ?? new Date().toISOString();
+	// If the candidate is unparsable (corrupted storage, tampered completionData),
+	// regenerate from "now" so the emitted startedAt stays consistent with the
+	// deadline below. Otherwise an invalid string would travel to the backend
+	// and msgspec would reject the request with a 422.
+	const parsedStart = Date.parse(candidate);
+	const startIsValid = Number.isFinite(parsedStart);
+	const initial = startIsValid ? candidate : new Date().toISOString();
+	startedAt = initial;
+
+	if (browser && (!restored || !startIsValid)) {
+		try {
+			sessionStorage.setItem(storageKey, initial);
+		} catch {
+			// ignore storage errors (quota, private mode)
+		}
+	}
+
+	const startMs = startIsValid ? parsedStart : Date.parse(initial);
+	deadline = startMs + durationSeconds * 1000;
+
+	// Initial recompute so SSR -> client transition reflects elapsed time.
+	recompute();
+
+	intervalId = setInterval(recompute, 1000);
 
 	return () => {
-		if (intervalId) {
+		if (intervalId !== null) {
 			clearInterval(intervalId);
+			intervalId = null;
 		}
 	};
 });
 
-// Re-emit completion if timer finished but completionData was cleared
-// (e.g., by another interaction's validation failure).
-// Deferred via setTimeout to avoid suppressing validation errors that were
-// set in the same reactive update cycle (handleInteractionComplete clears
-// validationError, so a synchronous re-emission would wipe the error
-// before the user sees it).
+// Recompute when the tab becomes visible / regains focus / is restored
+// from bfcache. Covers Safari/iOS background throttling and lock screens
+// where setInterval is paused but wall-clock time continues to elapse.
 $effect(() => {
-	if (remainingSeconds <= 0 && !disabled && !completionData && startedAt) {
+	if (!browser || alreadyCompleted) return;
+	const handler = () => recompute();
+	document.addEventListener("visibilitychange", handler);
+	window.addEventListener("focus", handler);
+	window.addEventListener("pageshow", handler);
+	return () => {
+		document.removeEventListener("visibilitychange", handler);
+		window.removeEventListener("focus", handler);
+		window.removeEventListener("pageshow", handler);
+	};
+});
+
+// Synchronise the visible countdown when alreadyCompleted flips true
+// after this child has already mounted. Concretely: on a mid-wizard
+// refresh, this child's onMount runs *before* wizard-shell's restore
+// $effect — Svelte 5 schedules child user-effects ahead of the parent
+// during the first flush (see svelte/src/internal/client/context.js:
+// the parent's context.e is only processed during its $.pop(), which
+// happens after child components have mounted and pushed their effects
+// to collected_effects). onMount therefore arms the interval with
+// completionData still undefined; the prop then flips to a
+// {waited:true} record when wizard-shell's restore effect populates
+// interactionCompletions. Without this $effect, the interval keeps
+// ticking, recompute() early-returns on alreadyCompleted but never
+// zeroes remainingSeconds, and the UI reads e.g. "0:59 remaining"
+// while the parent's Next button is already enabled.
+$effect(() => {
+	if (alreadyCompleted) {
+		if (intervalId !== null) {
+			clearInterval(intervalId);
+			intervalId = null;
+		}
+		remainingSeconds = 0;
+		// Also sync startedAt/deadline from the parent's completion record:
+		// child onMount runs before the parent restore $effect, so without
+		// this the locally-generated "now" startedAt would leak into the
+		// re-emission $effect below if the parent later clears completionData
+		// (e.g., a handleNext validation failure wipes the step's completion
+		// map). The backend's wall-clock check on TimerHandler.validate_response
+		// computes `elapsed = now - startedAt` and would reject a stale-anchored
+		// re-emission ("now - now ≈ 0"). Syncing deadline closes the related
+		// case where a visibility/focus event fires AFTER the parent clear but
+		// before re-emission, since recompute() would otherwise use the stale
+		// local deadline and disarm the `remainingSeconds <= 0` gate.
+		// Parseability guard mirrors the iter-1 onMount restore path.
+		if (completionData?.startedAt) {
+			const parsedStart = Date.parse(completionData.startedAt);
+			if (Number.isFinite(parsedStart)) {
+				startedAt = completionData.startedAt;
+				deadline = parsedStart + durationSeconds * 1000;
+			}
+		}
+	}
+});
+
+// Record when the parent acknowledges our fire. We only re-emit on a
+// true → false transition of completionData; the initial mount where
+// completionData is undefined must NOT trip the re-emission path.
+$effect(() => {
+	if (completionData) {
+		acknowledgedByParent = true;
+	}
+});
+
+// Re-emit completion if a previously-acknowledged completion was cleared by
+// the parent — e.g., a sibling interaction's backend validation failed and
+// wizard-shell wiped this step's completion map. Without this, the timer
+// would appear complete but its data would not be re-submitted.
+// Deferred via setTimeout(0) to avoid suppressing a validation error set in
+// the same reactive update cycle.
+$effect(() => {
+	if (
+		acknowledgedByParent &&
+		!completionData &&
+		!disabled &&
+		!alreadyCompleted &&
+		remainingSeconds <= 0 &&
+		startedAt
+	) {
 		const timeout = setTimeout(() => {
+			// Bypass hasFired here — this is intentional re-emission.
+			acknowledgedByParent = false;
 			onComplete({
 				interactionId,
 				interactionType: "timer",

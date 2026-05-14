@@ -37,6 +37,17 @@ export interface InteractionComponentProps {
 	) => Promise<{ valid: boolean; pending?: boolean; error?: string | null }>;
 	disabled: boolean;
 	completionData?: InteractionCompletionData;
+	/**
+	 * Caller-provided namespace used when an interaction persists transient
+	 * state to sessionStorage (e.g. a timer's deadline anchor). Interactions
+	 * are reused across invitations — the same wizard + interaction UUID can
+	 * appear under two different invite codes — so keying purely by
+	 * `interactionId` lets a stale `startedAt` from invite A satisfy the
+	 * timer mounted under invite B and auto-complete it. The join page
+	 * passes the invite code here; the admin preview path can pass anything
+	 * stable (defaults to wizard.id) or leave it undefined.
+	 */
+	storageScope?: string;
 }
 
 /** Registration for a single interaction type */
