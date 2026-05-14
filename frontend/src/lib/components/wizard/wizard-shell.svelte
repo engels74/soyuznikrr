@@ -151,7 +151,7 @@ function handleLanguageSelect(code: string) {
 	selectedLanguage = code;
 }
 
-// Wrap sessionStorage.removeItem so a SecurityError in restrictive storage
+// Wrap sessionStorage access so a SecurityError in restrictive storage
 // environments (privacy mode, sandboxed iframes) cannot abort callers mid-flight
 // and leave the wizard in a broken state. Matches the defensive pattern used
 // in timer-interaction.svelte.
@@ -163,10 +163,27 @@ function safeRemoveItem(key: string) {
 	}
 }
 
+function safeGetItem(key: string): string | null {
+	try {
+		return sessionStorage.getItem(key);
+	} catch {
+		// ignore storage errors (privacy mode, sandboxed iframes)
+		return null;
+	}
+}
+
+function safeSetItem(key: string, value: string) {
+	try {
+		sessionStorage.setItem(key, value);
+	} catch {
+		// ignore storage errors (quota, privacy mode, sandboxed iframes)
+	}
+}
+
 // Restore language selection from sessionStorage
 $effect(() => {
 	if (browser) {
-		const savedLang = sessionStorage.getItem(`wizard-${wizard.id}-language`);
+		const savedLang = safeGetItem(`wizard-${wizard.id}-language`);
 		if (savedLang) {
 			selectedLanguage = savedLang;
 		}
@@ -176,7 +193,7 @@ $effect(() => {
 // Persist language selection to sessionStorage
 $effect(() => {
 	if (browser && selectedLanguage) {
-		sessionStorage.setItem(`wizard-${wizard.id}-language`, selectedLanguage);
+		safeSetItem(`wizard-${wizard.id}-language`, selectedLanguage);
 	}
 });
 
@@ -188,7 +205,7 @@ $effect(() => {
 // has been persisted server-side at this point.
 $effect(() => {
 	if (browser && mode !== "preview") {
-		const saved = sessionStorage.getItem(`wizard-${wizard.id}-progress`);
+		const saved = safeGetItem(`wizard-${wizard.id}-progress`);
 		if (!saved) return;
 
 		const discard = () => {
@@ -314,7 +331,7 @@ $effect(() => {
 				Array.from(completionMap.entries()),
 			],
 		);
-		sessionStorage.setItem(
+		safeSetItem(
 			`wizard-${wizard.id}-progress`,
 			JSON.stringify({
 				stepIndex: currentStepIndex,
