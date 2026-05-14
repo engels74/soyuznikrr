@@ -1120,24 +1120,20 @@ async function handleInteractionValidate(
 		.wizard-interaction,
 		.interaction-block,
 		.lang-fade {
-			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion animations */
-			animation: none !important;
+			animation: none;
 		}
 
 		.wizard-content :global(a),
 		.wizard-content :global(img) {
-			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion transitions */
-			transition: none !important;
+			transition: none;
 		}
 
 		.progress-fill {
-			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of non-reduced-motion transitions */
-			transition: none !important;
+			transition: none;
 		}
 
 		.wizard-card {
-			/* biome-ignore lint/complexity/noImportantStyles: accessibility override of smooth-scroll behavior */
-			scroll-behavior: auto !important;
+			scroll-behavior: auto;
 		}
 	}
 </style>
