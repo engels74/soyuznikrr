@@ -23,7 +23,7 @@
 		"@testing-library/jest-dom": "^7.0.0",
 		"@testing-library/svelte": "^5.3.1",
 		"@testing-library/user-event": "^14.6.1",
-		"@types/jsdom": "^28.0.1",
+		"@types/jsdom": "^30.0.0",
 		"@unocss/preset-icons": "^66.6.8",
 		"@unocss/transformer-variant-group": "^66.6.8",
 		"bits-ui": "^2.18.1",
