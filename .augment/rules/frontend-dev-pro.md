@@ -683,22 +683,23 @@ src/
 └── hooks.server.ts
 ```
 
-### Linting options for 2025
+### Linting and formatting
 
-**Biome v2.3.0** (experimental Svelte support, 25x faster than Prettier):
+**Biome** is the single linter and formatter. Install it alone:
+
+```bash
+bun add -D --exact @biomejs/biome
+```
 
 ```json
+// biome.json
 {
   "formatter": { "indentStyle": "tab" },
   "linter": { "rules": { "recommended": true } }
 }
 ```
 
-**ESLint + Prettier** (stable, full Svelte 5 support):
-
-```bash
-bun add -D eslint eslint-plugin-svelte prettier prettier-plugin-svelte
-```
+Biome does not type-check. Keep `svelte-check` in the toolchain for template markup.
 
 ### Environment variables
 
